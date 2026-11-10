@@ -17,9 +17,12 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../settings/local_premium.dart';
 import '../tdlib/json_helpers.dart';
 import '../tdlib/td_client.dart';
-import '../theme/app_theme.dart';
+import '../tdlib/td_models.dart';
+import '../theme/date_text.dart';
+import 'chat_row_metrics.dart';
 
 /// Telegram's folder palette, indexed by `chatFolderInfo.color_id`.
 const List<Color> chatFolderTagColors = [
@@ -123,9 +126,13 @@ class ChatFolderTagController extends ChangeNotifier {
   }
 
   /// Reads Premium entitlement, then adopts the server's setting for a Premium
-  /// account and this device's for everyone else.
+  /// account and this device's for everyone else. The self-build
+  /// local-premium switch (Telegram §1.4) short-circuits the entitlement
+  /// read; the server's tag settings still apply when present.
   Future<void> refresh() async {
-    final isPremium = await _optionBool('is_premium') ?? false;
+    final isPremium = LocalPremium.shared.premiumForMe(
+      await _optionBool('is_premium') ?? false,
+    );
     final enabled = isPremium
         ? (_serverEnabled ?? _preferences?.getBool(preferenceKey) ?? false)
         : _preferences?.getBool(preferenceKey) ?? false;
@@ -254,18 +261,52 @@ class ChatFolderTagController extends ChangeNotifier {
   }
 }
 
-/// The chat-list row extent, told whether rows are currently drawing a folder
-/// tag line. Everything that virtualizes against the extent has to agree with
-/// the row itself, so they all read it from here rather than each deciding.
+/// Nominal extent for loading placeholders and scroll/pull thresholds. Real
+/// entries use [chatRowMetricsFor] and scroll targets sum their actual extents.
 ///
 /// Pass `listen: false` outside a build — a scroll callback, a tap handler.
-double chatListRowExtentFor(BuildContext context, {bool listen = true}) =>
-    AppMetric.chatListRowExtent(
-      context,
-      null,
+double chatListRowExtentFor(
+  BuildContext context, {
+  bool listen = true,
+  double? width,
+}) => ChatRowMetrics.resolve(
+  context,
+  splitPreview: true,
+  previewHasSender: true,
+  width: width,
+  folderTags:
       (listen
-                  ? context.watch<ChatFolderTagController?>()
-                  : context.read<ChatFolderTagController?>())
-              ?.enabled ??
-          false,
-    );
+              ? context.watch<ChatFolderTagController?>()
+              : context.read<ChatFolderTagController?>())
+          ?.enabled ??
+      false,
+).extent;
+
+ChatRowMetrics chatRowMetricsFor(
+  BuildContext context,
+  ChatSummary chat, {
+  bool listen = true,
+  double? width,
+  bool? pinned,
+  double trailingWidth = 0,
+  double titleAccessoryWidth = 0,
+}) {
+  final tags = listen
+      ? context.watch<ChatFolderTagController?>()
+      : context.read<ChatFolderTagController?>();
+  return ChatRowMetrics.resolve(
+    context,
+    width: width,
+    splitPreview: true,
+    previewHasSender:
+        chat.draftText.trim().isEmpty && (chat.lastSender?.isNotEmpty ?? false),
+    timestamp: DateText.listLabel(chat.date),
+    folderTags: tags?.tagsFor(chat.folderIds).isNotEmpty ?? false,
+    mentions: chat.unreadMentionCount,
+    reactions: chat.unreadReactionCount,
+    pinned: pinned ?? chat.isPinned,
+    muted: chat.isMuted,
+    trailingWidth: trailingWidth,
+    titleAccessoryWidth: titleAccessoryWidth,
+  );
+}

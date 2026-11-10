@@ -33,12 +33,17 @@ import '../bot_api/bot_api_endpoint_config.dart';
 import '../bot_api/bot_api_td_backend.dart';
 import '../config/secrets.dart';
 import '../settings/api_credentials_config.dart';
+import '../settings/download_storage.dart';
 import '../settings/proxy_config.dart';
 import '../settings/transfer_boost_config.dart';
 import 'avatar_animation_index.dart';
+import 'forum_topic_index.dart';
+import 'gram_js_session.dart';
 import 'json_helpers.dart';
 import 'td_bindings.dart';
+import 'td_session_string.dart';
 import 'td_user_index.dart';
+import 'web_proxy_carrier.dart';
 
 /// An error returned by TDLib (its "error" object).
 class TdError implements Exception {
@@ -95,6 +100,7 @@ class TdClientProxyTransport {
     required this.send,
     required this.updates,
     this.accountUserId,
+    this.queryForSlot,
   });
 
   final int accountSlot;
@@ -102,25 +108,23 @@ class TdClientProxyTransport {
   final Future<Map<String, dynamic>> Function(Map<String, dynamic>) query;
   final Future<void> Function(Map<String, dynamic>) send;
   final Stream<Map<String, dynamic>> updates;
+
+  /// Slot-aware view of [query] for callers that need to know which account a
+  /// proxied request targeted. Secondary engines proxy every slot to the same
+  /// transport, so a request routed for another account is only distinguishable
+  /// from an active-account one here. Falls back to [query] when absent.
+  final Future<Map<String, dynamic>> Function(
+    Map<String, dynamic> request,
+    int accountSlot,
+  )?
+  queryForSlot;
 }
 
-class _TdSessionStringInfo {
-  const _TdSessionStringInfo({
-    required this.rawSize,
-    required this.dcId,
-    required this.apiId,
-    required this.testMode,
-    required this.userId,
-    required this.isBot,
-  });
+/// `close`, pre-encoded: it is sent verbatim to every client being retired.
+const String _tdCloseRequest = '{"@type":"close"}';
 
-  final int rawSize;
-  final int dcId;
-  final int apiId;
-  final bool testMode;
-  final int userId;
-  final bool isBot;
-}
+/// `getOption(version)`, the first request that activates a new TDLib client.
+const String _tdActivateRequest = '{"@type":"getOption","name":"version"}';
 
 @visibleForTesting
 List<int> closeStaleDebugTdlibClients(
@@ -128,9 +132,8 @@ List<int> closeStaleDebugTdlibClients(
   void Function(int clientId, String request) send,
 ) {
   final staleClientIds = clientIds.where((id) => id > 0).toSet().toList();
-  final closeRequest = jsonEncode({'@type': 'close'});
   for (final clientId in staleClientIds) {
-    send(clientId, closeRequest);
+    send(clientId, _tdCloseRequest);
   }
   return staleClientIds;
 }
@@ -233,10 +236,65 @@ class TdClient {
   TdClient._();
   static final TdClient shared = TdClient._();
   static const defaultQueryTimeout = Duration(seconds: 30);
+  WebProxyCarriers? _webProxyCarriers;
+
+  /// A private instance for tests that exercise the real restore lifecycle
+  /// against synthetic bindings instead of tdjson.
+  @visibleForTesting
+  factory TdClient.forTesting() => TdClient._();
+
+  TdBindings? _debugBindings;
+  Future<Map<String, dynamic>> Function(
+    Map<String, dynamic> request,
+    int clientId,
+  )?
+  _debugQueryOverride;
+
+  /// Points a [TdClient.forTesting] instance at synthetic bindings, mock
+  /// preferences and a scratch support directory, and optionally scripts the
+  /// answers [queryTo] would otherwise wait for TDLib to give.
+  @visibleForTesting
+  void prepareForTesting({
+    required SharedPreferences prefs,
+    required String supportDir,
+    TdBindings? bindings,
+    Future<Map<String, dynamic>> Function(
+      Map<String, dynamic> request,
+      int clientId,
+    )?
+    queryOverride,
+    bool isShuttingDown = false,
+  }) {
+    _prefs = prefs;
+    _supportDir = supportDir;
+    _debugBindings = bindings;
+    _debugQueryOverride = queryOverride;
+    _isShuttingDown = isShuttingDown;
+  }
+
+  /// Answers the close handshake a test's fake bindings started, so slot
+  /// cleanup does not sit on the real 15-second close timeout.
+  @visibleForTesting
+  void debugCompleteClientClosed(int clientId) {
+    _clientClosedWaiters.remove(clientId)?.complete();
+  }
+
+  /// Observes every request the proxy would answer, with the client id it is
+  /// routed to. Tests use this to assert which account's client actually
+  /// served a screen (production equivalence for account-keyed subtrees).
+  @visibleForTesting
+  void debugSetQueryRecorder(
+    void Function(Map<String, dynamic> request, int clientId)? recorder,
+  ) {
+    _debugQueryRecorder = recorder;
+  }
+
+  void Function(Map<String, dynamic> request, int clientId)?
+  _debugQueryRecorder;
 
   // Lazy: only opened when first used, so demo/simulator builds (no tdjson) can
   // touch the singleton (e.g. read activeSlot) without resolving symbols.
-  late final TdBindings _bindings = TdBindings.open();
+  late final TdBindings _bindings = _debugBindings ?? TdBindings.open();
   TdClientProxyTransport? _proxyTransport;
   StreamSubscription<Map<String, dynamic>>? _proxyUpdateSub;
 
@@ -271,6 +329,12 @@ class TdClient {
   );
   final Map<int, Map<String, dynamic>> _latestChatFoldersByClient = {};
   final Map<int, Map<String, dynamic>> _latestEmojiChatThemesByClient = {};
+
+  /// Last `updateConnectionState` per client. TDLib pushes that update only
+  /// when the state actually changes and the pinned TDLib has no
+  /// `getConnectionState` request to ask for it again, so a view mounted later
+  /// has nothing to read but this cache.
+  final Map<int, Map<String, dynamic>> _latestConnectionStateByClient = {};
   final Map<int, Map<String, dynamic>> _latestTextCompositionStylesByClient =
       {};
   final Map<int, Map<int, Map<String, dynamic>>> _latestCommunitiesByClient =
@@ -284,6 +348,11 @@ class TdClient {
   final TdAccountLeaseBook _accountLeases = TdAccountLeaseBook();
   final Map<int, Future<bool>> _closingSlots = {};
   final Map<int, int> _unconfirmedSlotForClient = {};
+
+  /// Dedup gate for imports whose session names no user id: serializes the
+  /// register-or-reuse decision so concurrent imports of one account cannot
+  /// each treat the other's fresh client as the account's existing slot.
+  Future<void> _unknownAccountImports = Future<void>.value();
   final Set<int> _proxyAppliedClients = {};
   int _activeClientId = 0;
   int _activeSlot = 0;
@@ -300,6 +369,12 @@ class TdClient {
   int get activeSlot => _activeSlot;
   int get activeClientId => _activeClientId;
   bool get hasActiveClient => _activeClientId != 0;
+
+  /// True from the moment a shutdown is asked for, while the slot and client
+  /// mappings can still be in place. [queryTo] already rejects work in this
+  /// window, so pinned readers must treat it as "account gone" instead of
+  /// reporting a query failure.
+  bool get isShuttingDown => _isShuttingDown || _shutdownComplete;
   int? get proxyAccountUserId => _proxyTransport?.accountUserId;
   List<int> get configuredSlots => List.unmodifiable(_slots);
   int? clientId(int slot) => _clientForSlot[slot];
@@ -362,6 +437,10 @@ class TdClient {
       _latestEmojiChatThemesByClient[_activeClientId];
   Map<String, dynamic>? latestEmojiChatThemesUpdateForClient(int clientId) =>
       _latestEmojiChatThemesByClient[clientId];
+  Map<String, dynamic>? get latestConnectionStateUpdate =>
+      _latestConnectionStateByClient[_activeClientId];
+  Map<String, dynamic>? latestConnectionStateUpdateForClient(int clientId) =>
+      _latestConnectionStateByClient[clientId];
   Map<String, dynamic>? get latestTextCompositionStylesUpdate =>
       _latestTextCompositionStylesByClient[_activeClientId];
   Map<String, dynamic>? latestTextCompositionStylesUpdateForClient(
@@ -405,11 +484,15 @@ class TdClient {
     final object = <String, dynamic>{...source, '@client_id': _activeClientId};
     AvatarAnimationIndex.shared.observe(_activeSlot, object);
     TdUserIndex.shared.observe(_activeSlot, object);
+    ForumTopicIndex.shared.observe(_activeSlot, object);
     if (object.type == 'updateChatFolders') {
       _latestChatFoldersByClient[_activeClientId] = object;
     }
     if (object.type == 'updateEmojiChatThemes') {
       _latestEmojiChatThemesByClient[_activeClientId] = object;
+    }
+    if (object.type == 'updateConnectionState') {
+      _latestConnectionStateByClient[_activeClientId] = object;
     }
     if (object.type == 'updateTextCompositionStyles') {
       _latestTextCompositionStylesByClient[_activeClientId] = object;
@@ -424,7 +507,7 @@ class TdClient {
         )[communityId] = object;
       }
     }
-    _allUpdates.add(object);
+    _dispatchToAllSubscribers(object);
     // Same fan-out as the primary engine, so a secondary window's typed
     // `updatesOf` listeners are fed too and not just `subscribe()`.
     _dispatchToActiveSubscribers(object);
@@ -489,6 +572,13 @@ class TdClient {
           : 0,
     );
     _supportDir = supportDir.path;
+    if (Platform.isAndroid) {
+      await DownloadStorage.prepare(
+        support: supportDir,
+        prefs: _prefs,
+        availableRoots: await DownloadStorage.locations(),
+      );
+    }
     if (kDebugMode) await _closeStaleDebugClients();
 
     final storedBotApiAccounts = BotApiAccountRegistry.load(_prefs);
@@ -602,10 +692,7 @@ class TdClient {
     // The first request "activates" each client; TDLib then emits its
     // updateAuthorizationState(authorizationStateWaitTdlibParameters).
     for (final cid in _clientForSlot.values.where((id) => id > 0)) {
-      _bindings.send(
-        cid,
-        jsonEncode({'@type': 'getOption', 'name': 'version'}),
-      );
+      _bindings.send(cid, _tdActivateRequest);
     }
 
     for (final backend in _botApiBackendForClient.values) {
@@ -872,7 +959,7 @@ class TdClient {
     _slotForClient[cid] = newSlot;
     _persist();
     if (kDebugMode) unawaited(_persistDebugLiveClientIds());
-    _bindings.send(cid, jsonEncode({'@type': 'getOption', 'name': 'version'}));
+    _bindings.send(cid, _tdActivateRequest);
     return newSlot;
   }
 
@@ -968,7 +1055,9 @@ class TdClient {
       account: account,
       token: token,
       databasePath: '$directory/history.sqlite3',
-      mediaDirectory: '$directory/files',
+      mediaDirectory: Platform.isAndroid && DownloadStorage.currentRoot != null
+          ? '${DownloadStorage.currentRoot}/bot-api/account-${account.slot}/files'
+          : '$directory/files',
       emit: (update) => _route({...update, '@client_id': clientId}),
     );
   }
@@ -1044,7 +1133,7 @@ class TdClient {
     if (trimmedSessionString.isEmpty) {
       throw ArgumentError.value(sessionString, 'sessionString', 'is empty');
     }
-    final info = _decodeSessionString(trimmedSessionString);
+    final info = TdSessionString.decode(trimmedSessionString);
     if (reuseExisting) {
       final existingSlot = await _readySlotForUserId(info.userId);
       if (existingSlot != null) {
@@ -1052,7 +1141,26 @@ class TdClient {
         return existingSlot;
       }
     }
-    return _restoreImportedSessionSlot(trimmedSessionString, info.userId);
+    return _restoreImportedSessionSlot(
+      trimmedSessionString,
+      expectedUserId: info.userId,
+    );
+  }
+
+  /// Restores a GramJS string session into its own account slot.
+  ///
+  /// A GramJS session names an endpoint instead of an api id and a user id, so
+  /// the packed string carries the local api id and [tdSessionUnknownUserId].
+  /// TDLib resolves the real account once the imported session connects, and a
+  /// slot that already holds it is reused instead of duplicated.
+  Future<int> restoreGramJsSessionSlot(String gramJsSession) async {
+    final session = GramJsSession.parse(gramJsSession);
+    final api = ApiCredentialsConfig.fromPrefs(_prefs);
+    final packed = tdSessionStringFromGramJsSession(
+      session,
+      apiId: api.isUsable ? api.apiId : Secrets.apiId,
+    );
+    return _restoreImportedSessionSlot(packed);
   }
 
   Future<void> acceptLoginQrLink(String link) async {
@@ -1084,7 +1192,7 @@ class TdClient {
     final closed = Completer<void>();
     _clientClosedWaiters[oldClientId] = closed;
     _activeClientId = 0;
-    _bindings.send(oldClientId, jsonEncode({'@type': 'close'}));
+    _bindings.send(oldClientId, _tdCloseRequest);
     try {
       await closed.future.timeout(const Duration(seconds: 15));
     } finally {
@@ -1099,6 +1207,7 @@ class TdClient {
     _slotForClient.remove(oldClientId);
     _latestChatFoldersByClient.remove(oldClientId);
     _latestEmojiChatThemesByClient.remove(oldClientId);
+    _latestConnectionStateByClient.remove(oldClientId);
     _latestCommunitiesByClient.remove(oldClientId);
     _proxyAppliedClients.remove(oldClientId);
     await deleteSlotData(slot);
@@ -1122,10 +1231,7 @@ class TdClient {
               authorizationState.type == 'authorizationStateWaitPhoneNumber',
         )
         .timeout(const Duration(seconds: 20));
-    _bindings.send(
-      newClientId,
-      jsonEncode({'@type': 'getOption', 'name': 'version'}),
-    );
+    _bindings.send(newClientId, _tdActivateRequest);
     await waitForPhoneNumber;
   }
 
@@ -1150,43 +1256,116 @@ class TdClient {
   }
 
   Future<int> _restoreImportedSessionSlot(
-    String sessionString,
-    int expectedUserId,
-  ) async {
+    String sessionString, {
+    int? expectedUserId,
+  }) async {
     final newSlot = _nextSlot();
-    final dbDir = Directory(_databaseDirectory(newSlot));
-    if (await dbDir.exists()) {
-      await dbDir.delete(recursive: true);
-    }
-    await dbDir.create(recursive: true);
-    final sessionFile = File('${dbDir.path}/td.binlog');
-    _ensureAcceptingNewClients();
-    _bindings.importSessionString(sessionString, sessionFile.path);
-
-    final cid = _bindings.createClientId();
+    // Claim the slot before the first await: two concurrent imports must not
+    // compute the same "next" slot and then share one database directory.
     if (!_slots.contains(newSlot)) _slots.add(newSlot);
-    _clientForSlot[newSlot] = cid;
-    _slotForClient[cid] = newSlot;
-    if (kDebugMode) unawaited(_persistDebugLiveClientIds());
-    _bindings.send(cid, jsonEncode({'@type': 'getOption', 'name': 'version'}));
+    final dbDir = Directory(_databaseDirectory(newSlot));
     try {
-      await _waitForRestoredSessionReady(newSlot, cid, expectedUserId);
+      if (await dbDir.exists()) {
+        await dbDir.delete(recursive: true);
+      }
+      await dbDir.create(recursive: true);
+      final sessionFile = File('${dbDir.path}/td.binlog');
+      _ensureAcceptingNewClients();
+      _bindings.importSessionString(sessionString, sessionFile.path);
+
+      final cid = _bindings.createClientId();
+      _clientForSlot[newSlot] = cid;
+      _slotForClient[cid] = newSlot;
+      if (kDebugMode) unawaited(_persistDebugLiveClientIds());
+      _bindings.send(
+        cid,
+        jsonEncode({'@type': 'getOption', 'name': 'version'}),
+      );
+      final restoredUserId = await _waitForRestoredSessionReady(
+        newSlot,
+        cid,
+        expectedUserId,
+      );
+      if (expectedUserId == null) {
+        // The account of a session without a user id is only known once the
+        // imported client is ready, so check for an existing login afterwards.
+        // Two imports of the same account can reach this point together and
+        // each read the other's freshly registered client as "the existing
+        // account", discarding one returned slot's database; resolve the
+        // duplicate atomically instead.
+        return _resolveUnknownAccountImport(
+          newSlot,
+          cid,
+          dbDir,
+          restoredUserId,
+        );
+      }
       setActive(newSlot);
       _persist();
       return newSlot;
-    } catch (error) {
-      await _closeAndForgetSlot(newSlot);
-      await _deleteDirectoryIfPresent(dbDir);
-      await Future<void>.delayed(const Duration(milliseconds: 300));
-      await _deleteDirectoryIfPresent(dbDir);
-      if (kDebugMode) unawaited(_persistDebugLiveClientIds());
-      if (_isRequestAborted(error)) {
-        throw const TdSessionRestoreException(
-          'Saved account session is invalid or has been revoked',
-        );
-      }
-      rethrow;
+    } catch (error, stackTrace) {
+      await _abandonNewSessionSlot(newSlot, dbDir, error, stackTrace);
     }
+  }
+
+  /// Serializes the post-authorization dedup for imports that name no user id
+  /// (GramJS strings): the first import registers its slot, becomes active and
+  /// persists; a concurrent duplicate then deterministically finds that ready
+  /// slot, discards only its own copy, and returns the registered slot.
+  Future<int> _resolveUnknownAccountImport(
+    int slot,
+    int clientId,
+    Directory dbDir,
+    int restoredUserId,
+  ) async {
+    final previous = _unknownAccountImports;
+    final done = Completer<void>();
+    _unknownAccountImports = done.future;
+    try {
+      await previous;
+      final existingSlot = await _readySlotForUserId(
+        restoredUserId,
+        exceptSlot: slot,
+      );
+      if (existingSlot != null) {
+        await _discardImportedSlot(slot, dbDir);
+        setActive(existingSlot);
+        _persist();
+        return existingSlot;
+      }
+      setActive(slot);
+      _persist();
+      return slot;
+    } finally {
+      done.complete();
+    }
+  }
+
+  /// Closes an imported slot and removes its database. The directory is removed
+  /// twice because TDLib can still flush while its client shuts down.
+  Future<void> _discardImportedSlot(int slot, Directory dbDir) async {
+    await _closeAndForgetSlot(slot);
+    await _deleteDirectoryIfPresent(dbDir);
+    await Future<void>.delayed(const Duration(milliseconds: 300));
+    await _deleteDirectoryIfPresent(dbDir);
+    if (kDebugMode) unawaited(_persistDebugLiveClientIds());
+  }
+
+  /// Tears down a session slot whose setup failed with [error], then rethrows
+  /// it; an aborted request means the saved session was rejected.
+  Future<Never> _abandonNewSessionSlot(
+    int slot,
+    Directory dbDir,
+    Object error,
+    StackTrace stackTrace,
+  ) async {
+    await _discardImportedSlot(slot, dbDir);
+    if (_isRequestAborted(error)) {
+      throw const TdSessionRestoreException(
+        'Saved account session is invalid or has been revoked',
+      );
+    }
+    Error.throwWithStackTrace(error, stackTrace);
   }
 
   Future<TdFreshSessionResult> _createFreshSessionWithQrLogin({
@@ -1194,20 +1373,24 @@ class TdClient {
     required int expectedUserId,
   }) async {
     final newSlot = _nextSlot();
-    final dbDir = Directory(_databaseDirectory(newSlot));
-    if (await dbDir.exists()) {
-      await dbDir.delete(recursive: true);
-    }
-    await dbDir.create(recursive: true);
-
-    _ensureAcceptingNewClients();
-    final cid = _bindings.createClientId();
+    // Claim the slot before the first await, as in the import path above.
     if (!_slots.contains(newSlot)) _slots.add(newSlot);
-    _clientForSlot[newSlot] = cid;
-    _slotForClient[cid] = newSlot;
-    if (kDebugMode) unawaited(_persistDebugLiveClientIds());
-    _bindings.send(cid, jsonEncode({'@type': 'getOption', 'name': 'version'}));
+    final dbDir = Directory(_databaseDirectory(newSlot));
     try {
+      if (await dbDir.exists()) {
+        await dbDir.delete(recursive: true);
+      }
+      await dbDir.create(recursive: true);
+
+      _ensureAcceptingNewClients();
+      final cid = _bindings.createClientId();
+      _clientForSlot[newSlot] = cid;
+      _slotForClient[cid] = newSlot;
+      if (kDebugMode) unawaited(_persistDebugLiveClientIds());
+      _bindings.send(
+        cid,
+        jsonEncode({'@type': 'getOption', 'name': 'version'}),
+      );
       await _waitForQrLoginReady(cid);
       await queryTo({
         '@type': 'requestQrCodeAuthentication',
@@ -1226,18 +1409,8 @@ class TdClient {
       setActive(newSlot);
       _persist();
       return TdFreshSessionResult(slot: newSlot, needsInteractiveLogin: !ready);
-    } catch (error) {
-      await _closeAndForgetSlot(newSlot);
-      await _deleteDirectoryIfPresent(dbDir);
-      await Future<void>.delayed(const Duration(milliseconds: 300));
-      await _deleteDirectoryIfPresent(dbDir);
-      if (kDebugMode) unawaited(_persistDebugLiveClientIds());
-      if (_isRequestAborted(error)) {
-        throw const TdSessionRestoreException(
-          'Saved account session is invalid or has been revoked',
-        );
-      }
-      rethrow;
+    } catch (error, stackTrace) {
+      await _abandonNewSessionSlot(newSlot, dbDir, error, stackTrace);
     }
   }
 
@@ -1325,22 +1498,44 @@ class TdClient {
     throw TimeoutException('Timed out waiting for QR login token');
   }
 
-  Future<void> _waitForRestoredSessionReady(
+  /// Waits until an imported session is authorized and reports its account.
+  ///
+  /// [expectedUserId] is null for sessions that carry no user id, where TDLib
+  /// has to ask Telegram which account the auth key belongs to first.
+  Future<int> _waitForRestoredSessionReady(
     int slot,
     int clientId,
-    int expectedUserId,
+    int? expectedUserId,
   ) async {
     final deadline = DateTime.now().add(const Duration(seconds: 20));
+    var parametersSent = false;
     while (DateTime.now().isBefore(deadline)) {
-      final state = await queryTo({
-        '@type': 'getAuthorizationState',
-      }, clientId).timeout(const Duration(seconds: 3));
+      final Map<String, dynamic> state;
+      try {
+        state = await queryTo({
+          '@type': 'getAuthorizationState',
+        }, clientId).timeout(const Duration(seconds: 3));
+      } on TimeoutException {
+        // A session without a user id leaves TDLib queueing
+        // getAuthorizationState until it has resolved the account, so a slow
+        // answer is part of the import rather than a reason to abandon it.
+        if (!parametersSent) {
+          parametersSent = true;
+          _sendParameters(clientId);
+        }
+        await Future<void>.delayed(const Duration(milliseconds: 250));
+        continue;
+      }
       switch (state.type) {
         case 'authorizationStateWaitTdlibParameters':
-          _sendParameters(clientId);
+          // TDLib reopens its database for every setTdlibParameters it accepts
+          // before initialization, so bootstrap the client exactly once.
+          if (!parametersSent) {
+            parametersSent = true;
+            _sendParameters(clientId);
+          }
         case 'authorizationStateReady':
-          await _verifyRestoredSessionStable(slot, clientId, expectedUserId);
-          return;
+          return _verifyRestoredSessionStable(slot, clientId, expectedUserId);
         case 'authorizationStateWaitPhoneNumber':
           throw StateError(
             'Restored account session is not authorized for slot $slot',
@@ -1360,16 +1555,25 @@ class TdClient {
     );
   }
 
-  Future<void> _verifyRestoredSessionStable(
+  /// Confirms an imported session stays authorized and reports its account.
+  ///
+  /// [expectedUserId] is null when the session string names no account, in
+  /// which case whatever TDLib resolved is the answer instead of a check.
+  Future<int> _verifyRestoredSessionStable(
     int slot,
     int clientId,
-    int expectedUserId,
+    int? expectedUserId,
   ) async {
     final me = await queryTo({
       '@type': 'getMe',
     }, clientId).timeout(const Duration(seconds: 5));
     final restoredUserId = me.int64('id');
-    if (restoredUserId != expectedUserId) {
+    if (restoredUserId == null) {
+      throw TdSessionRestoreException(
+        'Restored account session for slot $slot reported no user id',
+      );
+    }
+    if (expectedUserId != null && restoredUserId != expectedUserId) {
       throw TdSessionRestoreException(
         'Restored account user mismatch for slot $slot: expected $expectedUserId, got $restoredUserId',
       );
@@ -1385,6 +1589,7 @@ class TdClient {
         'Restored account session closed during verification for slot $slot: ${state.type}',
       );
     }
+    return restoredUserId;
   }
 
   Future<File> sessionFileForSlot(int slot) async {
@@ -1497,7 +1702,7 @@ class TdClient {
     if (sessionString.trim().isEmpty) {
       throw StateError('TDLib session string backup is empty');
     }
-    final info = _decodeSessionString(sessionString);
+    final info = TdSessionString.decode(sessionString);
     if (info.apiId != apiId) {
       throw StateError(
         'TDLib session string API id mismatch: expected $apiId, got ${info.apiId}',
@@ -1512,7 +1717,7 @@ class TdClient {
   }
 
   void validateSessionString(String sessionString, {int? expectedUserId}) {
-    final info = _decodeSessionString(sessionString);
+    final info = TdSessionString.decode(sessionString);
     if (expectedUserId != null && info.userId != expectedUserId) {
       throw StateError(
         'TDLib session string user mismatch: expected $expectedUserId, got ${info.userId}',
@@ -1520,8 +1725,9 @@ class TdClient {
     }
   }
 
-  Future<int?> _readySlotForUserId(int userId) async {
+  Future<int?> _readySlotForUserId(int userId, {int? exceptSlot}) async {
     for (final entry in _clientForSlot.entries) {
+      if (entry.key == exceptSlot) continue;
       try {
         final state = await queryTo({
           '@type': 'getAuthorizationState',
@@ -1543,59 +1749,6 @@ class TdClient {
   /// Handoff uses the Telegram user id instead of a slot because slot numbers
   /// are installation-local and have no meaning on the receiving device.
   Future<int?> readySlotForUserId(int userId) => _readySlotForUserId(userId);
-
-  static _TdSessionStringInfo _decodeSessionString(String sessionString) {
-    final normalized = sessionString.trim();
-    if (normalized.isEmpty) {
-      throw const FormatException('TDLib session string is empty');
-    }
-
-    final Uint8List bytes;
-    try {
-      bytes = base64Url.decode(base64Url.normalize(normalized));
-    } on FormatException catch (error) {
-      throw FormatException(
-        'TDLib session string is not valid base64url',
-        error,
-      );
-    }
-
-    const rawLength = 271;
-    if (bytes.length != rawLength) {
-      throw FormatException(
-        'TDLib session string decoded size is ${bytes.length}, expected $rawLength',
-      );
-    }
-
-    final dcId = bytes[0];
-    final apiId = ByteData.sublistView(bytes, 1, 5).getUint32(0);
-    final testMode = bytes[5] != 0;
-    final authKey = bytes.sublist(6, 262);
-    final userId = ByteData.sublistView(bytes, 262, 270).getUint64(0);
-    final isBot = bytes[270] != 0;
-
-    if (dcId == 0) {
-      throw const FormatException('TDLib session string has invalid DC id');
-    }
-    if (apiId == 0) {
-      throw const FormatException('TDLib session string has invalid API id');
-    }
-    if (userId == 0) {
-      throw const FormatException('TDLib session string has invalid user id');
-    }
-    if (authKey.every((byte) => byte == 0)) {
-      throw const FormatException('TDLib session string has an empty auth key');
-    }
-
-    return _TdSessionStringInfo(
-      rawSize: bytes.length,
-      dcId: dcId,
-      apiId: apiId,
-      testMode: testMode,
-      userId: userId,
-      isBot: isBot,
-    );
-  }
 
   /// Routes future query/send/broadcast to the given account slot.
   void setActive(int slot) {
@@ -1633,6 +1786,17 @@ class TdClient {
   }
 
   Future<void> _deleteSlotDataNow(int slot) async {
+    final downloadsRoot = DownloadStorage.currentRoot;
+    if (Platform.isAndroid &&
+        downloadsRoot != null &&
+        downloadsRoot != _supportDir) {
+      await _deleteDirectoryIfPresent(
+        Directory(DownloadStorage.filesDirectory(downloadsRoot, slot)),
+      );
+      await _deleteDirectoryIfPresent(
+        Directory('$downloadsRoot/bot-api/account-$slot/files'),
+      );
+    }
     final botApiDirectory = Directory(_botApiDataDirectory(slot));
     if (await botApiDirectory.exists()) {
       await _deleteDirectoryIfPresent(botApiDirectory);
@@ -1743,8 +1907,10 @@ class TdClient {
       }
       _slotForClient.remove(cid);
       TdUserIndex.shared.clearSlot(slot);
+      ForumTopicIndex.shared.clearSlot(slot);
       _latestChatFoldersByClient.remove(cid);
       _latestEmojiChatThemesByClient.remove(cid);
+      _latestConnectionStateByClient.remove(cid);
       _latestTextCompositionStylesByClient.remove(cid);
       _latestCommunitiesByClient.remove(cid);
       _proxyAppliedClients.remove(cid);
@@ -1754,7 +1920,7 @@ class TdClient {
     final closed = existingWaiter ?? Completer<void>();
     if (existingWaiter == null) {
       _clientClosedWaiters[cid] = closed;
-      _bindings.send(cid, jsonEncode({'@type': 'close'}));
+      _bindings.send(cid, _tdCloseRequest);
     }
     var didClose = true;
     try {
@@ -1772,8 +1938,10 @@ class TdClient {
       _failPending('TDLib client closed', clientId: cid);
       _slotForClient.remove(cid);
       TdUserIndex.shared.clearSlot(slot);
+      ForumTopicIndex.shared.clearSlot(slot);
       _latestChatFoldersByClient.remove(cid);
       _latestEmojiChatThemesByClient.remove(cid);
+      _latestConnectionStateByClient.remove(cid);
       _latestTextCompositionStylesByClient.remove(cid);
       _latestCommunitiesByClient.remove(cid);
       _proxyAppliedClients.remove(cid);
@@ -1824,6 +1992,7 @@ class TdClient {
         _activeSlot;
     AvatarAnimationIndex.shared.observe(slot, object);
     TdUserIndex.shared.observe(slot, object);
+    ForumTopicIndex.shared.observe(slot, object);
 
     // Responses to our requests carry the "@extra" we attached (any client).
     final extra = object.str('@extra');
@@ -1850,10 +2019,18 @@ class TdClient {
 
     if (object.type == 'updateAuthorizationState' &&
         object.obj('authorization_state')?.type == 'authorizationStateClosed') {
+      _webProxyCarriers?.closeClient(clientId);
       TdUserIndex.shared.clearSlot(slot);
+      ForumTopicIndex.shared.clearSlot(slot);
       _unconfirmedSlotForClient.remove(clientId);
       final waiter = _clientClosedWaiters.remove(clientId);
       if (waiter != null && !waiter.isCompleted) waiter.complete();
+    }
+    if (object.type == 'updateWebProxyCarrierOpened' ||
+        object.type == 'updateWebProxyCarrierData' ||
+        object.type == 'updateWebProxyCarrierClosed') {
+      (_webProxyCarriers ??= WebProxyCarriers(sendTo)).handle(object);
+      return;
     }
     // Bootstrap ANY client that asks for parameters, so every account
     // initializes and stays logged in (not just the active one).
@@ -1870,6 +2047,9 @@ class TdClient {
     if (object.type == 'updateEmojiChatThemes') {
       _latestEmojiChatThemesByClient[clientId] = object;
     }
+    if (object.type == 'updateConnectionState') {
+      _latestConnectionStateByClient[clientId] = object;
+    }
     if (object.type == 'updateTextCompositionStyles') {
       _latestTextCompositionStylesByClient[clientId] = object;
     }
@@ -1884,7 +2064,7 @@ class TdClient {
       }
     }
 
-    _allUpdates.add(object);
+    _dispatchToAllSubscribers(object);
     // Most UI consumers only need the active account's updates.
     if (clientId == _activeClientId) _dispatchToActiveSubscribers(object);
 
@@ -1956,7 +2136,9 @@ class TdClient {
     if (slot == null) return;
 
     final dbDir = _databaseDirectory(slot);
-    final filesDir = '$dbDir/files';
+    final filesDir = Platform.isAndroid && DownloadStorage.currentRoot != null
+        ? DownloadStorage.filesDirectory(DownloadStorage.currentRoot!, slot)
+        : '$dbDir/files';
     final api = ApiCredentialsConfig.fromPrefs(_prefs);
     final useCustomApi = api.isUsable;
 
@@ -2006,8 +2188,32 @@ class TdClient {
     await _applySavedProxyToClient(clientId);
   }
 
+  /// Applies the locally saved proxy config to [clientId], even when that
+  /// account is no longer the foreground one.
+  ///
+  /// A surface that mutates one account's proxy list must not route its
+  /// cleanup through whichever account the user switched to meanwhile.
+  Future<void> applySavedProxyToClient(int clientId) async {
+    if (clientId == 0) return;
+    _proxyAppliedClients.add(clientId);
+    await _applySavedProxyToClient(clientId);
+  }
+
   Future<void> applyProxyConfig(ProxyConfig config) async {
     final clientId = _activeClientId;
+    if (clientId == 0) {
+      throw StateError('TDLib client is not active yet');
+    }
+    _proxyAppliedClients.add(clientId);
+    await _applyProxyConfigToClient(config, clientId);
+  }
+
+  /// Applies [config] to [clientId], even when that account is no longer the
+  /// foreground one.
+  Future<void> applyProxyConfigToClient(
+    ProxyConfig config,
+    int clientId,
+  ) async {
     if (clientId == 0) {
       throw StateError('TDLib client is not active yet');
     }
@@ -2022,6 +2228,12 @@ class TdClient {
 
   Future<void> _applySavedProxyToClient(int clientId) async {
     final config = await ProxyConfig.load();
+    if (config.type == 'web' && !ProxyConfig.supportsWebProxy) {
+      // Saved settings can arrive from another platform. Keep the account
+      // usable when this host has no WebView transport.
+      await queryTo({'@type': 'disableProxy'}, clientId);
+      return;
+    }
     await _applyProxyConfigToClient(config, clientId);
   }
 
@@ -2030,6 +2242,11 @@ class TdClient {
     int clientId,
   ) async {
     if (!config.configured) return;
+    if (config.enabled &&
+        config.type == 'web' &&
+        !ProxyConfig.supportsWebProxy) {
+      throw UnsupportedError('Web proxies require Android, iOS, or macOS');
+    }
     if (!config.isUsable) {
       try {
         await queryTo({
@@ -2067,7 +2284,7 @@ class TdClient {
           'proxy_id': id,
         }, clientId).timeout(const Duration(seconds: 8));
         unawaited(
-          queryTo({'@type': 'pingProxy', 'proxy_id': id}, clientId)
+          queryTo({'@type': 'pingProxy', 'proxy': config.tdProxy}, clientId)
               .then((result) {
                 debugPrint('🌐 [Mithka] proxy ping result: $result');
               })
@@ -2133,11 +2350,36 @@ class TdClient {
     int accountSlot, {
     Duration timeout = defaultQueryTimeout,
   }) {
+    final proxy = _proxyTransport;
+    final proxySlotQuery = proxy?.queryForSlot;
+    if (proxySlotQuery != null) {
+      // A slot-aware transport routes per-account requests itself: a secondary
+      // engine proxies every slot through one channel, so the slot id is the
+      // only way a pinned request stays distinguishable from an active-account
+      // one. Transports that do not declare slot routing keep the registry
+      // check below, so a request for an unknown account can never be answered
+      // by whichever account happens to be active.
+      return proxySlotQuery(
+        Map<String, dynamic>.from(request),
+        accountSlot,
+      ).timeout(timeout);
+    }
     final clientId = _clientForSlot[accountSlot];
     if (clientId == null) {
       throw StateError('No TDLib client for account slot $accountSlot');
     }
     return queryTo(request, clientId, timeout: timeout);
+  }
+
+  /// Test/model seam: re-points the active account without an account-registry
+  /// round trip, mirroring what [replaceActiveWithFreshLoginSlot] does to the
+  /// active slot/client pair. [activeSlot] and [activeClientId] must be
+  /// updated together and stay cancelable by the pinned-work staleness checks.
+  @visibleForTesting
+  void debugSetActiveAccountForTesting(int slot, int clientId) {
+    _activeSlot = slot;
+    _activeClientId = clientId;
+    _activeSlotChanges.add(slot);
   }
 
   /// Retains the concrete client currently registered for [accountSlot].
@@ -2173,6 +2415,14 @@ class TdClient {
     }
     if (timeout <= Duration.zero) {
       throw ArgumentError.value(timeout, 'timeout', 'must be positive');
+    }
+    final debugQuery = _debugQueryOverride;
+    if (debugQuery != null) {
+      final recorded = Map<String, dynamic>.from(request);
+      _debugQueryRecorder?.call(recorded, clientId);
+      final result = await debugQuery(recorded, clientId);
+      if (result.type == 'error') throw TdError(result);
+      return result;
     }
     final proxy = _proxyTransport;
     if (proxy != null) {
@@ -2281,16 +2531,24 @@ class TdClient {
   /// A fresh stream of the ACTIVE account's TDLib updates.
   Stream<Map<String, dynamic>> subscribe() => _updates.stream;
 
-  /// Updates of exactly one @type from the active account. Prefer this over
+  /// Updates of exactly one @type from the active account, or from every
+  /// configured account when [allAccounts] is true. Prefer this over
   /// [subscribe] + a type filter: during TDLib bursts (login sync, file
   /// progress) every [subscribe] listener runs for every event, while typed
   /// listeners run only for their own type.
-  Stream<Map<String, dynamic>> updatesOf(String type) =>
-      (_typedUpdates[type] ??= StreamController<Map<String, dynamic>>.broadcast(
-        sync: true,
-      )).stream;
+  Stream<Map<String, dynamic>> updatesOf(
+    String type, {
+    bool allAccounts = false,
+  }) {
+    final controllers = allAccounts ? _typedAllUpdates : _typedUpdates;
+    return (controllers[type] ??=
+            StreamController<Map<String, dynamic>>.broadcast(sync: true))
+        .stream;
+  }
 
   /// Updates of any of [types] from the active account, in arrival order.
+  /// With [allAccounts], inactive accounts are included too; consumers must
+  /// keep identifiers scoped by the update's `@client_id` as with [subscribeAll].
   ///
   /// The same win as [updatesOf] for a consumer that needs several types: a
   /// [subscribe] listener is woken for every event in the app — including the
@@ -2299,7 +2557,10 @@ class TdClient {
   ///
   /// Order is preserved because every controller on this path is synchronous,
   /// so an event is forwarded and delivered before the next one is dispatched.
-  Stream<Map<String, dynamic>> updatesOfAny(Iterable<String> types) {
+  Stream<Map<String, dynamic>> updatesOfAny(
+    Iterable<String> types, {
+    bool allAccounts = false,
+  }) {
     final wanted = types.toSet();
     final subscriptions = <StreamSubscription<Map<String, dynamic>>>[];
     // Lives exactly as long as the stream it hands back; the source
@@ -2311,7 +2572,9 @@ class TdClient {
       sync: true,
       onListen: () {
         for (final type in wanted) {
-          subscriptions.add(updatesOf(type).listen(merged.add));
+          subscriptions.add(
+            updatesOf(type, allAccounts: allAccounts).listen(merged.add),
+          );
         }
       },
       onCancel: () {
@@ -2325,6 +2588,25 @@ class TdClient {
   }
 
   final Map<String, StreamController<Map<String, dynamic>>> _typedUpdates = {};
+  final Map<String, StreamController<Map<String, dynamic>>> _typedAllUpdates =
+      {};
+
+  void _dispatchToAllSubscribers(Map<String, dynamic> update) {
+    _allUpdates.add(update);
+    final type = update['@type'];
+    if (type is! String) return;
+    // Session-lifetime like _allUpdates itself; never closed by design.
+    // ignore: close_sinks
+    final typed = _typedAllUpdates[type];
+    if (typed != null && typed.hasListener) typed.add(update);
+  }
+
+  @visibleForTesting
+  void routeUpdateForTesting(Map<String, dynamic> update) => _route(update);
+
+  /// Clears the pushed folder snapshots so a test can model a cold session.
+  @visibleForTesting
+  void clearChatFoldersForTesting() => _latestChatFoldersByClient.clear();
 
   void _dispatchToActiveSubscribers(Map<String, dynamic> update) {
     _updates.add(update);

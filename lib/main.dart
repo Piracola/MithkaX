@@ -42,6 +42,7 @@ import 'app/desktop_window_controls.dart';
 import 'app/global_video_split_host.dart';
 import 'app/handoff_service.dart';
 import 'app/horizontal_safe_viewport.dart';
+import 'app/scaled_app_view.dart';
 import 'app/telemetry_config.dart';
 import 'app/video_window_telemetry.dart';
 import 'auth/account_store.dart';
@@ -50,11 +51,18 @@ import 'call/call_manager.dart';
 import 'call/call_overlay_host.dart';
 import 'chat/animated_sticker_view.dart';
 import 'chat/chat_view.dart';
+import 'chat/chat_view_model.dart';
+import 'chat/gift_tint.dart';
 import 'chat/group_remark_controller.dart';
+import 'chat/link_preview_fixer.dart';
 import 'chat/music_player_controller.dart';
 import 'chats/chat_folder_tag_controller.dart';
+import 'chats/local_pin_store.dart';
 import 'components/drawer_controller.dart' as dc;
-import 'components/keyboard_dismiss_on_tap.dart';
+import 'config/build_flags.dart';
+import 'firebase_options.dart';
+import 'history/message_history_settings.dart';
+import 'history/message_history_store.dart';
 import 'l10n/app_locale_controller.dart';
 import 'l10n/app_localizations.dart';
 import 'media/video_playback_reporting.dart';
@@ -65,6 +73,7 @@ import 'notifications/notification_preferences.dart';
 import 'notifications/push_device_registrar.dart';
 import 'platform/application_exit_coordinator.dart';
 import 'platform/firebase_configuration.dart';
+import 'platform/ohos_support.dart';
 import 'platform/system_ui.dart';
 import 'pro/mithka_pro_service.dart';
 import 'security/local_app_lock_controller.dart';
@@ -77,8 +86,10 @@ import 'settings/business_service.dart';
 import 'settings/country_message_filter.dart';
 import 'settings/desktop_hotkey_controller.dart';
 import 'settings/developer_mode_controller.dart';
+import 'settings/ghost_mode_controller.dart';
 import 'settings/hidden_sender_store.dart';
 import 'settings/keyword_blocker.dart';
+import 'settings/local_premium.dart';
 import 'settings/safety_notice_controller.dart';
 import 'settings/sensitive_content_controller.dart';
 import 'settings/translation_controller.dart';
@@ -213,10 +224,9 @@ Future<void> _bootstrapAndRunApp() async {
   // launch, and nothing below depends on it — the widget tree attaches to
   // AuthManager's stream whenever it is ready.
   final auth = AuthManager()..start();
+  registerOhosDartPluginFallbacks();
   _initializeVideoBackend();
-  final isMobile =
-      defaultTargetPlatform == TargetPlatform.iOS ||
-      defaultTargetPlatform == TargetPlatform.android;
+  final isMobile = isMobilePlatform;
   if (isMobile) {
     // Let iPhone and iPad follow every physical orientation. Desktop windows
     // have no orientation/system bars — skip both platform-channel round
@@ -246,10 +256,31 @@ Future<void> _bootstrapAndRunApp() async {
   ]);
   DesktopHotkeyController.initializeShared(prefs, replace: true);
   KeywordBlocker.shared.initialize(prefs);
+  LinkPreviewFixer.shared.initialize(prefs);
   HiddenSenderStore.shared.initialize(prefs);
   CountryMessageFilter.shared.initialize(prefs);
+  // Compile-time gated: reads persisted ghost-mode prefs and pushes the
+  // `online` TDLib option only in opted-in self-built binaries.
+  if (allowTelegramTosViolations) {
+    GhostModeController.shared.initialize(prefs);
+  }
   unawaited(SensitiveContentController.shared.initialize());
   MusicPlayerController.shared.initialize(prefs);
+  GiftTintCache.shared.initialize(prefs);
+  // Telegram §1.4 exception: the deleted/edited message mirror exists only in
+  // opted-in self-builds — with the flag off nothing is subscribed, read or
+  // written, and old saved state stays inert.
+  if (allowTelegramTosViolations) {
+    MessageHistorySettings.shared.initialize(prefs);
+    LocalPremium.shared.initialize(prefs);
+    MessageHistoryStore.shared.initialize(prefs);
+    unawaited(MessageHistoryStore.shared.ensureLoaded());
+    MessageHistoryStore.shared.startObserving();
+  }
+  // Device-only pins beyond the server cap live in this build's own
+  // preferences; the store is inert (and reads nothing) until its switch is
+  // turned on.
+  LocalPinStore.shared.initialize(prefs);
   // Preload Telegram blocked-user list so chat filters have data right away.
   unawaited(BlockedUserService.shared.loadBlockedUsers());
   // Firebase + analytics + Sentry tags are several platform-channel round
@@ -294,6 +325,8 @@ void _initializeVideoBackend({bool installGlobalLogHandler = true}) {
           FVideoFvpPlatform.linux,
           FVideoFvpPlatform.macos,
           FVideoFvpPlatform.windows,
+          // video_player has no HarmonyOS implementation of its own.
+          FVideoFvpPlatform.ohos,
         },
         installGlobalLogHandler: installGlobalLogHandler,
       ),
@@ -316,7 +349,9 @@ Future<void> _initTelemetry() async {
       AppVersion.load(),
     ).wait;
     if (hasFirebaseConfiguration) {
-      await Firebase.initializeApp();
+      await Firebase.initializeApp(
+        options: DefaultFirebaseOptions.currentPlatform,
+      );
       await FirebaseAnalytics.instance.setAnalyticsCollectionEnabled(true);
       await FirebaseAnalytics.instance.setDefaultEventParameters(
         appVersion.analyticsParameters,
@@ -434,7 +469,10 @@ class _MithkaAppState extends State<MithkaApp> with WidgetsBindingObserver {
   late final ChatFolderTagController _folderTags = ChatFolderTagController(
     widget.prefs,
   );
-  late AppIconController _appIcons = AppIconController(widget.prefs);
+  late AppIconController _appIcons = AppIconController(
+    widget.prefs,
+    proService: _mithkaPro,
+  );
   late final AutoDownloadMediaController _autoDownload =
       AutoDownloadMediaController.shared;
   late DeveloperModeController _developer = DeveloperModeController(
@@ -462,6 +500,9 @@ class _MithkaAppState extends State<MithkaApp> with WidgetsBindingObserver {
   void initState() {
     super.initState();
     MusicPlayerController.shared.setActiveAccountSlot(_accounts.activeSlot);
+    if (allowTelegramTosViolations) {
+      ChatViewModel.accountSummaryProvider = _accounts.summaryForSlot;
+    }
     WidgetsBinding.instance.addObserver(this);
     _performance.start();
     _accounts.addListener(_handleActiveAccountChange);
@@ -611,7 +652,10 @@ class _MithkaAppState extends State<MithkaApp> with WidgetsBindingObserver {
         final nextTranslation = TranslationController(widget.prefs);
         final nextAi = AiSettingsController(widget.prefs);
         final nextLocale = AppLocaleController(widget.prefs);
-        final nextAppIcons = AppIconController(widget.prefs);
+        final nextAppIcons = AppIconController(
+          widget.prefs,
+          proService: _mithkaPro,
+        );
         final nextDeveloper = DeveloperModeController(widget.prefs);
         final nextPerformance = AppPerformanceController(
           widget.prefs,
@@ -638,6 +682,10 @@ class _MithkaAppState extends State<MithkaApp> with WidgetsBindingObserver {
         KeywordBlocker.shared.initialize(widget.prefs);
         HiddenSenderStore.shared.initialize(widget.prefs);
         CountryMessageFilter.shared.initialize(widget.prefs);
+        if (allowTelegramTosViolations) {
+          GhostModeController.shared.initialize(widget.prefs);
+          MessageHistorySettings.shared.initialize(widget.prefs);
+        }
         MusicPlayerController.shared.initialize(widget.prefs);
         BlockedUserService.shared.enabled = nextTheme.hideBlockedUserMessages;
         if (nextTheme.hideBlockedUserMessages) {
@@ -701,7 +749,10 @@ class _MithkaAppState extends State<MithkaApp> with WidgetsBindingObserver {
     if (state != AppLifecycleState.resumed) {
       // `inactive` on its own is a Control Center glance, the notification
       // shade or a permission sheet — the app never actually left.
-      if (state != AppLifecycleState.inactive) _wasBackgrounded = true;
+      if (state != AppLifecycleState.inactive) {
+        _wasBackgrounded = true;
+        _mithkaPro.invalidateEntitlement();
+      }
       return;
     }
     TdClient.shared.restartReceiveIsolate();
@@ -710,7 +761,9 @@ class _MithkaAppState extends State<MithkaApp> with WidgetsBindingObserver {
     // transaction listener, never through this poll.
     if (!_wasBackgrounded) return;
     _wasBackgrounded = false;
-    unawaited(_mithkaPro.refresh());
+    // Never coalesce resume authorization into a pre-background catalog load.
+    // Its state response was invalidated and may still be suspended.
+    unawaited(_mithkaPro.refreshEntitlement());
   }
 
   /// Last [_themeData] result per brightness, with the inputs it was built
@@ -799,7 +852,7 @@ class _MithkaAppState extends State<MithkaApp> with WidgetsBindingObserver {
         builder: (context, theme, accounts, locale, _) {
           return MaterialApp(
             navigatorKey: appNavigatorKey,
-            title: 'Mithka',
+            title: 'Mithka X',
             debugShowCheckedModeBanner: false,
             // Null follows the system language, which is what
             // AppLocaleController stores for "follow system".
@@ -920,10 +973,8 @@ class _MithkaAppState extends State<MithkaApp> with WidgetsBindingObserver {
               );
               return AnnotatedRegion<SystemUiOverlayStyle>(
                 value: systemUiOverlayStyleForSurface(context.colors.navBar),
-                child: _ScaledAppView(
-                  textScale: theme.effectiveTextScale(
-                    MediaQuery.textScalerOf(context),
-                  ),
+                child: ScaledAppView(
+                  textScale: theme.fontScale,
                   interfaceScale: theme.renderedInterfaceScale,
                   child: DefaultTextStyle(
                     style: theme.applyAppTextStyle(
@@ -952,7 +1003,7 @@ class _MithkaAppState extends State<MithkaApp> with WidgetsBindingObserver {
 
 /// A built [ThemeData] together with everything [_MithkaAppState._themeData]
 /// read to build it. Font scale and interface scale are deliberately absent:
-/// they are applied downstream by `_ScaledAppView`, never by the theme.
+/// they are applied downstream by `ScaledAppView`, never by the theme.
 class _ThemeDataMemo {
   const _ThemeDataMemo({
     required this.colors,
@@ -985,69 +1036,4 @@ List<NavigatorObserver> _telemetryNavigatorObservers() {
     // Sentry navigation breadcrumbs do not depend on Firebase availability.
   }
   return observers;
-}
-
-class _ScaledAppView extends StatelessWidget {
-  const _ScaledAppView({
-    required this.textScale,
-    required this.interfaceScale,
-    required this.child,
-  });
-
-  final double textScale;
-  final double interfaceScale;
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) {
-    final media = MediaQuery.of(context);
-    final scale = interfaceScale;
-    final virtualSize = Size(
-      media.size.width / scale,
-      media.size.height / scale,
-    );
-    final scaledMedia = media.copyWith(
-      size: virtualSize,
-      padding: _unscaleInsets(media.padding, scale),
-      viewPadding: _unscaleInsets(media.viewPadding, scale),
-      viewInsets: _unscaleInsets(media.viewInsets, scale),
-      systemGestureInsets: _unscaleInsets(media.systemGestureInsets, scale),
-      // Every surface reads this one scaler: Text applies it implicitly and
-      // the chat's RichText widgets read it explicitly. The outer transform
-      // scales geometry and text together for interface size, so the font
-      // preference belongs here on its own — dividing by interfaceScale caused
-      // normal Text widgets to stay small while noScaling text still grew.
-      textScaler: TextScaler.linear(textScale),
-    );
-
-    return AppKeyboardDismissOnTap(
-      child: ClipRect(
-        child: OverflowBox(
-          alignment: Alignment.topLeft,
-          minWidth: virtualSize.width,
-          maxWidth: virtualSize.width,
-          minHeight: virtualSize.height,
-          maxHeight: virtualSize.height,
-          child: Transform.scale(
-            scale: scale,
-            alignment: Alignment.topLeft,
-            child: SizedBox(
-              width: virtualSize.width,
-              height: virtualSize.height,
-              child: MediaQuery(data: scaledMedia, child: child),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  EdgeInsets _unscaleInsets(EdgeInsets insets, double scale) {
-    return EdgeInsets.fromLTRB(
-      insets.left / scale,
-      insets.top / scale,
-      insets.right / scale,
-      insets.bottom / scale,
-    );
-  }
 }

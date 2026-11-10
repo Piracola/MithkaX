@@ -29,6 +29,14 @@ class AuthInitializing extends AuthStep {
   const AuthInitializing();
 }
 
+/// A reload of an already-started client is in flight (account switch, add
+/// account, session replacement). Unlike [AuthInitializing] this is NOT a
+/// cold-start: the login surface is already what the user asked for, so the
+/// auth gate must keep showing it instead of the full-screen splash.
+class AuthReloading extends AuthStep {
+  const AuthReloading();
+}
+
 class AuthWaitPhoneNumber extends AuthStep {
   const AuthWaitPhoneNumber();
 }
@@ -238,16 +246,18 @@ class AuthManager extends ChangeNotifier {
       // Subscribe before start so no early update is missed.
       if (!_subscribed) {
         _subscribed = true;
-        _client.subscribe().listen((update) {
-          if (update.type == 'updateOption' &&
-              update.str('name') == 'can_use_login_passkey') {
-            unawaited(_loadPasskeyAvailability());
-            return;
-          }
-          if (update.type != 'updateAuthorizationState') return;
-          final state = update.obj('authorization_state');
-          if (state != null) _handle(state);
-        });
+        _client
+            .updatesOfAny(const ['updateOption', 'updateAuthorizationState'])
+            .listen((update) {
+              if (update.type == 'updateOption' &&
+                  update.str('name') == 'can_use_login_passkey') {
+                unawaited(_loadPasskeyAvailability());
+                return;
+              }
+              if (update.type != 'updateAuthorizationState') return;
+              final state = update.obj('authorization_state');
+              if (state != null) _handle(state);
+            });
       }
       await _client.start().timeout(_startupTimeout);
       if (_credentialsMissing && !_client.activeIsBotApi) {
@@ -394,13 +404,18 @@ class AuthManager extends ChangeNotifier {
 
   /// Re-reads the active account's authorization state (after an account
   /// switch) and updates `step` so the UI gates on the right account.
+  ///
+  /// The read takes real time (a fresh add-account slot reaches its first
+  /// authorization state only hundreds of milliseconds after setTdlibParameters),
+  /// so the intermediate frame is [AuthReloading] — mapped to the login surface,
+  /// not the cold-start splash. Startup keeps [AuthInitializing] for the splash.
   void reloadAuthState() {
     final action = ++_actionSerial;
     final clientId = _client.activeClientId;
     _isWorking = false;
     _errorMessage = null;
     _canUseLoginPasskey = false;
-    _set(const AuthInitializing());
+    _set(const AuthReloading());
     unawaited(_loadPasskeyAvailability());
     unawaited(_reloadAuthState(action: action, clientId: clientId));
   }
@@ -480,7 +495,10 @@ class AuthManager extends ChangeNotifier {
           .query({'@type': 'getAuthorizationState'})
           .timeout(const Duration(seconds: 5));
       if (authorizationStateRequiresQrReset(state.type)) {
-        _set(const AuthInitializing());
+        // The login surface is already showing the phone form the user asked
+        // for; the client reset behind it is a reload, not a cold start, so it
+        // must keep the login surface instead of flashing the splash.
+        _set(const AuthReloading());
         await _client.resetActiveQrLogin();
       } else if (!authorizationStateAcceptsPhoneNumber(state.type)) {
         throw StateError(

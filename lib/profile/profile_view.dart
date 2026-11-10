@@ -22,6 +22,7 @@ import '../auth/auth_manager.dart';
 import '../call/calls_view.dart';
 import '../chat/chat_wallpaper.dart';
 import '../chat/custom_emoji.dart';
+import '../chat/link_handler.dart';
 import '../chat/shared_media_view.dart';
 import '../components/app_icons.dart';
 import '../components/confirm_dialog.dart';
@@ -32,14 +33,19 @@ import '../components/ui_components.dart';
 import '../components/vip_badge.dart';
 import '../platform/adaptive_platform.dart';
 import '../settings/edit_profile_view.dart';
+import '../settings/local_premium.dart';
+import '../settings/proxy_status.dart';
+import '../settings/proxy_view.dart';
 import '../settings/settings_view.dart';
 import '../tdlib/json_helpers.dart';
 import '../tdlib/td_client.dart';
 import '../tdlib/td_models.dart';
+import '../theme/app_motion.dart';
 import '../theme/app_theme.dart';
 import '../theme/theme_controller.dart';
 import 'emoji_status_picker.dart';
 import 'profile_detail_view.dart';
+import 'profile_proxy_button.dart';
 import 'profile_theme_backdrop.dart';
 import 'profile_username_pill.dart';
 import 'profile_username_summary.dart';
@@ -74,7 +80,9 @@ class ProfileViewModel extends ChangeNotifier {
       username: usernames.isEmpty ? null : usernames.first,
       photo: TDParse.smallPhoto(me.obj('profile_photo')),
       emojiStatusId: TDParse.emojiStatusCustomEmojiId(me.obj('emoji_status')),
-      isPremium: me.boolean('is_premium') ?? false,
+      isPremium: LocalPremium.shared.premiumForMe(
+        me.boolean('is_premium') ?? false,
+      ),
     );
     notifyListeners();
   }
@@ -278,9 +286,7 @@ class _ProfileViewState extends State<ProfileView> {
         Padding(
           padding: EdgeInsets.fromLTRB(
             20,
-            MediaQuery.of(context).padding.top +
-                iPadWindowChromeInsetOf(context) +
-                8,
+            topChromeInsetOf(context) + 8,
             16,
             20,
           ),
@@ -382,7 +388,15 @@ class _ProfileViewState extends State<ProfileView> {
                             children: [
                               for (final identity in identities)
                                 identity.startsWith('@')
-                                    ? ProfileUsernamePill(username: identity)
+                                    ? ProfileUsernamePill(
+                                        username: identity,
+                                        onTap: (username) => unawaited(
+                                          openLink(
+                                            context,
+                                            'https://t.me/$username',
+                                          ),
+                                        ),
+                                      )
                                     : Text(
                                         identity,
                                         style: TextStyle(
@@ -757,6 +771,8 @@ class _ProfileViewState extends State<ProfileView> {
                 ),
               ),
               const SizedBox(width: 24),
+              ProfileProxyButton(onTap: _openProxySettings),
+              const SizedBox(width: 24),
               GestureDetector(
                 behavior: HitTestBehavior.opaque,
                 onTap: () => theme.toggleDayNight(Theme.of(context).brightness),
@@ -773,6 +789,17 @@ class _ProfileViewState extends State<ProfileView> {
         ),
       ),
     );
+  }
+
+  /// 代理 straight from the sidebar instead of through 设置. The page reports its
+  /// own mutations to [ProxyStatusController]; the reading is refreshed on the
+  /// way back too, since a visit that changed nothing still spans time TDLib
+  /// may have reconnected in.
+  Future<void> _openProxySettings() async {
+    await _root.push(
+      AppPageRoute<void>(pageBuilder: (_, _, _) => const ProxyView()),
+    );
+    unawaited(ProxyStatusController.shared.refresh());
   }
 
   Widget _barItem(AppIconData icon, String tooltip) {

@@ -10,6 +10,8 @@ import 'dart:async';
 import 'dart:io';
 import 'dart:math' as math;
 
+import 'package:flutter/foundation.dart';
+
 import 'json_helpers.dart';
 import 'td_client.dart';
 import 'td_models.dart';
@@ -75,6 +77,15 @@ class TdFileCenter {
   bool _started = false;
   static const _cacheCapacity = 4096;
   static const _playbackInitialPrefix = 2 * 1024 * 1024;
+  static const _pathPriority = 16;
+
+  /// How long [path] waits for TDLib to report a completed download before
+  /// returning null. A request TDLib never picked up leaves the whole window
+  /// idle, so callers that must not lose a playable file resolve again.
+  ///
+  /// Non-const so tests can shrink it instead of waiting real seconds.
+  @visibleForTesting
+  static Duration pathWaitTimeout = const Duration(seconds: 180);
 
   String _key(int slot, int fileId) => '$slot:$fileId';
 
@@ -90,7 +101,15 @@ class TdFileCenter {
 
   /// Resolves a file reference without downloading it again when the source
   /// file used for an outgoing message is still available locally.
-  Future<String?> pathFor(TdFileRef ref, {int? accountSlot}) async {
+  ///
+  /// [priority] is TDLib's download priority (1..32). Something the user is
+  /// waiting on right now, such as the track they just tapped, passes 32 so it
+  /// is not queued behind background media downloads.
+  Future<String?> pathFor(
+    TdFileRef ref, {
+    int? accountSlot,
+    int priority = _pathPriority,
+  }) async {
     final slot = accountSlot ?? _client.activeSlot;
     final localPath = ref.localPath;
     if (localPath != null && localPath.isNotEmpty) {
@@ -100,7 +119,7 @@ class TdFileCenter {
         return localPath;
       }
     }
-    return path(ref.id, accountSlot: slot);
+    return path(ref.id, accountSlot: slot, priority: priority);
   }
 
   /// The already-resolved path for [ref], or null when nothing is cached.
@@ -115,22 +134,26 @@ class TdFileCenter {
     return _cache[_key(slot, ref.id)];
   }
 
+  /// Seeds a resolved path for [fileId]. Tests use this to skip the
+  /// download round trip so player logic can be driven synchronously.
+  @visibleForTesting
+  void rememberForTest(int accountSlot, int fileId, String path) {
+    _remember(_key(accountSlot, fileId), path);
+  }
+
   void _startIfNeeded() {
     if (_started) return;
     _started = true;
-    _client
-        .subscribeAll()
-        .where((update) => update.type == 'updateFile')
-        .listen((update) {
-          final file = update.obj('file');
-          final clientId = update.integer('@client_id');
-          final accountSlot = clientId == null
-              ? _client.activeSlot
-              : _client.slotForClient(clientId);
-          if (file != null && accountSlot != null) {
-            _ingest(file, accountSlot: accountSlot);
-          }
-        });
+    _client.updatesOf('updateFile', allAccounts: true).listen((update) {
+      final file = update.obj('file');
+      final clientId = update.integer('@client_id');
+      final accountSlot = clientId == null
+          ? _client.activeSlot
+          : _client.slotForClient(clientId);
+      if (file != null && accountSlot != null) {
+        _ingest(file, accountSlot: accountSlot);
+      }
+    });
   }
 
   /// Records file progress/completion and wakes any waiters.
@@ -144,27 +167,30 @@ class TdFileCenter {
     final path = local.str('path');
 
     if (path != null && path.isNotEmpty) {
-      final playbackPending = _playbackWaiters.remove(k) ?? [];
+      final playbackPending =
+          _playbackWaiters.remove(k) ?? const <Completer<String?>>[];
       for (final c in playbackPending) {
         if (!c.isCompleted) c.complete(path);
       }
     }
 
     final completed = local.boolean('is_downloading_completed') == true;
-    final expectedSize = file.integer('expected_size') ?? 0;
-    final fileSize = file.integer('size') ?? 0;
-    final total = expectedSize > 0 ? expectedSize : fileSize;
-    final downloadedSize = local.integer('downloaded_size') ?? 0;
-    final downloadedPrefix = local.integer('downloaded_prefix_size') ?? 0;
-    final downloadOffset = local.integer('download_offset') ?? 0;
-    final downloaded = completed
-        ? total
-        : math.max(downloadedSize, downloadedPrefix);
     // Lifecycle is map-owned: closed on completion below and via onCancel
     // when the last listener detaches.
     // ignore: close_sinks
     final controller = _progressControllers[k];
-    if (controller != null) {
+    // Most updateFile events have no visible progress UI. Keep resolving paths
+    // and waiters, but do not allocate progress/range snapshots for those files.
+    if (controller != null && !controller.isClosed && controller.hasListener) {
+      final expectedSize = file.integer('expected_size') ?? 0;
+      final fileSize = file.integer('size') ?? 0;
+      final total = expectedSize > 0 ? expectedSize : fileSize;
+      final downloadedSize = local.integer('downloaded_size') ?? 0;
+      final downloadedPrefix = local.integer('downloaded_prefix_size') ?? 0;
+      final downloadOffset = local.integer('download_offset') ?? 0;
+      final downloaded = completed
+          ? total
+          : math.max(downloadedSize, downloadedPrefix);
       if (completed && total > 0) {
         _downloadedRanges[k] = <TdFileByteRange>[
           TdFileByteRange(start: 0, end: total),
@@ -177,20 +203,19 @@ class TdFileCenter {
           total: total,
         );
       }
-    }
-    final progress = TdFileProgress(
-      fileId: id,
-      downloaded: downloaded,
-      prefixDownloaded: completed ? total : downloadedPrefix,
-      total: total,
-      isActive: local.boolean('is_downloading_active') == true,
-      isCompleted: completed,
-      downloadedRanges: List<TdFileByteRange>.unmodifiable(
-        _downloadedRanges[k] ?? const <TdFileByteRange>[],
-      ),
-    );
-    if (controller != null && !controller.isClosed) {
-      controller.add(progress);
+      controller.add(
+        TdFileProgress(
+          fileId: id,
+          downloaded: downloaded,
+          prefixDownloaded: completed ? total : downloadedPrefix,
+          total: total,
+          isActive: local.boolean('is_downloading_active') == true,
+          isCompleted: completed,
+          downloadedRanges: List<TdFileByteRange>.unmodifiable(
+            _downloadedRanges[k] ?? const <TdFileByteRange>[],
+          ),
+        ),
+      );
     }
 
     if (!completed) return;
@@ -204,7 +229,7 @@ class TdFileCenter {
     unawaited(finished?.close());
 
     _remember(k, path);
-    final pending = _waiters.remove(k) ?? [];
+    final pending = _waiters.remove(k) ?? const <Completer<String?>>[];
     for (final c in pending) {
       if (!c.isCompleted) c.complete(path);
     }
@@ -463,12 +488,16 @@ class TdFileCenter {
     _cache.remove(_key(slot, fileId));
   }
 
-  Future<void> _requestPathDownload(int fileId, int accountSlot) async {
+  Future<void> _requestPathDownload(
+    int fileId,
+    int accountSlot, {
+    int priority = _pathPriority,
+  }) async {
     try {
       final response = await _client.queryForSlot({
         '@type': 'downloadFile',
         'file_id': fileId,
-        'priority': 16,
+        'priority': priority,
         'offset': 0,
         'limit': 0,
         'synchronous': false,
@@ -491,7 +520,11 @@ class TdFileCenter {
   }
 
   /// Returns a local path for the file id, downloading if needed.
-  Future<String?> path(int fileId, {int? accountSlot}) async {
+  Future<String?> path(
+    int fileId, {
+    int? accountSlot,
+    int priority = _pathPriority,
+  }) async {
     _startIfNeeded();
 
     final slot = accountSlot ?? _client.activeSlot;
@@ -500,10 +533,16 @@ class TdFileCenter {
     if (cached != null) return cached;
     final pending = _waiters[k];
     if (pending != null && pending.isNotEmpty) {
+      // A background resolver (for example a next-track prefetch) may own
+      // this download at a lower priority. Re-requesting the same whole-file
+      // range only raises TDLib's priority; it does not restart the transfer.
+      if (priority > _pathPriority) {
+        unawaited(_requestPathDownload(fileId, slot, priority: priority));
+      }
       final completer = Completer<String?>();
       pending.add(completer);
       return completer.future.timeout(
-        const Duration(seconds: 180),
+        pathWaitTimeout,
         onTimeout: () {
           _removePathWaiter(k, completer, pending);
           return null;
@@ -519,7 +558,7 @@ class TdFileCenter {
     // A lost TDLib response previously meant the first resolver never reached
     // its 180-second timeout (only later joined callers did). _ingest handles
     // both an immediate completed response and the eventual updateFile event.
-    unawaited(_requestPathDownload(fileId, slot));
+    unawaited(_requestPathDownload(fileId, slot, priority: priority));
 
     // Otherwise wait for the completing updateFile.
     final existing = _cache[k];
@@ -527,7 +566,7 @@ class TdFileCenter {
     // Don't wait forever if the download stalls/fails — callers (e.g. the file
     // opener) then surface "下载失败" instead of a stuck spinner.
     return completer.future.timeout(
-      const Duration(seconds: 180),
+      pathWaitTimeout,
       onTimeout: () {
         _removePathWaiter(k, completer, waiters);
         return null;

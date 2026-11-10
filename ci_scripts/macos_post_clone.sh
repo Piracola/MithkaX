@@ -63,10 +63,9 @@ fi
 
 RAW_VERSION="$(awk '/^version:/ { print $2; exit }' pubspec.yaml)"
 SOURCE_VERSION="${RAW_VERSION%%+*}"
-# A nightly collapses onto the X.Y.0 marketing train so its patch increments do
-# not open a review train per night; a release keeps the exact patch it ships.
-# iOS derives the same value; the macOS project reads the generated xcconfig, so
-# passing --build-name below is the whole fix, with no project file to rewrite.
+# Preserve the exact source/GitHub marketing version, including the patch, on
+# every branch. iOS derives the same value; the macOS project reads it from the
+# generated xcconfig via --build-name below.
 APP_VERSION="$(sh "$REPO/scripts/apple_marketing_version.sh" \
   "$RAW_VERSION" "${CI_BRANCH:-${GITHUB_REF_NAME:-}}")"
 
@@ -117,7 +116,15 @@ echo "Preparing manifest-pinned universal macOS TDLib"
 flutter config --enable-swift-package-manager
 flutter precache --macos
 flutter pub get
+
+# libmdk refuses to play video without a key once its own build stamp is 44
+# days old, so the Apple SDK is refreshed (and verified) per build rather than
+# pinned to one archive. See scripts/refresh-apple-mdk.sh.
+echo "Refreshing the MDK Apple SDK"
+sh scripts/refresh-apple-mdk.sh
+
 flutter build macos --release --config-only \
+  --dart-define="I_DONT_FUCKING_CARE_ABOUT_TOS=false" \
   --build-name="$APP_VERSION" \
   --build-number="$APP_BUILD_NUMBER" \
   --dart-define="GIT_COMMIT=$GIT_COMMIT" \

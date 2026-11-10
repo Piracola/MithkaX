@@ -27,7 +27,7 @@ import '../app/horizontal_safe_viewport.dart';
 import '../app/ipad_window_chrome.dart';
 import '../auth/account_store.dart';
 import '../auth/auth_manager.dart';
-import '../channels/forum_topic_browser_view.dart';
+import '../chat/chat_picker_view.dart';
 import '../chat/chat_view.dart';
 import '../chat/custom_emoji.dart';
 import '../chat/link_handler.dart';
@@ -37,19 +37,19 @@ import '../components/app_icons.dart';
 import '../components/app_interactive_surface.dart';
 import '../components/app_press_ripple.dart';
 import '../components/chat_folder_icons.dart';
-import '../components/desktop_row_actions.dart';
 import '../components/drawer_controller.dart' as dc;
 import '../components/photo_avatar.dart';
 import '../components/toast.dart';
 import '../components/ui_components.dart';
 import '../contacts/add_people_view.dart';
 import '../contacts/create_group_view.dart';
+import '../platform/adaptive_platform.dart' show isTouchTargetPlatform;
 import '../profile/emoji_status_picker.dart';
 import '../security/local_app_lock_controller.dart';
 import '../settings/chat_folder_management_view.dart';
 import '../settings/chat_folder_service.dart';
 import '../settings/edit_field_view.dart';
-import '../settings/topic_group_display_mode.dart';
+import '../settings/local_premium.dart';
 import '../tdlib/json_helpers.dart';
 import '../tdlib/td_client.dart';
 import '../tdlib/td_models.dart';
@@ -59,10 +59,12 @@ import '../theme/theme_controller.dart';
 import 'archived_chats_view.dart';
 import 'chat_delete_dialog.dart';
 import 'chat_delete_policy.dart';
+import 'chat_folder_tab_menu.dart';
 import 'chat_folder_tag_controller.dart';
 import 'chat_list_preview.dart';
 import 'chat_list_view_model.dart';
 import 'chat_removal_actions.dart';
+import 'chat_row_metrics.dart';
 import 'chat_row_view.dart';
 import 'filtered_chats_view.dart';
 import 'qr_scanner_view.dart';
@@ -139,19 +141,31 @@ class ChatFolderRail extends StatelessWidget {
     super.key,
     required this.filters,
     required this.selectedFolderId,
-    required this.onSelect,
+    this.onSelect,
     this.keyForFolder,
-    this.onEdit,
+    this.onMenu,
     this.highlights = const {},
+    this.showUnreadBadges = false,
+    this.badgeOverflowMode = UnreadBadgeOverflowMode.capped,
   });
   final List<ChatFilterOption> filters;
   final int? selectedFolderId;
-  final ValueChanged<ChatFilterOption> onSelect;
+  final ValueChanged<ChatFilterOption>? onSelect;
   final Key? Function(int? folderId)? keyForFolder;
-  final ValueChanged<ChatFilterOption>? onEdit;
+
+  /// Opens the folder's command sheet. A secondary click on the row reaches it
+  /// on desktop; a primary click still selects the folder.
+  final ValueChanged<ChatFilterOption>? onMenu;
 
   /// Live page-transition highlights; omitted for a settled folder rail.
   final Map<int?, double> highlights;
+
+  /// Whether folder labels carry their unread-chat count.
+  final bool showUnreadBadges;
+
+  /// Formats the badge count; capped by default like every other unread
+  /// badge until the user asks for exact numbers.
+  final UnreadBadgeOverflowMode badgeOverflowMode;
 
   double _highlight(ChatFilterOption filter) =>
       highlights[filter.folderId] ??
@@ -159,69 +173,102 @@ class ChatFolderRail extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
+    final showBadges = showUnreadBadges;
     return ListView(
       key: const PageStorageKey('side-chat-folders'),
       padding: const EdgeInsets.only(bottom: 8),
       children: [
         for (final filter in filters)
-          DesktopRowActionRegion(
-            actions: filter.isAll || onEdit == null
-                ? const []
-                : [
-                    DesktopRowAction(
-                      id: 'edit-folder',
-                      label: AppStringKeys.chatFolderManagementEditFolder,
-                      icon: HeroAppIcons.pen,
-                      onInvoke: () => onEdit!(filter),
-                    ),
-                  ],
-            child: AppInteractiveSurface(
-              key: keyForFolder?.call(filter.folderId),
-              semanticLabel: filter.title.l10n(context),
-              selected: filter.folderId == selectedFolderId,
-              borderRadius: BorderRadius.circular(AppRadius.control),
-              onTap: () => onSelect(filter),
-              child: Container(
-                key: ValueKey('side-folder-${filter.folderId ?? 'all'}'),
-                constraints: const BoxConstraints(minHeight: 56),
-                padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 2),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(AppRadius.control),
-                  color: c.linkBlue.withValues(
-                    alpha: 0.10 * _highlight(filter),
+          GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onSecondaryTapDown: onMenu == null || !isDesktopTargetPlatform()
+                ? null
+                : (_) => onMenu!(filter),
+            child: _FolderNameHint(
+              key: ValueKey((filter.folderId, filter.title.l10n(context))),
+              message: filter.title.l10n(context),
+              hintKey: ValueKey(
+                'side-folder-name-tooltip-${filter.folderId ?? 'all'}',
+              ),
+              child: AppInteractiveSurface(
+                key: keyForFolder?.call(filter.folderId),
+                semanticLabel: filter.title.l10n(context),
+                selected: filter.folderId == selectedFolderId,
+                borderRadius: BorderRadius.circular(AppRadius.control),
+                onTap: () => onSelect?.call(filter),
+                child: Container(
+                  key: ValueKey('side-folder-${filter.folderId ?? 'all'}'),
+                  constraints: const BoxConstraints(minHeight: 56),
+                  padding: const EdgeInsets.symmetric(
+                    vertical: 8,
+                    horizontal: 2,
                   ),
-                ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    ChatFolderIcon(
-                      filter.isAll ? 'All' : filter.iconName,
-                      size: 22,
-                      color: Color.lerp(
-                        c.textSecondary,
-                        c.linkBlue,
-                        _highlight(filter),
-                      )!,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(AppRadius.control),
+                    color: c.linkBlue.withValues(
+                      alpha: 0.10 * _highlight(filter),
                     ),
-                    const SizedBox(height: 3),
-                    Text(
-                      filter.title.l10n(context),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: _highlight(filter) >= 0.5
-                            ? FontWeight.w600
-                            : FontWeight.w400,
-                        color: Color.lerp(
-                          c.textSecondary,
-                          c.linkBlue,
-                          _highlight(filter),
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // The count floats over the glyph's top-right corner,
+                      // like the app-icon badge above the rail, so the label
+                      // keeps the full rail width.
+                      SizedBox.square(
+                        dimension: 22,
+                        child: Stack(
+                          clipBehavior: Clip.none,
+                          children: [
+                            ChatFolderIcon(
+                              filter.isAll ? 'All' : filter.iconName,
+                              size: 22,
+                              color: Color.lerp(
+                                c.textSecondary,
+                                c.linkBlue,
+                                _highlight(filter),
+                              )!,
+                            ),
+                            if (showBadges &&
+                                !filter.isAll &&
+                                filter.unreadChatCount > 0)
+                              Positioned(
+                                key: ValueKey(
+                                  'side-folder-badge-${filter.folderId}',
+                                ),
+                                right: -12,
+                                top: -6,
+                                child: FolderUnreadBadge(
+                                  label: badgeOverflowMode.format(
+                                    filter.unreadChatCount,
+                                  ),
+                                  accent: filter.hasUnmutedUnread,
+                                ),
+                              ),
+                          ],
                         ),
                       ),
-                    ),
-                  ],
+                      const SizedBox(height: 3),
+                      Text(
+                        filter.title.l10n(context),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 11,
+                          height: 1.15,
+                          fontWeight: _highlight(filter) >= 0.5
+                              ? FontWeight.w600
+                              : FontWeight.w400,
+                          color: Color.lerp(
+                            c.textSecondary,
+                            c.linkBlue,
+                            _highlight(filter),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -231,6 +278,135 @@ class ChatFolderRail extends StatelessWidget {
   }
 }
 
+/// The rail's full-name hover label uses owned styling and no touch gesture.
+class _FolderNameHint extends StatefulWidget {
+  const _FolderNameHint({
+    super.key,
+    required this.message,
+    required this.hintKey,
+    required this.child,
+  });
+
+  final String message;
+  final Key hintKey;
+  final Widget child;
+
+  @override
+  State<_FolderNameHint> createState() => _FolderNameHintState();
+}
+
+class _FolderNameHintState extends State<_FolderNameHint> {
+  final _overlay = OverlayPortalController();
+  Timer? _timer;
+
+  void _hide() {
+    _timer?.cancel();
+    _timer = null;
+    _overlay.hide();
+  }
+
+  void _enter() {
+    _timer?.cancel();
+    _timer = Timer(const Duration(milliseconds: 450), () {
+      _timer = null;
+      if (mounted) _overlay.show();
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => OverlayPortal.overlayChildLayoutBuilder(
+    controller: _overlay,
+    overlayChildBuilder: (context, info) {
+      final anchor = MatrixUtils.transformRect(
+        info.childPaintTransform,
+        Offset.zero & info.childSize,
+      );
+      if (!anchor.overlaps(Offset.zero & info.overlaySize)) {
+        return const SizedBox.shrink();
+      }
+      final c = context.colors;
+      return IgnorePointer(
+        child: ExcludeSemantics(
+          // AppInteractiveSurface already exposes the complete folder name.
+          child: CustomSingleChildLayout(
+            delegate: _FolderNameHintLayout(anchor),
+            child: Container(
+              key: widget.hintKey,
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.md,
+                vertical: AppSpacing.sm,
+              ),
+              decoration: BoxDecoration(
+                color: c.panelBackground,
+                border: Border.all(color: c.divider),
+                borderRadius: BorderRadius.circular(AppRadius.md),
+              ),
+              child: Text(
+                widget.message,
+                style: TextStyle(
+                  color: c.textPrimary,
+                  fontSize: 12,
+                  height: 1.2,
+                  decoration: TextDecoration.none,
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+    },
+    child: MouseRegion(
+      onEnter: (_) => _enter(),
+      onExit: (_) => _hide(),
+      child: Listener(
+        onPointerDown: (_) => _hide(),
+        onPointerSignal: (_) => _hide(),
+        child: widget.child,
+      ),
+    ),
+  );
+}
+
+class _FolderNameHintLayout extends SingleChildLayoutDelegate {
+  const _FolderNameHintLayout(this.anchor);
+  final Rect anchor;
+
+  @override
+  BoxConstraints getConstraintsForChild(BoxConstraints constraints) =>
+      BoxConstraints.loose(
+        Size(
+          math.min(320, math.max(0, constraints.maxWidth - 16)),
+          math.max(0, constraints.maxHeight - 16),
+        ),
+      );
+
+  @override
+  Offset getPositionForChild(Size size, Size childSize) {
+    final maxX = math.max(0.0, size.width - childSize.width);
+    final maxY = math.max(0.0, size.height - childSize.height);
+    final marginX = math.min(8.0, maxX / 2);
+    final marginY = math.min(8.0, maxY / 2);
+    final right = anchor.right + 6;
+    final left = right + childSize.width <= size.width - 8
+        ? right
+        : anchor.left - childSize.width - 6;
+    return Offset(
+      left.clamp(marginX, maxX - marginX),
+      (anchor.center.dy - childSize.height / 2).clamp(marginY, maxY - marginY),
+    );
+  }
+
+  @override
+  bool shouldRelayout(_FolderNameHintLayout oldDelegate) =>
+      anchor != oldDelegate.anchor;
+}
+
 class ChatListSelection {
   const ChatListSelection({
     required this.chatId,
@@ -238,6 +414,7 @@ class ChatListSelection {
     this.chat,
     this.resolvedKind,
     this.initialMessageId,
+    this.forumTopicId,
     this.composerFocusRequestId = 0,
   });
 
@@ -248,13 +425,18 @@ class ChatListSelection {
        title = chat.title,
        chat = chat,
        resolvedKind = chat.kind,
-       initialMessageId = null;
+       initialMessageId = null,
+       forumTopicId = null;
 
   final int chatId;
   final String title;
   final ChatSummary? chat;
   final ChatKind? resolvedKind;
   final int? initialMessageId;
+
+  /// The forum topic shown as an ordinary transcript when topics are folded
+  /// into the group chat; null shows the whole chat.
+  final int? forumTopicId;
   final int composerFocusRequestId;
 
   ChatKind? get kind => chat?.kind ?? resolvedKind;
@@ -267,6 +449,28 @@ class ChatListSelection {
     chat: chat,
     resolvedKind: kind,
     initialMessageId: initialMessageId,
+    forumTopicId: forumTopicId,
+    composerFocusRequestId: composerFocusRequestId,
+  );
+
+  /// Whether [other] would land on the transcript this selection already
+  /// shows — same conversation, same topic, same jump target, and no fresh
+  /// composer-focus request that needs its own build.
+  ///
+  /// A caller uses this to decide that tapping the row means "go to the newest
+  /// message" rather than "open something else".
+  bool showsSameTranscript(ChatListSelection other) =>
+      chatId == other.chatId &&
+      forumTopicId == other.forumTopicId &&
+      initialMessageId == other.initialMessageId &&
+      composerFocusRequestId == other.composerFocusRequestId;
+
+  ChatListSelection withForumTopic(int? topicId) => ChatListSelection(
+    chatId: chatId,
+    title: title,
+    chat: chat,
+    resolvedKind: resolvedKind,
+    forumTopicId: topicId,
     composerFocusRequestId: composerFocusRequestId,
   );
 }
@@ -954,7 +1158,6 @@ class _ChatListViewState extends State<ChatListView>
   StreamSubscription? _activeSlotSub;
   ChatListConnectionStatus _connectionStatus =
       ChatListConnectionStatus.connecting;
-  int _connectionRefreshGeneration = 0;
   int? _openSwipeChat;
   bool _showPlusMenu = false;
   bool _showFilterMenu = false;
@@ -973,8 +1176,9 @@ class _ChatListViewState extends State<ChatListView>
   bool _isRefreshing = false;
   bool _viewTickerEnabled = true;
   bool _modelDirtyWhileInactive = false;
-  bool _reactivationSyncScheduled = false;
+  bool _reactivationFollowUpPending = false;
   int _lastVisibleRows = 1;
+  double? _lastRowWidth;
   final ChatListSwipeSession _chatListSwipeSession = ChatListSwipeSession();
   final ScrollController _folderTabScrollController = ScrollController();
   final Map<int?, GlobalKey> _folderTabKeys = {};
@@ -1018,10 +1222,9 @@ class _ChatListViewState extends State<ChatListView>
         .updatesOf('updateConnectionState')
         .listen(_applyConnectionUpdate);
     _activeSlotSub = TdClient.shared.subscribeActiveSlotChanges().listen((_) {
-      _setConnectionStatus(ChatListConnectionStatus.connecting);
-      unawaited(_refreshConnectionStatus());
+      _refreshConnectionStatus();
     });
-    unawaited(_refreshConnectionStatus());
+    _refreshConnectionStatus();
   }
 
   @override
@@ -1040,14 +1243,28 @@ class _ChatListViewState extends State<ChatListView>
     _viewTickerEnabled = tickerEnabled;
     if (!reactivated ||
         !_modelDirtyWhileInactive ||
-        _reactivationSyncScheduled) {
+        _reactivationFollowUpPending) {
       return;
     }
-    _reactivationSyncScheduled = true;
+    // TickerMode.valuesOf registers an inherited-widget dependency, so the flip
+    // that brings this list back already rebuilds it in this same frame with
+    // everything the model applied while a conversation covered it. Only the
+    // work that needs a finished frame is still owed: scheduling a second full
+    // rebuild for the next frame put it in the middle of the returning
+    // transition, where the list is rasterizing itself again anyway.
+    _modelDirtyWhileInactive = false;
+    _reactivationFollowUpPending = true;
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _reactivationSyncScheduled = false;
-      if (!mounted || !_viewTickerEnabled || !_modelDirtyWhileInactive) return;
-      _onModel();
+      _reactivationFollowUpPending = false;
+      if (!mounted) return;
+      if (!_viewTickerEnabled) {
+        // Covered again before the frame ended: keep the follow-up owed so the
+        // next reactivation runs it.
+        _modelDirtyWhileInactive = true;
+        return;
+      }
+      _showModelNotice();
+      _runPendingScrollRequest();
     });
   }
 
@@ -1058,15 +1275,21 @@ class _ChatListViewState extends State<ChatListView>
       return;
     }
     _modelDirtyWhileInactive = false;
-    if (_model.notice != null && mounted) {
-      final text = _model.notice!;
-      _model.clearNotice();
-      showToast(context, text);
-    }
+    _showModelNotice();
     setState(() {});
-    if (_pendingScrollToFirstUnreadRequest != null) {
-      _tryScrollToFirstUnread();
-    }
+    _runPendingScrollRequest();
+  }
+
+  void _showModelNotice() {
+    final notice = _model.notice;
+    if (notice == null || !mounted) return;
+    _model.clearNotice();
+    showToast(context, notice);
+  }
+
+  void _runPendingScrollRequest() {
+    if (_pendingScrollToFirstUnreadRequest == null) return;
+    _tryScrollToFirstUnread();
   }
 
   void _onScroll() {
@@ -1075,7 +1298,11 @@ class _ChatListViewState extends State<ChatListView>
     if (positions.length != 1) return;
     final position = positions.single;
     final theme = context.read<ThemeController>();
-    final rowHeight = chatListRowExtentFor(context, listen: false) + 0.5;
+    final rowHeight = chatListRowExtentFor(
+      context,
+      listen: false,
+      width: _lastRowWidth,
+    );
     final archiveMode = effectiveChatListArchiveDisplayMode(
       theme.archivedChatsDisplayMode,
     );
@@ -1138,7 +1365,9 @@ class _ChatListViewState extends State<ChatListView>
           _meStatusId = TDParse.emojiStatusCustomEmojiId(
             me.obj('emoji_status'),
           );
-          _meIsPremium = me.boolean('is_premium') ?? false;
+          _meIsPremium = LocalPremium.shared.premiumForMe(
+            me.boolean('is_premium') ?? false,
+          );
           _meId = me.int64('id');
           _model.meId = _meId;
         });
@@ -1157,27 +1386,25 @@ class _ChatListViewState extends State<ChatListView>
     setState(() => _connectionStatus = status);
   }
 
-  Future<void> _refreshConnectionStatus() async {
-    final generation = ++_connectionRefreshGeneration;
-    final slot = TdClient.shared.activeSlot;
-    try {
-      final state = await TdClient.shared.queryForSlot({
-        '@type': 'getConnectionState',
-      }, slot);
-      if (!mounted ||
-          generation != _connectionRefreshGeneration ||
-          slot != TdClient.shared.activeSlot) {
-        return;
-      }
-      _setConnectionStatus(chatListConnectionStatusForTdState(state.type));
-    } catch (_) {
-      if (!mounted ||
-          generation != _connectionRefreshGeneration ||
-          slot != TdClient.shared.activeSlot) {
-        return;
-      }
-      _setConnectionStatus(ChatListConnectionStatus.disconnected);
-    }
+  /// Seeds the header from the last connection state TDLib reported for the
+  /// active account.
+  ///
+  /// `updateConnectionState` is push-only and TDLib sends it just once per
+  /// change, so a view that mounts after the account settled would otherwise
+  /// have nothing to read. There is no request to ask with: TDLib has no
+  /// `getConnectionState`, and `getCurrentState` would serialise the whole
+  /// account to answer about one field. An unknown answer stays `connecting` —
+  /// never `disconnected`, which would claim a state TDLib never reported.
+  void _refreshConnectionStatus() {
+    if (!mounted) return;
+    final stateType = TdClient.shared.latestConnectionStateUpdate
+        ?.obj('state')
+        ?.type;
+    _setConnectionStatus(
+      stateType == null
+          ? ChatListConnectionStatus.connecting
+          : chatListConnectionStatusForTdState(stateType),
+    );
   }
 
   Future<void> _openChat(ChatSummary chat, {bool focusComposer = false}) async {
@@ -1211,35 +1438,17 @@ class _ChatListViewState extends State<ChatListView>
       return;
     }
     if (chat.supportsTopics) {
-      final mode = await TopicGroupDisplayPreference.load();
-      if (!mounted) return;
-      if (mode.isChat) {
-        unawaited(
-          pushAppChatRoute(
-            context,
-            _chatEntryRoute(
-              ChatView(
-                chatId: chat.id,
-                title: chat.title,
-                seedMessage: chat.lastChatMessage,
-                requestComposerFocusOnReady: focusComposer,
-              ),
-            ),
-          ),
-        );
-        return;
-      }
-      final railChats = <int, ChatSummary>{};
-      for (final summary in [..._model.chats, ..._model.archived]) {
-        railChats[summary.id] = summary;
-      }
+      // Forum/topic chats always open in the regular chat transcript; the
+      // topic feed surface is gone.
       unawaited(
         pushAppChatRoute(
           context,
-          _standardEntryRoute(
-            ForumTopicBrowserView(
-              chats: railChats.values.toList(),
-              initialChat: chat,
+          _chatEntryRoute(
+            ChatView(
+              chatId: chat.id,
+              title: chat.title,
+              seedMessage: chat.lastChatMessage,
+              requestComposerFocusOnReady: focusComposer,
             ),
           ),
         ),
@@ -1261,18 +1470,23 @@ class _ChatListViewState extends State<ChatListView>
     );
   }
 
-  void _openCommunity(CommunityGroupEntry entry) {
+  void _openCommunity(CommunityGroupEntry entry) =>
+      _openCommunityHub(entry.community);
+
+  /// Opens the community hub, whether the caller came from the folded
+  /// chat-list row or from a member chat's corner badge.
+  void _openCommunityHub(CommunitySummary community) {
     if (!context.read<ThemeController>().communitiesEnabled) return;
     final selection = CommunityListSelection(
-      community: entry.community,
-      chats: _model.chatsInCommunity(entry.community.id),
-      viewableChats: _model.viewableChatsInCommunity(entry.community.id),
+      community: community,
+      chats: _model.chatsInCommunity(community.id),
+      viewableChats: _model.viewableChatsInCommunity(community.id),
       onCollapsedChanged: (value) =>
-          _model.setCommunityCollapsed(entry.community.id, value),
+          _model.setCommunityCollapsed(community.id, value),
       updates: _model,
-      chatsProvider: () => _model.chatsInCommunity(entry.community.id),
+      chatsProvider: () => _model.chatsInCommunity(community.id),
       viewableChatsProvider: () =>
-          _model.viewableChatsInCommunity(entry.community.id),
+          _model.viewableChatsInCommunity(community.id),
     );
     final onCommunitySelected = widget.onCommunitySelected;
     if (onCommunitySelected != null) {
@@ -1456,10 +1670,51 @@ class _ChatListViewState extends State<ChatListView>
       context,
     ).push<String>(MaterialPageRoute(builder: (_) => const QrScannerView()));
     if (!mounted || value == null || value.trim().isEmpty) return;
-    await openLink(context, value);
+    await openLink(context, value, keepTelegramInApp: true);
   }
 
-  Future<void> _editFolderAppearance(ChatFilterOption filter) async {
+  /// Opens the folder's command sheet.
+  ///
+  /// The "All chats" tab has no folder to edit or extend, so it offers only the
+  /// list-wide read and order commands.
+  Future<void> _showFolderMenu(ChatFilterOption filter) async {
+    final folderId = filter.folderId;
+    await showChatFolderActionSheet(
+      context: context,
+      title: filter.title.l10n(context),
+      actions: [
+        if (folderId != null)
+          ChatFolderMenuAction(
+            key: 'edit',
+            label: AppStrings.t(AppStringKeys.chatFolderManagementEditFolder),
+            icon: HeroAppIcons.pen,
+            onSelected: () => unawaited(_editFolder(filter)),
+          ),
+        if (folderId != null)
+          ChatFolderMenuAction(
+            key: 'add-chat',
+            label: AppStrings.t(AppStringKeys.chatFolderManagementAddChat),
+            icon: HeroAppIcons.plus,
+            onSelected: () => unawaited(_addChatToFolder(filter)),
+          ),
+        ChatFolderMenuAction(
+          key: 'mark-read',
+          label: AppStrings.t(AppStringKeys.chatFolderManagementMarkAllRead),
+          icon: HeroAppIcons.check,
+          onSelected: () => unawaited(_markFolderRead(filter)),
+        ),
+        ChatFolderMenuAction(
+          key: 'reorder',
+          label: AppStrings.t(AppStringKeys.chatFolderManagementReorderFolders),
+          icon: HeroAppIcons.bars,
+          onSelected: () => unawaited(_reorderFolders()),
+        ),
+      ],
+    );
+  }
+
+  /// Opens the full folder editor and writes the returned draft back.
+  Future<void> _editFolder(ChatFilterOption filter) async {
     final id = filter.folderId;
     if (id == null) return;
     final client = TdClient.shared;
@@ -1471,6 +1726,8 @@ class _ChatListViewState extends State<ChatListView>
       final raw = await service.getFolder(id);
       if (!mounted || client.activeClientId != clientId) return;
       final original = ChatFolderDraft.fromRaw(raw);
+      final tagsEnabled =
+          context.read<ChatFolderTagController?>()?.enabled ?? false;
       final edited = await Navigator.of(context, rootNavigator: true)
           .push<ChatFolderDraft>(
             AppPageRoute(
@@ -1478,18 +1735,63 @@ class _ChatListViewState extends State<ChatListView>
                 initial: original,
                 folderId: id,
                 service: service,
-                tagsEnabled: false,
-                appearanceOnly: true,
+                tagsEnabled: tagsEnabled,
               ),
             ),
           );
       if (edited == null || !mounted || client.activeClientId != clientId) {
         return;
       }
-      await service.editAppearance(
+      await service.edit(id, edited);
+    } catch (error) {
+      if (mounted) {
+        showToast(
+          context,
+          AppStrings.t(
+            AppStringKeys.chatFolderManagementCouldnTUpdateFolderValue1,
+            {'value1': error},
+          ),
+        );
+      }
+    }
+  }
+
+  /// Adds one picked chat to the folder's included rules.
+  ///
+  /// The folder is re-read after the picker closes so the merge keeps rules
+  /// that changed while the picker was open, and a chat that was explicitly
+  /// excluded stops being excluded once it is included.
+  Future<void> _addChatToFolder(ChatFilterOption filter) async {
+    final id = filter.folderId;
+    if (id == null) return;
+    final client = TdClient.shared;
+    final clientId = client.activeClientId;
+    final accountSlot = client.activeSlot;
+    final service = ChatFolderService(
+      query: (request) => client.queryTo(request, clientId),
+    );
+    try {
+      final picked = await Navigator.of(context).push<ChatSummary>(
+        AppPageRoute(
+          pageBuilder: (_, _, _) => ChatPickerView(
+            title: AppStrings.t(AppStringKeys.chatFolderManagementAddChat),
+            accountSlot: accountSlot,
+          ),
+        ),
+      );
+      if (picked == null || !mounted || client.activeClientId != clientId) {
+        return;
+      }
+      final raw = await service.getFolder(id);
+      if (!mounted || client.activeClientId != clientId) return;
+      final draft = ChatFolderDraft.fromRaw(raw);
+      final excluded = {...draft.excludedChatIds}..remove(picked.id);
+      await service.edit(
         id,
-        title: edited.title == original.title ? null : edited.title,
-        iconName: edited.iconName == original.iconName ? null : edited.iconName,
+        draft.copyWith(
+          includedChatIds: {...draft.includedChatIds, picked.id},
+          excludedChatIds: excluded,
+        ),
       );
     } catch (error) {
       if (mounted) {
@@ -1497,6 +1799,78 @@ class _ChatListViewState extends State<ChatListView>
           context,
           AppStrings.t(
             AppStringKeys.chatFolderManagementCouldnTUpdateFolderValue1,
+            {'value1': error},
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _markFolderRead(ChatFilterOption filter) async {
+    final id = filter.folderId;
+    try {
+      if (id == null) {
+        // "All chats" is the whole account, not whichever folder happens to be
+        // selected: the main list is enumerated through TDLib so chats this
+        // view never loaded are cleared too.
+        await _model.markAllChatsRead();
+      } else {
+        await _model.markFolderRead(id);
+      }
+    } catch (error) {
+      if (mounted) {
+        showToast(
+          context,
+          AppStrings.t(
+            AppStringKeys.chatFolderManagementCouldnTMarkAllReadValue1,
+            {'value1': error},
+          ),
+        );
+      }
+    }
+  }
+
+  /// Opens the order sheet with every folder the account currently has.
+  Future<void> _reorderFolders() async {
+    final client = TdClient.shared;
+    final clientId = client.activeClientId;
+    final service = ChatFolderService(
+      query: (request) => client.queryTo(request, clientId),
+    );
+    final update = client.latestChatFoldersUpdate;
+    try {
+      var folders = await service.load(update);
+      if (!mounted || client.activeClientId != clientId) return;
+      if (folders.isEmpty) {
+        // The bootstrap update may not be in the client cache yet; the tab
+        // strip already knows the ids and names, and reorder only needs those.
+        folders = [
+          for (final option in _model.filters)
+            if (option.folderId case final int folderId)
+              ChatFolderRecord(
+                id: folderId,
+                title: option.title,
+                raw: const <String, dynamic>{},
+                hasInviteLinks: false,
+              ),
+        ];
+      }
+      if (folders.isEmpty) return;
+      await showChatFolderReorderSheet(
+        context: context,
+        folders: folders,
+        mainListPosition: update?.integer('main_chat_list_position') ?? 0,
+        service: service,
+        // The sheet outlives this surface; a save after the account changed
+        // would write the old folder order into the replacement account.
+        canSave: () => mounted && client.activeClientId == clientId,
+      );
+    } catch (error) {
+      if (mounted) {
+        showToast(
+          context,
+          AppStrings.t(
+            AppStringKeys.chatFolderManagementCouldnTLoadChatFoldersValue1,
             {'value1': error},
           ),
         );
@@ -1789,8 +2163,14 @@ class _ChatListViewState extends State<ChatListView>
     );
     if (entryIndex < 0) return null;
 
-    var itemIndex = entryIndex;
-    if (_model.isAllFilter && _model.filtered.isNotEmpty) itemIndex++;
+    final preceding = <double>[
+      for (final entry in entries.take(entryIndex)) _entryExtent(entry),
+    ];
+    if (_model.isAllFilter && _model.filtered.isNotEmpty) {
+      preceding.add(
+        _summaryExtent(FilteredChatsRow(chats: _model.filtered).summary),
+      );
+    }
     final archiveMode = effectiveChatListArchiveDisplayMode(
       context.read<ThemeController>().archivedChatsDisplayMode,
     );
@@ -1805,17 +2185,59 @@ class _ChatListViewState extends State<ChatListView>
               chatCount: entries.length,
               visibleRows: _lastVisibleRows,
             );
-      if (archiveIndex <= entryIndex) itemIndex++;
+      if (archiveIndex <= entryIndex) preceding.add(_archiveExtent());
     }
-    return chatListItemScrollOffset(
-      itemIndex: itemIndex,
-      rowHeight: chatListRowExtentFor(context, listen: false),
-      maxScrollExtent: _scrollController.position.maxScrollExtent,
-      leadingExtent: _leadingListControlsExtent(
-        context.read<ThemeController>(),
+    // These builders contain no inter-row Divider/SizedBox. Do not add the
+    // former estimated 0.5px: it accumulated drift on long unread jumps.
+    return math.min(
+      _scrollController.position.maxScrollExtent,
+      chatRowCumulativeOffset(
+        preceding,
+        leadingExtent: _leadingListControlsExtent(
+          context.read<ThemeController>(),
+        ),
       ),
     );
   }
+
+  double _summaryExtent(
+    ChatSummary summary, {
+    bool? pinned,
+    double trailingWidth = 0,
+    double titleAccessoryWidth = 0,
+  }) => chatRowMetricsFor(
+    context,
+    summary,
+    listen: false,
+    width: _lastRowWidth,
+    pinned: pinned,
+    trailingWidth: trailingWidth,
+    titleAccessoryWidth: titleAccessoryWidth,
+  ).extent;
+
+  double _entryExtent(CommunityChatListEntry entry) => switch (entry) {
+    CommunityChatEntry(:final chat) => _summaryExtent(
+      chat,
+      pinned: _model.isPinnedInSelectedList(chat),
+      titleAccessoryWidth:
+          (chat.kind == ChatKind.secret ? 18 : 0) +
+          (chat.peerEmojiStatusId != 0 &&
+                  context
+                      .read<ThemeController>()
+                      .chatListStatusEmojiMode
+                      .visible
+              ? 21
+              : 0),
+    ),
+    CommunityGroupEntry() => _summaryExtent(
+      CommunityChatListRow(entry: entry).summary,
+      trailingWidth: isDesktopTargetPlatform() ? 0 : 13,
+      titleAccessoryWidth: 22,
+    ),
+  };
+
+  double _archiveExtent() =>
+      _summaryExtent(ArchivedChatsRow(archived: _model.archived).summary);
 
   void _animateListTo(double target) {
     if (!_scrollController.hasClients) return;
@@ -1838,6 +2260,15 @@ class _ChatListViewState extends State<ChatListView>
     final c = context.colors;
     final theme = context.watch<ThemeController>();
     final folderMode = theme.chatFolderDisplayMode;
+    // With folders not displayed the list must keep showing every chat, so
+    // the "hide All" preference only applies while folders are on screen.
+    _model.hideAllFilter =
+        theme.hideAllChatsFolder && folderMode != ChatFolderDisplayMode.hidden;
+    if (_model.selectionHiddenByFilterPreference) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _model.selectFirstVisibleFilterIfHidden();
+      });
+    }
     final isBot = context.watch<AccountStore?>()?.activeIsBotApi ?? false;
     final tabCount = isBot
         ? 1
@@ -2099,11 +2530,7 @@ class _ChatListViewState extends State<ChatListView>
     final activeFilter = _model.selectedFilter;
     return Container(
       color: c.listHeaderTint,
-      padding: EdgeInsets.only(
-        top:
-            MediaQuery.of(context).padding.top +
-            iPadWindowChromeInsetOf(context),
-      ),
+      padding: headerChromePaddingOf(context),
       child: Padding(
         padding: const EdgeInsets.symmetric(
           horizontal: AppSpacing.xxl,
@@ -2112,15 +2539,31 @@ class _ChatListViewState extends State<ChatListView>
         child: Row(
           children: [
             GestureDetector(
+              key: const ValueKey('chat-list-header-avatar-hit'),
+              behavior: HitTestBehavior.opaque,
               onTap: () => context.read<dc.DrawerController>().open(),
-              child: PhotoAvatar(
-                title: _meName,
-                photo: _mePhoto,
-                size: AppMetric.headerAvatarSize,
-                allowAnimation: false,
+              child: SizedBox(
+                width: AppMetric.chatHeaderHitTarget(),
+                height: AppMetric.chatHeaderHitTarget(),
+                child: Align(
+                  alignment: AlignmentDirectional.centerStart,
+                  child: PhotoAvatar(
+                    title: _meName,
+                    photo: _mePhoto,
+                    size: AppMetric.chatHeaderAvatarSize(),
+                    allowAnimation: false,
+                  ),
+                ),
               ),
             ),
-            const SizedBox(width: AppSpacing.lg),
+            // The larger transparent hit box borrows from the existing 12pt
+            // artwork/name gap, leaving artwork at the same 16pt inset.
+            SizedBox(
+              width:
+                  AppSpacing.lg -
+                  (AppMetric.chatHeaderHitTarget() -
+                      AppMetric.chatHeaderAvatarSize()),
+            ),
             Expanded(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -2229,14 +2672,15 @@ class _ChatListViewState extends State<ChatListView>
               ),
             ],
             GestureDetector(
+              key: const ValueKey('chat-list-header-add-hit'),
               behavior: HitTestBehavior.opaque,
               onTap: _openPlusMenu,
               child: SizedBox(
-                width: AppMetric.hitTarget,
-                height: AppMetric.hitTarget,
+                width: AppMetric.chatHeaderHitTarget(),
+                height: AppMetric.chatHeaderHitTarget(),
                 child: AppIcon(
                   HeroAppIcons.plus,
-                  size: AppIconSize.add,
+                  size: AppMetric.chatHeaderAddSize(),
                   color: c.textPrimary,
                 ),
               ),
@@ -2262,6 +2706,10 @@ class _ChatListViewState extends State<ChatListView>
     animation: _folderDrag,
     builder: (context, _) => ChatFolderRail(
       filters: _model.filters,
+      showUnreadBadges: context.watch<ThemeController>().showFolderUnreadBadges,
+      badgeOverflowMode: context
+          .watch<ThemeController>()
+          .unreadBadgeOverflowMode,
       selectedFolderId: _model.selectedFilter.folderId,
       highlights: {
         for (final filter in _model.filters)
@@ -2271,13 +2719,16 @@ class _ChatListViewState extends State<ChatListView>
           ),
       },
       onSelect: _selectFilter,
-      onEdit: _editFolderAppearance,
+      onMenu: _showFolderMenu,
       keyForFolder: (id) => _sideFolderKeys.putIfAbsent(id, GlobalKey.new),
     ),
   );
 
   Widget _chatFolderTabs() {
     final c = context.colors;
+    final theme = context.watch<ThemeController>();
+    final showBadges = theme.showFolderUnreadBadges;
+    final badgeOverflow = theme.unreadBadgeOverflowMode;
     final selectedFolderId = _model.selectedFilter.folderId;
     // The strip scrolls horizontally, so its height is fixed; grow it with the
     // label that sits above the selection indicator.
@@ -2310,6 +2761,7 @@ class _ChatListViewState extends State<ChatListView>
             key: key,
             behavior: HitTestBehavior.opaque,
             onTap: () => _selectFilter(filter),
+            onLongPress: () => _showFolderMenu(filter),
             child: SizedBox(
               height: tabHeight,
               child: AnimatedBuilder(
@@ -2351,6 +2803,17 @@ class _ChatListViewState extends State<ChatListView>
                               ),
                             ),
                           ),
+                          if (showBadges &&
+                              !filter.isAll &&
+                              filter.unreadChatCount > 0) ...[
+                            const SizedBox(width: 5),
+                            FolderUnreadBadge(
+                              label: badgeOverflow.format(
+                                filter.unreadChatCount,
+                              ),
+                              accent: filter.hasUnmutedUnread,
+                            ),
+                          ],
                         ],
                       ),
                       const SizedBox(height: 7),
@@ -2375,8 +2838,83 @@ class _ChatListViewState extends State<ChatListView>
 
   // MARK: - Search
 
+  // Measure the same inherited font, locale and OS scaler as the visible
+  // placeholder. The default remains 33pt; accessibility and tall custom fonts
+  // grow the visual and its scroll allocation together instead of clipping.
+  double _touchSearchVisualHeight() {
+    final style = AppTextStyle.forSystemBoldTextMeasurement(
+      DefaultTextStyle.of(context).style.merge(const TextStyle(fontSize: 16)),
+      boldText: MediaQuery.boldTextOf(context),
+    );
+    final painter = TextPainter(
+      text: TextSpan(
+        text: AppStringKeys.topicChatSearch.l10n(context),
+        style: style,
+      ),
+      textDirection: Directionality.of(context),
+      textScaler: MediaQuery.textScalerOf(context),
+      locale: Localizations.maybeLocaleOf(context),
+      maxLines: 1,
+    )..layout();
+    final height = math.max(AppMetric.chatSearchHeight(), painter.height + 8);
+    painter.dispose();
+    return height;
+  }
+
+  double _searchSlotExtent() =>
+      isTouchTargetPlatform() && !widget.desktopSidebar
+      ? math.max(_searchPillExtent, _touchSearchVisualHeight() + 17)
+      : _searchPillExtent;
+
   Widget _searchPill() {
     final c = context.colors;
+    if (isTouchTargetPlatform() && !widget.desktopSidebar) {
+      return Container(
+        key: const ValueKey('chat-list-inline-search'),
+        color: c.listHeaderTint,
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        child: GestureDetector(
+          key: const ValueKey('chat-list-search-hit'),
+          behavior: HitTestBehavior.opaque,
+          onTap: () => Navigator.of(
+            context,
+          ).push(MaterialPageRoute(builder: (_) => const SearchView())),
+          child: SizedBox(
+            height: _searchSlotExtent(),
+            child: Center(
+              child: Container(
+                key: const ValueKey('chat-list-search-visual'),
+                height: _touchSearchVisualHeight(),
+                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+                decoration: BoxDecoration(
+                  color: c.searchFill,
+                  borderRadius: BorderRadius.circular(AppRadius.card),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    AppIcon(
+                      HeroAppIcons.magnifyingGlass,
+                      size: AppMetric.chatSearchIcon(),
+                      color: c.textTertiary,
+                    ),
+                    const SizedBox(width: AppSpacing.sm),
+                    Flexible(
+                      child: Text(
+                        AppStringKeys.topicChatSearch.l10n(context),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(fontSize: 16, color: c.textTertiary),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+    }
     final search = GestureDetector(
       onTap: () => Navigator.of(
         context,
@@ -2400,7 +2938,7 @@ class _ChatListViewState extends State<ChatListView>
             Text(
               AppStringKeys.topicChatSearch.l10n(context),
               style: TextStyle(
-                fontSize: AppTextSize.callout,
+                fontSize: isTouchTargetPlatform() ? 16 : AppTextSize.callout,
                 color: c.textTertiary,
               ),
             ),
@@ -2502,7 +3040,19 @@ class _ChatListViewState extends State<ChatListView>
   /// A read-only rendering of the folder a swipe is heading for. It never takes
   /// the shared scroll controller and never wires up row actions, so the list
   /// being left behind keeps its position and its gestures.
-  Widget _folderPeekList(ChatFilterOption filter) {
+  Widget _folderPeekList(ChatFilterOption filter) => LayoutBuilder(
+    builder: (context, constraints) => ChatRowWidth(
+      width: constraints.maxWidth,
+      child: Builder(
+        builder: (context) => _folderPeekListContents(context, filter),
+      ),
+    ),
+  );
+
+  Widget _folderPeekListContents(
+    BuildContext context,
+    ChatFilterOption filter,
+  ) {
     final c = context.colors;
     final theme = context.watch<ThemeController>();
     final entries = _model.chatListEntriesForFolder(
@@ -2522,7 +3072,7 @@ class _ChatListViewState extends State<ChatListView>
           color: c.background,
           child: LayoutBuilder(
             builder: (context, geo) {
-              final rowH = chatListRowExtentFor(context) + 0.5;
+              final rowH = chatListRowExtentFor(context);
               if (entries.isEmpty && !showInlineArchive) {
                 return ListView(
                   primary: false,
@@ -2561,7 +3111,10 @@ class _ChatListViewState extends State<ChatListView>
                       : listIndex;
                   final entry = entries[entryIndex];
                   return switch (entry) {
-                    CommunityChatEntry(:final chat) => _peekRow(chat),
+                    CommunityChatEntry(:final chat) => _peekRow(
+                      chat,
+                      filter.folderId,
+                    ),
                     CommunityGroupEntry() => _communityRow(entry),
                   };
                 },
@@ -2573,16 +3126,38 @@ class _ChatListViewState extends State<ChatListView>
     );
   }
 
-  Widget _peekRow(ChatSummary chat) {
+  Widget _peekRow(ChatSummary chat, int? folderId) {
     final selected = widget.selectedChatId == chat.id;
     return ChatListSelectionHighlight(
       key: ValueKey(chat.id),
       selected: selected,
-      child: ChatRowView(chat: chat, selected: selected),
+      child: ChatRowView(
+        chat: chat,
+        selected: selected,
+        pinned: folderId == null
+            ? null
+            : _model.isPinnedInFolder(chat, folderId),
+        avatarBadge: _communityBadge(
+          chat,
+          communitiesEnabled: context
+              .read<ThemeController>()
+              .communitiesEnabled,
+        ),
+      ),
     );
   }
 
-  Widget _chatList() {
+  Widget _chatList() => LayoutBuilder(
+    builder: (context, constraints) {
+      _lastRowWidth = constraints.maxWidth;
+      return ChatRowWidth(
+        width: constraints.maxWidth,
+        child: Builder(builder: _chatListContents),
+      );
+    },
+  );
+
+  Widget _chatListContents(BuildContext context) {
     final c = context.colors;
     final theme = context.watch<ThemeController>();
     final leadingControlsExtent = _leadingListControlsExtent(theme);
@@ -2594,7 +3169,7 @@ class _ChatListViewState extends State<ChatListView>
       color: c.background,
       child: LayoutBuilder(
         builder: (context, geo) {
-          final rowH = chatListRowExtentFor(context) + 0.5;
+          final rowH = chatListRowExtentFor(context);
           final searchHeight = leadingControlsExtent;
           final visibleRows = math.max(1, (geo.maxHeight / rowH).ceil());
           _lastVisibleRows = visibleRows;
@@ -2633,7 +3208,7 @@ class _ChatListViewState extends State<ChatListView>
                   (hasPullDownArchiveSlot ? 1 : 0),
               itemBuilder: (context, index) {
                 if (showLeadingControls && index == 0) {
-                  return _archivePullSearchPill(hasPullDownArchiveSlot);
+                  return _pinnedSearchPill();
                 }
                 if (hasPullDownArchiveSlot &&
                     index ==
@@ -2656,8 +3231,7 @@ class _ChatListViewState extends State<ChatListView>
               ),
               padding: EdgeInsets.only(bottom: BottomBarInset.of(context)),
               children: [
-                if (showLeadingControls)
-                  _archivePullSearchPill(hasPullDownArchiveSlot),
+                if (showLeadingControls) _pinnedSearchPill(),
                 if (hasPullDownArchiveSlot)
                   _pullDownArchiveSlot(
                     rowHeight: rowH,
@@ -2690,7 +3264,7 @@ class _ChatListViewState extends State<ChatListView>
                   (hasFiltered ? 1 : 0),
               itemBuilder: (context, index) {
                 if (showLeadingControls && index == 0) {
-                  return _archivePullSearchPill(hasPullDownArchiveSlot);
+                  return _pinnedSearchPill();
                 }
                 final contentIndex = showLeadingControls ? index - 1 : index;
                 if (hasPullDownArchiveSlot && contentIndex == 0) {
@@ -2733,7 +3307,7 @@ class _ChatListViewState extends State<ChatListView>
 
   double _leadingListControlsExtent(ThemeController theme) {
     if (!widget.desktopSidebar) {
-      return theme.showChatListSearch ? _searchPillExtent : 0;
+      return theme.showChatListSearch ? _searchSlotExtent() : 0;
     }
     final showFolder =
         theme.chatFolderDisplayMode == ChatFolderDisplayMode.menu &&
@@ -2741,10 +3315,14 @@ class _ChatListViewState extends State<ChatListView>
     return showFolder ? _searchPillExtent : 0;
   }
 
-  Widget _archivePullSearchPill(bool pinDuringArchivePull) {
+  /// The search row leads every chat-list page, so any top overscroll — the
+  /// pull-down archive reveal on the All folder, or plain rubber-banding on a
+  /// folder tab or an empty folder — moves it down with the viewport. The pin
+  /// cancels that travel so the row stays under the folder strip and the rows
+  /// below are what stretch.
+  Widget _pinnedSearchPill() {
     return ChatListTopOverscrollPin(
       controller: _scrollController,
-      enabled: pinDuringArchivePull,
       child: _searchPill(),
     );
   }
@@ -2758,7 +3336,7 @@ class _ChatListViewState extends State<ChatListView>
         : const Duration(milliseconds: 180);
     return ChatListPullDownArchiveSlot(
       controller: _scrollController,
-      rowHeight: rowHeight,
+      rowHeight: _archiveExtent(),
       visible: visible,
       duration: duration,
       child: _assistantRow(),
@@ -2834,9 +3412,24 @@ class _ChatListViewState extends State<ChatListView>
     );
   }
 
+  /// A community's chats are ordinary rows again once "Show as One Chat" is
+  /// off, and without this marker the hub has no entry point at all.
+  Widget? _communityBadge(
+    ChatSummary chat, {
+    required bool communitiesEnabled,
+  }) {
+    final community = _model.communityBadgeFor(
+      chat.id,
+      communitiesEnabled: communitiesEnabled,
+    );
+    if (community == null) return null;
+    return CommunityAvatarBadge(onTap: () => _openCommunityHub(community));
+  }
+
   Widget _swipeRow(ChatSummary chat) {
     final selected = widget.selectedChatId == chat.id;
-    final swipeMode = context.watch<ThemeController>().chatListSwipeMode;
+    final theme = context.watch<ThemeController>();
+    final swipeMode = theme.chatListSwipeMode;
     final platform = Theme.of(context).platform;
     final desktopContextMenu = !kIsWeb && isDesktopTargetPlatform(platform);
     final desktopTouchGestures =
@@ -2847,7 +3440,9 @@ class _ChatListViewState extends State<ChatListView>
       mode: swipeMode,
       multiTouchActive: _chatListSwipeSession.suppressRowSwipes,
     );
-    final actions = chat.isPinned
+    // The pin state of the list the user is looking at, not the Main list's.
+    final pinnedInList = _model.isPinnedInSelectedList(chat);
+    final actions = pinnedInList
         ? [
             SwipeActionItem(
               title: AppStringKeys.chatListMarkUnread,
@@ -2905,7 +3500,12 @@ class _ChatListViewState extends State<ChatListView>
         child: ChatRowView(
           chat: chat,
           selected: selected,
+          pinned: _model.isPinnedInSelectedList(chat),
           onClearUnread: () => _model.markRead(chat),
+          avatarBadge: _communityBadge(
+            chat,
+            communitiesEnabled: theme.communitiesEnabled,
+          ),
         ),
       ),
     );
@@ -2938,10 +3538,12 @@ class _ChatListViewState extends State<ChatListView>
       _dismissDesktopChatMenu();
     }
 
+    final owner = ChatPreviewAccounts.defaultPreviewAccounts.pinActiveOwner();
+    final pinnedInList = _model.isPinnedInSelectedList(chat);
     entry = OverlayEntry(
       builder: (_) => DesktopChatContextMenu(
         anchor: anchor,
-        isPinned: chat.isPinned,
+        isPinned: pinnedInList,
         hasUnread: chat.unreadCount > 0 || chat.isMarkedUnread,
         isMuted: chat.isMuted,
         deleteOrLeaveLabel: _deleteOrLeaveTitle(chat),
@@ -2954,6 +3556,7 @@ class _ChatListViewState extends State<ChatListView>
             ? null
             : () => unawaited(openInSeparateWindow(chat)),
         onToggleMute: () => _model.toggleMute(chat),
+        onArchive: () => _model.archive(chat, owner: owner),
         onDeleteOrLeave: () => unawaited(_confirmDeleteChat(chat)),
       ),
     );
@@ -2964,14 +3567,12 @@ class _ChatListViewState extends State<ChatListView>
   Future<void> _openChatInSeparateWindow(ChatSummary chat) async {
     final theme = context.read<ThemeController>();
     final accounts = context.read<AccountStore>();
-    final activeAccount = accounts.summaries
-        .where((account) => account.slot == accounts.activeSlot)
-        .firstOrNull;
+    final activeAccount = accounts.activeSummary;
     final opened = await DesktopChatWindowService.instance.open(
       DesktopChatWindowArguments(
         accountSlot: accounts.activeSlot,
         accountUserId: activeAccount?.userId,
-        accountName: activeAccount?.name ?? 'Mithka',
+        accountName: activeAccount?.name ?? 'Mithka X',
         accountAvatarPath: activeAccount?.avatarPath,
         chatId: chat.id,
         title: chat.title,
@@ -2992,11 +3593,12 @@ class _ChatListViewState extends State<ChatListView>
   void _showChatPreview(ChatSummary chat) {
     if (_openSwipeChat != null) setState(() => _openSwipeChat = null);
     final hasUnread = chat.unreadCount > 0 || chat.isMarkedUnread;
+    // The preview's pin label/icon follow the list the row was opened from.
+    final pinnedInList = _model.isPinnedInSelectedList(chat);
     final accounts = context.read<AccountStore>();
-    final activeAccount = accounts.summaries
-        .where((account) => account.slot == accounts.activeSlot)
-        .firstOrNull;
+    final activeAccount = accounts.activeSummary;
     final avatarPath = activeAccount?.avatarPath?.trim();
+    final owner = ChatPreviewAccounts.defaultPreviewAccounts.pinActiveOwner();
     unawaited(
       showChatListPreview(
         context,
@@ -3005,6 +3607,7 @@ class _ChatListViewState extends State<ChatListView>
         mePhoto: avatarPath == null || avatarPath.isEmpty
             ? null
             : TdFileRef(id: 0, localPath: avatarPath),
+        pinned: pinnedInList,
         actions: [
           if (chatListPreviewSupportsQuickReply(chat))
             ChatListPreviewAction(
@@ -3026,11 +3629,16 @@ class _ChatListViewState extends State<ChatListView>
                 hasUnread ? _model.markRead(chat) : _model.markUnread(chat),
           ),
           ChatListPreviewAction(
-            label: chat.isPinned
+            label: pinnedInList
                 ? AppStringKeys.chatListUnpin
                 : AppStringKeys.chatInfoPin,
             icon: HeroAppIcons.thumbtack,
             onSelected: () => _model.togglePin(chat),
+          ),
+          ChatListPreviewAction(
+            label: AppStringKeys.chatListArchive,
+            icon: HeroAppIcons.archiveBox,
+            onSelected: () => _model.archive(chat, owner: owner),
           ),
           ChatListPreviewAction(
             label: chat.isMuted
@@ -3116,10 +3724,6 @@ class _ChatListViewState extends State<ChatListView>
 
   PageRoute<T> _chatEntryRoute<T>(ChatView child) {
     return AppChatPageRoute<T>(builder: (_) => child);
-  }
-
-  PageRoute<T> _standardEntryRoute<T>(Widget child) {
-    return AppPageRoute<T>(pageBuilder: (_, _, _) => child);
   }
 
   Widget _assistantRow() {
@@ -3738,6 +4342,7 @@ class DesktopChatContextMenu extends StatelessWidget {
     required this.onToggleRead,
     required this.onToggleMute,
     required this.onDeleteOrLeave,
+    required this.onArchive,
     this.onOpenSeparateWindow,
   });
 
@@ -3758,10 +4363,11 @@ class DesktopChatContextMenu extends StatelessWidget {
   final VoidCallback? onOpenSeparateWindow;
   final VoidCallback onToggleMute;
   final VoidCallback onDeleteOrLeave;
+  final VoidCallback onArchive;
 
   double get _menuHeight =>
       verticalPadding * 2 +
-      rowHeight * (onOpenSeparateWindow == null ? 4 : 5) +
+      rowHeight * (onOpenSeparateWindow == null ? 5 : 6) +
       dividerHeight;
 
   void _select(VoidCallback action) {
@@ -3861,6 +4467,12 @@ class DesktopChatContextMenu extends StatelessWidget {
                                 ? AppStringKeys.chatUnmute
                                 : AppStringKeys.callMute,
                             onTap: () => _select(onToggleMute),
+                          ),
+                          _DesktopChatContextMenuItem(
+                            key: const ValueKey('desktop-chat-context-archive'),
+                            icon: HeroAppIcons.archiveBox,
+                            label: AppStringKeys.chatListArchive,
+                            onTap: () => _select(onArchive),
                           ),
                           SizedBox(
                             height: dividerHeight,

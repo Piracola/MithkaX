@@ -2,8 +2,9 @@ import 'dart:ui' show DisplayFeature;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
-
 import 'package:flutter/widgets.dart';
+
+import 'top_corner_cluster.dart';
 
 /// Reserves side-mounted system chrome for every route, sheet, and overlay.
 /// Descendants receive the usable window size so adaptive panes and interface
@@ -28,6 +29,7 @@ class _HorizontalSafeViewportState extends State<HorizontalSafeViewport> {
   static const _geometryChannel = MethodChannel('mithka/window_geometry');
   MediaQueryData? _queriedMedia;
   double? _sideTopFraction;
+  TopOcclusionData? _topOcclusion;
 
   void _refreshSideGeometry(MediaQueryData media) {
     if (!widget.sideNavigation ||
@@ -44,18 +46,52 @@ class _HorizontalSafeViewportState extends State<HorizontalSafeViewport> {
       try {
         final geometry = await _geometryChannel
             .invokeMapMethod<String, dynamic>('sideNavigationGeometry');
-        fraction = (geometry?['topFraction'] as num?)?.toDouble();
+        final value = geometry?['topFraction'];
+        // Missing geometry retains the older-native fallback. Malformed geometry
+        // must not manufacture usable space in an explicitly reserved edge.
+        fraction = value == null ? null : (value is num ? value.toDouble() : 1);
+        if (fraction != null &&
+            (!fraction.isFinite || fraction < 0 || fraction > 1)) {
+          fraction = 1;
+        }
       } on MissingPluginException {
         // Older native builds and widget tests retain a conservative fallback.
       } on PlatformException {
         // Geometry will be refreshed on the next window change.
       }
+      final topOcclusion = await _fetchTopOcclusion();
       if (!mounted || !identical(_queriedMedia, media)) return;
-      if (fraction != _sideTopFraction) {
+      if (fraction != _sideTopFraction || topOcclusion != _topOcclusion) {
         _sideTopFraction = fraction;
+        _topOcclusion = topOcclusion;
+        _entry.markNeedsBuild();
+      }
+      // The status cluster settles into its corner just after the window
+      // changes (opening the device, turning it); read it once more.
+      await Future<void>.delayed(const Duration(milliseconds: 600));
+      if (!mounted || !identical(_queriedMedia, media)) return;
+      final settled = await _fetchTopOcclusion();
+      if (!mounted || !identical(_queriedMedia, media)) return;
+      if (settled != _topOcclusion) {
+        _topOcclusion = settled;
         _entry.markNeedsBuild();
       }
     });
+  }
+
+  Future<TopOcclusionData?> _fetchTopOcclusion() async {
+    try {
+      return TopOcclusionData.fromMap(
+        await _geometryChannel.invokeMapMethod<String, dynamic>(
+          'topOcclusionGeometry',
+        ),
+      );
+    } on MissingPluginException {
+      // Older native builds keep the full top inset everywhere.
+    } on PlatformException {
+      // Geometry will be refreshed on the next window change.
+    }
+    return null;
   }
 
   @override
@@ -108,7 +144,10 @@ class _HorizontalSafeViewportState extends State<HorizontalSafeViewport> {
               window: media,
               enabled: widget.sideNavigation,
               sideTopFraction: _sideTopFraction,
-              child: widget.child,
+              child: TopOcclusionGeometry(
+                data: widget.sideNavigation ? _topOcclusion : null,
+                child: widget.child,
+              ),
             ),
           );
         },
@@ -129,7 +168,11 @@ class SideNavigationGeometry extends InheritedWidget {
   final MediaQueryData window;
   final bool enabled;
   final double? sideTopFraction;
-  double get sideTop => window.size.height * (sideTopFraction ?? 0.5);
+  double get sideTop {
+    final fraction = sideTopFraction ?? 0.5;
+    return window.size.height *
+        (fraction.isFinite && fraction >= 0 && fraction <= 1 ? fraction : 1);
+  }
 
   /// Icon-only navigation retains generous targets at every text size.
   static const itemExtent = 56.0;
@@ -140,6 +183,10 @@ class SideNavigationGeometry extends InheritedWidget {
   /// Ordinary landscape camera insets are too narrow for navigation controls.
   bool fits(int count, double itemHeight) =>
       enabled &&
+      count > 0 &&
+      itemHeight.isFinite &&
+      itemHeight > 0 &&
+      window.size.height.isFinite &&
       window.size.height >= 600 &&
       (window.padding.right >= 64 || window.padding.left >= 64) &&
       window.viewInsets.bottom == 0 &&
@@ -185,7 +232,9 @@ class _SideNavigationPortalState extends State<SideNavigationPortal> {
     return OverlayPortal(
       controller: _controller,
       overlayLocation: OverlayChildLocation.rootOverlay,
-      overlayChildBuilder: (_) => !widget.visible
+      overlayChildBuilder: (_) =>
+          !widget.visible ||
+              geometry.sideTop >= window.size.height - window.padding.bottom
           ? const SizedBox.shrink()
           : Positioned(
               right: right ? 0 : null,

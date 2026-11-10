@@ -2,23 +2,26 @@
 //  appearance_view.dart
 //
 
-import 'dart:async';
-import 'dart:convert';
-import 'dart:io';
-
 //  外观 is the hub for theme, interface, font, and app-icon settings. Each
 //  interface surface owns its controls and a live account-backed preview.
 //
 
+import 'dart:async';
+import 'dart:convert';
+import 'dart:io';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:intl/intl.dart' show DateFormat;
 import 'package:mithka/l10n/app_localizations.dart';
 import 'package:mithka/l10n/preview_texts.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
 
+import '../app/ipad_window_chrome.dart';
 import '../chat/chat_appearance_preview.dart';
 import '../chat/chat_wallpaper.dart';
 import '../chat/chat_wallpaper_view.dart';
@@ -29,9 +32,11 @@ import '../chat/message_bubble.dart';
 import '../chat/message_bubble_chat_preview.dart';
 import '../chat/quick_reaction_choice.dart';
 import '../components/app_icons.dart';
+import '../components/app_interactive_surface.dart';
 import '../components/toast.dart';
 import '../components/ui_components.dart';
 import '../platform/adaptive_platform.dart';
+import '../platform/system_ui.dart';
 import '../tdlib/td_models.dart';
 import '../theme/app_motion.dart';
 import '../theme/app_theme.dart';
@@ -42,6 +47,8 @@ import '../theme/message_name_colors.dart';
 import '../theme/system_font_catalog.dart';
 import '../theme/theme_controller.dart';
 import 'app_icon_controller.dart';
+import 'content_size_settings_view.dart';
+import 'interface_scale_control.dart';
 import 'message_bubble_settings_view.dart';
 import 'quick_reaction_settings_view.dart';
 
@@ -56,8 +63,9 @@ class AppearanceView extends StatelessWidget {
     final appIcons = showAppIconPicker
         ? context.watch<AppIconController>()
         : null;
-    // The icon assets are 1024x1024; the row preview is 22 px wide, so the
-    // undecoded-size default would hold a 4 MiB bitmap in the image cache.
+    final currentIcon = appIcons?.currentVariant;
+    // Picker artwork is pre-sized to 256px; decode the row preview at its
+    // actual physical width rather than retaining the full bitmap.
     final appIconPreviewPx =
         (AppIconSize.nav * MediaQuery.devicePixelRatioOf(context)).ceil();
     return SettingsPageScaffold(
@@ -79,12 +87,29 @@ class AppearanceView extends StatelessWidget {
                     pageBuilder: (_, _, _) => const AppIconSettingsView(),
                   ),
                 ),
-                preview: Image.asset(
-                  appIcons!.variant.asset,
-                  width: AppIconSize.nav,
-                  height: AppIconSize.nav,
-                  cacheWidth: appIconPreviewPx,
-                ),
+                preview: currentIcon == null
+                    ? null
+                    // Standard icons preview their real background, as in
+                    // the picker; penguins keep their background-free art.
+                    : currentIcon.isStandard
+                    ? _StandardAppIconImage(
+                        key: const ValueKey('appearance-app-icon-preview'),
+                        variant: currentIcon,
+                        size: AppIconSize.nav,
+                      )
+                    : Image.asset(
+                        currentIcon.pickerAsset,
+                        key: const ValueKey('appearance-app-icon-preview'),
+                        width: AppIconSize.nav,
+                        height: AppIconSize.nav,
+                        cacheWidth: appIconPreviewPx,
+                        fit: BoxFit.contain,
+                        filterQuality:
+                            currentIcon.freeMotif ==
+                                AppIconFreeMotif.pixelPenguin
+                            ? FilterQuality.none
+                            : FilterQuality.medium,
+                      ),
               ),
             ]),
           SettingsSection(
@@ -109,13 +134,16 @@ class AppearanceView extends StatelessWidget {
               child: _navigationRow(
                 context,
                 AppStrings.t(AppStringKeys.appearanceInterfaceSize),
-                '${(theme.interfaceScale * 100).round()}%',
+                InterfaceScaleSteps.percent(theme.interfaceScale),
                 () => Navigator.of(context).push(
                   AppPageRoute<void>(
                     pageBuilder: (_, _, _) => const InterfaceSizeSettingsView(),
                   ),
                 ),
                 icon: HeroAppIcons.expand.data,
+                minimumTapExtent: InterfaceScaleSteps.targetExtent(
+                  theme.renderedInterfaceScale,
+                ),
               ),
             ),
             KeyedSubtree(
@@ -137,6 +165,17 @@ class AppearanceView extends StatelessWidget {
           // Message Bubbles used to sit alone in an unlabelled card;
           // it belongs with the rest of what a conversation looks like.
           _card(context, [
+            // Simple mode only reshapes the phone composer; the desktop
+            // composer never changes, so the switch would do nothing there.
+            if (!isDesktopTargetPlatform(Theme.of(context).platform))
+              SettingsSwitchRow(
+                key: const ValueKey('settings-simple-mode'),
+                title: AppStringKeys.appearanceSimpleMode,
+                subtitle: AppStringKeys.appearanceSimpleModeDescription,
+                value: theme.simpleMode,
+                leading: const SettingsLeadingIcon(icon: HeroAppIcons.comment),
+                onChanged: (value) => theme.simpleMode = value,
+              ),
             _chatViewNavigationRow(context),
             KeyedSubtree(
               key: const ValueKey('appearance-message-bubbles-row'),
@@ -294,58 +333,522 @@ class ThemeSettingsView extends StatelessWidget {
   }
 }
 
-class _TextSizeSettingsView extends StatelessWidget {
-  const _TextSizeSettingsView();
+class AppIconSettingsView extends StatefulWidget {
+  const AppIconSettingsView({super.key});
+
+  @override
+  State<AppIconSettingsView> createState() => _AppIconSettingsViewState();
+}
+
+class _AppIconSettingsViewState extends State<AppIconSettingsView>
+    with WidgetsBindingObserver {
+  bool _selecting = false;
+  bool _changeFailed = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state != AppLifecycleState.resumed || !mounted) return;
+    // A suspended day timer may be late, and the time zone may have changed:
+    // recheck today's penguin and reformat the next-change time.
+    context.read<AppIconController>().refreshDailyPenguin();
+    setState(() {});
+  }
+
+  Future<void> _select(AppIconVariant icon) async {
+    if (_selecting) return;
+    final controller = context.read<AppIconController>();
+    if (!controller.supported || controller.loading) return;
+    // Retaining the actual applied icon is never a purchase or native change,
+    // including an expired paid choice. Other paid choices still use the
+    // controller's unchanged entitlement-first verification below.
+    if (controller.isCurrent(icon)) return;
+    setState(() {
+      _selecting = true;
+      _changeFailed = false;
+    });
+    try {
+      final applied = await controller.setVariant(icon);
+      if (!mounted) return;
+      if (!applied) {
+        setState(() => _changeFailed = true);
+        showToast(context, AppStringKeys.appIconChangeFailed);
+      }
+    } finally {
+      if (mounted) setState(() => _selecting = false);
+    }
+  }
+
+  // Next 00:00 UTC in the device's time zone, with a localized date and a
+  // time that honours the 12/24-hour preference.
+  String _nextPenguinText(DateTime next) {
+    final local = next.toLocal();
+    final use24 = MediaQuery.alwaysUse24HourFormatOf(context);
+    String value;
+    try {
+      final date = DateFormat.MMMd(
+        Localizations.maybeLocaleOf(context)?.toLanguageTag(),
+      );
+      value = (use24 ? date.add_Hm() : date.add_jm()).format(local);
+    } catch (_) {
+      // An unknown locale must not cost the card its date and time.
+      final material = MaterialLocalizations.of(context);
+      final time = material.formatTimeOfDay(
+        TimeOfDay.fromDateTime(local),
+        alwaysUse24HourFormat: use24,
+      );
+      value = '${material.formatShortMonthDay(local)} $time';
+    }
+    return AppStrings.t(AppStringKeys.appIconNextPenguin, {'value1': value});
+  }
+
+  Widget _heading(String key, String textKey) => Text(
+    AppStrings.t(textKey),
+    key: ValueKey(key),
+    style: TextStyle(
+      fontSize: 15,
+      fontWeight: FontWeight.w600,
+      color: context.colors.textPrimary,
+    ),
+  );
+
+  Widget _caption(String key, String textKey) => Text(
+    AppStrings.t(textKey),
+    key: ValueKey(key),
+    style: TextStyle(
+      fontSize: 13,
+      height: 18 / 13,
+      color: context.colors.textSecondary,
+    ),
+  );
+
+  // Rows hug their tallest actual label; no nested scrollable, implicit
+  // MediaQuery padding, fixed two-line reservation, or catalogue-size math.
+  Widget _choices(
+    AppIconController controller,
+    List<AppIconVariant> icons,
+    int columns,
+    AppIconVariant? freeToday,
+  ) => Column(
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      for (var start = 0; start < icons.length; start += columns) ...[
+        if (start != 0) const SizedBox(height: 8),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            for (var column = 0; column < columns; column++) ...[
+              if (column != 0) const SizedBox(width: 12),
+              Expanded(
+                child: start + column >= icons.length
+                    ? const SizedBox.shrink()
+                    : _AppIconVariantTile(
+                        key: ValueKey(icons[start + column].key),
+                        variant: icons[start + column],
+                        selected: controller.isCurrent(icons[start + column]),
+                        locked: controller.isLocked(icons[start + column]),
+                        freeToday: icons[start + column] == freeToday,
+                        enabled:
+                            controller.supported &&
+                            !controller.loading &&
+                            !_selecting,
+                        horizontal: columns == 1,
+                        onTap: () => unawaited(_select(icons[start + column])),
+                      ),
+              ),
+            ],
+          ],
+        ),
+      ],
+    ],
+  );
 
   @override
   Widget build(BuildContext context) {
-    final theme = context.watch<ThemeController>();
+    final controller = context.watch<AppIconController>();
+    final icons = controller.availableVariants;
+    final retained = controller.unlistedCurrent;
+    // Null for active Supporters and where the 48 are not offered.
+    final freeToday = controller.dailyPenguin;
+    final c = context.colors;
+    final textScale = MediaQuery.textScalerOf(context).scale(13) / 13;
     return SettingsPageScaffold(
-      title: AppStringKeys.appearanceFontSize,
+      title: AppStrings.t(AppStringKeys.appIconTitle),
       onBack: () => Navigator.of(context).pop(),
-      child: SettingsListView(
-        children: [
-          const AppearanceView()._fontSizeCard(context, theme),
-          const SizedBox(height: AppSpacing.xl),
-          const AppearanceView()._fontSizePreview(context, theme),
-        ],
+      // NavHeader owns the top inset. This is the body's only safe-area owner.
+      child: SafeArea(
+        top: false,
+        child: Stack(
+          children: [
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final columns = textScale >= 2.4 || constraints.maxWidth < 220
+                    ? 1
+                    : constraints.maxWidth < 360 || textScale >= 1.6
+                    ? 2
+                    : 3;
+                final enabled =
+                    controller.supported && !controller.loading && !_selecting;
+                return ListView(
+                  key: const ValueKey('app-icon-scroll'),
+                  primary: false,
+                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+                  children: [
+                    if (!controller.supported)
+                      SettingsNote(
+                        text: AppStrings.t(AppStringKeys.appIconUnsupported),
+                      ),
+                    // Unknown current IDs use approved generic retention copy
+                    // only: no invented name, foreground, or unsupported claim.
+                    if (retained != null ||
+                        controller.currentVariant == null) ...[
+                      _RetainedAppIconStatus(
+                        key: ValueKey(
+                          'app-icon-current-${controller.currentKey}',
+                        ),
+                        variant: retained,
+                      ),
+                      const SizedBox(height: 8),
+                    ],
+                    _heading(
+                      'app-icon-standard-heading',
+                      AppStringKeys.appIconFreeHeading,
+                    ),
+                    const SizedBox(height: 4),
+                    _caption(
+                      'app-icon-standard-caption',
+                      AppStringKeys.appIconFreeCaption,
+                    ),
+                    const SizedBox(height: 12),
+                    _choices(
+                      controller,
+                      icons.where((icon) => !icon.requiresSupporter).toList(),
+                      columns,
+                      null,
+                    ),
+                    if (controller.supported &&
+                        controller.supporterAvailable &&
+                        icons.any((icon) => icon.requiresSupporter)) ...[
+                      const SizedBox(height: 20),
+                      _heading(
+                        'app-icon-penguin-heading',
+                        AppStringKeys.appIconPenguinHeading,
+                      ),
+                      const SizedBox(height: 4),
+                      _caption(
+                        'app-icon-penguin-caption',
+                        controller.activeSupporter
+                            ? AppStringKeys.appIconPenguinSupporterCaption
+                            : AppStringKeys.appIconPenguinCaption,
+                      ),
+                      const SizedBox(height: 12),
+                      if (freeToday != null) ...[
+                        _FreeTodayCard(
+                          key: ValueKey('app-icon-free-today-${freeToday.key}'),
+                          variant: freeToday,
+                          selected: controller.isCurrent(freeToday),
+                          enabled: enabled,
+                          nextChange: _nextPenguinText(
+                            controller.nextDailyPenguinChange,
+                          ),
+                          onTap: () => unawaited(_select(freeToday)),
+                        ),
+                        const SizedBox(height: 16),
+                      ],
+                      _choices(
+                        controller,
+                        icons.where((icon) => icon.requiresSupporter).toList(),
+                        columns,
+                        freeToday,
+                      ),
+                      SettingsNote(
+                        text: AppStrings.t(AppStringKeys.supporterIconAccess),
+                      ),
+                    ],
+                  ],
+                );
+              },
+            ),
+            // Keep the established toast and expose the same localized failure
+            // as a visible live region with a real semantic rect. Overlaying it
+            // changes no list extent, choice geometry, or retained scroll offset.
+            if (_changeFailed)
+              PositionedDirectional(
+                start: 16,
+                end: 16,
+                bottom: 24,
+                child: IgnorePointer(
+                  key: const ValueKey('app-icon-failure-pointer-pass-through'),
+                  child: Semantics(
+                    key: const ValueKey('app-icon-change-failure'),
+                    container: true,
+                    excludeSemantics: true,
+                    liveRegion: true,
+                    label: AppStrings.t(AppStringKeys.appIconChangeFailed),
+                    child: Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: c.groupedBackground,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        AppStrings.t(AppStringKeys.appIconChangeFailed),
+                        style: TextStyle(
+                          fontSize: 13,
+                          height: 18 / 13,
+                          color: c.textPrimary,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }
 }
 
-class AppIconSettingsView extends StatelessWidget {
-  const AppIconSettingsView({super.key});
+// A retained identity is status, not an extra choice or an entitlement action.
+// The single semantic node preserves heading → actual localized name → note.
+class _RetainedAppIconStatus extends StatelessWidget {
+  const _RetainedAppIconStatus({super.key, required this.variant});
+
+  final AppIconVariant? variant;
 
   @override
   Widget build(BuildContext context) {
-    final controller = context.watch<AppIconController>();
-    return SettingsPageScaffold(
-      title: AppStrings.t(AppStringKeys.appIconTitle),
-      onBack: () => Navigator.of(context).pop(),
-      child: Column(
-        children: [
-          if (!controller.supported)
-            SettingsNote(text: AppStrings.t(AppStringKeys.appIconUnsupported)),
-          Expanded(
-            child: GridView.builder(
-              padding: AppInsets.screen,
-              gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-                maxCrossAxisExtent: 132,
-                mainAxisExtent: 116,
-                mainAxisSpacing: AppSpacing.xl,
-                crossAxisSpacing: AppSpacing.xl,
+    final icon = variant;
+    final c = context.colors;
+    final heading = AppStrings.t(AppStringKeys.appIconCurrentHeading);
+    final name = icon == null ? null : AppStrings.t(icon.labelKey);
+    final note = AppStrings.t(AppStringKeys.appIconCurrentNote);
+    return Semantics(
+      key: const ValueKey('app-icon-current-status'),
+      container: true,
+      excludeSemantics: true,
+      label: name == null ? '$heading\n$note' : '$heading\n$name\n$note',
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(minHeight: 72),
+        child: Row(
+          children: [
+            if (icon != null) ...[
+              Image.asset(
+                icon.pickerAsset,
+                key: const ValueKey('app-icon-current-art'),
+                width: 56,
+                height: 56,
+                cacheWidth: (56 * MediaQuery.devicePixelRatioOf(context))
+                    .ceil(),
+                fit: BoxFit.contain,
+                excludeFromSemantics: true,
               ),
-              itemCount: AppIconVariant.values.length,
-              itemBuilder: (context, index) {
-                final variant = AppIconVariant.values[index];
-                return _AppIconVariantTile(
-                  variant: variant,
-                  selected: controller.variant == variant,
-                  loading: controller.loading,
-                  enabled: controller.supported,
-                );
-              },
+              const SizedBox(width: 12),
+            ],
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    heading,
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      color: c.textPrimary,
+                    ),
+                  ),
+                  if (name != null) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      name,
+                      style: TextStyle(
+                        fontSize: 13,
+                        height: 17 / 13,
+                        color: c.textPrimary,
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: 4),
+                  Text(
+                    note,
+                    style: TextStyle(
+                      fontSize: 13,
+                      height: 18 / 13,
+                      color: c.textSecondary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// One focusable, pressable app-icon choice: a single semantics node with the
+// shared 0.72 press opacity, keyboard activation and focus underline.
+class _AppIconChoice extends StatefulWidget {
+  const _AppIconChoice({
+    required this.semanticsKey,
+    required this.pressKey,
+    required this.label,
+    required this.hint,
+    required this.selected,
+    required this.enabled,
+    required this.onTap,
+    required this.builder,
+  });
+
+  final Key semanticsKey;
+  final Key pressKey;
+  final String label;
+  final String? hint;
+  final bool selected;
+  final bool enabled;
+  final VoidCallback onTap;
+  final Widget Function(bool focusHighlight) builder;
+
+  @override
+  State<_AppIconChoice> createState() => _AppIconChoiceState();
+}
+
+class _AppIconChoiceState extends State<_AppIconChoice> {
+  bool _pressed = false;
+  bool _focused = false;
+  bool _focusHighlight = false;
+
+  void _press(bool value) {
+    if (_pressed != value) setState(() => _pressed = value);
+  }
+
+  @override
+  void didUpdateWidget(covariant _AppIconChoice oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!widget.enabled) _pressed = false;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final enabled = widget.enabled;
+    final target = InterfaceScaleSteps.targetExtent(
+      context.watch<ThemeController>().renderedInterfaceScale,
+    );
+    return Semantics(
+      key: widget.semanticsKey,
+      container: true,
+      excludeSemantics: true,
+      button: true,
+      enabled: enabled,
+      focusable: enabled,
+      focused: _focused,
+      selected: widget.selected,
+      label: widget.label,
+      hint: widget.hint,
+      onTap: enabled ? widget.onTap : null,
+      child: FocusableActionDetector(
+        enabled: enabled,
+        includeFocusSemantics: false,
+        mouseCursor: enabled ? SystemMouseCursors.click : MouseCursor.defer,
+        onFocusChange: (value) => setState(() => _focused = value),
+        onShowFocusHighlight: (value) =>
+            setState(() => _focusHighlight = value),
+        shortcuts: const <ShortcutActivator, Intent>{
+          SingleActivator(LogicalKeyboardKey.enter, includeRepeats: false):
+              ActivateIntent(),
+          SingleActivator(LogicalKeyboardKey.space, includeRepeats: false):
+              ActivateIntent(),
+        },
+        actions: <Type, Action<Intent>>{
+          ActivateIntent: CallbackAction<ActivateIntent>(
+            onInvoke: (_) {
+              if (enabled) widget.onTap();
+              return null;
+            },
+          ),
+        },
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          excludeFromSemantics: true,
+          onTap: enabled ? widget.onTap : null,
+          onTapDown: enabled ? (_) => _press(true) : null,
+          onTapUp: enabled ? (_) => _press(false) : null,
+          onTapCancel: enabled ? () => _press(false) : null,
+          child: ConstrainedBox(
+            constraints: BoxConstraints(minWidth: target, minHeight: target),
+            child: AnimatedOpacity(
+              key: widget.pressKey,
+              duration: const Duration(milliseconds: 120),
+              opacity: _pressed && enabled ? 0.72 : 1,
+              child: widget.builder(_focusHighlight),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// A standard icon's opaque Home Screen image, clipped to the icon shape with
+// a faint inner edge so Neutral stays visible on a page of its own colour.
+class _StandardAppIconImage extends StatelessWidget {
+  const _StandardAppIconImage({
+    super.key,
+    required this.variant,
+    required this.size,
+  });
+
+  final AppIconVariant variant;
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    // 18pt at the picker's 80pt; the same proportion at any other size.
+    final radius = BorderRadius.circular(size * 18 / 80);
+    return SizedBox.square(
+      dimension: size,
+      child: Stack(
+        children: [
+          Positioned.fill(
+            child: ClipRRect(
+              borderRadius: radius,
+              child: Image.asset(
+                variant.standardPickerAsset(Theme.of(context).brightness),
+                width: size,
+                height: size,
+                fit: BoxFit.cover,
+                filterQuality:
+                    variant.freeMotif == AppIconFreeMotif.pixelPenguin
+                    ? FilterQuality.none
+                    : FilterQuality.medium,
+                cacheWidth: (size * MediaQuery.devicePixelRatioOf(context))
+                    .ceil(),
+                excludeFromSemantics: true,
+              ),
+            ),
+          ),
+          Positioned.fill(
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                borderRadius: radius,
+                border: Border.all(
+                  color: context.colors.textPrimary.withValues(alpha: 0.12),
+                ),
+              ),
             ),
           ),
         ],
@@ -354,91 +857,380 @@ class AppIconSettingsView extends StatelessWidget {
   }
 }
 
-class _AppIconVariantTile extends StatelessWidget {
-  const _AppIconVariantTile({
+// The 88pt art shared by grid tiles and the Free today card. Standard icons
+// draw their real background at 80pt, inset so the selected ring (radius 22)
+// keeps a 2pt gap of page colour; penguins keep their background-free art.
+class _AppIconArt extends StatelessWidget {
+  const _AppIconArt({
     required this.variant,
     required this.selected,
-    required this.loading,
-    required this.enabled,
+    required this.locked,
+    this.badgeBorder,
+    this.keyPrefix = 'icon',
   });
 
   final AppIconVariant variant;
   final bool selected;
-  final bool loading;
-  final bool enabled;
+  final bool locked;
+  final Color? badgeBorder;
+  final String keyPrefix;
 
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
-    final controller = context.read<AppIconController>();
-    // The icon assets are 1024x1024: decoding all eight at full size holds
-    // 32 MiB of image cache for tiles that are drawn at 96 px.
-    final tilePx = (96 * MediaQuery.devicePixelRatioOf(context)).ceil();
-    return Semantics(
-      button: true,
-      enabled: enabled,
-      selected: selected,
-      label: AppStrings.t(variant.labelKey),
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTap: loading || !enabled
-            ? null
-            : () async {
-                final ok = await controller.setVariant(variant);
-                if (!ok && context.mounted) {
-                  showToast(context, AppStringKeys.appIconChangeFailed);
-                }
-              },
-        child: Center(
-          child: Stack(
-            clipBehavior: Clip.none,
-            children: [
-              AnimatedContainer(
-                duration: const Duration(milliseconds: 180),
-                width: 96,
-                height: 96,
-                padding: const EdgeInsets.all(3),
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final standard = variant.isStandard;
+    return SizedBox(
+      key: ValueKey('$keyPrefix-art-${variant.key}'),
+      width: 88,
+      height: 88,
+      child: Stack(
+        children: [
+          if (standard)
+            Positioned.fill(
+              child: Padding(
+                padding: const EdgeInsets.all(4),
+                child: _StandardAppIconImage(variant: variant, size: 80),
+              ),
+            )
+          else
+            Image.asset(
+              variant.pickerAsset,
+              width: 88,
+              height: 88,
+              fit: BoxFit.contain,
+              // Pixel art stays crisp, as in the other previews.
+              filterQuality: variant.freeMotif == AppIconFreeMotif.pixelPenguin
+                  ? FilterQuality.none
+                  : FilterQuality.medium,
+              cacheWidth: (88 * MediaQuery.devicePixelRatioOf(context)).ceil(),
+              excludeFromSemantics: true,
+            ),
+          // Overlay the outline so it never pads, clips, or shrinks the art.
+          Positioned.fill(
+            child: DecoratedBox(
+              key: ValueKey('$keyPrefix-outline-${variant.key}'),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(standard ? 22 : 16),
+                border: selected
+                    ? Border.all(color: AppTheme.brand, width: 2)
+                    : null,
+              ),
+            ),
+          ),
+          if (selected || locked)
+            PositionedDirectional(
+              end: 0,
+              bottom: 0,
+              child: Container(
+                key: ValueKey(
+                  selected
+                      ? '$keyPrefix-selected-${variant.key}'
+                      : '$keyPrefix-locked-${variant.key}',
+                ),
+                width: 24,
+                height: 24,
                 decoration: BoxDecoration(
-                  color: c.card,
-                  borderRadius: BorderRadius.circular(AppRadius.card),
+                  color: selected
+                      ? AppTheme.brand
+                      : dark
+                      ? const Color(0xFFEDEDED)
+                      : const Color(0xFF1A1A1A),
+                  shape: BoxShape.circle,
                   border: Border.all(
-                    color: selected ? AppTheme.brand : c.divider,
-                    width: selected ? 3 : 1,
+                    color: badgeBorder ?? c.groupedBackground,
+                    width: 2,
                   ),
                 ),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(AppRadius.lg),
-                  child: Image.asset(
-                    variant.asset,
-                    fit: BoxFit.cover,
-                    cacheWidth: tilePx,
-                  ),
+                alignment: Alignment.center,
+                child: AppIcon(
+                  selected ? HeroAppIcons.check : HeroAppIcons.lock,
+                  size: 13,
+                  color: selected || !dark
+                      ? Colors.white
+                      : const Color(0xFF1A1A1A),
                 ),
               ),
-              if (selected)
-                Positioned(
-                  right: -6,
-                  bottom: -6,
-                  child: Container(
-                    width: 28,
-                    height: 28,
-                    decoration: BoxDecoration(
-                      color: AppTheme.brand,
-                      shape: BoxShape.circle,
-                      border: Border.all(color: c.groupedBackground, width: 3),
-                    ),
-                    alignment: Alignment.center,
-                    child: const AppIcon(
-                      HeroAppIcons.check,
-                      size: 15,
-                      color: Colors.white,
-                    ),
-                  ),
-                ),
-            ],
-          ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+// Marks today's free penguin for non-Supporters. Brand tint, never brand text.
+class _FreeTodayPill extends StatelessWidget {
+  const _FreeTodayPill({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    return Container(
+      constraints: const BoxConstraints(minHeight: 20),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      decoration: BoxDecoration(
+        color: AppTheme.brand.withValues(alpha: dark ? 0.28 : 0.14),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Text(
+        AppStrings.t(AppStringKeys.appIconFreeToday),
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: TextStyle(
+          fontSize: 12,
+          height: 16 / 12,
+          fontWeight: FontWeight.w600,
+          color: context.colors.textPrimary,
         ),
       ),
+    );
+  }
+}
+
+// Today's free penguin for non-Supporters: one tap target on the same
+// selection path as its grid tile. It is never locked.
+class _FreeTodayCard extends StatelessWidget {
+  const _FreeTodayCard({
+    super.key,
+    required this.variant,
+    required this.selected,
+    required this.enabled,
+    required this.nextChange,
+    required this.onTap,
+  });
+
+  final AppIconVariant variant;
+  final bool selected;
+  final bool enabled;
+  final String nextChange;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    final name = AppStrings.t(variant.labelKey);
+    final description = AppStrings.t(AppStringKeys.supporterIconAccessibility, {
+      'value1': AppStrings.t(variant.fullSemanticNameKey),
+      'value2': AppStrings.t(
+        selected
+            ? AppStringKeys.appIconSelectedFreeToday
+            : AppStringKeys.appIconFreeToday,
+      ),
+    });
+    return _AppIconChoice(
+      semanticsKey: const ValueKey('app-icon-free-today-card'),
+      pressKey: const ValueKey('free-today-press'),
+      label: '$description\n$nextChange',
+      hint: selected ? null : AppStrings.t(AppStringKeys.appIconUseHint),
+      selected: selected,
+      enabled: enabled,
+      onTap: onTap,
+      builder: (focusHighlight) => SettingsPanel(
+        padding: const EdgeInsets.all(12),
+        child: Row(
+          children: [
+            _AppIconArt(
+              variant: variant,
+              selected: selected,
+              locked: false,
+              badgeBorder: c.card,
+              keyPrefix: 'free-today',
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const _FreeTodayPill(key: ValueKey('free-today-pill')),
+                  const SizedBox(height: 6),
+                  Text(
+                    name,
+                    key: const ValueKey('free-today-name'),
+                    softWrap: true,
+                    style: TextStyle(
+                      fontSize: 17,
+                      height: 22 / 17,
+                      fontWeight: FontWeight.w600,
+                      color: c.textPrimary,
+                      decoration: focusHighlight
+                          ? TextDecoration.underline
+                          : null,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    nextChange,
+                    key: const ValueKey('free-today-next-change'),
+                    softWrap: true,
+                    style: TextStyle(
+                      fontSize: 13,
+                      height: 18 / 13,
+                      color: c.textSecondary,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  if (selected)
+                    ConstrainedBox(
+                      key: const ValueKey('free-today-selected'),
+                      constraints: const BoxConstraints(minHeight: 32),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          AppIcon(
+                            HeroAppIcons.check,
+                            size: 16,
+                            color: AppTheme.brand,
+                          ),
+                          const SizedBox(width: 6),
+                          Flexible(
+                            child: Text(
+                              AppStrings.t(AppStringKeys.supporterIconSelected),
+                              style: TextStyle(
+                                fontSize: 15,
+                                height: 20 / 15,
+                                fontWeight: FontWeight.w600,
+                                color: c.textSecondary,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    )
+                  else
+                    // The button's shape only: the whole card is the target.
+                    DecoratedBox(
+                      key: const ValueKey('free-today-use'),
+                      decoration: BoxDecoration(
+                        color: c.accentButton,
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 6,
+                        ),
+                        child: Text(
+                          AppStrings.t(AppStringKeys.appIconUse),
+                          style: TextStyle(
+                            fontSize: 15,
+                            height: 20 / 15,
+                            fontWeight: FontWeight.w600,
+                            color: c.accentButtonText,
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _AppIconVariantTile extends StatelessWidget {
+  const _AppIconVariantTile({
+    super.key,
+    required this.variant,
+    required this.selected,
+    required this.locked,
+    required this.freeToday,
+    required this.enabled,
+    required this.horizontal,
+    required this.onTap,
+  });
+
+  final AppIconVariant variant;
+  final bool selected;
+  final bool locked;
+  // Today's penguin for a non-Supporter: never locked, marked Free today.
+  final bool freeToday;
+  final bool enabled;
+  final bool horizontal;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    final stateKey = selected
+        ? freeToday
+              ? AppStringKeys.appIconSelectedFreeToday
+              : AppStringKeys.supporterIconSelected
+        : locked
+        ? AppStringKeys.supporterIconRequired
+        : freeToday
+        ? AppStringKeys.appIconFreeToday
+        : AppStringKeys.supporterIconAvailable;
+    final art = _AppIconArt(
+      variant: variant,
+      selected: selected,
+      locked: locked,
+    );
+    // Final copy 699 / design 712: background label at every adaptive width,
+    // full motif + background name in semantics; natural wrapping, never ellipsis.
+    final semanticNameKey = variant.fullSemanticNameKey;
+    final visibleNameKey = variant.pickerLabelKey ?? variant.labelKey;
+    final pill = freeToday
+        ? _FreeTodayPill(key: ValueKey('icon-free-today-${variant.key}'))
+        : null;
+    return _AppIconChoice(
+      semanticsKey: ValueKey('app-icon-${variant.key}'),
+      pressKey: ValueKey('icon-press-${variant.key}'),
+      label: AppStrings.t(AppStringKeys.supporterIconAccessibility, {
+        'value1': AppStrings.t(semanticNameKey),
+        'value2': AppStrings.t(stateKey),
+      }),
+      hint: locked
+          ? AppStrings.t(AppStringKeys.supporterIconLockedHint)
+          : freeToday && !selected
+          ? AppStrings.t(AppStringKeys.appIconUseHint)
+          : null,
+      selected: selected,
+      enabled: enabled,
+      onTap: onTap,
+      builder: (focusHighlight) {
+        final label = Text(
+          AppStrings.t(visibleNameKey),
+          key: ValueKey('icon-label-${variant.key}'),
+          textAlign: horizontal ? TextAlign.start : TextAlign.center,
+          softWrap: true,
+          style: TextStyle(
+            fontSize: 13,
+            height: 17 / 13,
+            fontWeight: FontWeight.w400,
+            color: c.textPrimary,
+            decoration: focusHighlight ? TextDecoration.underline : null,
+          ),
+        );
+        return horizontal
+            ? Row(
+                children: [
+                  art,
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: pill == null
+                        ? label
+                        : Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [label, const SizedBox(height: 4), pill],
+                          ),
+                  ),
+                ],
+              )
+            : Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  art,
+                  const SizedBox(height: 4),
+                  label,
+                  if (pill != null) ...[const SizedBox(height: 4), pill],
+                ],
+              );
+      },
     );
   }
 }
@@ -449,15 +1241,94 @@ class InterfaceSizeSettingsView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = context.watch<ThemeController>();
-    return SettingsPageScaffold(
-      title: AppStrings.t(AppStringKeys.appearanceInterfaceSize),
-      onBack: () => Navigator.of(context).pop(),
-      child: SettingsListView(
-        children: [
-          const AppearanceView()._interfaceSizeCard(context, theme),
-          const SizedBox(height: AppSpacing.xl),
-          const AppearanceView()._interfaceSizePreview(context, theme),
-        ],
+    final colors = context.colors;
+    final target = InterfaceScaleSteps.targetExtent(
+      theme.renderedInterfaceScale,
+    );
+    final navigator = Navigator.of(context);
+    final pointerDense = isDesktopTargetPlatform();
+    final canGoBack =
+        navigator.canPop() && !SettingsSplitPaneScope.isRootRoute(context);
+    // Only this adjustment page needs a scale-aware header. The shared header's
+    // 44 virtual-point back target shrinks below 44 screen points at 50%.
+    return AnnotatedRegion(
+      value: systemUiOverlayStyleForSurface(colors.navBar),
+      child: Scaffold(
+        backgroundColor: colors.groupedBackground,
+        body: Column(
+          children: [
+            Container(
+              constraints: BoxConstraints(
+                minHeight: theme.navHeaderHeight + topChromeInsetOf(context),
+              ),
+              padding: headerChromePaddingOf(context),
+              decoration: BoxDecoration(
+                color: colors.navBar,
+                border: Border(
+                  bottom: BorderSide(
+                    color: colors.divider,
+                    width: AppMetric.divider,
+                  ),
+                ),
+              ),
+              child: Padding(
+                padding: AppInsets.navHeader,
+                child: Row(
+                  children: [
+                    if (canGoBack)
+                      AppInteractiveSurface(
+                        key: const ValueKey('interface-scale-back'),
+                        semanticLabel: AppStrings.t(
+                          AppStringKeys.navigationBack,
+                        ),
+                        onTap: navigator.pop,
+                        child: SizedBox(
+                          width: target,
+                          height: target,
+                          child: Center(
+                            child: AppIcon(
+                              HeroAppIcons.chevronLeft,
+                              size: pointerDense
+                                  ? AppIconSize.lg
+                                  : AppIconSize.nav,
+                              color: colors.textPrimary,
+                            ),
+                          ),
+                        ),
+                      ),
+                    Expanded(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          vertical: AppSpacing.md,
+                        ),
+                        child: Text(
+                          AppStrings.t(AppStringKeys.appearanceInterfaceSize),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: pointerDense
+                              ? AppTextStyle.bodyLarge(
+                                  colors.textPrimary,
+                                  weight: AppTextWeight.medium,
+                                )
+                              : AppTextStyle.title(colors.textPrimary),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            Expanded(
+              child: SettingsListView(
+                children: [
+                  const AppearanceView()._interfaceSizeCard(context, theme),
+                  const SizedBox(height: AppSpacing.xl),
+                  const AppearanceView()._interfaceSizePreview(context, theme),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -544,44 +1415,54 @@ class _SenderNameReadabilityPreview extends StatelessWidget {
             incomingBackground.foregroundColor ?? c.bubbleIncomingText;
         final colors = messageNameColorsForTheme(cloudTheme);
         final sample = AppStrings.t(AppStringKeys.appearancePreviewUsersSample);
+        // The wallpaper expands to its constraints, and a settings list gives
+        // its children unbounded height, so wrapping the names in it forces an
+        // infinite height and the page lays out blank. It fills behind them
+        // instead, leaving the names to decide how tall the preview is.
         return ClipRRect(
           key: const ValueKey('senderNameReadabilityPreview'),
           borderRadius: BorderRadius.circular(AppRadius.card),
-          child: ChatWallpaperBackground(
-            wallpaper: selected == null
-                ? null
-                : wallpaperController.resolvedWallpaper(selected),
-            fallbackColor: c.chatBackground,
-            brightness: Theme.of(context).brightness,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppSpacing.xl,
-                vertical: AppSpacing.xxl,
+          child: Stack(
+            children: [
+              Positioned.fill(
+                child: ChatWallpaperBackground(
+                  wallpaper: selected == null
+                      ? null
+                      : wallpaperController.resolvedWallpaper(selected),
+                  fallbackColor: c.chatBackground,
+                  brightness: Theme.of(context).brightness,
+                ),
               ),
-              child: Wrap(
-                spacing: AppSpacing.lg,
-                runSpacing: AppSpacing.lg,
-                alignment: WrapAlignment.center,
-                children: [
-                  for (final color in colors)
-                    SenderIdentityPills(
-                      readabilityMode: theme.senderNameReadabilityMode,
-                      bubbleColor: bubbleColor,
-                      textColor: bubbleTextColor,
-                      name: sample,
-                      nameStyle: TextStyle(fontSize: 12, color: color),
-                      // The background treatment is a tag joined to the name,
-                      // so previewing it without a tag would hide half of what
-                      // is being chosen.
-                      role:
-                          theme.senderNameReadabilityMode ==
-                              SenderNameReadabilityMode.background
-                          ? MemberRole.admin
-                          : null,
-                    ),
-                ],
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.xl,
+                  vertical: AppSpacing.xxl,
+                ),
+                child: Wrap(
+                  spacing: AppSpacing.lg,
+                  runSpacing: AppSpacing.lg,
+                  alignment: WrapAlignment.center,
+                  children: [
+                    for (final color in colors)
+                      SenderIdentityPills(
+                        readabilityMode: theme.senderNameReadabilityMode,
+                        bubbleColor: bubbleColor,
+                        textColor: bubbleTextColor,
+                        name: sample,
+                        nameStyle: TextStyle(fontSize: 12, color: color),
+                        // The background treatment is a tag joined to the name,
+                        // so previewing it without a tag would hide half of what
+                        // is being chosen.
+                        role:
+                            theme.senderNameReadabilityMode ==
+                                SenderNameReadabilityMode.background
+                            ? MemberRole.admin
+                            : null,
+                      ),
+                  ],
+                ),
               ),
-            ),
+            ],
           ),
         );
       },
@@ -1182,146 +2063,6 @@ class _ChatViewQuickReactionOverlay extends StatelessWidget {
   }
 }
 
-class _RepresentativeChatListRow extends StatelessWidget {
-  const _RepresentativeChatListRow({required this.theme});
-
-  final ThemeController theme;
-
-  @override
-  Widget build(BuildContext context) {
-    final c = context.colors;
-    return Padding(
-      padding: const EdgeInsets.all(AppSpacing.lg),
-      child: Row(
-        children: [
-          Container(
-            width: theme.avatarSize,
-            height: theme.avatarSize,
-            decoration: BoxDecoration(
-              color: AppTheme.brand.withValues(alpha: 0.16),
-              shape: BoxShape.circle,
-            ),
-            alignment: Alignment.center,
-            child: AppIcon(
-              HeroAppIcons.solidMessage,
-              size: AppIconSize.xl,
-              color: AppTheme.brand,
-            ),
-          ),
-          const SizedBox(width: AppSpacing.lg),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  AppStrings.t(AppStringKeys.appearancePreviewUsersSample),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: AppTextSize.bodyLarge,
-                    fontWeight: FontWeight.w600,
-                    color: c.textPrimary,
-                  ),
-                ),
-                const SizedBox(height: AppSpacing.xxs),
-                Text(
-                  AppStrings.t(AppStringKeys.appearancePreviewMessageSample),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: AppTextSize.footnote,
-                    color: c.textSecondary,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: AppSpacing.md),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Text(
-                '10:42',
-                style: TextStyle(
-                  fontSize: AppTextSize.caption,
-                  color: c.textTertiary,
-                ),
-              ),
-              const SizedBox(height: AppSpacing.xs),
-              Container(
-                width: 18,
-                height: 18,
-                decoration: BoxDecoration(
-                  color: AppTheme.brand,
-                  shape: BoxShape.circle,
-                ),
-                alignment: Alignment.center,
-                child: const Text(
-                  '2',
-                  style: TextStyle(
-                    color: Color(0xFFFFFFFF),
-                    fontSize: AppTextSize.caption,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _RepresentativeMessageBubble extends StatelessWidget {
-  const _RepresentativeMessageBubble();
-
-  @override
-  Widget build(BuildContext context) {
-    final c = context.colors;
-    return Align(
-      key: const ValueKey('font-size-chat-preview'),
-      alignment: Alignment.centerLeft,
-      child: Container(
-        constraints: const BoxConstraints(maxWidth: 260),
-        padding: const EdgeInsets.fromLTRB(
-          AppSpacing.lg,
-          AppSpacing.md,
-          AppSpacing.lg,
-          AppSpacing.sm,
-        ),
-        decoration: BoxDecoration(
-          color: c.bubbleIncoming,
-          borderRadius: BorderRadius.circular(AppRadius.card),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              AppStrings.t(AppStringKeys.appearancePreviewChatTextSample),
-              style: TextStyle(
-                fontSize: AppTextSize.bodyLarge,
-                color: c.bubbleIncomingText,
-              ),
-            ),
-            const SizedBox(height: AppSpacing.xs),
-            Align(
-              alignment: Alignment.centerRight,
-              child: Text(
-                '10:42',
-                style: TextStyle(
-                  fontSize: AppTextSize.caption,
-                  color: c.textTertiary,
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
 enum NameColorSettingsSurface { chat, chatList }
 
 class NameColorSettingsView extends StatelessWidget {
@@ -1415,6 +2156,36 @@ class ChatFolderSettingsView extends StatelessWidget {
                 theme.chatFolderDisplayMode == mode,
                 () => theme.chatFolderDisplayMode = mode,
               ),
+          ]),
+          if (theme.chatFolderDisplayMode != ChatFolderDisplayMode.hidden)
+            const AppearanceView()._card(context, [
+              const AppearanceView()._toggleRow(
+                context,
+                HeroAppIcons.eyeSlash.data,
+                AppStrings.t(AppStringKeys.appearanceHideAllChatsFolder),
+                theme.hideAllChatsFolder,
+                (value) => theme.hideAllChatsFolder = value,
+              ),
+            ]),
+          const AppearanceView()._label(
+            context,
+            AppStrings.t(AppStringKeys.appearanceUnreadBadge),
+          ),
+          const AppearanceView()._card(context, [
+            const AppearanceView()._toggleRow(
+              context,
+              HeroAppIcons.solidBell.data,
+              AppStrings.t(AppStringKeys.appearanceShowFolderBadges),
+              theme.showFolderUnreadBadges,
+              (value) => theme.showFolderUnreadBadges = value,
+            ),
+            const AppearanceView()._toggleRow(
+              context,
+              HeroAppIcons.solidBell.data,
+              AppStrings.t(AppStringKeys.appearanceCapUnreadCountAt99),
+              theme.capUnreadBadgeAt99,
+              (value) => theme.capUnreadBadgeAt99 = value,
+            ),
           ]),
         ],
       ),
@@ -1601,101 +2372,13 @@ extension _DisplayAppearanceHelpers on AppearanceView {
     );
   }
 
-  Widget _fontSizeCard(BuildContext context, ThemeController theme) {
-    final c = context.colors;
-    return SettingsPanel(
-      clipBehavior: Clip.antiAlias,
-      child: _scaleSlider(
-        context,
-        icon: HeroAppIcons.font.data,
-        title: AppStrings.t(AppStringKeys.appearanceFontSize),
-        value: theme.fontScale,
-        min: ThemeController.minFontScale,
-        max: ThemeController.maxFontScale,
-        divisions: 24,
-        leading: Text(
-          'A',
-          style: TextStyle(
-            fontSize: AppTextSize.footnote,
-            color: c.textSecondary,
-          ),
-        ),
-        trailing: Text(
-          'A',
-          style: TextStyle(
-            fontSize: AppTextSize.largeDisplay,
-            color: c.textPrimary,
-          ),
-        ),
-        onChanged: (value) => theme.fontScale = value,
-      ),
-    );
-  }
-
   Widget _interfaceSizeCard(BuildContext context, ThemeController theme) {
-    final c = context.colors;
     return SettingsPanel(
       clipBehavior: Clip.antiAlias,
-      child: _scaleSlider(
-        context,
-        icon: HeroAppIcons.tableCells.data,
-        title: AppStrings.t(AppStringKeys.appearanceInterfaceSize),
+      child: InterfaceScaleControl(
         value: theme.interfaceScale,
-        min: ThemeController.minInterfaceScale,
-        max: ThemeController.maxInterfaceScale,
-        divisions: 84,
-        leading: AppIcon(
-          HeroAppIcons.square,
-          size: AppTextSize.body,
-          color: c.textSecondary,
-        ),
-        trailing: AppIcon(
-          HeroAppIcons.square,
-          size: AppIconSize.add,
-          color: c.textPrimary,
-        ),
+        renderedScale: theme.renderedInterfaceScale,
         onChanged: (value) => theme.interfaceScale = value,
-      ),
-    );
-  }
-
-  Widget _fontSizePreview(BuildContext context, ThemeController theme) {
-    return _previewCard(
-      context,
-      title: AppStrings.t(AppStringKeys.appearanceFontSize),
-      value: theme.fontScale,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Text(
-            AppStrings.t(AppStringKeys.appearanceChatView),
-            style: TextStyle(
-              fontSize: AppTextSize.caption,
-              color: context.colors.textTertiary,
-            ),
-          ),
-          const SizedBox(height: AppSpacing.md),
-          const _RepresentativeMessageBubble(),
-          const SizedBox(height: AppSpacing.xl),
-          Text(
-            AppStrings.t(AppStringKeys.appearanceChatList),
-            style: TextStyle(
-              fontSize: AppTextSize.caption,
-              color: context.colors.textTertiary,
-            ),
-          ),
-          const SizedBox(height: AppSpacing.md),
-          Container(
-            key: const ValueKey('font-size-chat-list-preview'),
-            decoration: BoxDecoration(
-              color: context.colors.background,
-              borderRadius: BorderRadius.circular(AppRadius.control),
-              border: Border.all(color: context.colors.divider),
-            ),
-            clipBehavior: Clip.antiAlias,
-            child: _RepresentativeChatListRow(theme: theme),
-          ),
-        ],
       ),
     );
   }
@@ -1706,6 +2389,7 @@ extension _DisplayAppearanceHelpers on AppearanceView {
       context,
       title: AppStrings.t(AppStringKeys.appearanceInterfaceSize),
       value: theme.interfaceScale,
+      valueLabel: InterfaceScaleSteps.percent(theme.interfaceScale),
       child: Container(
         decoration: BoxDecoration(
           color: c.groupedBackground,
@@ -1727,12 +2411,16 @@ extension _DisplayAppearanceHelpers on AppearanceView {
                       color: c.textPrimary,
                     ),
                     const SizedBox(width: AppSpacing.lg),
-                    Text(
-                      AppStrings.t(AppStringKeys.appearanceTitle),
-                      style: TextStyle(
-                        fontSize: AppTextSize.bodyLarge,
-                        fontWeight: FontWeight.w600,
-                        color: c.textPrimary,
+                    Expanded(
+                      child: Text(
+                        AppStrings.t(AppStringKeys.appearanceTitle),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: AppTextSize.bodyLarge,
+                          fontWeight: FontWeight.w600,
+                          color: c.textPrimary,
+                        ),
                       ),
                     ),
                   ],
@@ -1807,6 +2495,7 @@ extension _DisplayAppearanceHelpers on AppearanceView {
     BuildContext context, {
     required String title,
     required double value,
+    String? valueLabel,
     required Widget child,
   }) {
     final c = context.colors;
@@ -1828,7 +2517,7 @@ extension _DisplayAppearanceHelpers on AppearanceView {
                 ),
               ),
               Text(
-                '${(value * 100).round()}%',
+                valueLabel ?? '${(value * 100).round()}%',
                 style: TextStyle(
                   fontSize: AppTextSize.footnote,
                   color: AppTheme.brand,
@@ -1841,144 +2530,6 @@ extension _DisplayAppearanceHelpers on AppearanceView {
           child,
         ],
       ),
-    );
-  }
-
-  Widget _scaleSlider(
-    BuildContext context, {
-    required IconData icon,
-    required String title,
-    required double value,
-    required double min,
-    required double max,
-    required int divisions,
-    required Widget leading,
-    required Widget trailing,
-    required ValueChanged<double> onChanged,
-  }) {
-    final c = context.colors;
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(
-        AppSpacing.xxl,
-        AppSpacing.lg,
-        AppSpacing.xxl,
-        AppSpacing.md,
-      ),
-      child: Column(
-        children: [
-          Row(
-            children: [
-              Icon(icon, size: 20, color: AppTheme.brand),
-              const SizedBox(width: AppSpacing.xl),
-              Text(
-                title,
-                style: TextStyle(
-                  fontSize: AppTextSize.bodyLarge,
-                  color: c.textPrimary,
-                ),
-              ),
-              const Spacer(),
-              Text(
-                '${(value * 100).round()}%',
-                style: TextStyle(
-                  fontSize: AppTextSize.body,
-                  color: c.textSecondary,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: AppSpacing.xs),
-          Row(
-            children: [
-              SizedBox(
-                width: AppIconSize.nav,
-                child: Center(child: leading),
-              ),
-              Expanded(
-                child: _nativeSlider(
-                  context,
-                  value: value,
-                  min: min,
-                  max: max,
-                  divisions: divisions,
-                  onChanged: onChanged,
-                ),
-              ),
-              SizedBox(
-                width: AppIconSize.toolbar + AppSpacing.xs,
-                child: Center(child: trailing),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _nativeSlider(
-    BuildContext context, {
-    required double value,
-    required double min,
-    required double max,
-    required int divisions,
-    required ValueChanged<double> onChanged,
-  }) {
-    final c = context.colors;
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        void update(Offset position) {
-          final fraction = (position.dx / constraints.maxWidth).clamp(0.0, 1.0);
-          final step = (fraction * divisions).round() / divisions;
-          onChanged(min + (max - min) * step);
-        }
-
-        final fraction = ((value - min) / (max - min)).clamp(0.0, 1.0);
-        return GestureDetector(
-          behavior: HitTestBehavior.opaque,
-          onTapDown: (details) => update(details.localPosition),
-          onHorizontalDragUpdate: (details) => update(details.localPosition),
-          child: SizedBox(
-            height: AppMetric.hitTarget,
-            child: Stack(
-              alignment: Alignment.centerLeft,
-              children: [
-                Container(
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: c.divider,
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-                FractionallySizedBox(
-                  widthFactor: fraction,
-                  child: Container(
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: c.linkBlue,
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                  ),
-                ),
-                Positioned(
-                  left: fraction * (constraints.maxWidth - 22),
-                  child: Container(
-                    width: 22,
-                    height: 22,
-                    decoration: BoxDecoration(
-                      color: c.card,
-                      shape: BoxShape.circle,
-                      border: Border.all(color: c.linkBlue, width: 2),
-                      boxShadow: const [
-                        BoxShadow(color: Color(0x26000000), blurRadius: 4),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
     );
   }
 
@@ -2037,6 +2588,7 @@ extension _DisplayAppearanceHelpers on AppearanceView {
     VoidCallback onTap, {
     IconData? icon,
     Widget? preview,
+    double? minimumTapExtent,
   }) {
     Widget? leading;
     if (icon != null) {
@@ -2047,11 +2599,19 @@ extension _DisplayAppearanceHelpers on AppearanceView {
         child: preview,
       );
     }
-    return SettingsRow(
+    final row = SettingsRow(
       title: label,
       value: value ?? '',
       leading: leading,
+      onTap: minimumTapExtent == null ? onTap : null,
+    );
+    if (minimumTapExtent == null) return row;
+    return AppInteractiveSurface(
       onTap: onTap,
+      child: ConstrainedBox(
+        constraints: BoxConstraints(minHeight: minimumTapExtent),
+        child: IgnorePointer(child: row),
+      ),
     );
   }
 }
@@ -2071,11 +2631,11 @@ class FontSettingsView extends StatelessWidget {
             dividerInset: AppMetric.settingsTextDividerInset,
             rows: [
               SettingsRow(
-                title: AppStrings.t(AppStringKeys.appearanceFontSize),
-                value: '${(theme.fontScale * 100).round()}%',
+                title: AppStrings.t(AppStringKeys.contentSizeTitle),
+                value: contentSizeValue(theme.fontScale),
                 onTap: () => Navigator.of(context).push(
                   AppPageRoute<void>(
-                    pageBuilder: (_, _, _) => const _TextSizeSettingsView(),
+                    pageBuilder: (_, _, _) => const ContentSizeSettingsView(),
                   ),
                 ),
               ),
@@ -2690,8 +3250,8 @@ Future<Set<String>> _cachedGoogleFontFamilies() async {
 
 List<String> _fontTitleFallback() {
   return switch (defaultTargetPlatform) {
-    TargetPlatform.iOS || TargetPlatform.macOS => const [
-      '.AppleSystemUIFont',
+    TargetPlatform.iOS || TargetPlatform.macOS => [
+      AppFontChoice.apple.fontFamily,
       'SF Pro',
       'Helvetica Neue',
       'Arial',
@@ -2715,15 +3275,18 @@ TextStyle _fontTitleStyle(
     ).copyWith(fontFamilyFallback: fallback);
   }
   if (googleFamily != null) return base.copyWith(fontFamilyFallback: fallback);
-  return base.copyWith(fontFamily: family, fontFamilyFallback: fallback);
+  return base.copyWith(
+    fontFamily: AppFontChoice.resolvePlatformFontFamily(family),
+    fontFamilyFallback: fallback,
+  );
 }
 
 String _fontPreviewSample() => appFontPreviewText;
 
 int _popularSystemFontPriority(String family) {
   final popular = switch (defaultTargetPlatform) {
-    TargetPlatform.iOS || TargetPlatform.macOS => const [
-      '.AppleSystemUIFont',
+    TargetPlatform.iOS || TargetPlatform.macOS => [
+      AppFontChoice.apple.fontFamily,
       'SF Pro',
       'Helvetica Neue',
       'Helvetica',

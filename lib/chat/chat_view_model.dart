@@ -14,11 +14,19 @@ import 'dart:math' as math;
 import 'package:flutter/foundation.dart';
 import 'package:mithka/l10n/app_localizations.dart';
 import 'package:mithka/notifications/scope_notification_settings.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
+import '../auth/account_store.dart';
+import '../channels/topic_list_actions.dart';
+import '../config/build_flags.dart';
+import '../history/message_history_settings.dart';
+import '../history/message_history_store.dart';
 import '../notifications/notification_settings_payload.dart';
 import '../settings/blocked_user_service.dart';
+import '../settings/ghost_mode_controller.dart';
 import '../settings/hidden_sender_store.dart';
 import '../settings/keyword_blocker.dart';
+import '../tdlib/forum_topic_index.dart';
 import '../tdlib/json_helpers.dart';
 import '../tdlib/td_client.dart';
 import '../tdlib/td_models.dart';
@@ -33,12 +41,16 @@ import 'chat_send_failure.dart';
 import 'chat_unread_progress.dart';
 import 'checklist_composer_view.dart';
 import 'checklist_service.dart';
+import 'forum_topic_transcript.dart';
+import 'forward_markdown.dart';
 import 'forward_options.dart';
 import 'gif_item.dart';
+import 'link_preview_fixer.dart';
 import 'message_reaction_availability.dart';
 import 'message_send_options.dart';
 import 'message_text_quote.dart';
 import 'outgoing_attachment.dart';
+import 'pangu_spacing.dart';
 import 'poll_composer_view.dart';
 import 'quick_reaction_choice.dart';
 import 'rich_message_source.dart';
@@ -88,6 +100,7 @@ class _SenderInfo {
     this.role,
     this.title, {
     this.isPremium = false,
+    this.isDeleted = false,
     this.accentColorId = -1,
     this.emojiStatusId = 0,
   });
@@ -96,6 +109,10 @@ class _SenderInfo {
   final MemberRole role;
   final String? title;
   final bool isPremium;
+
+  /// TDLib reported `userTypeDeleted`: the account no longer exists, so it has
+  /// no profile to open and nothing to report.
+  final bool isDeleted;
   final int accentColorId;
   final int emojiStatusId;
 }
@@ -211,12 +228,16 @@ class MentionCandidate {
     required this.name,
     this.username = '',
     this.photo,
+    this.isDeleted = false,
+    this.isInlineBot = false,
   });
 
   final int userId;
   final String name;
   final String username;
   final TdFileRef? photo;
+  final bool isDeleted;
+  final bool isInlineBot;
 }
 
 class MessageReactionUser {
@@ -225,12 +246,16 @@ class MessageReactionUser {
     required this.title,
     this.photo,
     this.date = 0,
+    this.isDeleted = false,
   });
 
   final int senderId;
   final String title;
   final TdFileRef? photo;
   final int date;
+
+  /// The account behind the reaction no longer exists.
+  final bool isDeleted;
 }
 
 class BotCommandOption {
@@ -345,12 +370,110 @@ class ForumTopicOption {
     required this.name,
     this.iconCustomEmojiId = 0,
     this.iconColor = 0,
+    this.unreadCount = 0,
+    this.isMuted = false,
+    this.isPinned = false,
+    this.isGeneral = false,
+    this.isClosed = false,
+    this.creatorId = 0,
+    this.lastPreview = '',
+    this.lastSender,
+    this.lastMessageDate = 0,
+    this.lastMessageId = 0,
   });
 
   final int id;
   final String name;
   final int iconCustomEmojiId;
   final int iconColor;
+
+  /// Live unread messages in this topic, maintained through the shared topic
+  /// index; 0 when unknown.
+  final int unreadCount;
+  final bool isMuted;
+
+  /// Order and row badges a chat-list-style topic row draws: pinned marker,
+  /// the General avatar rule and the closed lock. The page from getForumTopics
+  /// carries them; live updates patch them in place.
+  final bool isPinned;
+
+  /// The General topic (id 1): shows the chat avatar and cannot be deleted.
+  final bool isGeneral;
+  final bool isClosed;
+
+  /// Topic creator's user id, 0 when unknown. The creator may delete their
+  /// own topic even without can_manage_topics (TDLib enforces the rest).
+  final int creatorId;
+
+  /// Last-message preview text with media/service placeholders already
+  /// composed the way the chat list composes them; empty hides the line.
+  final String lastPreview;
+
+  /// Sender prefix for [lastPreview] ("Alice", "You:"); null for none.
+  final String? lastSender;
+
+  /// Unix seconds of the last message; 0 hides the timestamp.
+  final int lastMessageDate;
+
+  /// The newest message id this row has seen — mark-read views it.
+  final int lastMessageId;
+
+  /// Display-field equality: a republished list that changed nothing must not
+  /// re-notify a listening topic list.
+  bool sameDisplay(ForumTopicOption other) =>
+      id == other.id &&
+      name == other.name &&
+      iconCustomEmojiId == other.iconCustomEmojiId &&
+      iconColor == other.iconColor &&
+      unreadCount == other.unreadCount &&
+      isMuted == other.isMuted &&
+      isPinned == other.isPinned &&
+      isGeneral == other.isGeneral &&
+      isClosed == other.isClosed &&
+      creatorId == other.creatorId &&
+      lastPreview == other.lastPreview &&
+      lastSender == other.lastSender &&
+      lastMessageDate == other.lastMessageDate &&
+      lastMessageId == other.lastMessageId;
+
+  ForumTopicOption _withIndex(ForumTopicIndexEntry entry) => ForumTopicOption(
+    id: entry.id,
+    name: entry.name,
+    iconCustomEmojiId: entry.iconCustomEmojiId,
+    iconColor: entry.iconColor,
+    unreadCount: entry.unreadCount,
+    isMuted: entry.isMuted,
+    isPinned: isPinned,
+    isGeneral: isGeneral,
+    isClosed: isClosed,
+    creatorId: creatorId,
+    lastPreview: lastPreview,
+    lastSender: lastSender,
+    lastMessageDate: lastMessageDate,
+    // The index can know a newer message than a stale page row: keep the
+    // newer id so a later mark-read targets live traffic, not the old page.
+    lastMessageId: entry.lastMessageId > lastMessageId
+        ? entry.lastMessageId
+        : lastMessageId,
+  );
+
+  /// The same row with a new unread counter, every other field untouched.
+  ForumTopicOption _withUnreadCount(int unread) => ForumTopicOption(
+    id: id,
+    name: name,
+    iconCustomEmojiId: iconCustomEmojiId,
+    iconColor: iconColor,
+    unreadCount: unread,
+    isMuted: isMuted,
+    isPinned: isPinned,
+    isGeneral: isGeneral,
+    isClosed: isClosed,
+    creatorId: creatorId,
+    lastPreview: lastPreview,
+    lastSender: lastSender,
+    lastMessageDate: lastMessageDate,
+    lastMessageId: lastMessageId,
+  );
 }
 
 class _DraftMention {
@@ -359,6 +482,15 @@ class _DraftMention {
   final String text;
   final int userId;
 }
+
+/// TDLib's `message_caption_length_max` without Premium, used when the option
+/// cannot be read.
+const defaultMessageCaptionLengthLimit = 1024;
+
+/// Slot → owning account identity bridge for the ghost transcript. The
+/// chat view model cannot reach the provider tree, so main injects the
+/// AccountStore lookup; tests inject their own mapping.
+typedef AccountSummaryForSlot = AccountSummary? Function(int slot);
 
 class ChatViewModel extends ChangeNotifier {
   static const int _maximumAiReplyContextMessages = 64;
@@ -375,9 +507,17 @@ class ChatViewModel extends ChangeNotifier {
     bool sessionAnchoredHistory = false,
     ChatFirstContactInfo? sessionFirstContactInfo,
     ChatMessage? seedMessage,
+    this.forumTopicId,
+    this.historyStoreOverride,
   }) : _accountClientId = TdClient.shared.activeClientId,
        _accountSlot = TdClient.shared.activeSlot,
        peerTitle = title {
+    // A pane rebuilt for another topic renders its rail from the shared index
+    // on the first frame; loadForumTopics refreshes it moments later.
+    final indexed = ForumTopicIndex.shared.topicsFor(_accountSlot, chatId);
+    if (indexed.isNotEmpty) {
+      forumTopics = [for (final entry in indexed) _optionFromIndex(entry)];
+    }
     _historyAnchorMessageId = initialMessageId ?? sessionAnchorMessageId;
     if (sessionMessages != null && sessionMessages.isNotEmpty) {
       _allMessages = List<ChatMessage>.from(sessionMessages);
@@ -394,10 +534,103 @@ class ChatViewModel extends ChangeNotifier {
   }
 
   final int chatId;
+
+  /// Store the ghost fold reads (tests inject one; production reads
+  /// [MessageHistoryStore.shared]).
+  final MessageHistoryStore? historyStoreOverride;
+
+  /// When set, this transcript shows a single forum topic as an ordinary
+  /// chat: history, search, drafts, sends and live updates are scoped to it.
+  final int? forumTopicId;
+  bool get isForumTopicTranscript => (forumTopicId ?? 0) != 0;
+
+  void _onForumTopicIndexChanged() {
+    // Only the topic list is live-indexed here: a transcript's own unread
+    // state arrives through its chat-scoped updates, and topics of other
+    // chats never move this view model.
+    final indexed = ForumTopicIndex.shared.topicsFor(_accountSlot, chatId);
+    if (indexed.isEmpty) return;
+    final previous = forumTopics;
+    // The index owns identity + counters; row-only fields (preview, pin,
+    // closed, creator) stay with the option that already carries them.
+    final byId = {for (final option in previous) option.id: option};
+    var same = indexed.length == previous.length;
+    final next = <ForumTopicOption>[];
+    for (final entry in indexed) {
+      final option =
+          byId[entry.id]?._withIndex(entry) ?? _optionFromIndex(entry);
+      if (same && !option.sameDisplay(previous[next.length])) same = false;
+      next.add(option);
+    }
+    if (same) return;
+    forumTopics = next;
+    notifyListeners();
+  }
+
+  Map<String, dynamic>? get _forumTopicRef => isForumTopicTranscript
+      ? {'@type': 'messageTopicForum', 'forum_topic_id': forumTopicId}
+      : null;
+
+  /// Whether [raw] (a TDLib `message`) belongs to this transcript.
+  ///
+  /// In a bot topic chat there is no General topic, so an unattributed
+  /// message must not fall back to it (see
+  /// [rawMessageBelongsToForumTopic]).
+  bool _belongsToTranscript(Map<String, dynamic> raw) =>
+      !isForumTopicTranscript ||
+      rawMessageBelongsToForumTopic(
+        raw,
+        forumTopicId!,
+        isGeneralFallbackAllowed: isForum,
+      );
+
+  /// Rewrites a chat-wide history request into its topic-scoped equivalent.
+  Map<String, dynamic> _scopedHistoryRequest(Map<String, dynamic> request) =>
+      isForumTopicTranscript
+      ? forumTopicHistoryRequest(request, forumTopicId!)
+      : request;
+
+  /// The topic's display name once loaded; empty for ordinary transcripts.
+  String forumTopicName = '';
+
+  Future<Map<String, dynamic>> _queryHistory(
+    Map<String, dynamic> request,
+  ) async {
+    final scoped = _scopedHistoryRequest(request);
+    if (scoped.type != 'getForumTopicHistory') return _client.query(scoped);
+    try {
+      return await _client.query(scoped);
+    } catch (_) {
+      return _client.query(forumTopicThreadHistoryRequest(scoped));
+    }
+  }
+
+  Future<Map<String, dynamic>?> _loadForumTopic() async {
+    try {
+      final topic = await _client.query({
+        '@type': 'getForumTopic',
+        'chat_id': chatId,
+        'forum_topic_id': forumTopicId,
+      });
+      forumTopicName = topic.obj('info')?.str('name') ?? forumTopicName;
+      return topic;
+    } catch (_) {
+      return null;
+    }
+  }
+
   final int? initialMessageId;
   final int? sessionAnchorMessageId;
   final bool? sessionFallbackOpenAtLatest;
   final bool markReadOnOpen;
+
+  /// 盘古之白 for outgoing text, mirrored from ThemeController by the view that
+  /// owns this model: the model itself has no theme access.
+  bool panguOnSend = false;
+
+  /// 盘古之白 for edits, which rewrite a message the other side already read.
+  bool panguOnEdit = false;
+
   int? _historyAnchorMessageId;
   int? get historyAnchorMessageId => _historyAnchorMessageId;
 
@@ -436,13 +669,25 @@ class ChatViewModel extends ChangeNotifier {
   final List<_DraftMention> _draftMentions = [];
   ChatMessage? _replyTo;
   MessageTextQuote? _replyQuote;
+
+  /// Bumped every time the pending reply changes. A send stamps the
+  /// revision it captured; when it completes, it only consumes the reply
+  /// if the user hasn't picked a different one in the meantime.
+  int _replyRevision = 0;
+
   ChatMessage? get replyTo => _replyTo;
   set replyTo(ChatMessage? message) {
     _replyTo = message;
     _replyQuote = null;
+    _replyRevision++;
   }
 
   MessageTextQuote? get replyQuote => _replyQuote;
+
+  /// The forum-topic destination for inline-bot and gif sends when this
+  /// transcript is scoped to one topic.
+  Map<String, dynamic>? get forumTopicSendRef => _forumTopicRef;
+
   Map<String, dynamic>? get replyToInput => replyTo == null
       ? null
       : {
@@ -451,6 +696,34 @@ class ChatViewModel extends ChangeNotifier {
           if (!isSecretChat && _replyQuote != null)
             'quote': _replyQuote!.toInputJson(),
         };
+
+  /// Panel sends (sticker, GIF, voice note, poll, …) can't attach the reply
+  /// anchor inside their content payloads, so they route through this helper:
+  /// it stamps the pending reply onto the request and returns the revision
+  /// the stamp was taken at. The send later consumes the reply only when
+  /// that revision is still current, so completing an older send never
+  /// clears a reply the user selected meanwhile. Failed sends keep the
+  /// reply for retry, mirroring the text path's contract.
+  ({Map<String, dynamic> request, int revision}) _withReplyAnchor(
+    Map<String, dynamic> request,
+  ) {
+    final revision = _replyRevision;
+    if (replyTo != null) {
+      request['reply_to'] = replyToInput;
+    }
+    return (request: request, revision: revision);
+  }
+
+  /// Consumes the pending reply only if it is still the one [revision]
+  /// stamped. A newer selection survives; a consumed anchor reports false.
+  bool _consumeReplyAnchorIfCurrent(int revision) {
+    if (replyTo == null) return false;
+    if (revision != _replyRevision) return false;
+    replyTo = null;
+    notifyListeners();
+    return true;
+  }
+
   ChatMessage? editingMessage;
   String? _draftBeforeEditing;
   String _formattedDraftBeforeEditing = '';
@@ -482,6 +755,13 @@ class ChatViewModel extends ChangeNotifier {
   int pinnedMessageIndex = 0;
   bool pinnedDismissed = false;
 
+  /// The pinned ids the bar was closed over, remembered on this device for
+  /// this account and chat (and topic); null while the bar is not closed.
+  Set<int>? _pinnedDismissedIds;
+  Future<void>? _pinnedDismissalLoad;
+  String? _pinnedDismissalKey;
+  bool _pinnedDismissalChanged = false;
+
   // Membership / send permission. Defaults assume a normal, joined, sendable
   // chat; refined in _loadChatHeader once the chat type + member status load.
   bool canSendMessages = true; // composer enabled
@@ -504,6 +784,80 @@ class ChatViewModel extends ChangeNotifier {
   String peerRestrictionText = '';
   bool hasProtectedContent = false;
   bool _chatCanSend = true; // chat-wide default can_send_basic_messages
+
+  /// Topic moderation rights for forum chats. Creating needs the
+  /// can_manage_topics administrator right or the can_create_topics member
+  /// right; pinning/editing/closing need can_manage_topics; deleting needs
+  /// can_delete_messages unless the user created the topic.
+  bool _chatCanCreateTopics = false;
+  bool canManageTopics = false;
+  bool canDeleteForumTopics = false;
+  bool get canCreateForumTopics => _chatCanCreateTopics || canManageTopics;
+
+  /// Per-topic creator deletion eligibility, verified against the topic's
+  /// actual message history. TDLib's deleteForumTopic allows a non-admin
+  /// creator to delete only while the topic holds at most 11 messages and
+  /// none of them are from other users; creator identity alone is not
+  /// sufficient. Cleared on topic traffic so the next menu open re-probes.
+  final Map<int, bool> _creatorDeletableTopicIds = {};
+
+  /// Whether this account may delete [topic] through the rights model, and —
+  /// for the creator carve-out — the probed history limits. can_manage_topics
+  /// grants management, not deletion; only can_delete_messages does.
+  bool canDeleteTopic(ForumTopicOption topic) =>
+      !topic.isGeneral &&
+      (canDeleteForumTopics ||
+          (meId != null &&
+              topic.creatorId == meId &&
+              (_creatorDeletableTopicIds[topic.id] ?? false)));
+
+  /// Whether [topic] was created by this account.
+  bool creatorOfTopic(ForumTopicOption topic) =>
+      meId != null && topic.creatorId == meId;
+
+  /// Probes whether the creator carve-out applies to [topicId]: at most 11
+  /// messages and none from another user. The 12th message proves the limit
+  /// is exceeded without paging further.
+  Future<bool> ensureTopicCreatorDeletable(int topicId) async {
+    if (!isForum || topicId == generalForumTopicId) return false;
+    if (_creatorDeletableTopicIds.containsKey(topicId)) {
+      return _creatorDeletableTopicIds[topicId]!;
+    }
+    bool eligible = false;
+    try {
+      final response = await _topicAccountQuery({
+        '@type': 'getForumTopicHistory',
+        'chat_id': chatId,
+        'forum_topic_id': topicId,
+        'from_message_id': 0,
+        'offset': 0,
+        'limit': 12,
+      });
+      final messages = response.objects('messages') ?? const [];
+      eligible =
+          messages.length <= 11 &&
+          messages.every((raw) {
+            if (raw.boolean('is_outgoing') ?? false) return true;
+            final sender = raw.obj('sender_id');
+            return sender?.type == 'messageSenderUser' &&
+                sender?.int64('user_id') == meId;
+          });
+    } catch (_) {
+      eligible = false;
+    }
+    _creatorDeletableTopicIds[topicId] = eligible;
+    return eligible;
+  }
+
+  /// Drops the probed creator carve-out for any topic new traffic reached, so
+  /// a topic that gained a 12th message or another user's message stops
+  /// offering Delete on the next menu open.
+  void _invalidateCreatorDeletionForTopic(int topicId) {
+    if (_creatorDeletableTopicIds.remove(topicId) != null) {
+      notifyListeners();
+    }
+  }
+
   bool peerIsBot = false;
   bool isBotApiAccount = false;
   bool botApiCanReadAllGroupMessages = false;
@@ -523,8 +877,20 @@ class ChatViewModel extends ChangeNotifier {
   bool get supportsTopics => isForum || supportsBotTopics;
   bool forumTopicsLoading = false;
   List<ForumTopicOption> forumTopics = const [];
+
+  /// Resolved display names for topic-preview senders, kept across reloads so
+  /// the row's "Alice: …" prefix survives a getForumTopics refresh.
+  final Map<int, String> _topicSenderNames = {};
+
+  /// Topic id → its last message's sender id, for late sender resolution.
+  final Map<int, int> _topicRowSenderIds = {};
   int messageAutoDeleteTime = 0;
   int paidMessageStarCount = 0;
+
+  /// Non-null once [loadForumTopics] registered the shared-index listener.
+  /// ChangeNotifier.addListener returns void, so this only records whether
+  /// the one-per-model registration happened (refreshes reuse it).
+  bool _forumTopicIndexListening = false;
   bool peerRequiresPremiumOrContact = false;
   bool peerIsUnavailable = false;
 
@@ -534,6 +900,9 @@ class ChatViewModel extends ChangeNotifier {
   final TdClient _client = TdClient.shared;
   final int _accountClientId;
   final int _accountSlot;
+
+  /// The account slot whose ids this transcript's data is scoped to.
+  int get accountSlot => _accountSlot;
   int _groupBotCommandsGeneration = 0;
   Future<Set<String>>? _aiReplyBlockedSenderKeysFuture;
   int _aiReplyBlockedSenderRevision = 0;
@@ -613,6 +982,11 @@ class ChatViewModel extends ChangeNotifier {
     return '$base · $action';
   }
 
+  /// The header title for this transcript: the topic's name when a forum topic
+  /// is shown as an ordinary chat, otherwise the peer title.
+  String get displayTitle =>
+      forumTopicName.trim().isNotEmpty ? forumTopicName.trim() : peerTitle;
+
   bool get hasActiveChatAction => _chatActions.isNotEmpty;
 
   bool isRead(ChatMessage m) => isOutgoingServerMessageRead(
@@ -649,6 +1023,15 @@ class ChatViewModel extends ChangeNotifier {
   bool get canUseSpeechRecognition =>
       aiCapabilities?.transcriptionSupported == true;
   bool get canSendWhenOnline => !isGroup && !peerIsBot;
+
+  /// The chat is the account's own Saved Messages.
+  bool get isSavedMessages => peerUserId != null && peerUserId == meId;
+
+  /// Telegram accepts View Once and self-destructing media only in one-on-one
+  /// chats with another person: not groups, channels, bots, Saved Messages or
+  /// secret chats, which have their own message timer.
+  bool get canSendSelfDestructingMedia =>
+      canSendWhenOnline && !isSavedMessages && !isSecretChat;
   bool get showBotApiPrivacyWarning =>
       isBotApiAccount &&
       isGroup &&
@@ -678,6 +1061,7 @@ class ChatViewModel extends ChangeNotifier {
 
   int _composerRevision = 0;
   int _fullViewRevision = 0;
+  int _composerFocusTick = 0;
 
   /// Bumped by every notification except the handful proven not to touch
   /// anything the composer renders, so the input bar can skip those rebuilds.
@@ -690,6 +1074,17 @@ class ChatViewModel extends ChangeNotifier {
   int get fullViewRevision => _fullViewRevision;
 
   ValueListenable<int> get headerRevisionListenable => _headerRevisionNotifier;
+
+  /// Bumped when a gesture outside the composer asks for the caret. The reply
+  /// target itself travels with [setReply]; this only says "and start typing".
+  int get composerFocusTick => _composerFocusTick;
+
+  /// Hands the composer the caret without touching its draft or revision.
+  void requestComposerFocus() {
+    if (_isDisposed) return;
+    _composerFocusTick++;
+    super.notifyListeners();
+  }
 
   ValueListenable<int> messageRevisionListenable(int messageId) =>
       _messageRevisionNotifiers.putIfAbsent(
@@ -792,6 +1187,11 @@ class ChatViewModel extends ChangeNotifier {
     if (consumePendingConfiguration && sendConfiguration == null) {
       _nextSendConfiguration = null;
     }
+    final topic = _forumTopicRef;
+    if (topic != null && request.int64('chat_id') == chatId) {
+      request.remove('message_thread_id');
+      request['topic_id'] = topic;
+    }
     final existing = request.obj('options') ?? const <String, dynamic>{};
     if (count > 0 || pending != null || existing.isNotEmpty) {
       request['options'] = {
@@ -828,9 +1228,17 @@ class ChatViewModel extends ChangeNotifier {
     return true;
   }
 
+  /// Points TDLib at a preview mirror for the message's first link when the user
+  /// opted in to fixing link previews. Requests that already carry
+  /// `link_preview_options` keep them: an explicit choice beats a preference.
+  Map<String, dynamic> _withFixedLinkPreview(Map<String, dynamic> request) =>
+      LinkPreviewFixer.shared.applyTo(request);
+
   Future<bool> _submitMessageRequest(Map<String, dynamic> request) async {
     try {
-      await _client.query(_withPaidMessageOptions(request));
+      await _client.query(
+        _withPaidMessageOptions(_withFixedLinkPreview(request)),
+      );
       return true;
     } catch (error) {
       _publishSendFailure(
@@ -841,6 +1249,19 @@ class ChatViewModel extends ChangeNotifier {
       );
       return false;
     }
+  }
+
+  /// Panel fire-and-forget sends: stamps the reply anchor, submits the
+  /// request and consumes the reply only after the send actually
+  /// succeeded — and only if the user hasn't selected a newer reply in
+  /// the meantime. A failed send keeps the reply for retry.
+  void _submitPanelMessage(Map<String, dynamic> request) {
+    final stamped = _withReplyAnchor(request);
+    unawaited(
+      _submitMessageRequest(stamped.request).then((sent) {
+        if (sent) _consumeReplyAnchorIfCurrent(stamped.revision);
+      }),
+    );
   }
 
   void _submitMessageRequestWithoutWaiting(Map<String, dynamic> request) {
@@ -876,6 +1297,12 @@ class ChatViewModel extends ChangeNotifier {
     KeywordBlocker.shared.addListener(_applyKeywordFilter);
     HiddenSenderStore.shared.removeListener(_applyKeywordFilter);
     HiddenSenderStore.shared.addListener(_applyKeywordFilter);
+    if (allowTelegramTosViolations) {
+      MessageHistorySettings.shared.removeListener(_onGhostSourceChanged);
+      MessageHistorySettings.shared.addListener(_onGhostSourceChanged);
+      MessageHistoryStore.shared.removeListener(_onGhostSourceChanged);
+      MessageHistoryStore.shared.addListener(_onGhostSourceChanged);
+    }
     () async {
       unawaited(_loadMe());
       unawaited(_loadAiCapabilities());
@@ -1123,6 +1550,10 @@ class ChatViewModel extends ChangeNotifier {
     _sub = null;
     KeywordBlocker.shared.removeListener(_applyKeywordFilter);
     HiddenSenderStore.shared.removeListener(_applyKeywordFilter);
+    if (allowTelegramTosViolations) {
+      MessageHistorySettings.shared.removeListener(_onGhostSourceChanged);
+      MessageHistoryStore.shared.removeListener(_onGhostSourceChanged);
+    }
     _client.send({'@type': 'closeChat', 'chat_id': chatId});
   }
 
@@ -1131,6 +1562,14 @@ class ChatViewModel extends ChangeNotifier {
     _isDisposed = true;
     KeywordBlocker.shared.removeListener(_applyKeywordFilter);
     HiddenSenderStore.shared.removeListener(_applyKeywordFilter);
+    if (allowTelegramTosViolations) {
+      MessageHistorySettings.shared.removeListener(_onGhostSourceChanged);
+      MessageHistoryStore.shared.removeListener(_onGhostSourceChanged);
+    }
+    if (_forumTopicIndexListening) {
+      ForumTopicIndex.shared.removeListener(_onForumTopicIndexChanged);
+      _forumTopicIndexListening = false;
+    }
     _sub?.cancel();
     _typingTimer?.cancel();
     _draftSaveTimer?.cancel();
@@ -1152,9 +1591,14 @@ class ChatViewModel extends ChangeNotifier {
 
   /// Tell TDLib the user is typing (drives the peer's typing indicator).
   void sendTyping() {
+    if (allowTelegramTosViolations &&
+        GhostModeController.shared.shouldBlockTyping(chatId).isBlock) {
+      return;
+    }
     _client.send({
       '@type': 'sendChatAction',
       'chat_id': chatId,
+      'topic_id': ?_forumTopicRef,
       'action': {'@type': 'chatActionTyping'},
     });
   }
@@ -1225,10 +1669,15 @@ class ChatViewModel extends ChangeNotifier {
     final message = editingMessage;
     if (message == null) return false;
     if (!editingMessageUsesCaption && text.trim().isEmpty) return false;
+    final spaced = _spacedOutgoing(text, entities, editing: true);
     if (editingMessageUsesCaption) {
-      await editMessageCaption(message.id, text, entities: entities);
+      await editMessageCaption(
+        message.id,
+        spaced.text,
+        entities: spaced.entities,
+      );
     } else {
-      await editMessageText(message.id, text, entities: entities);
+      await editMessageText(message.id, spaced.text, entities: spaced.entities);
     }
     if (editingMessage?.id == message.id) {
       _restoreComposerAfterMessageEdit();
@@ -1300,6 +1749,7 @@ class ChatViewModel extends ChangeNotifier {
       _client.send(
         setTextChatDraftRequest(
           chatId: chatId,
+          topicId: _forumTopicRef,
           formattedText: null,
           date: DateTime.now().millisecondsSinceEpoch ~/ 1000,
         ),
@@ -1316,6 +1766,7 @@ class ChatViewModel extends ChangeNotifier {
     _client.send(
       setTextChatDraftRequest(
         chatId: chatId,
+        topicId: _forumTopicRef,
         date: DateTime.now().millisecondsSinceEpoch ~/ 1000,
         formattedText: {
           '@type': 'formattedText',
@@ -1339,6 +1790,7 @@ class ChatViewModel extends ChangeNotifier {
     await _client.query(
       setTextChatDraftRequest(
         chatId: chatId,
+        topicId: _forumTopicRef,
         date: DateTime.now().millisecondsSinceEpoch ~/ 1000,
         formattedText: text.trim().isEmpty
             ? null
@@ -1378,8 +1830,15 @@ class ChatViewModel extends ChangeNotifier {
     _insertMention(name, userId);
   }
 
-  Future<List<MentionCandidate>> searchMentionCandidates(String query) async {
-    if (!isGroup) return const [];
+  Future<List<MentionCandidate>> searchMentionCandidates(
+    String query, {
+    bool includeInlineBots = false,
+  }) async {
+    final inlineBots = includeInlineBots
+        ? await _recentInlineBotCandidates(query)
+        : const <MentionCandidate>[];
+    if (!isGroup) return inlineBots;
+    List<MentionCandidate> memberCandidates;
     try {
       final result = await _client.query({
         '@type': 'searchChatMembers',
@@ -1392,9 +1851,86 @@ class ChatViewModel extends ChangeNotifier {
       final resolved = await Future.wait(
         members.map(_mentionCandidateFromMember),
       );
+      memberCandidates = resolved.whereType<MentionCandidate>().toList(
+        growable: false,
+      );
+    } catch (_) {
+      memberCandidates = _recentMentionCandidates(query);
+    }
+    if (inlineBots.isEmpty) return memberCandidates;
+    final seen = <int>{for (final bot in inlineBots) bot.userId};
+    return [
+      ...inlineBots,
+      for (final member in memberCandidates)
+        if (seen.add(member.userId)) member,
+    ];
+  }
+
+  Future<List<MentionCandidate>> _recentInlineBotCandidates(
+    String query,
+  ) async {
+    if (isSecretChat) return const [];
+    try {
+      final response = await _client.query({'@type': 'getRecentInlineBots'});
+      // The await can outlive the view model (disposed while the response was
+      // held): no follow-up getUser may be issued and no candidate returned.
+      if (_isDisposed) return const [];
+      final rawIds = response['user_ids'];
+      if (rawIds is! List || rawIds.isEmpty) return const [];
+      final ids = rawIds
+          .map(
+            (v) => switch (v) {
+              final int n => n,
+              final String s => int.tryParse(s),
+              _ => null,
+            },
+          )
+          .whereType<int>()
+          .where((id) => id > 0)
+          .take(20)
+          .toList(growable: false);
+      if (ids.isEmpty) return const [];
+      final normalized = query.trim().toLowerCase();
+      final resolved = await Future.wait(
+        ids.map((userId) async {
+          try {
+            final user = await _client.query({
+              '@type': 'getUser',
+              'user_id': userId,
+            });
+            if (_isDisposed) return null;
+            final type = user.obj('type');
+            if (type?.type != 'userTypeBot' ||
+                (type?.boolean('is_inline') ?? false) == false) {
+              return null;
+            }
+            final username = _primaryUsername(user);
+            if (username.isEmpty) return null;
+            final rawName = TDParse.userName(user).trim();
+            final name = rawName.isEmpty
+                ? username
+                : (rawName.startsWith('@') ? rawName.substring(1) : rawName);
+            if (normalized.isNotEmpty &&
+                !username.toLowerCase().startsWith(normalized) &&
+                !name.toLowerCase().contains(normalized)) {
+              return null;
+            }
+            return MentionCandidate(
+              userId: userId,
+              name: name,
+              username: username,
+              photo: TDParse.smallPhoto(user.obj('profile_photo')),
+              isInlineBot: true,
+            );
+          } catch (_) {
+            return null;
+          }
+        }),
+      );
+      if (_isDisposed) return const [];
       return resolved.whereType<MentionCandidate>().toList(growable: false);
     } catch (_) {
-      return _recentMentionCandidates(query);
+      return const [];
     }
   }
 
@@ -1422,6 +1958,7 @@ class ChatViewModel extends ChangeNotifier {
         name: name.startsWith('@') ? name.substring(1) : name,
         username: username,
         photo: TDParse.smallPhoto(user.obj('profile_photo')),
+        isDeleted: TDParse.isDeletedUser(user),
       );
     } catch (_) {
       return null;
@@ -1446,6 +1983,7 @@ class ChatViewModel extends ChangeNotifier {
           userId: userId,
           name: name,
           photo: message.senderPhoto,
+          isDeleted: message.senderIsDeleted,
         ),
       );
       if (result.length == 30) break;
@@ -1467,25 +2005,45 @@ class ChatViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Replaces the composer draft with `@botUsername query` and asks the
+  /// composer to focus and run an inline-bot lookup immediately.
+  void activateInlineQuery(String botUsername, [String query = '']) {
+    final cleanUsername = botUsername.trim().replaceFirst(RegExp(r'^@+'), '');
+    if (cleanUsername.isEmpty) return;
+    if (editingMessage != null) {
+      _restoreComposerAfterMessageEdit(notify: false, scheduleDraftSave: false);
+    }
+    final text = '@$cleanUsername $query';
+    draft = text;
+    _draftFormattedText = text;
+    _draftFormattedEntities = const [];
+    _draftMentions.clear();
+    _scheduleDraftSave();
+    _composerFocusTick++;
+    notifyListeners();
+  }
+
   Future<bool> send() async {
     if (!canSendMessages) return false;
     final trimmed = draft.trim();
     if (trimmed.isEmpty) return false;
+    final spaced = _spacedOutgoing(trimmed, const []);
 
     final request = <String, dynamic>{
       '@type': 'sendMessage',
       'chat_id': chatId,
       'input_message_content': {
         '@type': 'inputMessageText',
-        'text': {'@type': 'formattedText', 'text': trimmed},
+        'text': {'@type': 'formattedText', 'text': spaced.text},
       },
     };
+    final replyRevision = _replyRevision;
     if (replyTo != null) {
       request['reply_to'] = replyToInput;
     }
     final sent = await _submitMessageRequest(request);
     if (!sent) return false;
-    replyTo = null;
+    _consumeReplyAnchorIfCurrent(replyRevision);
     _clearDraft();
     notifyListeners();
     return true;
@@ -1500,15 +2058,16 @@ class ChatViewModel extends ChangeNotifier {
     if (!canSendMessages || !isDirectMessagesGroup) return;
     final trimmed = text.trim();
     if (trimmed.isEmpty && attachment == null) return;
+    final spaced = _spacedOutgoing(trimmed, const []);
     Map<String, dynamic> content;
     if (attachment == null) {
       content = {
         '@type': 'inputMessageText',
-        'text': {'@type': 'formattedText', 'text': trimmed},
+        'text': {'@type': 'formattedText', 'text': spaced.text},
       };
     } else {
       final resolved = await resolveAttachmentDimensions(attachment);
-      content = attachmentInputMessageContent(resolved, caption: trimmed);
+      content = attachmentInputMessageContent(resolved, caption: spaced.text);
     }
     final request = <String, dynamic>{
       '@type': 'sendMessage',
@@ -1523,7 +2082,9 @@ class ChatViewModel extends ChangeNotifier {
       },
       'input_message_content': content,
     };
-    final response = await _client.query(_withPaidMessageOptions(request));
+    final response = await _client.query(
+      _withPaidMessageOptions(_withFixedLinkPreview(request)),
+    );
     final message = TDParse.message(response);
     if (message != null) {
       _merge([message]);
@@ -1566,7 +2127,7 @@ class ChatViewModel extends ChangeNotifier {
     if (!canSendMessages) return;
     final trimmed = text.trim();
     if (trimmed.isEmpty) return;
-    _submitMessageRequestWithoutWaiting({
+    _submitPanelMessage({
       '@type': 'sendMessage',
       'chat_id': chatId,
       'input_message_content': {
@@ -1588,7 +2149,11 @@ class ChatViewModel extends ChangeNotifier {
     if (entities.isEmpty && _diceEmojis.contains(text.trim())) {
       return _sendDice(text);
     }
-    final allEntities = [...entities, ..._mentionEntitiesFor(text, entities)];
+    final spaced = _spacedOutgoing(text, entities);
+    final allEntities = [
+      ...spaced.entities,
+      ..._mentionEntitiesFor(spaced.text, spaced.entities),
+    ];
     final request = <String, dynamic>{
       '@type': 'sendMessage',
       'chat_id': chatId,
@@ -1596,17 +2161,18 @@ class ChatViewModel extends ChangeNotifier {
         '@type': 'inputMessageText',
         'text': {
           '@type': 'formattedText',
-          'text': text,
+          'text': spaced.text,
           if (allEntities.isNotEmpty) 'entities': allEntities,
         },
       },
     };
+    final replyRevision = _replyRevision;
     if (replyTo != null) {
       request['reply_to'] = replyToInput;
     }
     final sent = await _submitMessageRequest(request);
     if (!sent) return false;
-    replyTo = null;
+    _consumeReplyAnchorIfCurrent(replyRevision);
     _clearDraft();
     notifyListeners();
     return true;
@@ -1636,13 +2202,14 @@ class ChatViewModel extends ChangeNotifier {
           ? botApiDirectRichMessageInputContent(html, files, blocks: blocks)
           : richMessageInputContent(blocks),
     };
+    final replyRevision = _replyRevision;
     if (replyTo != null) {
       request['reply_to'] = replyToInput;
     }
-    replyTo = null;
     final pendingMessage = await _client.query(
       _withPaidMessageOptions(request),
     );
+    _consumeReplyAnchorIfCurrent(replyRevision);
     final pendingMessageId = pendingMessage.int64('id');
     if (pendingMessageId != null &&
         pendingMessage.obj('sending_state') != null) {
@@ -1756,12 +2323,13 @@ class ChatViewModel extends ChangeNotifier {
       'chat_id': chatId,
       'input_message_content': {'@type': 'inputMessageDice', 'emoji': emoji},
     };
+    final replyRevision = _replyRevision;
     if (replyTo != null) {
       request['reply_to'] = replyToInput;
     }
     final sent = await _submitMessageRequest(request);
     if (!sent) return false;
-    replyTo = null;
+    _consumeReplyAnchorIfCurrent(replyRevision);
     _clearDraft();
     notifyListeners();
     return true;
@@ -1795,6 +2363,20 @@ class ChatViewModel extends ChangeNotifier {
       if (limit != null && limit > 0) return limit;
     } catch (_) {}
     return defaultMessageQuoteLengthLimit;
+  }
+
+  /// TDLib's longest caption for this account (Premium raises it), in
+  /// Unicode characters.
+  Future<int> messageCaptionLengthLimit() async {
+    try {
+      final option = await _client.query({
+        '@type': 'getOption',
+        'name': 'message_caption_length_max',
+      });
+      final limit = option.integer('value');
+      if (limit != null && limit > 0) return limit;
+    } catch (_) {}
+    return defaultMessageCaptionLengthLimit;
   }
 
   List<Map<String, dynamic>> _mentionEntitiesFor(
@@ -1833,6 +2415,20 @@ class ChatViewModel extends ChangeNotifier {
     return out;
   }
 
+  /// Spaces text this model is about to send, moving its entities onto the new
+  /// offsets. Applied here rather than in each composer so every surface that
+  /// reaches a send — mobile, desktop, picker windows, media captions — spaces
+  /// text the same way, and so mention detection still sees the final text.
+  ({String text, List<Map<String, dynamic>> entities}) _spacedOutgoing(
+    String text,
+    List<Map<String, dynamic>> entities, {
+    bool editing = false,
+  }) => PanguSpacing.gated(
+    enabled: editing ? panguOnEdit : panguOnSend,
+    text: text,
+    entities: entities,
+  );
+
   Future<void> sendAttachments(
     List<OutgoingAttachment> attachments, {
     String caption = '',
@@ -1841,19 +2437,21 @@ class ChatViewModel extends ChangeNotifier {
         const MessageSendConfiguration(),
   }) async {
     if (attachments.isEmpty) return;
+    final spaced = _spacedOutgoing(caption, captionEntities);
     final allEntities = [
-      ...captionEntities,
-      ..._mentionEntitiesFor(caption, captionEntities),
+      ...spaced.entities,
+      ..._mentionEntitiesFor(spaced.text, spaced.entities),
     ];
+    final replyRevision = _replyRevision;
     final requests = buildAttachmentSendRequests(
       chatId: chatId,
+      topicId: _forumTopicRef,
       attachments: attachments,
-      caption: caption,
+      caption: spaced.text,
       captionEntities: allEntities,
       replyTo: replyToInput,
       sendConfiguration: sendConfiguration,
     );
-    replyTo = null;
     _clearDraft();
     notifyListeners();
     try {
@@ -1866,6 +2464,7 @@ class ChatViewModel extends ChangeNotifier {
           ),
         );
       }
+      _consumeReplyAnchorIfCurrent(replyRevision);
     } catch (error) {
       _publishSendFailure(
         ChatSendFailure.fromError(
@@ -1883,7 +2482,7 @@ class ChatViewModel extends ChangeNotifier {
     List<Map<String, dynamic>> captionEntities = const [],
   }) {
     final captionText = captionEntities.isEmpty ? caption.trim() : caption;
-    _submitMessageRequestWithoutWaiting({
+    _submitPanelMessage({
       '@type': 'sendMessage',
       'chat_id': chatId,
       'input_message_content': {
@@ -1908,7 +2507,7 @@ class ChatViewModel extends ChangeNotifier {
     List<Map<String, dynamic>> captionEntities = const [],
   }) {
     final captionText = captionEntities.isEmpty ? caption.trim() : caption;
-    _submitMessageRequestWithoutWaiting({
+    _submitPanelMessage({
       '@type': 'sendMessage',
       'chat_id': chatId,
       'input_message_content': {
@@ -1934,7 +2533,7 @@ class ChatViewModel extends ChangeNotifier {
     List<Map<String, dynamic>> captionEntities = const [],
   }) {
     final captionText = captionEntities.isEmpty ? caption.trim() : caption;
-    _submitMessageRequestWithoutWaiting({
+    _submitPanelMessage({
       '@type': 'sendMessage',
       'chat_id': chatId,
       'input_message_content': {
@@ -1959,14 +2558,18 @@ class ChatViewModel extends ChangeNotifier {
   Future<bool> sendGif(GifItem gif) async {
     if (!canSendMessages) return false;
     try {
+      final stamped = _withReplyAnchor(
+        gifSendRequest(chatId: chatId, gif: gif),
+      );
       final pendingMessage = await _client.query(
-        _withPaidMessageOptions(gifSendRequest(chatId: chatId, gif: gif)),
+        _withPaidMessageOptions(stamped.request),
       );
       final pendingMessageId = pendingMessage.int64('id');
       if (pendingMessageId != null &&
           pendingMessage.obj('sending_state') != null) {
         await _waitForMessageSend(pendingMessageId);
       }
+      _consumeReplyAnchorIfCurrent(stamped.revision);
       return true;
     } catch (error) {
       debugPrint('Failed to send GIF: $error');
@@ -1983,14 +2586,14 @@ class ChatViewModel extends ChangeNotifier {
   Future<bool> sendSticker(StickerItem sticker) async {
     if (!canSendMessages) return false;
     try {
-      final pendingMessage = await _client.query(
-        stickerMessageRequest(sticker),
-      );
+      final stamped = _withReplyAnchor(stickerMessageRequest(sticker));
+      final pendingMessage = await _client.query(stamped.request);
       final pendingMessageId = pendingMessage.int64('id');
       if (pendingMessageId != null &&
           pendingMessage.obj('sending_state') != null) {
         await _waitForMessageSend(pendingMessageId);
       }
+      _consumeReplyAnchorIfCurrent(stamped.revision);
       return true;
     } catch (error) {
       debugPrint('Failed to send sticker: $error');
@@ -2029,7 +2632,7 @@ class ChatViewModel extends ChangeNotifier {
   }
 
   void sendDocument(String path, {String caption = ''}) {
-    _submitMessageRequestWithoutWaiting({
+    _submitPanelMessage({
       '@type': 'sendMessage',
       'chat_id': chatId,
       'input_message_content': {
@@ -2045,7 +2648,7 @@ class ChatViewModel extends ChangeNotifier {
   }
 
   void sendLocation(double latitude, double longitude) {
-    _submitMessageRequestWithoutWaiting({
+    _submitPanelMessage({
       '@type': 'sendMessage',
       'chat_id': chatId,
       'input_message_content': {
@@ -2069,7 +2672,7 @@ class ChatViewModel extends ChangeNotifier {
     final venueTitle = title.trim();
     if (venueTitle.isEmpty) return false;
     try {
-      await _client.query(
+      final stamped = _withReplyAnchor(
         _withPaidMessageOptions({
           '@type': 'sendMessage',
           'chat_id': chatId,
@@ -2092,6 +2695,8 @@ class ChatViewModel extends ChangeNotifier {
           },
         }),
       );
+      await _client.query(stamped.request);
+      _consumeReplyAnchorIfCurrent(stamped.revision);
       return true;
     } catch (error) {
       _publishSendFailure(
@@ -2107,7 +2712,7 @@ class ChatViewModel extends ChangeNotifier {
   Future<bool> sendContact(MessageContactCard contact) async {
     if (contact.phoneNumber.trim().isEmpty) return false;
     try {
-      await _client.query(
+      final stamped = _withReplyAnchor(
         _withPaidMessageOptions({
           '@type': 'sendMessage',
           'chat_id': chatId,
@@ -2124,6 +2729,8 @@ class ChatViewModel extends ChangeNotifier {
           },
         }),
       );
+      await _client.query(stamped.request);
+      _consumeReplyAnchorIfCurrent(stamped.revision);
       return true;
     } catch (error) {
       _publishSendFailure(
@@ -2136,16 +2743,34 @@ class ChatViewModel extends ChangeNotifier {
     }
   }
 
+  /// Sends one voice note. A non-empty [caption] travels on the same message
+  /// (`inputMessageVoiceNote.caption`) and clears the composer draft once
+  /// TDLib accepts it, as a sent text would.
+  ///
+  /// With [reportGenericFailure] false, a failure the user can do nothing
+  /// about beyond retrying is left to the caller to show; failures that need
+  /// an action (stars, Premium, privacy, permissions…) are still published.
   Future<bool> sendVoice(
     String path,
     int duration, {
     String waveform = '',
+    String caption = '',
+    List<Map<String, dynamic>> captionEntities = const [],
     MessageSendConfiguration sendConfiguration =
         const MessageSendConfiguration(),
+    bool reportGenericFailure = true,
   }) async {
     if (!canSendMessages || !canSendVoiceNotes) return false;
+    final hasCaption = caption.trim().isNotEmpty;
+    final spaced = hasCaption
+        ? _spacedOutgoing(caption, captionEntities)
+        : (text: '', entities: const <Map<String, dynamic>>[]);
+    final allEntities = [
+      ...spaced.entities,
+      if (hasCaption) ..._mentionEntitiesFor(spaced.text, spaced.entities),
+    ];
     try {
-      await _client.query(
+      final stamped = _withReplyAnchor(
         _withPaidMessageOptions({
           '@type': 'sendMessage',
           'chat_id': chatId,
@@ -2157,10 +2782,22 @@ class ChatViewModel extends ChangeNotifier {
               'duration': duration,
               'waveform': waveform,
             },
+            if (hasCaption)
+              'caption': {
+                '@type': 'formattedText',
+                'text': spaced.text,
+                if (allEntities.isNotEmpty) 'entities': allEntities,
+              },
             'self_destruct_type': ?sendConfiguration.selfDestructType,
           },
         }, sendConfiguration: sendConfiguration),
       );
+      await _client.query(stamped.request);
+      _consumeReplyAnchorIfCurrent(stamped.revision);
+      if (hasCaption) {
+        _clearDraft();
+        notifyListeners();
+      }
       return true;
     } catch (error) {
       if (_isVoiceMessageRestrictionError(error)) {
@@ -2168,12 +2805,13 @@ class ChatViewModel extends ChangeNotifier {
         notifyListeners();
       }
       debugPrint('Failed to send voice note: $error');
-      _publishSendFailure(
-        ChatSendFailure.fromError(
-          error,
-          paidMessageStarCount: paidMessageStarCount,
-        ),
+      final failure = ChatSendFailure.fromError(
+        error,
+        paidMessageStarCount: paidMessageStarCount,
       );
+      if (reportGenericFailure || failure.kind != ChatSendFailureKind.generic) {
+        _publishSendFailure(failure);
+      }
       return false;
     }
   }
@@ -2185,7 +2823,7 @@ class ChatViewModel extends ChangeNotifier {
         const MessageSendConfiguration(),
   }) async {
     try {
-      await _client.query(
+      final stamped = _withReplyAnchor(
         _withPaidMessageOptions({
           '@type': 'sendMessage',
           'chat_id': chatId,
@@ -2201,6 +2839,8 @@ class ChatViewModel extends ChangeNotifier {
           },
         }, sendConfiguration: sendConfiguration),
       );
+      await _client.query(stamped.request);
+      _consumeReplyAnchorIfCurrent(stamped.revision);
       return true;
     } catch (error) {
       debugPrint('Failed to send video note: $error');
@@ -2216,7 +2856,7 @@ class ChatViewModel extends ChangeNotifier {
 
   /// 音频: send a picked audio file as a music message (TDLib computes metadata).
   void sendAudio(String path) {
-    _submitMessageRequestWithoutWaiting({
+    _submitPanelMessage({
       '@type': 'sendMessage',
       'chat_id': chatId,
       'input_message_content': {
@@ -2282,7 +2922,7 @@ class ChatViewModel extends ChangeNotifier {
   /// 清单: send a checklist (to-do list). Creating checklists needs Premium.
   void sendChecklist(ChecklistComposerResult draft) {
     if (draft.title.trim().isEmpty || draft.tasks.isEmpty) return;
-    _submitMessageRequestWithoutWaiting({
+    _submitPanelMessage({
       '@type': 'sendMessage',
       'chat_id': chatId,
       'input_message_content': {
@@ -2329,7 +2969,7 @@ class ChatViewModel extends ChangeNotifier {
     if (question.isEmpty || options.length < 2) return false;
     if (draft.isQuiz && draft.correctOptionIndexes.isEmpty) return false;
     try {
-      await _client.query(
+      final stamped = _withReplyAnchor(
         _withPaidMessageOptions({
           '@type': 'sendMessage',
           'chat_id': chatId,
@@ -2378,6 +3018,8 @@ class ChatViewModel extends ChangeNotifier {
           },
         }),
       );
+      await _client.query(stamped.request);
+      _consumeReplyAnchorIfCurrent(stamped.revision);
       return true;
     } catch (error) {
       debugPrint('Failed to send poll: $error');
@@ -2754,13 +3396,76 @@ class ChatViewModel extends ChangeNotifier {
     ForwardOptions options = const ForwardOptions(),
   }) async {
     if (hasProtectedContent) throw const ForwardBlockedException();
-    await forwardMessagesWithOptions(
-      client: _client,
-      targetChatId: targetChatId,
-      fromChatId: chatId,
-      messageIds: messageIds,
-      options: options,
+    final forwardQuery = forwardQueryForOwner(
+      _client,
+      accountSlot: _accountSlot,
+      clientId: _accountClientId,
     );
+    var richText = options.richText;
+    // Second gate: entry points already hide the option for non-Premium, but
+    // forwardMany is callable without them (bot relay, shortcuts), so the
+    // entitlement is re-checked here against the live TDLib state.
+    if (richText) {
+      final user = await forwardQuery({'@type': 'getMe'});
+      richText = user.boolean('is_premium') ?? false;
+    }
+    if (!richText) {
+      await forwardMessagesWithOptions(
+        client: _client,
+        targetChatId: targetChatId,
+        fromChatId: chatId,
+        messageIds: messageIds,
+        topicId: targetChatId == chatId ? _forumTopicRef : null,
+        options: options,
+        query: forwardQuery,
+      );
+      return;
+    }
+    // Process the selection in order so a mix of converted and ordinary
+    // messages still arrives in the order the user picked them: ordinary
+    // messages are flushed as contiguous forwardMessages batches before the
+    // next converted re-send.
+    final byId = {for (final message in _allMessages) message.id: message};
+    final pendingIds = <int>[];
+    Future<void> flush() async {
+      if (pendingIds.isEmpty) return;
+      final ids = List<int>.of(pendingIds);
+      pendingIds.clear();
+      await forwardMessagesWithOptions(
+        client: _client,
+        targetChatId: targetChatId,
+        fromChatId: chatId,
+        messageIds: ids,
+        topicId: targetChatId == chatId ? _forumTopicRef : null,
+        options: options,
+        query: forwardQuery,
+      );
+    }
+
+    for (final id in messageIds) {
+      final message = byId[id];
+      // Markdown detection is best-effort: any message that fails detection
+      // or conversion simply falls back to the regular forward batch.
+      if (message == null ||
+          !forwardMarkdownOfferForMessage(message).available) {
+        pendingIds.add(id);
+        continue;
+      }
+      // Flush the ordinary messages selected before this one so the re-send
+      // lands after them; if the conversion fails the message rejoins the
+      // pending batch and order is still preserved.
+      await flush();
+      final sent = await sendMarkdownRichTextForward(
+        query: forwardQuery,
+        fromChatId: chatId,
+        messageId: id,
+        targetChatId: targetChatId,
+        text: message.text,
+        topicId: targetChatId == chatId ? _forumTopicRef : null,
+      );
+      if (!sent) pendingIds.add(id);
+    }
+    await flush();
   }
 
   Future<void> saveToFavorites(int messageId) async {
@@ -2834,6 +3539,21 @@ class ChatViewModel extends ChangeNotifier {
     await _reportTelegramContent(message);
   }
 
+  /// Reports one sender's reaction on a message. The caller must have checked
+  /// the message's `can_report_reactions` property first; the write stays on
+  /// the client that owns this pane, so a dialog confirmed after an account
+  /// switch cannot report into the replacement account.
+  Future<void> reportReaction(ChatMessage message, int senderId) async {
+    await _client.queryTo({
+      '@type': 'reportMessageReactions',
+      'chat_id': chatId,
+      'message_id': message.id,
+      'sender_id': senderId > 0
+          ? {'@type': 'messageSenderUser', 'user_id': senderId}
+          : {'@type': 'messageSenderChat', 'chat_id': senderId},
+    }, _accountClientId);
+  }
+
   Future<void> blockSender(ChatMessage message) async {
     final senderId = message.senderId;
     final sender = _messageSenderFor(message);
@@ -2894,6 +3614,15 @@ class ChatViewModel extends ChangeNotifier {
     List<Map<String, dynamic>> entities = const [],
   }) async {
     if (text.trim().isEmpty) return;
+    final parsed = TDParse.textEntities({
+      '@type': 'formattedText',
+      'text': text,
+      'entities': entities,
+    });
+    final previewUrl = LinkPreviewFixer.shared.previewUrl(
+      text,
+      entities: parsed,
+    );
     await _client.query({
       '@type': 'editMessageText',
       'chat_id': chatId,
@@ -2908,14 +3637,10 @@ class ChatViewModel extends ChangeNotifier {
         'link_preview_options': {
           '@type': 'linkPreviewOptions',
           'is_disabled': false,
+          'url': ?previewUrl,
         },
         'clear_draft': false,
       },
-    });
-    final parsed = TDParse.textEntities({
-      '@type': 'formattedText',
-      'text': text,
-      'entities': entities,
     });
     _replaceText(
       id,
@@ -3030,7 +3755,10 @@ class ChatViewModel extends ChangeNotifier {
 
     final Map<String, dynamic> response;
     try {
-      response = await _client.queryTo(request, _accountClientId);
+      response = await _client.queryTo(
+        _scopedHistoryRequest(request),
+        _accountClientId,
+      );
     } catch (_) {
       _requireAiReplyContextAccess();
       return AiReplyChatHistoryPage(
@@ -3271,7 +3999,7 @@ class ChatViewModel extends ChangeNotifier {
     try {
       Map<String, dynamic> response;
       try {
-        response = await _client.query({
+        response = await _queryHistory({
           '@type': 'getChatHistory',
           'chat_id': chatId,
           'from_message_id': 0,
@@ -3349,7 +4077,7 @@ class ChatViewModel extends ChangeNotifier {
     _isLoadingNewer = true;
     _newerHistoryDeletedMessageIds.clear();
     try {
-      final response = await _client.query({
+      final response = await _queryHistory({
         '@type': 'getChatHistory',
         'chat_id': chatId,
         'from_message_id': fromMessageId,
@@ -3430,6 +4158,11 @@ class ChatViewModel extends ChangeNotifier {
       return;
     }
     if (_chatOpenWorkIsStale) return;
+    if (isForumTopicTranscript) {
+      final topic = await _loadForumTopic();
+      if (_chatOpenWorkIsStale) return;
+      chat = forumTopicChatSnapshot(chat, topic);
+    }
     peerTitle = chat.str('title') ?? peerTitle;
     _messageSenderFromChat = chat.obj('message_sender_id');
     peerPhoto = TDParse.smallPhoto(chat.obj('photo'));
@@ -3493,6 +4226,8 @@ class ChatViewModel extends ChangeNotifier {
     // (refined per type below).
     _chatCanSend =
         chat.obj('permissions')?.boolean('can_send_basic_messages') ?? true;
+    _chatCanCreateTopics =
+        chat.obj('permissions')?.boolean('can_create_topics') ?? false;
     canSendMessages = _chatCanSend;
     canSendVoiceNotes =
         chat.obj('permissions')?.boolean('can_send_voice_notes') ?? true;
@@ -3505,6 +4240,8 @@ class ChatViewModel extends ChangeNotifier {
     isDirectMessagesGroup = false;
     isAdministeredDirectMessagesGroup = false;
     canDeleteMessagesBySender = false;
+    canManageTopics = false;
+    canDeleteForumTopics = false;
     sendDisabledReason = '';
     isPeerRestricted = false;
     isPeerPornographicRestricted = false;
@@ -3876,6 +4613,13 @@ class ChatViewModel extends ChangeNotifier {
     if (!supportsTopics || forumTopicsLoading) return;
     forumTopicsLoading = true;
     notifyListeners();
+    // One listener per view model, not per refresh: dispose removes only
+    // one copy, so a refresh-added duplicate would survive disposal and
+    // keep mutating this model's topics.
+    if (!_forumTopicIndexListening) {
+      ForumTopicIndex.shared.addListener(_onForumTopicIndexChanged);
+      _forumTopicIndexListening = true;
+    }
     try {
       final response = await _client.query({
         '@type': 'getForumTopics',
@@ -3886,8 +4630,10 @@ class ChatViewModel extends ChangeNotifier {
         'offset_forum_topic_id': 0,
         'limit': 80,
       });
+      if (_isDisposed) return;
       final raw = response.objects('topics') ?? const <Map<String, dynamic>>[];
       final topics = <ForumTopicOption>[];
+      final previewMessages = <ChatMessage>[];
       for (final topic in raw) {
         final info = topic.obj('info') ?? topic;
         final id = _forumTopicId(topic, info);
@@ -3897,6 +4643,25 @@ class ChatViewModel extends ChangeNotifier {
             topic.str('name') ??
             AppStrings.t(AppStringKeys.topicChatTopicTitle);
         final icon = info.obj('icon') ?? topic.obj('icon');
+        final pageUnread =
+            topic.integer('unread_count') ?? info.integer('unread_count') ?? 0;
+        final live = ForumTopicIndex.shared.entryFor(_accountSlot, chatId, id);
+        final pageRead =
+            info.integer('last_read_inbox_message_id') ??
+            topic.integer('last_read_inbox_message_id') ??
+            0;
+        final pageLast = topic.obj('last_message')?.int64('id') ?? 0;
+        // A live counter that already saw newer traffic wins over the page's
+        // snapshot; otherwise the page is authoritative.
+        final unread = live != null && live.readsAheadOfPage(pageRead, pageLast)
+            ? live.unreadCount
+            : (pageUnread < 0 ? 0 : pageUnread);
+        // A real last message (a service one included) drives the row preview;
+        // a synthetic fallback's text is the topic's own name, so the preview
+        // stays hidden exactly the way the chat list hides empty ones.
+        final rawLast = topic.obj('last_message');
+        final parsed = rawLast == null ? null : TDParse.message(rawLast);
+        if (parsed != null) previewMessages.add(parsed);
         topics.add(
           ForumTopicOption(
             id: id,
@@ -3911,10 +4676,44 @@ class ChatViewModel extends ChangeNotifier {
                 info.integer('icon_color') ??
                 topic.integer('icon_color') ??
                 0,
+            unreadCount: unread,
+            isMuted:
+                (topic.obj('notification_settings')?.integer('mute_for') ?? 0) >
+                0,
+            isPinned: topic.boolean('is_pinned') ?? false,
+            isGeneral:
+                info.boolean('is_general') == true ||
+                topic.boolean('is_general') == true,
+            isClosed:
+                info.boolean('is_closed') == true ||
+                topic.boolean('is_closed') == true,
+            creatorId: _forumTopicCreatorId(info),
+            lastPreview: parsed != null ? parsed.text.trim() : '',
+            lastSender: parsed != null ? _topicPreviewSender(id, parsed) : null,
+            lastMessageDate: parsed?.date ?? 0,
+            lastMessageId: parsed?.id ?? 0,
           ),
         );
       }
+      final previous = forumTopics;
       forumTopics = topics;
+      ForumTopicIndex.shared.storeAll(_accountSlot, chatId, [
+        for (final topic in raw) ?ForumTopicIndexEntry.fromTopic(topic),
+      ]);
+      // storeAll merged the live counters; show exactly what it kept, without
+      // discarding the page's row fields (preview, pin, closed, creator).
+      final stored = ForumTopicIndex.shared.topicsFor(_accountSlot, chatId);
+      if (stored.isNotEmpty) {
+        final byId = {for (final option in topics) option.id: option};
+        final oldById = {for (final option in previous) option.id: option};
+        forumTopics = [
+          for (final entry in stored)
+            byId[entry.id]?._withIndex(entry) ??
+                oldById[entry.id]?._withIndex(entry) ??
+                _optionFromIndex(entry),
+        ];
+      }
+      unawaited(_resolveTopicPreviewSenders(previewMessages));
     } catch (_) {
       forumTopics = const [];
     } finally {
@@ -3923,11 +4722,486 @@ class ChatViewModel extends ChangeNotifier {
     }
   }
 
+  ForumTopicOption _optionFromIndex(ForumTopicIndexEntry entry) =>
+      ForumTopicOption(
+        id: entry.id,
+        name: entry.name,
+        iconCustomEmojiId: entry.iconCustomEmojiId,
+        iconColor: entry.iconColor,
+        unreadCount: entry.unreadCount,
+        isMuted: entry.isMuted,
+        lastMessageId: entry.lastMessageId,
+      );
+
   int? _forumTopicId(Map<String, dynamic> topic, Map<String, dynamic> info) {
     return info.integer('forum_topic_id') ??
         topic.integer('forum_topic_id') ??
         info.int64('message_thread_id') ??
         topic.int64('message_thread_id');
+  }
+
+  int _forumTopicCreatorId(Map<String, dynamic> info) {
+    final creator = info.obj('creator_id');
+    if (creator?.type == 'messageSenderUser') {
+      return creator?.int64('user_id') ?? 0;
+    }
+    return 0;
+  }
+
+  /// Resolves preview sender names so the topic rows can draw the
+  /// "Alice: …" prefix; unresolved senders simply keep the name TDLib
+  /// carried, or omit the prefix entirely.
+  Future<void> _resolveTopicPreviewSenders(List<ChatMessage> messages) async {
+    final missing = messages
+        .where((message) => !message.isOutgoing)
+        .map((message) => message.senderId)
+        .whereType<int>()
+        .where((id) => id != 0 && !_topicSenderNames.containsKey(id))
+        .toSet();
+    if (missing.isEmpty) return;
+    for (final id in missing) {
+      try {
+        if (id > 0) {
+          final user = await _client.query({'@type': 'getUser', 'user_id': id});
+          _topicSenderNames[id] = TDParse.userName(user);
+        } else {
+          final chat = await _client.query({'@type': 'getChat', 'chat_id': id});
+          _topicSenderNames[id] =
+              chat.str('title') ?? AppStrings.t(AppStringKeys.topicChatUsers);
+        }
+      } catch (_) {
+        // An unresolved sender simply omits the preview prefix.
+      }
+    }
+    if (_isDisposed) return;
+    _refreshTopicRowSenders();
+  }
+
+  /// Re-derives resolved sender names onto the topic rows.
+  void _refreshTopicRowSenders() {
+    var changed = false;
+    final next = <ForumTopicOption>[];
+    for (final option in forumTopics) {
+      final senderId = _topicRowSenderIds[option.id];
+      String? sender = option.lastSender;
+      if (option.lastPreview.isNotEmpty &&
+          senderId != null &&
+          _topicSenderNames.containsKey(senderId)) {
+        final resolved = _topicSenderNames[senderId]?.trim();
+        if (resolved != null && resolved.isNotEmpty) sender = resolved;
+      }
+      final withSender = _topicOptionWithSender(option, sender);
+      if (!withSender.sameDisplay(option)) changed = true;
+      next.add(withSender);
+    }
+    if (!changed) return;
+    forumTopics = next;
+    notifyListeners();
+  }
+
+  ForumTopicOption _topicOptionWithSender(
+    ForumTopicOption option,
+    String? sender,
+  ) => ForumTopicOption(
+    id: option.id,
+    name: option.name,
+    iconCustomEmojiId: option.iconCustomEmojiId,
+    iconColor: option.iconColor,
+    unreadCount: option.unreadCount,
+    isMuted: option.isMuted,
+    isPinned: option.isPinned,
+    isGeneral: option.isGeneral,
+    isClosed: option.isClosed,
+    creatorId: option.creatorId,
+    lastPreview: option.lastPreview,
+    lastSender: sender,
+    lastMessageDate: option.lastMessageDate,
+    lastMessageId: option.lastMessageId,
+  );
+
+  /// The preview sender for a topic's last message: "You" for outgoing, the
+  /// resolved sender name, or the name TDLib carried with the message.
+  String? _topicPreviewSender(int topicId, ChatMessage message) {
+    if (message.isOutgoing) {
+      return AppStrings.t(AppStringKeys.chatMeLabel);
+    }
+    final senderId = message.senderId;
+    if (senderId != null && senderId != 0) {
+      _topicRowSenderIds[topicId] = senderId;
+      final cached = _topicSenderNames[senderId]?.trim();
+      if (cached != null && cached.isNotEmpty) return cached;
+    }
+    final name = message.senderName?.trim();
+    return name != null && name.isNotEmpty ? name : null;
+  }
+
+  // MARK: - Topic moderation (Telegram iOS parity)
+
+  /// Sends a topic request to the client that owns this pane's account.
+  ///
+  /// Chat and topic ids are account-scoped. A moderation request awaiting a
+  /// dialog confirmation must not follow a later account switch onto another
+  /// account's client, so every destructive topic call routes through the
+  /// client id captured when this view model was created.
+  Future<Map<String, dynamic>> _topicAccountQuery(
+    Map<String, dynamic> request,
+  ) => _client.queryTo(request, _accountClientId);
+
+  /// Creates a topic; returns its id, or throws the request error.
+  Future<int?> createForumTopic({
+    required String name,
+    required int iconColor,
+    required int iconCustomEmojiId,
+  }) async {
+    final created = await _topicAccountQuery(
+      createForumTopicRequest(
+        chatId: chatId,
+        name: name,
+        color: iconColor,
+        customEmojiId: iconCustomEmojiId,
+      ),
+    );
+    await loadForumTopics();
+    return created.integer('forum_topic_id');
+  }
+
+  Future<void> editForumTopic({
+    required int forumTopicId,
+    required String name,
+    required int iconCustomEmojiId,
+  }) async {
+    await _topicAccountQuery(
+      editForumTopicRequest(
+        chatId: chatId,
+        forumTopicId: forumTopicId,
+        name: name,
+        customEmojiId: iconCustomEmojiId,
+      ),
+    );
+    await loadForumTopics();
+  }
+
+  Future<void> deleteForumTopic(int forumTopicId) async {
+    await _topicAccountQuery(
+      deleteForumTopicRequest(chatId: chatId, forumTopicId: forumTopicId),
+    );
+    await loadForumTopics();
+  }
+
+  Future<void> setForumTopicPinned(
+    int forumTopicId, {
+    required bool pinned,
+  }) async {
+    await _topicAccountQuery(
+      toggleForumTopicPinnedRequest(
+        chatId: chatId,
+        forumTopicId: forumTopicId,
+        isPinned: pinned,
+      ),
+    );
+    await loadForumTopics();
+  }
+
+  Future<void> setForumTopicMuted(
+    int forumTopicId, {
+    required bool muted,
+  }) async {
+    await _topicAccountQuery(
+      setForumTopicMutedRequest(
+        chatId: chatId,
+        forumTopicId: forumTopicId,
+        muted: muted,
+      ),
+    );
+    await loadForumTopics();
+  }
+
+  Future<void> setForumTopicClosed(
+    int forumTopicId, {
+    required bool closed,
+  }) async {
+    await _topicAccountQuery(
+      toggleForumTopicClosedRequest(
+        chatId: chatId,
+        forumTopicId: forumTopicId,
+        isClosed: closed,
+      ),
+    );
+    await loadForumTopics();
+  }
+
+  /// Marks the topic read the way viewing its newest message does: TDLib
+  /// advances the topic's inbox watermark to the highest viewed message id.
+  Future<void> markForumTopicRead(ForumTopicOption topic) async {
+    if (topic.lastMessageId == 0 || topic.unreadCount == 0) return;
+    try {
+      await _topicAccountQuery(
+        forumTopicViewMessagesRequest(
+          chatId: chatId,
+          messageIds: [topic.lastMessageId],
+        ),
+      );
+      await loadForumTopics();
+    } catch (_) {
+      // A failed mark-read is silent: nothing destructive happened.
+    }
+  }
+
+  /// Clears every one of [topicIds] at once: the rows drop their unread
+  /// counters before the first request leaves, each topic's read is sent
+  /// scoped to its own newest message, and a failed topic gets its own counter
+  /// back. Reads run even for topics that already report zero locally, so a
+  /// stale counter cannot survive on the server.
+  ///
+  /// Rollback is deliberately per topic and state-guarded: a topic whose
+  /// request failed regains its counter only while the index still holds the
+  /// exact read state captured before the optimistic clear. An authoritative
+  /// updateForumTopic (or new traffic) that moved the watermark while the
+  /// batch was in flight wins, so a successful read's zero is never
+  /// overwritten by an older counter.
+  ///
+  /// Throws only when no topic could be read at all. With [failureFeedback]
+  /// false a partial failure is silent (the counters still roll back); the
+  /// caller decides what to say.
+  Future<void> markForumTopicsRead(
+    Iterable<int> topicIds, {
+    bool failureFeedback = true,
+  }) async {
+    if (_isDisposed) return;
+    final wanted = topicIds.toSet();
+    final targets = [
+      for (final topic in forumTopics)
+        if (wanted.contains(topic.id) && topic.lastMessageId > 0) topic,
+    ];
+    if (targets.isEmpty) return;
+    // Snapshot the index state behind each counter, not just the number: the
+    // rollback guard needs to know whether the read position moved since.
+    final previous =
+        <
+          int,
+          ({int unreadCount, int? lastReadInboxMessageId, int? lastMessageId})
+        >{};
+    for (final topic in targets) {
+      if (topic.unreadCount <= 0) continue;
+      final entry = ForumTopicIndex.shared.entryFor(
+        _accountSlot,
+        chatId,
+        topic.id,
+      );
+      previous[topic.id] = (
+        unreadCount: topic.unreadCount,
+        lastReadInboxMessageId: entry?.lastReadInboxMessageId,
+        lastMessageId: entry?.lastMessageId,
+      );
+    }
+    if (previous.isNotEmpty) {
+      _applyTopicUnreadCounts({
+        for (final topicId in previous.keys) topicId: 0,
+      });
+    }
+    var failures = 0;
+    Object? firstError;
+    for (final topic in targets) {
+      try {
+        await _topicAccountQuery(
+          forumTopicViewMessagesRequest(
+            chatId: chatId,
+            messageIds: [topic.lastMessageId],
+          ),
+        );
+        if (_isDisposed) return;
+        // TDLib advanced this topic's inbox watermark; remember it so a stale
+        // getForumTopics page cannot regress the successful read.
+        ForumTopicIndex.shared.recordRead(
+          _accountSlot,
+          chatId,
+          topic.id,
+          readMessageId: topic.lastMessageId,
+          lastMessageId: topic.lastMessageId,
+        );
+      } catch (error) {
+        if (_isDisposed) return;
+        failures++;
+        firstError ??= error;
+        final snapshot = previous[topic.id];
+        if (snapshot == null) continue;
+        // Restore only this topic, and only while nothing authoritative moved
+        // its read position or newest message during the batch.
+        final restored = ForumTopicIndex.shared.restoreUnreadCountIfUnmoved(
+          _accountSlot,
+          chatId,
+          topic.id,
+          restoreCount: snapshot.unreadCount,
+          expectedUnreadCount: 0,
+          expectedLastReadInboxMessageId: snapshot.lastReadInboxMessageId,
+          expectedLastMessageId: snapshot.lastMessageId,
+        );
+        if (restored) {
+          _applyTopicUnreadCounts({topic.id: snapshot.unreadCount});
+        }
+      }
+    }
+    if (failures > 0) {
+      if (failures == targets.length) throw firstError!;
+      if (failureFeedback) {
+        // Some topics could not be read: say so once, after the rollback.
+        _bulkReadFailed = true;
+        notifyListeners();
+      }
+    }
+    await loadForumTopics();
+  }
+
+  /// True when the last bulk read lost some topics; the surface reads and
+  /// clears it to raise one toast.
+  bool _bulkReadFailed = false;
+  bool takeBulkReadFailure() {
+    final failed = _bulkReadFailed;
+    _bulkReadFailed = false;
+    return failed;
+  }
+
+  /// Rewrites the unread counter of the named rows in place (the index owns
+  /// every other displayed field), notifying only on a real change.
+  void _applyTopicUnreadCounts(Map<int, int> counts) {
+    if (counts.isEmpty) return;
+    var changed = false;
+    final next = <ForumTopicOption>[];
+    for (final topic in forumTopics) {
+      final count = counts[topic.id];
+      if (count == null || count == topic.unreadCount) {
+        next.add(topic);
+        continue;
+      }
+      changed = true;
+      next.add(topic._withUnreadCount(count));
+    }
+    ForumTopicIndex.shared.setUnreadCounts(_accountSlot, chatId, counts);
+    if (!changed) return;
+    forumTopics = next;
+    notifyListeners();
+  }
+
+  /// Folds live updates into the topic rows so previews, pins, closes and
+  /// renames move without a full getForumTopics round-trip. Runs for every
+  /// update of this chat — including topics other than the open transcript.
+  void _foldForumTopicRowUpdate(Map<String, dynamic> update) {
+    if (!supportsTopics || forumTopics.isEmpty) return;
+    switch (update.type) {
+      case 'updateNewMessage':
+        final raw = update.obj('message');
+        if (raw?.int64('chat_id') != chatId) return;
+        final message = TDParse.message(raw!);
+        if (message == null) return;
+        final topicRef = raw.obj('topic_id');
+        // A message outside any topic belongs to General (id 1) — but only
+        // in a real forum. A bot topic chat has no General topic and every
+        // one of its messages carries an explicit topic reference, so a
+        // missing one is unattributable traffic, not General.
+        final topicId = topicRef?.type == 'messageTopicForum'
+            ? topicRef?.integer('forum_topic_id')
+            : isForum
+            ? 1
+            : null;
+        if (topicId == null) return;
+        final index = forumTopics.indexWhere((topic) => topic.id == topicId);
+        if (index < 0) return;
+        final topic = forumTopics[index];
+        if (topic.lastMessageId != 0 &&
+            (message.date < topic.lastMessageDate ||
+                message.id < topic.lastMessageId)) {
+          return;
+        }
+        forumTopics[index] = ForumTopicOption(
+          id: topic.id,
+          name: topic.name,
+          iconCustomEmojiId: topic.iconCustomEmojiId,
+          iconColor: topic.iconColor,
+          unreadCount: topic.unreadCount,
+          isMuted: topic.isMuted,
+          isPinned: topic.isPinned,
+          isGeneral: topic.isGeneral,
+          isClosed: topic.isClosed,
+          creatorId: topic.creatorId,
+          lastPreview: message.text.trim(),
+          lastSender: _topicPreviewSender(topic.id, message),
+          lastMessageDate: message.date,
+          lastMessageId: message.id,
+        );
+        notifyListeners();
+        unawaited(_resolveTopicPreviewSenders([message]));
+        // New traffic can cross the 12-message or other-user boundary of the
+        // creator deletion carve-out.
+        _invalidateCreatorDeletionForTopic(topicId);
+
+      case 'updateForumTopic':
+        if (update.int64('chat_id') != chatId) return;
+        final topicId = update.integer('forum_topic_id');
+        if (topicId == null) return;
+        final index = forumTopics.indexWhere((topic) => topic.id == topicId);
+        if (index < 0) return;
+        final settings = update.obj('notification_settings');
+        forumTopics[index] = ForumTopicOption(
+          id: forumTopics[index].id,
+          name: forumTopics[index].name,
+          iconCustomEmojiId: forumTopics[index].iconCustomEmojiId,
+          iconColor: forumTopics[index].iconColor,
+          unreadCount: forumTopics[index].unreadCount,
+          isMuted: settings == null
+              ? forumTopics[index].isMuted
+              : (settings.integer('mute_for') ?? 0) > 0,
+          isPinned: update.boolean('is_pinned') ?? forumTopics[index].isPinned,
+          isGeneral: forumTopics[index].isGeneral,
+          isClosed: forumTopics[index].isClosed,
+          creatorId: forumTopics[index].creatorId,
+          lastPreview: forumTopics[index].lastPreview,
+          lastSender: forumTopics[index].lastSender,
+          lastMessageDate: forumTopics[index].lastMessageDate,
+          lastMessageId: forumTopics[index].lastMessageId,
+        );
+        notifyListeners();
+
+      case 'updateForumTopicInfo':
+        final info = update.obj('info');
+        if (info?.int64('chat_id') != chatId) return;
+        final topicId = info?.integer('forum_topic_id');
+        final name = info?.str('name');
+        if (topicId == null || name == null || name.isEmpty) return;
+        final index = forumTopics.indexWhere((topic) => topic.id == topicId);
+        if (index < 0) return;
+        final topic = forumTopics[index];
+        final icon = info?.obj('icon');
+        forumTopics[index] = ForumTopicOption(
+          id: topic.id,
+          name: name,
+          iconCustomEmojiId:
+              icon?.int64('custom_emoji_id') ?? topic.iconCustomEmojiId,
+          iconColor: icon?.integer('color') ?? topic.iconColor,
+          unreadCount: topic.unreadCount,
+          isMuted: topic.isMuted,
+          isPinned: topic.isPinned,
+          isGeneral: topic.isGeneral,
+          isClosed: info?.boolean('is_closed') ?? topic.isClosed,
+          creatorId: topic.creatorId,
+          lastPreview: topic.lastPreview,
+          lastSender: topic.lastSender,
+          lastMessageDate: topic.lastMessageDate,
+          lastMessageId: topic.lastMessageId,
+        );
+        notifyListeners();
+
+      case 'updateDeleteMessages':
+        if (update.int64('chat_id') != chatId) return;
+        // A deleted last message leaves a stale preview; a refresh is cheap
+        // enough here because deletions in forum lists are rare. The deleted
+        // message's topic is not part of the update, so every probed creator
+        // carve-out is dropped and re-probed on the next menu open.
+        if (_creatorDeletableTopicIds.isNotEmpty) {
+          _creatorDeletableTopicIds.clear();
+          notifyListeners();
+        }
+        unawaited(loadForumTopics());
+    }
   }
 
   int _autoDeleteSeconds(Map<String, dynamic> chat) {
@@ -3976,6 +5250,8 @@ class ChatViewModel extends ChangeNotifier {
   }
 
   Future<int?> webAppBotUserId(ChatMessage? message) async {
+    final viaBotId = message?.viaBotUserId;
+    if (viaBotId != null && viaBotId > 0) return viaBotId;
     if (peerIsBot && peerUserId != null) return peerUserId;
     final senderId = message?.senderId;
     if (senderId == null || senderId <= 0) return null;
@@ -3988,6 +5264,59 @@ class ChatViewModel extends ChangeNotifier {
     } catch (_) {
       return null;
     }
+  }
+
+  /// Resolves the `@username` of the bot that owns [message] (either its
+  /// `via_bot_user_id`, the message's bot sender, or the current bot peer).
+  Future<String?> resolveInlineBotUsername(ChatMessage? message) async {
+    final cachedHandle = message?.viaBotUsername?.trim();
+    if (cachedHandle != null && cachedHandle.startsWith('@')) {
+      final clean = cachedHandle.substring(1).trim();
+      if (clean.isNotEmpty) return clean;
+    }
+    final candidates = <int>[
+      if (message?.viaBotUserId case final id? when id > 0) id,
+      if (message?.senderId case final id? when id > 0) id,
+      if (peerIsBot && peerUserId != null && peerUserId! > 0) peerUserId!,
+      if (message?.forwardFromUserId case final id? when id > 0) id,
+    ];
+    final seen = <int>{};
+    for (final userId in candidates) {
+      if (!seen.add(userId)) continue;
+      final cached = _viaBotUsernames[userId];
+      if (cached != null && cached.startsWith('@')) {
+        final clean = cached.substring(1).trim();
+        if (clean.isNotEmpty) return clean;
+      }
+      try {
+        final user = await _client.query({
+          '@type': 'getUser',
+          'user_id': userId,
+        });
+        if (!_isBotUser(user)) continue;
+        final username = _primaryUsername(user);
+        if (username.isNotEmpty) {
+          _viaBotUsernames[userId] = '@$username';
+          return username;
+        }
+      } catch (_) {}
+    }
+    return null;
+  }
+
+  static String _primaryUsername(Map<String, dynamic> user) {
+    final usernames = user.obj('usernames');
+    final active = usernames?['active_usernames'];
+    if (active is List) {
+      for (final value in active) {
+        if (value is String && value.trim().isNotEmpty) {
+          return value.trim();
+        }
+      }
+    }
+    final editable = usernames?.str('editable_username')?.trim();
+    if (editable != null && editable.isNotEmpty) return editable;
+    return (user.str('username') ?? '').trim();
   }
 
   Future<void> _loadBotInfo(int userId) async {
@@ -4032,16 +5361,22 @@ class ChatViewModel extends ChangeNotifier {
   }
 
   /// Maps the current user's member status (+ channel-ness / chat defaults) onto
-  /// the send / membership / join flags the chat UI reads.
+  /// the send / membership / join flags the chat UI reads, plus the topic
+  /// moderation rights the forum topic list gates its actions on.
   void _applyGroupStatus(Map<String, dynamic>? status) {
     switch (status?.type) {
       case 'chatMemberStatusCreator':
         canDeleteMessagesBySender = true;
+        canManageTopics = true;
+        canDeleteForumTopics = true;
         isMember = true;
         canSendMessages = true;
       case 'chatMemberStatusAdministrator':
         canDeleteMessagesBySender =
             status?.obj('rights')?.boolean('can_delete_messages') ?? false;
+        canManageTopics =
+            status?.obj('rights')?.boolean('can_manage_topics') ?? false;
+        canDeleteForumTopics = canDeleteMessagesBySender;
         isMember = true;
         canSendMessages = true;
       case 'chatMemberStatusMember':
@@ -4133,8 +5468,10 @@ class ChatViewModel extends ChangeNotifier {
   }
 
   Future<void> _loadPinnedMessage() async {
+    // Read alongside the search so a closed bar never flashes open on reopen.
+    final dismissal = _ensurePinnedDismissalLoaded();
     try {
-      final res = await _client.query({
+      final res = await _queryHistory({
         '@type': 'searchChatMessages',
         'chat_id': chatId,
         'query': '',
@@ -4145,17 +5482,109 @@ class ChatViewModel extends ChangeNotifier {
         'filter': {'@type': 'searchMessagesFilterPinned'},
       });
       final list = res.objects('messages');
-      if (list == null || list.isEmpty) return;
-      final parsed = list
+      final parsed = (list ?? const [])
           .map(TDParse.message)
           .whereType<ChatMessage>()
           .toList();
-      if (parsed.isEmpty) return;
-      pinnedMessages = parsed;
-      pinnedMessageIndex = pinnedMessageIndex.clamp(0, parsed.length - 1);
-      pinnedMessage = parsed[pinnedMessageIndex];
-      notifyListeners();
+      await dismissal;
+      _applyPinnedMessages(parsed);
     } catch (_) {}
+  }
+
+  /// Re-runs the pinned search after a pin/unpin update: the bar must reflect
+  /// both new pins and unpins, including the list becoming empty. A closed bar
+  /// stays closed unless the update brought a pin it was not closed over.
+  Future<void> _reloadPinnedMessages() async {
+    await _loadPinnedMessage();
+  }
+
+  void _applyPinnedMessages(List<ChatMessage> parsed) {
+    if (parsed.isEmpty) {
+      final hadPinned = pinnedMessage != null;
+      pinnedMessages = const [];
+      pinnedMessageIndex = 0;
+      pinnedMessage = null;
+      _applyPinnedDismissal();
+      if (hadPinned) notifyListeners();
+      return;
+    }
+    pinnedMessages = parsed;
+    pinnedMessageIndex = pinnedMessageIndex.clamp(0, parsed.length - 1);
+    pinnedMessage = parsed[pinnedMessageIndex];
+    _applyPinnedDismissal();
+    notifyListeners();
+  }
+
+  static const _pinnedDismissalPrefix = 'mithka.pinnedBarDismissal.v1.user';
+
+  /// Reads the stored dismissal once per view model. Never throws: without an
+  /// account id or preferences the dismissal only lives in memory.
+  Future<void> _ensurePinnedDismissalLoaded() =>
+      _pinnedDismissalLoad ??= _readPinnedDismissal();
+
+  Future<void> _readPinnedDismissal() async {
+    try {
+      // Chat ids are account-scoped and slots are reused, so the record is
+      // keyed by the stable user id of the account that owns this pane. The
+      // pinned search is topic-scoped in a topic transcript, and so is this.
+      final me = await _client.queryTo({'@type': 'getMe'}, _accountClientId);
+      final userId = me.int64('id');
+      if (userId == null || userId <= 0) return;
+      final prefs = await SharedPreferences.getInstance();
+      final topic = isForumTopicTranscript ? '.topic.$forumTopicId' : '';
+      final key = '$_pinnedDismissalPrefix.$userId.chat.$chatId$topic';
+      _pinnedDismissalKey = key;
+      // A change made meanwhile is newer than the record and is written next.
+      if (_pinnedDismissalChanged) return;
+      final stored = prefs.getStringList(key);
+      if (stored == null) return;
+      _pinnedDismissedIds = stored.map(int.tryParse).whereType<int>().toSet();
+    } catch (_) {}
+  }
+
+  void _setPinnedDismissal(Set<int>? ids) {
+    _pinnedDismissedIds = ids;
+    _pinnedDismissalChanged = true;
+    unawaited(_writePinnedDismissal());
+  }
+
+  Future<void> _writePinnedDismissal() async {
+    await _ensurePinnedDismissalLoaded();
+    final key = _pinnedDismissalKey;
+    if (key == null) return;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      // Read after the awaits: overlapping writes all store the latest state.
+      final ids = _pinnedDismissedIds;
+      if (ids == null) {
+        await prefs.remove(key);
+      } else {
+        await prefs.setStringList(key, [for (final id in ids) '$id']);
+      }
+    } catch (_) {}
+  }
+
+  /// Re-applies a closed bar to [pinnedMessages]: it stays closed while every
+  /// pinned id was already pinned when it was closed. A pin it was not closed
+  /// over drops the record and shows the bar again; an empty list prunes the
+  /// record, since any later pin is new anyway.
+  void _applyPinnedDismissal() {
+    final dismissed = _pinnedDismissedIds;
+    if (dismissed == null) {
+      pinnedDismissed = false;
+      return;
+    }
+    if (pinnedMessages.isNotEmpty &&
+        pinnedMessages.every((m) => dismissed.contains(m.id))) {
+      pinnedDismissed = true;
+      // Forget unpinned ids, so pinning one of them again counts as new.
+      if (dismissed.length > pinnedMessages.length) {
+        _setPinnedDismissal({for (final m in pinnedMessages) m.id});
+      }
+      return;
+    }
+    pinnedDismissed = false;
+    _setPinnedDismissal(null);
   }
 
   bool get hasPreviousPinnedMessage => pinnedMessageIndex > 0;
@@ -4181,12 +5610,17 @@ class ChatViewModel extends ChangeNotifier {
   }
 
   void dismissPinned() {
+    final current = pinnedMessage;
+    _setPinnedDismissal({
+      for (final m in pinnedMessages) m.id,
+      if (current != null) current.id,
+    });
     pinnedDismissed = true;
     notifyListeners();
   }
 
   Future<void> pinTodo(ChatMessage message) async {
-    await _client.query({
+    await _topicAccountQuery({
       '@type': 'pinChatMessage',
       'chat_id': chatId,
       'message_id': message.id,
@@ -4199,12 +5633,14 @@ class ChatViewModel extends ChangeNotifier {
       ...pinnedMessages.where((m) => m.id != message.id),
     ];
     pinnedMessageIndex = 0;
+    // A pin made here is new by definition, so the bar shows again.
     pinnedDismissed = false;
+    _setPinnedDismissal(null);
     notifyListeners();
   }
 
   Future<void> unpinTodo(ChatMessage message) async {
-    await _client.query({
+    await _topicAccountQuery({
       '@type': 'unpinChatMessage',
       'chat_id': chatId,
       'message_id': message.id,
@@ -4214,7 +5650,7 @@ class ChatViewModel extends ChangeNotifier {
     if (pinnedMessages.isEmpty) {
       pinnedMessage = null;
       pinnedMessageIndex = 0;
-      pinnedDismissed = false;
+      _applyPinnedDismissal();
       notifyListeners();
       return;
     }
@@ -4230,7 +5666,8 @@ class ChatViewModel extends ChangeNotifier {
       );
     }
     pinnedMessage = pinnedMessages[pinnedMessageIndex];
-    pinnedDismissed = false;
+    // Unpinning never reopens a closed bar.
+    _applyPinnedDismissal();
     notifyListeners();
   }
 
@@ -4344,7 +5781,7 @@ class ChatViewModel extends ChangeNotifier {
     }
 
     try {
-      final response = await _client.query({
+      final response = await _queryHistory({
         '@type': 'getChatHistory',
         'chat_id': chatId,
         'from_message_id': messageId,
@@ -4401,7 +5838,7 @@ class ChatViewModel extends ChangeNotifier {
 
   Future<int?> openNextUnreadMention() async {
     try {
-      final response = await _client.query({
+      final response = await _queryHistory({
         '@type': 'searchChatMessages',
         'chat_id': chatId,
         'query': '',
@@ -4434,7 +5871,7 @@ class ChatViewModel extends ChangeNotifier {
 
   Future<int?> openNextUnreadReaction() async {
     try {
-      final response = await _client.query({
+      final response = await _queryHistory({
         '@type': 'searchChatMessages',
         'chat_id': chatId,
         'query': '',
@@ -4477,12 +5914,17 @@ class ChatViewModel extends ChangeNotifier {
         )
         .toList(growable: false);
     if (viewed.isEmpty) return;
-    _client.send({
-      '@type': 'viewMessages',
-      'chat_id': chatId,
-      'message_ids': viewed.map((message) => message.id).toSet().toList(),
-      'force_read': true,
-    });
+    // Ghost mode skips only the server report; the local mention/reaction
+    // counters below still clear so the UI reads the chat as read.
+    if (!(allowTelegramTosViolations &&
+        GhostModeController.shared.shouldBlockRead(chatId).isBlock)) {
+      _client.send({
+        '@type': 'viewMessages',
+        'chat_id': chatId,
+        'message_ids': viewed.map((message) => message.id).toSet().toList(),
+        'force_read': true,
+      });
+    }
     _consumeViewedMentions(
       viewed
           .where((message) => message.containsUnreadMention)
@@ -4499,95 +5941,106 @@ class ChatViewModel extends ChangeNotifier {
   /// scrolled it into place. Awaiting TDLib prevents a quick second tap from
   /// resolving the same mention again.
   Future<void> markUnreadMentionRead(int messageId) async {
-    try {
-      await _client.query({
-        '@type': 'viewMessages',
-        'chat_id': chatId,
-        'message_ids': [messageId],
-        'force_read': true,
-      });
-    } catch (_) {
-      return;
+    // Ghost mode skips only the server report; the blue-@ badge below still
+    // clears so the UI reads the mention as read.
+    if (!(allowTelegramTosViolations &&
+        GhostModeController.shared.shouldBlockRead(chatId).isBlock)) {
+      try {
+        await _client.query({
+          '@type': 'viewMessages',
+          'chat_id': chatId,
+          'message_ids': [messageId],
+          'force_read': true,
+        });
+      } catch (_) {
+        return;
+      }
     }
     _consumeViewedMentions([messageId], force: true);
   }
 
   Future<void> markUnreadReactionRead(int messageId) async {
-    try {
-      await _client.query({
-        '@type': 'viewMessages',
-        'chat_id': chatId,
-        'message_ids': [messageId],
-        'force_read': true,
-      });
-    } catch (_) {
-      return;
+    // Ghost mode skips only the server report; the local reaction counter
+    // below still clears so the UI reads the reaction as seen.
+    if (!(allowTelegramTosViolations &&
+        GhostModeController.shared.shouldBlockRead(chatId).isBlock)) {
+      try {
+        await _client.query({
+          '@type': 'viewMessages',
+          'chat_id': chatId,
+          'message_ids': [messageId],
+          'force_read': true,
+        });
+      } catch (_) {
+        return;
+      }
     }
     _consumeViewedReactions([messageId], force: true);
   }
 
   void _consumeViewedMentions(Iterable<int> messageIds, {bool force = false}) {
-    final candidates = messageIds
-        .where((id) => id > 0 && !_locallyViewedMentionIds.contains(id))
-        .toSet();
-    if (candidates.isEmpty) return;
-    final unreadIds = force
-        ? candidates
-        : _allMessages
-              .where(
-                (message) =>
-                    candidates.contains(message.id) &&
-                    message.containsUnreadMention,
-              )
-              .map((message) => message.id)
-              .toSet();
-    if (unreadIds.isEmpty) return;
-
-    _locallyViewedMentionIds.addAll(unreadIds);
-    while (_locallyViewedMentionIds.length > 512) {
-      _locallyViewedMentionIds.remove(_locallyViewedMentionIds.first);
-    }
-    for (final message in _allMessages) {
-      if (unreadIds.contains(message.id)) {
-        message.containsUnreadMention = false;
-      }
-    }
+    final consumed = _consumeViewedFlags(
+      messageIds,
+      viewedIds: _locallyViewedMentionIds,
+      isUnread: (message) => message.containsUnreadMention,
+      markRead: (message) => message.containsUnreadMention = false,
+      force: force,
+    );
+    if (consumed == 0) return;
     _setUnreadMentionCount(
-      unreadMentionCountAfterReading(unreadMentionCount, unreadIds.length),
+      unreadMentionCountAfterReading(unreadMentionCount, consumed),
       emitLocalUpdate: true,
     );
   }
 
   void _consumeViewedReactions(Iterable<int> messageIds, {bool force = false}) {
+    final consumed = _consumeViewedFlags(
+      messageIds,
+      viewedIds: _locallyViewedReactionIds,
+      isUnread: (message) => message.hasUnreadReactions,
+      markRead: (message) => message.hasUnreadReactions = false,
+      force: force,
+    );
+    if (consumed == 0) return;
+    _setUnreadReactionCount(
+      unreadReactionCountAfterReading(unreadReactionCount, consumed),
+      emitLocalUpdate: true,
+    );
+  }
+
+  /// Remembers the [messageIds] still flagged by [isUnread] (all of them when
+  /// [force]d) in [viewedIds], clears their flag, and returns how many were
+  /// consumed.
+  int _consumeViewedFlags(
+    Iterable<int> messageIds, {
+    required Set<int> viewedIds,
+    required bool Function(ChatMessage message) isUnread,
+    required void Function(ChatMessage message) markRead,
+    required bool force,
+  }) {
     final candidates = messageIds
-        .where((id) => id > 0 && !_locallyViewedReactionIds.contains(id))
+        .where((id) => id > 0 && !viewedIds.contains(id))
         .toSet();
-    if (candidates.isEmpty) return;
+    if (candidates.isEmpty) return 0;
     final unreadIds = force
         ? candidates
         : _allMessages
               .where(
                 (message) =>
-                    candidates.contains(message.id) &&
-                    message.hasUnreadReactions,
+                    candidates.contains(message.id) && isUnread(message),
               )
               .map((message) => message.id)
               .toSet();
-    if (unreadIds.isEmpty) return;
+    if (unreadIds.isEmpty) return 0;
 
-    _locallyViewedReactionIds.addAll(unreadIds);
-    while (_locallyViewedReactionIds.length > 512) {
-      _locallyViewedReactionIds.remove(_locallyViewedReactionIds.first);
+    viewedIds.addAll(unreadIds);
+    while (viewedIds.length > 512) {
+      viewedIds.remove(viewedIds.first);
     }
     for (final message in _allMessages) {
-      if (unreadIds.contains(message.id)) {
-        message.hasUnreadReactions = false;
-      }
+      if (unreadIds.contains(message.id)) markRead(message);
     }
-    _setUnreadReactionCount(
-      unreadReactionCountAfterReading(unreadReactionCount, unreadIds.length),
-      emitLocalUpdate: true,
-    );
+    return unreadIds.length;
   }
 
   bool _setUnreadMentionCount(int count, {bool emitLocalUpdate = false}) {
@@ -4595,7 +6048,7 @@ class ChatViewModel extends ChangeNotifier {
     final changed = unreadMentionCount != next;
     unreadMentionCount = next;
     if (changed) notifyListeners();
-    if (emitLocalUpdate) {
+    if (emitLocalUpdate && !isForumTopicTranscript) {
       _client.emitLocalUpdate({
         '@type': 'updateChatUnreadMentionCount',
         'chat_id': chatId,
@@ -4610,7 +6063,7 @@ class ChatViewModel extends ChangeNotifier {
     final changed = unreadReactionCount != next;
     unreadReactionCount = next;
     if (changed) notifyListeners();
-    if (emitLocalUpdate) {
+    if (emitLocalUpdate && !isForumTopicTranscript) {
       _client.emitLocalUpdate({
         '@type': 'updateChatUnreadReactionCount',
         'chat_id': chatId,
@@ -4631,7 +6084,7 @@ class ChatViewModel extends ChangeNotifier {
     final requestGeneration = _historyWindowGeneration;
     Map<String, dynamic> response;
     try {
-      response = await _client.query({
+      response = await _queryHistory({
         '@type': 'getChatHistory',
         'chat_id': chatId,
         'from_message_id': fromMessageId,
@@ -4760,7 +6213,7 @@ class ChatViewModel extends ChangeNotifier {
         )) {
       Map<String, dynamic> response;
       try {
-        response = await _client.query({
+        response = await _queryHistory({
           '@type': 'getChatHistory',
           'chat_id': chatId,
           'from_message_id': fromMessageId,
@@ -4817,10 +6270,13 @@ class ChatViewModel extends ChangeNotifier {
       final previousMarkedUnread = isMarkedUnread;
       if (previousUnreadCount > 0 || previousMarkedUnread || messageId <= 0) {
         try {
-          final raw = await _client.query({
-            '@type': 'getChat',
-            'chat_id': chatId,
-          });
+          final raw = isForumTopicTranscript
+              ? await _client.query({
+                  '@type': 'getForumTopic',
+                  'chat_id': chatId,
+                  'forum_topic_id': forumTopicId,
+                })
+              : await _client.query({'@type': 'getChat', 'chat_id': chatId});
           final latestRaw = raw.obj('last_message');
           final latest = latestRaw == null ? null : TDParse.message(latestRaw);
           messageId = math.max(
@@ -4845,12 +6301,19 @@ class ChatViewModel extends ChangeNotifier {
       ++_chatReadStateRevision;
       notifyListeners();
 
+      final ghostRead =
+          allowTelegramTosViolations &&
+          GhostModeController.shared.shouldBlockRead(chatId).isBlock;
       if (shouldClearMarker) {
-        _client.send({
-          '@type': 'toggleChatIsMarkedAsUnread',
-          'chat_id': chatId,
-          'is_marked_as_unread': false,
-        });
+        // Ghost mode keeps the local unread bookkeeping (emitLocalUpdate)
+        // and only skips the server report.
+        if (!ghostRead) {
+          _client.send({
+            '@type': 'toggleChatIsMarkedAsUnread',
+            'chat_id': chatId,
+            'is_marked_as_unread': false,
+          });
+        }
         _client.emitLocalUpdate({
           '@type': 'updateChatIsMarkedAsUnread',
           'chat_id': chatId,
@@ -4859,19 +6322,29 @@ class ChatViewModel extends ChangeNotifier {
       }
       if (shouldForceRead) {
         _lastForcedReadMessageId = messageId;
-        _client.send({
-          '@type': 'viewMessages',
-          'chat_id': chatId,
-          'message_ids': [messageId],
-          'force_read': true,
-        });
-        _client.emitLocalUpdate({
-          '@type': 'updateChatReadInbox',
-          'chat_id': chatId,
-          'last_read_inbox_message_id': messageId,
-          'unread_count': 0,
-        });
+        if (!ghostRead) {
+          _client.send({
+            '@type': 'viewMessages',
+            'chat_id': chatId,
+            'message_ids': [messageId],
+            'source': isForumTopicTranscript
+                ? {'@type': 'messageSourceForumTopicHistory'}
+                : null,
+            'force_read': true,
+          });
+        }
+        // A topic's read position is not the chat's; TDLib reports the
+        // resulting chat-wide counts through its own updates.
+        if (!isForumTopicTranscript) {
+          _client.emitLocalUpdate({
+            '@type': 'updateChatReadInbox',
+            'chat_id': chatId,
+            'last_read_inbox_message_id': messageId,
+            'unread_count': 0,
+          });
+        }
       }
+      if (isForumTopicTranscript) return;
       final chatDelta =
           !isMuted && (previousUnreadCount > 0 || shouldClearMarker) ? -1 : 0;
       final messageDelta = !isMuted && previousUnreadCount > 0
@@ -4912,6 +6385,7 @@ class ChatViewModel extends ChangeNotifier {
     'updateChatBusinessBotManageBar',
     'updateChatHasProtectedContent',
     'updateChatDraftMessage',
+    'updateForumTopic',
     'updateChatMessageAutoDeleteTime',
     'updateChatPaidMessageStarCount',
     'updateDeleteMessages',
@@ -4930,6 +6404,7 @@ class ChatViewModel extends ChangeNotifier {
     'updateUserStatus',
     'updateMessageEdited',
     'updateMessageInteractionInfo',
+    'updateMessageIsPinned',
     'updateAvailableMessageEffects',
     'updateBlockMessageSender',
   ];
@@ -4942,10 +6417,12 @@ class ChatViewModel extends ChangeNotifier {
   }
 
   void _handle(Map<String, dynamic> update) {
+    _foldForumTopicRowUpdate(update);
     switch (update.type) {
       case 'updateNewMessage':
         final raw = update.obj('message');
         if (raw == null || raw.int64('chat_id') != chatId) return;
+        if (!_belongsToTranscript(raw)) return;
         final rawContent = raw.obj('content');
         if (rawContent?.type == 'messageChatHasProtectedContentToggled') {
           hasProtectedContent =
@@ -5018,6 +6495,14 @@ class ChatViewModel extends ChangeNotifier {
           unawaited(_refreshMessage(messageId));
           return;
         }
+        // A gift's state (converted, upgraded, refunded, an offer's answer)
+        // changes in place, and so does a transfer's transaction once it is
+        // sent; re-read them so `ChatMessage.gift` / `.gramTransfer` stay
+        // current.
+        if (TDParse.isGiftContent(content.type) ||
+            content.type == MessageGramTransfer.contentType) {
+          unawaited(_refreshMessage(messageId));
+        }
         _replaceText(
           messageId,
           // Chat-list previews deliberately synthesize labels such as
@@ -5044,7 +6529,9 @@ class ChatViewModel extends ChangeNotifier {
         unawaited(_refreshMessage(messageId));
 
       case 'updateChatUnreadMentionCount':
-        if (update.int64('chat_id') != chatId) return;
+        if (update.int64('chat_id') != chatId || isForumTopicTranscript) {
+          return;
+        }
         _setUnreadMentionCount(
           update.integer('unread_mention_count') ?? unreadMentionCount,
         );
@@ -5072,7 +6559,9 @@ class ChatViewModel extends ChangeNotifier {
         }
 
       case 'updateChatUnreadReactionCount':
-        if (update.int64('chat_id') != chatId) return;
+        if (update.int64('chat_id') != chatId || isForumTopicTranscript) {
+          return;
+        }
         _setUnreadReactionCount(
           update.integer('unread_reaction_count') ?? unreadReactionCount,
         );
@@ -5179,7 +6668,8 @@ class ChatViewModel extends ChangeNotifier {
       case 'updateChat':
         final chat = update.obj('chat');
         if (chat == null || chat.int64('id') != chatId) return;
-        if (chat.containsKey('last_read_inbox_message_id') &&
+        if (!isForumTopicTranscript &&
+            chat.containsKey('last_read_inbox_message_id') &&
             chat.containsKey('unread_count')) {
           lastReadInboxId =
               chat.int64('last_read_inbox_message_id') ?? lastReadInboxId;
@@ -5188,10 +6678,12 @@ class ChatViewModel extends ChangeNotifier {
           ++_chatReadInboxRevision;
           ++_chatReadStateRevision;
         }
-        unreadMentionCount =
-            chat.integer('unread_mention_count') ?? unreadMentionCount;
-        unreadReactionCount =
-            chat.integer('unread_reaction_count') ?? unreadReactionCount;
+        if (!isForumTopicTranscript) {
+          unreadMentionCount =
+              chat.integer('unread_mention_count') ?? unreadMentionCount;
+          unreadReactionCount =
+              chat.integer('unread_reaction_count') ?? unreadReactionCount;
+        }
         messageAutoDeleteTime = _autoDeleteSeconds(chat);
         _setPaidMessageStarCount(_paidMessageStars(chat), notify: false);
         hasProtectedContent =
@@ -5201,7 +6693,7 @@ class ChatViewModel extends ChangeNotifier {
               chat.obj('permissions')?.boolean('can_send_voice_notes') ??
               canSendVoiceNotes;
         }
-        if (chat.containsKey('draft_message')) {
+        if (!isForumTopicTranscript && chat.containsKey('draft_message')) {
           _applyRemoteDraft(chat.obj('draft_message'), notify: false);
         }
         if (chat.containsKey('action_bar')) {
@@ -5230,8 +6722,35 @@ class ChatViewModel extends ChangeNotifier {
         notifyListeners();
 
       case 'updateChatDraftMessage':
-        if (update.int64('chat_id') != chatId) return;
+        if (update.int64('chat_id') != chatId || isForumTopicTranscript) {
+          return;
+        }
         _applyRemoteDraft(update.obj('draft_message'));
+
+      case 'updateForumTopic':
+        if (!isForumTopicTranscript ||
+            update.int64('chat_id') != chatId ||
+            update.integer('forum_topic_id') != forumTopicId) {
+          return;
+        }
+        lastReadOutboxId =
+            update.int64('last_read_outbox_message_id') ?? lastReadOutboxId;
+        final topicReadInbox = update.int64('last_read_inbox_message_id');
+        if (topicReadInbox != null && topicReadInbox > lastReadInboxId) {
+          lastReadInboxId = topicReadInbox;
+          ++_chatReadInboxRevision;
+          ++_chatReadStateRevision;
+        }
+        _setUnreadMentionCount(
+          update.integer('unread_mention_count') ?? unreadMentionCount,
+        );
+        _setUnreadReactionCount(
+          update.integer('unread_reaction_count') ?? unreadReactionCount,
+        );
+        if (update.containsKey('draft_message')) {
+          _applyRemoteDraft(update.obj('draft_message'), notify: false);
+        }
+        notifyListeners();
 
       case 'updateChatMessageAutoDeleteTime':
         if (update.int64('chat_id') != chatId) return;
@@ -5250,6 +6769,14 @@ class ChatViewModel extends ChangeNotifier {
               update.int64('star_count') ??
               0,
         );
+
+      case 'updateMessageIsPinned':
+        if (update.int64('chat_id') != chatId) return;
+        // The pinned bar is a topic-scoped search's snapshot; a pin or unpin
+        // elsewhere in the chat invalidates it. Re-running the scoped search
+        // also keeps the topic's own pinned message current, which the update
+        // alone cannot tell because it carries no topic reference.
+        unawaited(_reloadPinnedMessages());
 
       case 'updateDeleteMessages':
         if (update.int64('chat_id') != chatId) return;
@@ -5301,13 +6828,17 @@ class ChatViewModel extends ChangeNotifier {
         notifyListeners();
 
       case 'updateChatReadOutbox':
-        if (update.int64('chat_id') != chatId) return;
+        if (update.int64('chat_id') != chatId || isForumTopicTranscript) {
+          return;
+        }
         lastReadOutboxId =
             update.int64('last_read_outbox_message_id') ?? lastReadOutboxId;
         notifyListeners();
 
       case 'updateChatReadInbox':
-        if (update.int64('chat_id') != chatId) return;
+        if (update.int64('chat_id') != chatId || isForumTopicTranscript) {
+          return;
+        }
         lastReadInboxId =
             update.int64('last_read_inbox_message_id') ?? lastReadInboxId;
         unreadCount = update.integer('unread_count') ?? unreadCount;
@@ -5316,7 +6847,9 @@ class ChatViewModel extends ChangeNotifier {
         notifyListeners();
 
       case 'updateChatIsMarkedAsUnread':
-        if (update.int64('chat_id') != chatId) return;
+        if (update.int64('chat_id') != chatId || isForumTopicTranscript) {
+          return;
+        }
         isMarkedUnread = update.boolean('is_marked_as_unread') ?? false;
         notifyListeners();
 
@@ -5576,6 +7109,72 @@ class ChatViewModel extends ChangeNotifier {
     }
   }
 
+  /// Whether Telegram allows reporting a reaction on [messageId]
+  /// (`messageProperties.can_report_reactions`).
+  ///
+  /// This is a property of the message, not a field of the `message` object:
+  /// the pinned TDLib schema returns it only from `getMessageProperties`, and
+  /// `reportMessageReactions` depends on that same property. Fail closed — an
+  /// error or a switch away from this pane's account hides the action.
+  Future<bool> canReportMessageReactions(int messageId) async {
+    try {
+      final properties = await _client.queryTo({
+        '@type': 'getMessageProperties',
+        'chat_id': chatId,
+        'message_id': messageId,
+      }, _accountClientId);
+      if (_isDisposed || !isAccountCurrent) return false;
+      return properties.boolean('can_report_reactions') ?? false;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// True while the client this pane was opened on is still the active one.
+  /// Destructive actions confirmed through a dialog re-check this after the
+  /// await so the write cannot land on a replacement account.
+  bool get isAccountCurrent =>
+      !_isDisposed &&
+      _accountClientId > 0 &&
+      _client.activeClientId == _accountClientId &&
+      _client.activeSlot == _accountSlot;
+
+  /// Per-message action availability from `messageProperties`: whether a
+  /// shareable link exists (`can_get_link`) and whether Telegram accepts a
+  /// reply in this chat (`can_be_replied`). Both live only on the server
+  /// object, so one query answers the menu; a property error propagates and
+  /// the caller keeps both entries hidden.
+  Future<({bool canGetLink, bool canBeReplied})> messageActionAvailability(
+    int messageId,
+  ) async {
+    final properties = await _client.queryTo({
+      '@type': 'getMessageProperties',
+      'chat_id': chatId,
+      'message_id': messageId,
+    }, _accountClientId);
+    return (
+      canGetLink: properties.boolean('can_get_link') ?? false,
+      canBeReplied: properties.boolean('can_be_replied') ?? false,
+    );
+  }
+
+  /// The HTTPS link TDLib generated for the message. Returns the raw
+  /// `messageLink.link`; [getMessageLink] is authoritative for when a link
+  /// exists, so a plain error propagates to the action's failure toast.
+  Future<String> messageLink(int messageId) async {
+    final link = await _client.queryTo({
+      '@type': 'getMessageLink',
+      'chat_id': chatId,
+      'message_id': messageId,
+      'media_timestamp': 0,
+      'checklist_task_id': 0,
+      'poll_option_id': '',
+      'for_album': false,
+      'in_message_thread': false,
+    }, _accountClientId);
+    return link.str('link') ?? '';
+  }
+
   Future<void> addReaction(int messageId, String emoji) =>
       _addReactionChoice(messageId, QuickReactionChoice.emoji(emoji));
 
@@ -5661,6 +7260,7 @@ class ChatViewModel extends ChangeNotifier {
           title: info.name,
           photo: info.photo,
           date: item.integer('date') ?? 0,
+          isDeleted: info.isDeleted,
         ),
       );
     }
@@ -5689,6 +7289,7 @@ class ChatViewModel extends ChangeNotifier {
           TDParse.smallPhoto(user.obj('profile_photo')),
           MemberRole.member,
           null,
+          isDeleted: TDParse.isDeletedUser(user),
         );
       } catch (_) {
         return _SenderInfo(
@@ -5808,52 +7409,152 @@ class ChatViewModel extends ChangeNotifier {
         )
         .toList(growable: false);
     if (repliesToResolve.isEmpty) return;
-    final loadedById = repliesToResolve.length > 1
-        ? <int, ChatMessage>{
-            for (final message in messages) message.id: message,
-          }
-        : null;
-    final unresolved = <int, List<ChatMessage>>{};
+    // This index is already maintained by transcript mutations. Rebuilding a
+    // map for each history page (or scanning the transcript for a live reply)
+    // made quoting increasingly expensive as more history was loaded.
+    _ensureMessageIndexes();
+    final unresolvedByChat = <int, Map<int, List<ChatMessage>>>{};
     for (final m in repliesToResolve) {
       final rid = m.replyToMessageId!;
-      ChatMessage? quoted = loadedById?[rid];
-      if (loadedById == null) {
-        for (final message in messages) {
-          if (message.id != rid) continue;
-          quoted = message;
-          break;
-        }
-      }
+      final rChatId = m.replyToChatId ?? m.chatId ?? chatId;
+      final quoted = rChatId == chatId
+          ? (_messagesById[rid] ?? _allMessagesById[rid])
+          : null;
       if (quoted != null) {
-        _applyReply(m, quoted);
+        // The locally cached target is trusted only across the restriction
+        // boundary: a redacted message must not lend its text to this anchor,
+        // and no remote lookup can repair the hole it would leave.
+        if (!quoted.isContentRestricted) {
+          _applyReply(m, quoted);
+        }
         continue;
       }
+      // Reply-to-deleted → quote (exteraless): when the target is not in
+      // the transcript, the local mirror may still hold a kept copy of the
+      // deleted original; its text fills the reply anchor like a quote.
+      if (_applyMirrorReply(m, rid, rChatId)) {
+        continue;
+      }
+      final unresolved = unresolvedByChat.putIfAbsent(
+        rChatId,
+        () => <int, List<ChatMessage>>{},
+      );
       unresolved.putIfAbsent(rid, () => <ChatMessage>[]).add(m);
     }
-    if (unresolved.isEmpty) return;
+    if (unresolvedByChat.isEmpty) return;
     // One getMessage per distinct target meant 10-25 concurrent round trips for
     // a single reply-heavy history page, repeated for every page scrolled up.
     // getMessages answers them all at once, so the previews fill in together.
-    final targets = unresolved.keys.toList();
-    for (var start = 0; start < targets.length; start += 100) {
-      final end = start + 100 > targets.length ? targets.length : start + 100;
-      _resolveReplyTargets(targets.sublist(start, end), unresolved);
+    for (final entry in unresolvedByChat.entries) {
+      final targetChatId = entry.key;
+      final unresolved = entry.value;
+      final targets = unresolved.keys.toList();
+      for (var start = 0; start < targets.length; start += 100) {
+        final end = start + 100 > targets.length ? targets.length : start + 100;
+        _resolveReplyTargets(
+          targetChatId,
+          targets.sublist(start, end),
+          unresolved,
+        );
+      }
     }
+  }
+
+  /// Fills a reply anchor from the mirror when the quoted message was
+  /// deleted (Telegram §1.4, self-build gated): the kept copy's text,
+  /// sender and date become the quote-style preview. Only used when the
+  /// live transcript does not have the target — a live message always wins.
+  bool _applyMirrorReply(ChatMessage m, int replyId, int replyChatId) {
+    if (!allowTelegramTosViolations) return false;
+    final store = historyStoreOverride ?? MessageHistoryStore.shared;
+    final accountUserId = _accountUserId;
+    if (accountUserId == null) return false;
+    final entry = store.entryFor(accountUserId, replyChatId, replyId);
+    if (entry == null) return false;
+    // Only the plain fallback preview takes the mirror text — a real quote
+    // (replyToQuote, an explicit quote of part of the original) keeps its
+    // own stored excerpt, which stays more truthful than the whole copy.
+    if (m.replyToQuote != null) return true;
+    final body = entry.text.trim().isNotEmpty
+        ? entry.text.trim()
+        : localizedHistoryKindLabelStub(entry.kindKey);
+    m.replyToPreview = body;
+    m.replyToDate = entry.date;
+    if (entry.senderId != 0) {
+      m.replyToSender = _senderCache[entry.senderId]?.name ?? '';
+      if ((m.replyToSender ?? '').isEmpty && entry.senderId > 0) {
+        unawaited(_resolveQuotedSender(m, entry.senderId));
+      }
+    } else {
+      m.replyToSender = isGroup ? '' : peerTitle;
+    }
+    return true;
+  }
+
+  /// The account whose mirror this transcript reads (via
+  /// [accountSummaryProvider]), exposed for surfaces that outlive the view
+  /// model's own lookups (the message info sheet's mirror row).
+  int? get mirrorAccountUserId => _accountUserId;
+
+  /// The mirror's kept copy behind one message addressed by THIS
+  /// transcript, looked up under the slot that owns this transcript — not
+  /// whichever account is currently active. Long-press actions (view
+  /// edits) and the message info sheet read through here, so a stale pane
+  /// after an account switch never shows (or fails to find) another
+  /// account's mirror row. [message] may carry its own chat id (a
+  /// forwarded or quoted target lives in another chat); the transcript's
+  /// chat is the fallback.
+  MessageHistoryEntry? mirrorEntryForMessage(ChatMessage message) {
+    if (!allowTelegramTosViolations) return null;
+    final accountUserId = _accountUserId;
+    if (accountUserId == null) return null;
+    final targetChatId = message.chatId ?? chatId;
+    return (historyStoreOverride ?? MessageHistoryStore.shared).entryFor(
+      accountUserId,
+      targetChatId,
+      message.id,
+    );
+  }
+
+  /// Localized kind label without a BuildContext (AppStrings reads the
+  /// ambient locale); a media-only kept copy shows this instead of its
+  /// empty text. Falls back to the raw suffix when the key is unknown.
+  static String localizedHistoryKindLabelStub(String kindKey) {
+    if (kindKey.isEmpty) return '';
+    final key = switch (kindKey) {
+      'historyKindPhoto' => AppStringKeys.historyKindPhoto,
+      'historyKindVideo' => AppStringKeys.historyKindVideo,
+      'historyKindVideoNote' => AppStringKeys.historyKindVideoNote,
+      'historyKindVoice' => AppStringKeys.historyKindVoice,
+      'historyKindAnimation' => AppStringKeys.historyKindAnimation,
+      'historyKindSticker' => AppStringKeys.historyKindSticker,
+      'historyKindDocument' => AppStringKeys.historyKindDocument,
+      'historyKindAudio' => AppStringKeys.historyKindAudio,
+      'historyKindPoll' => AppStringKeys.historyKindPoll,
+      'historyKindLocation' => AppStringKeys.historyKindLocation,
+      'historyKindContact' => AppStringKeys.historyKindContact,
+      'historyKindDice' => AppStringKeys.historyKindDice,
+      _ => AppStringKeys.historyKindUnknown,
+    };
+    final label = AppStrings.t(key);
+    return label.isEmpty ? kindKey : label;
   }
 
   /// Fetches one batch of reply targets and patches every message waiting on it.
   void _resolveReplyTargets(
+    int targetChatId,
     List<int> messageIds,
     Map<int, List<ChatMessage>> unresolved,
   ) {
     _client
         .query({
           '@type': 'getMessages',
-          'chat_id': chatId,
+          'chat_id': targetChatId,
           'message_ids': messageIds,
         })
         .then((response) {
-          var changed = false;
+          if (_chatOpenWorkIsStale) return;
+          final updatedIds = <int>{};
           // Unavailable ids come back as nulls that carry no identity, so the
           // bucket is looked up by the id on each returned message, not by
           // position.
@@ -5864,16 +7565,42 @@ class ChatViewModel extends ChangeNotifier {
             if (quoted == null) continue;
             final waiting = unresolved[quoted.id];
             if (waiting == null) continue;
-            for (final message in waiting) {
-              if (message.replyToMessageId != quoted.id ||
-                  message.replyToPreview != null) {
-                continue;
+            for (final m in waiting) {
+              final refs = _messageRefs(m.id);
+              final targets = refs.isEmpty ? <ChatMessage>[m] : refs;
+              for (final message in targets) {
+                // A held lookup belongs to the COMPLETE target captured when it
+                // was issued. The message id alone is not identity: the refresh
+                // may have retargeted this very reply to another chat that uses
+                // the same numeric id, and applying the old chat's payload
+                // would hydrate the new target with another message's text.
+                final liveChatId =
+                    message.replyToChatId ?? message.chatId ?? chatId;
+                if (message.replyToMessageId != quoted.id ||
+                    liveChatId != targetChatId ||
+                    message.replyToPreview != null) {
+                  continue;
+                }
+                // Returned quotes must come from the requested chat: a
+                // mis-addressed response would otherwise smuggle a same-id
+                // message of a foreign chat into the reply anchor.
+                final quotedChatId = quoted.chatId ?? targetChatId;
+                if (quotedChatId != targetChatId) continue;
+                // A restriction-redacted reply must never be hydrated from
+                // cached quote plaintext, and a redacted response is a
+                // withdrawal, not an anchor to copy.
+                if (message.isContentRestricted || quoted.isContentRestricted) {
+                  continue;
+                }
+                _applyReply(message, quoted);
+                updatedIds.add(message.id);
               }
-              _applyReply(message, quoted);
-              changed = true;
             }
           }
-          if (changed) _scheduleCoalescedNotify();
+          if (updatedIds.isNotEmpty) {
+            _bumpMaterializedMessageRevisions(updatedIds);
+            _scheduleCoalescedNotify();
+          }
         })
         .catchError((_) {});
   }
@@ -5911,8 +7638,9 @@ class ChatViewModel extends ChangeNotifier {
   /// the reply in place. Reuses the sender cache populated for the transcript.
   Future<void> _resolveQuotedSender(ChatMessage m, int senderId) async {
     final existing = _senderCache[senderId];
-    if (existing != null) {
+    if (existing != null && existing.name.isNotEmpty) {
       m.replyToSender = existing.name;
+      _bumpMaterializedMessageRevisions([m.id]);
       _scheduleCoalescedNotify();
       return;
     }
@@ -5934,6 +7662,7 @@ class ChatViewModel extends ChangeNotifier {
     } catch (_) {}
     if (name != null && name.isNotEmpty) {
       m.replyToSender = name;
+      _bumpMaterializedMessageRevisions([m.id]);
       _scheduleCoalescedNotify();
     }
   }
@@ -5982,6 +7711,108 @@ class ChatViewModel extends ChangeNotifier {
     return KeywordBlocker.shared.matches(message.text);
   }
 
+  // ---------------------------------------------------------------------------
+  // Ghost transcript (Telegram §1.4 mirror, self-build gated)
+  // ---------------------------------------------------------------------------
+
+  /// Whether ghost bubbles may render in this transcript. Ghosts are a
+  /// render-only layer: the switches live in settings, the data in the
+  /// mirror store, and neither touches TDLib traffic.
+  bool get _ghostsEnabled =>
+      allowTelegramTosViolations && MessageHistorySettings.shared.renderGhosts;
+
+  /// The owning account's user id for this transcript's slot. Ghost folding
+  /// is sync-only (it runs inside every transcript rebuild), so the id comes
+  /// from the app's cached account summaries via the injected bridge —
+  /// production wires it in main, tests inject their own.
+  int? get _accountUserId => accountSummaryProvider?.call(_accountSlot)?.userId;
+
+  /// Slot → account summary bridge (production: the app's AccountStore).
+  static AccountSummaryForSlot? accountSummaryProvider;
+
+  /// Deleted mirror entries of this chat become in-place ghost bubbles; the
+  /// ids not present in the transcript are the ghosts to fold in. A topic
+  /// transcript folds only its own topic's ghosts.
+  List<MessageHistoryEntry> _ghostEntriesForTranscript() {
+    if (!_ghostsEnabled) return const [];
+    final accountUserId = _accountUserId;
+    if (accountUserId == null) return const [];
+    return (historyStoreOverride ?? MessageHistoryStore.shared)
+        .deletedEntriesFor(accountUserId, chatId, topicId: forumTopicId ?? 0);
+  }
+
+  /// Folds ghost bubbles into the published transcript after every rebuild.
+  /// Ghosts are render-only: they join `messages` (sorted by their original
+  /// message id, so they sit where the message used to be) but never enter
+  /// `_allMessages` or any id index — the id no longer exists on Telegram's
+  /// side, so read states, mentions and merges must not see it.
+  void _foldGhostsIntoTranscript() {
+    if (!_ghostsEnabled) return;
+    final entries = _ghostEntriesForTranscript();
+    final inTranscript = _allMessages.map((m) => m.id).toSet();
+    final accountUserId = _accountUserId;
+    final ghosts = <ChatMessage>[];
+    for (final entry in entries) {
+      if (inTranscript.contains(entry.messageId)) continue;
+      ghosts.add(_ghostChatMessageFor(entry, accountUserId));
+    }
+    if (ghosts.isEmpty) return;
+    messages = mergeChatMessages(messages, ghosts);
+  }
+
+  /// One ghost as a transcript [ChatMessage]. `contentType` marks the ghost
+  /// for the bubble layer; media ghosts carry their snapshot through
+  /// [ChatMessage.mirrorEntry].
+  ChatMessage _ghostChatMessageFor(
+    MessageHistoryEntry entry,
+    int? accountUserId,
+  ) {
+    final senderId = entry.senderId == 0 ? null : entry.senderId;
+    final isOutgoing = accountUserId != null && entry.senderId == accountUserId;
+    return ChatMessage(
+      id: entry.messageId,
+      isOutgoing: isOutgoing,
+      // Media-only kept copies have no text; the localized kind label keeps
+      // the ghost bubble from rendering as an empty shell.
+      text: entry.text.trim().isNotEmpty
+          ? entry.text
+          : localizedHistoryKindLabelStub(entry.kindKey),
+      date: entry.date,
+      chatId: chatId,
+      senderId: senderId,
+      contentType: 'mithkaGhost',
+      // Attribution: a group ghost renders the sender header like any kept
+      // message would; the fold re-runs on every rebuild, so a cached name
+      // lands without waiting for another pass.
+      senderName: isOutgoing
+          ? (meName.trim().isNotEmpty ? meName : null)
+          : _senderCache[senderId]?.name,
+    )..mirrorEntry = entry;
+  }
+
+  /// Test seam: run the transcript rebuild (and with it the ghost fold)
+  /// without driving TDLib.
+  @visibleForTesting
+  void debugRebuildTranscriptForTesting() => _applyKeywordFilter();
+
+  /// Test seam: merge live messages as the update path would.
+  @visibleForTesting
+  void debugMergeMessagesForTesting(List<ChatMessage> incoming) {
+    _merge(incoming);
+    _resolveRepliesIfNeeded(incoming);
+  }
+
+  /// Test seam: ids currently in `_allMessages` (ghosts never join it).
+  @visibleForTesting
+  Iterable<int> debugAllMessageIdsForTesting() => _allMessages.map((m) => m.id);
+
+  /// Settings and mirror flips re-fold the transcript: turning ghosts off
+  /// must remove them, a new deletion must insert one.
+  void _onGhostSourceChanged() {
+    if (_isDisposed) return;
+    _applyKeywordFilter();
+  }
+
   /// Rebuilds `messages` from `_allMessages` and refreshes the lookup indexes.
   ///
   /// One pass does the filtering, the blocked-user marking and the index fill
@@ -6027,6 +7858,7 @@ class ChatViewModel extends ChangeNotifier {
     // is not a total order, so only the pure-id case can be checked.
     assert(_pendingMessageCount > 0 || _isSortedById(_allMessages));
     messages = visible;
+    _foldGhostsIntoTranscript();
     _blockedMessageIds = blockedIds;
     _markBlockedMessagesReadThroughVisibleBoundary(blockedIds);
     notifyListeners();
@@ -6057,6 +7889,25 @@ class ChatViewModel extends ChangeNotifier {
     }
     // Guaranteed by _appendIfStrictlyNewest, so the pending count cannot move.
     assert(!isPendingChatMessage(message));
+    // A revived message (the same id as a folded ghost re-entering the
+    // transcript) must retire its ghost through the full rebuild — the fast
+    // path would leave both the ghost and the live copy on screen.
+    if (_ghostsEnabled) {
+      final accountUserId = _accountUserId;
+      final revivedGhost =
+          accountUserId != null &&
+          (historyStoreOverride ?? MessageHistoryStore.shared)
+              .deletedEntriesFor(
+                accountUserId,
+                chatId,
+                topicId: forumTopicId ?? 0,
+              )
+              .any((entry) => entry.messageId == message.id);
+      if (revivedGhost) {
+        _applyKeywordFilter();
+        return;
+      }
+    }
     _allMessagesById[message.id] = message;
     if (_isBlockedMessage(message)) {
       _blockedMessageIds.add(message.id);
@@ -6127,17 +7978,24 @@ class ChatViewModel extends ChangeNotifier {
     for (var i = 0; i < ids.length; i += 100) {
       final end = i + 100 > ids.length ? ids.length : i + 100;
       final chunk = ids.sublist(i, end);
-      _client.send({
-        '@type': 'viewMessages',
-        'chat_id': chatId,
-        'message_ids': chunk,
-        'force_read': true,
-      });
+      // Blocked-country messages must clear locally too; only the server
+      // report is skipped in ghost mode.
+      if (!(allowTelegramTosViolations &&
+          GhostModeController.shared.shouldBlockRead(chatId).isBlock)) {
+        _client.send({
+          '@type': 'viewMessages',
+          'chat_id': chatId,
+          'message_ids': chunk,
+          'force_read': true,
+        });
+      }
     }
   }
 
-  void _merge(List<ChatMessage> incoming) {
-    if (incoming.isEmpty) return;
+  /// Re-applies what this client already knows about [incoming] messages
+  /// (acknowledged sends, locally viewed mentions and reactions) before they
+  /// replace their stale copies.
+  void _applyLocalMessageState(List<ChatMessage> incoming) {
     for (final message in incoming) {
       if (_acknowledgedPendingMessageIds.contains(message.id)) {
         message.isSendAcknowledged = true;
@@ -6149,6 +8007,11 @@ class ChatViewModel extends ChangeNotifier {
         message.hasUnreadReactions = false;
       }
     }
+  }
+
+  void _merge(List<ChatMessage> incoming) {
+    if (incoming.isEmpty) return;
+    _applyLocalMessageState(incoming);
     if (_appendIfStrictlyNewest(incoming)) {
       _appendToVisibleTranscript(incoming.first);
       return;
@@ -6196,17 +8059,7 @@ class ChatViewModel extends ChangeNotifier {
     required bool preserveLiveArrivals,
   }) {
     if (incoming.isEmpty) return;
-    for (final message in incoming) {
-      if (_acknowledgedPendingMessageIds.contains(message.id)) {
-        message.isSendAcknowledged = true;
-      }
-      if (_locallyViewedMentionIds.contains(message.id)) {
-        message.containsUnreadMention = false;
-      }
-      if (_locallyViewedReactionIds.contains(message.id)) {
-        message.hasUnreadReactions = false;
-      }
-    }
+    _applyLocalMessageState(incoming);
     _allMessages = mergeChatHistoryWindow(
       currentAtRequestStart: messagesAtRequestStart,
       currentAtCompletion: _allMessages,
@@ -6516,7 +8369,7 @@ class ChatViewModel extends ChangeNotifier {
       pinnedMessage = pinnedMessages.isEmpty
           ? null
           : pinnedMessages[pinnedMessageIndex];
-      pinnedDismissed = pinnedMessage == null ? false : pinnedDismissed;
+      _applyPinnedDismissal();
     }
     notifyListeners();
   }
@@ -6543,6 +8396,7 @@ class ChatViewModel extends ChangeNotifier {
             m.senderRole == info.role &&
             m.senderTitle == (info.title ?? m.senderTitle) &&
             m.senderIsPremium == info.isPremium &&
+            m.senderIsDeleted == info.isDeleted &&
             m.senderAccentColorId == info.accentColorId &&
             m.senderEmojiStatusId == info.emojiStatusId) {
           continue;
@@ -6552,9 +8406,26 @@ class ChatViewModel extends ChangeNotifier {
         m.senderRole = info.role;
         m.senderTitle = info.title ?? m.senderTitle;
         m.senderIsPremium = info.isPremium;
+        m.senderIsDeleted = info.isDeleted;
         m.senderAccentColorId = info.accentColorId;
         m.senderEmojiStatusId = info.emojiStatusId;
         changed = true;
+      }
+    }
+    // Ghost bubbles never join the id/sender indexes (their ids no longer
+    // exist on Telegram's side), so the loop above cannot reach them. Patch
+    // the folded ghosts of the resolved senders directly — otherwise a group
+    // ghost stays unattributed until the next full transcript rebuild.
+    if (allowTelegramTosViolations) {
+      for (final m in messages) {
+        final entry = m.mirrorEntry;
+        if (entry == null) continue;
+        if (!senders.containsKey(entry.senderId)) continue;
+        final name = senders[entry.senderId]!.name;
+        if (m.senderName != name) {
+          m.senderName = name;
+          changed = true;
+        }
       }
     }
     if (changed) _scheduleCoalescedNotify();
@@ -6649,6 +8520,29 @@ class ChatViewModel extends ChangeNotifier {
     _handle(update);
   }
 
+  /// Marks the read-state gates satisfied so read-marking paths can be
+  /// exercised without replaying the whole history bootstrap.
+  @visibleForTesting
+  void markChatReadStateReadyForTesting() {
+    _chatReadStateLoaded = true;
+    _historyReachesLatest = true;
+  }
+
+  @visibleForTesting
+  void isForumForTesting(bool value) {
+    isForum = value;
+  }
+
+  @visibleForTesting
+  void supportsBotTopicsForTesting(bool value) {
+    supportsBotTopics = value;
+  }
+
+  @visibleForTesting
+  void historyReachesLatestForTesting() {
+    _historyReachesLatest = true;
+  }
+
   @visibleForTesting
   void mergeMessageForTesting(ChatMessage message) {
     _merge([message]);
@@ -6694,6 +8588,7 @@ class ChatViewModel extends ChangeNotifier {
       role,
       title,
       isPremium: user.boolean('is_premium') ?? false,
+      isDeleted: TDParse.isDeletedUser(user),
       accentColorId: user.integer('accent_color_id') ?? -1,
       emojiStatusId: TDParse.emojiStatusCustomEmojiId(user.obj('emoji_status')),
     );
@@ -6702,6 +8597,7 @@ class ChatViewModel extends ChangeNotifier {
   /// Fills `forwardOrigin` for forwarded messages whose origin is a user or
   /// chat we can name (hidden-user names already arrive inline).
   void _resolveForwardsIfNeeded(List<ChatMessage> batch) {
+    _resolveViaBotsIfNeeded(batch);
     for (final m in batch) {
       if (m.forwardOrigin != null && m.forwardOrigin!.isNotEmpty) continue;
       final uid = m.forwardFromUserId;
@@ -6782,6 +8678,66 @@ class ChatViewModel extends ChangeNotifier {
     for (final message in waiting) {
       message.forwardOrigin = name;
     }
+    _bumpMaterializedMessageRevisions(waiting.map((m) => m.id));
+    _scheduleCoalescedNotify();
+  }
+
+  final Map<int, String> _viaBotUsernames = {};
+  final Map<int, List<ChatMessage>> _pendingViaBotUsers = {};
+
+  void _resolveViaBotsIfNeeded(List<ChatMessage> batch) {
+    for (final m in batch) {
+      if (m.isContentRestricted) continue;
+      if (m.viaBotUsername != null && m.viaBotUsername!.isNotEmpty) continue;
+      final botUserId = m.viaBotUserId;
+      if (botUserId == null || botUserId <= 0) continue;
+      final cached = _viaBotUsernames[botUserId];
+      if (cached != null) {
+        m.viaBotUsername = cached;
+        continue;
+      }
+      final waiting = _pendingViaBotUsers[botUserId];
+      if (waiting != null) {
+        waiting.add(m);
+        continue;
+      }
+      _pendingViaBotUsers[botUserId] = <ChatMessage>[m];
+      unawaited(_resolveViaBotUsername(botUserId));
+    }
+  }
+
+  Future<void> _resolveViaBotUsername(int botUserId) async {
+    String? label;
+    try {
+      final user = await _client.query({
+        '@type': 'getUser',
+        'user_id': botUserId,
+      });
+      final username = _primaryUsername(user);
+      if (username.isNotEmpty) {
+        label = '@$username';
+      } else {
+        final name = TDParse.userName(user).trim();
+        if (name.isNotEmpty) label = name;
+      }
+    } catch (_) {}
+    final waiting = _pendingViaBotUsers.remove(botUserId);
+    if (label == null || label.isEmpty || waiting == null) return;
+    _viaBotUsernames[botUserId] = label;
+    final updatedIds = <int>{};
+    for (final m in waiting) {
+      final refs = _messageRefs(m.id);
+      final targets = refs.isEmpty ? <ChatMessage>[m] : refs;
+      for (final message in targets) {
+        if (message.isContentRestricted || message.viaBotUserId != botUserId) {
+          continue;
+        }
+        message.viaBotUsername = label;
+        updatedIds.add(message.id);
+      }
+    }
+    if (updatedIds.isEmpty) return;
+    _bumpMaterializedMessageRevisions(updatedIds);
     _scheduleCoalescedNotify();
   }
 

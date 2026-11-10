@@ -401,7 +401,7 @@ enum AppFontChoice {
   String get fontFamily {
     return switch (this) {
       AppFontChoice.system => _platformFontFamily(),
-      AppFontChoice.apple => '.AppleSystemUIFont',
+      AppFontChoice.apple => resolvePlatformFontFamily('.AppleSystemUIFont'),
       AppFontChoice.pingFang => 'PingFang SC',
       AppFontChoice.pingFangHk => 'PingFang HK',
       AppFontChoice.pingFangTw => 'PingFang TC',
@@ -753,9 +753,21 @@ enum AppFontChoice {
     ];
   }
 
+  /// CupertinoSystemText is a framework fallback sentinel, not a registered
+  /// face in Flutter 3.44.2's txt/platform_mac.mm (only Display is registered).
+  /// With explicit emoji/CJK fallbacks it never reaches the default system
+  /// face: those fonts consume spaces, digits and Latin first. Resolve it to
+  /// the native text family before adding fallbacks; leave storage untouched.
+  static String resolvePlatformFontFamily(String family) =>
+      defaultTargetPlatform == TargetPlatform.iOS &&
+          family == 'CupertinoSystemText'
+      ? '.AppleSystemUIFont'
+      : family;
+
   static String _platformFontFamily() {
     return switch (defaultTargetPlatform) {
-      TargetPlatform.iOS || TargetPlatform.macOS => '.AppleSystemUIFont',
+      TargetPlatform.iOS => '.AppleSystemUIFont',
+      TargetPlatform.macOS => '.AppleSystemUIFont',
       TargetPlatform.android => 'Roboto',
       _ => 'system-ui',
     };
@@ -976,24 +988,7 @@ class ThemeController extends ChangeNotifier {
     // the retired opt-out preference so an older `false` value cannot keep a
     // selected theme from applying to the interface.
     _prefs.remove(_scopedThemeKey(_legacyUseTelegramThemeForUiKey));
-    _customMessageBubbleBackground = _decodeCustomMessageBubbleBackground(
-      _scopedThemeKey(_customMessageBubbleBackgroundKey),
-    );
-    _messageBubblesEnabled =
-        _prefs.getBool(_scopedThemeKey(_messageBubblesEnabledKey)) ?? true;
-    _messageBubbleBackground = MessageBubbleBackground.fromStorage(
-      _prefs.getString(_scopedThemeKey(_messageBubbleBackgroundKey)),
-    );
-    _messageBubbleApplicationScope = MessageBubbleApplicationScope.values
-        .firstWhere(
-          (scope) =>
-              scope.name ==
-              _prefs.getString(
-                _scopedThemeKey(_messageBubbleApplicationScopeKey),
-              ),
-          orElse: () => MessageBubbleApplicationScope.allMessages,
-        );
-    _repairMissingCustomMessageBubble();
+    _loadScopedMessageBubbleSettings();
     if (hasCloudTheme &&
         (_prefs.containsKey(_preCloudThemeModeKey) ||
             _prefs.containsKey(_preCloudThemeBrandKey))) {
@@ -1041,7 +1036,7 @@ class ThemeController extends ChangeNotifier {
     );
     _invalidateFontCaches();
     unawaited(_normalizeStoredPlatformFontFamilies());
-    _fontScale = _prefs.getDouble(_fontKey) ?? 1.0;
+    _fontScale = _validStoredFontScale(_prefs.getDouble(_fontKey));
     _interfaceScale = _prefs.getDouble(_interfaceScaleKey) ?? 1.0;
     _circularGroupAvatars = _prefs.getBool(_groupAvatarCircleKey) ?? true;
     _animateAvatars = _prefs.getBool(_animateAvatarsKey) ?? true;
@@ -1141,6 +1136,8 @@ class ThemeController extends ChangeNotifier {
         );
     _enterToSend = _prefs.getBool(_enterToSendKey) ?? false;
     _openChatsAtLatest = _prefs.getBool(_openChatsAtLatestKey) ?? false;
+    // Wide chats show the group context pane on arrival; this opts out.
+    _hideChatContextPane = _prefs.getBool(_hideChatContextPaneKey) ?? false;
     _linkOpenMode = LinkOpenMode.values.firstWhere(
       (mode) => mode.name == _prefs.getString(_linkOpenModeKey),
       orElse: () => LinkOpenMode.defaultBrowser,
@@ -1149,6 +1146,15 @@ class ThemeController extends ChangeNotifier {
         _prefs.getBool(_showSavedMessagesIdentityKey) ?? false;
     _preserveSenderWhenRepeating =
         _prefs.getBool(_preserveSenderWhenRepeatingKey) ?? true;
+    // Markdown detection is heuristic, so rich-text forwarding stays opt-in.
+    _forwardRichMarkdown = _prefs.getBool(_forwardRichMarkdownKey) ?? false;
+    // Viewer media facts are on by default, like the Swift Nagram setting.
+    _mediaMetadataEnabled = _prefs.getBool(_mediaMetadataEnabledKey) ?? true;
+    // 盘古之白 changes how text reads, never what a message says, so all three
+    // directions stay opt-in.
+    _panguOnReceive = _prefs.getBool(_panguOnReceiveKey) ?? false;
+    _panguOnSend = _prefs.getBool(_panguOnSendKey) ?? false;
+    _panguOnEdit = _prefs.getBool(_panguOnEditKey) ?? false;
     _quickRepliesEnabled = _prefs.getBool(_quickRepliesEnabledKey) ?? true;
     final storedQuickReactions = _prefs.getStringList(_quickReactionsKey);
     _quickReactions = storedQuickReactions == null
@@ -1162,7 +1168,11 @@ class ThemeController extends ChangeNotifier {
     _groupImageMessages = _prefs.getBool(_groupImageMessagesKey) ?? true;
     _hideBlockedUserMessages =
         _prefs.getBool(_hideBlockedUserMessagesKey) ?? false;
+    // Restricted media the user wants on screen without confirming per message.
+    _autoRevealRestrictedMedia =
+        _prefs.getBool(_autoRevealRestrictedMediaKey) ?? false;
     _liquidGlassBottomBar = _prefs.getBool(_liquidGlassBottomBarKey) ?? false;
+    _simpleMode = _prefs.getBool(_simpleModeKey) ?? false;
     _showChannelsTab = _prefs.getBool(_showChannelsTabKey) ?? false;
     _showContactsTab = _prefs.getBool(_showContactsTabKey) ?? true;
     _showMomentsTab = _prefs.getBool(_showMomentsTabKey) ?? true;
@@ -1189,6 +1199,9 @@ class ThemeController extends ChangeNotifier {
       (m) => m.name == _prefs.getString(_unreadBadgeOverflowModeKey),
       orElse: () => UnreadBadgeOverflowMode.capped,
     );
+    _showFolderUnreadBadges =
+        _prefs.getBool(_showFolderUnreadBadgesKey) ?? true;
+    _hideAllChatsFolder = _prefs.getBool(_hideAllChatsFolderKey) ?? false;
     AppTheme.applyBrand(_brandColor); // before the first MaterialApp build
   }
 
@@ -1257,14 +1270,22 @@ class ThemeController extends ChangeNotifier {
       'mobileMessageActionMenuStyle.v1';
   static const _enterToSendKey = 'enterToSend';
   static const _openChatsAtLatestKey = 'openChatsAtLatest';
+  static const _hideChatContextPaneKey = 'hideChatContextPane';
   static const _linkOpenModeKey = 'linkOpenMode.v1';
   static const _showSavedMessagesIdentityKey = 'showSavedMessagesIdentity';
   static const _preserveSenderWhenRepeatingKey = 'preserveSenderWhenRepeating';
+  static const _forwardRichMarkdownKey = 'forwardRichMarkdown';
+  static const _mediaMetadataEnabledKey = 'mediaMetadataEnabled';
+  static const _panguOnReceiveKey = 'panguOnReceive';
+  static const _panguOnSendKey = 'panguOnSend';
+  static const _panguOnEditKey = 'panguOnEdit';
   static const _quickRepliesEnabledKey = 'quickRepliesEnabled';
   static const _quickReactionsKey = 'quickReactions';
   static const _groupImageMessagesKey = 'groupImageMessages';
   static const _hideBlockedUserMessagesKey = 'hideBlockedUserMessages';
+  static const _autoRevealRestrictedMediaKey = 'autoRevealRestrictedMedia';
   static const _liquidGlassBottomBarKey = 'liquidGlassBottomBar';
+  static const _simpleModeKey = 'simpleMode';
   static const _showChannelsTabKey = 'showChannelsTab';
   static const _showContactsTabKey = 'showContactsTab';
   static const _showMomentsTabKey = 'showMomentsTab';
@@ -1274,6 +1295,8 @@ class ThemeController extends ChangeNotifier {
   static const _archivedChatsDisplayModeKey = 'archivedChatsDisplayMode';
   static const _unreadBadgeModeKey = 'unreadBadgeMode';
   static const _unreadBadgeOverflowModeKey = 'unreadBadgeOverflowMode';
+  static const _showFolderUnreadBadgesKey = 'showFolderUnreadBadges';
+  static const _hideAllChatsFolderKey = 'hideAllChatsFolder';
 
   static const double minFontScale = 0.8;
   // Text reflows inside bubbles and rows that grow with it, so a generous
@@ -1319,6 +1342,9 @@ class ThemeController extends ChangeNotifier {
   late double _interfaceScale;
   Timer? _scalePersistTimer;
   bool _fontScaleNeedsPersist = false;
+  Future<void> _fontScaleWrite = Future<void>.value();
+  int _fontScaleRevision = 0;
+  bool _scaleControllerDisposed = false;
   bool _interfaceScaleNeedsPersist = false;
   late bool _circularGroupAvatars;
   late bool _animateAvatars;
@@ -1341,14 +1367,22 @@ class ThemeController extends ChangeNotifier {
   late MobileMessageActionMenuStyle _mobileMessageActionMenuStyle;
   bool _enterToSend = false;
   bool _openChatsAtLatest = false;
+  bool _hideChatContextPane = false;
   late LinkOpenMode _linkOpenMode;
   bool _showSavedMessagesIdentity = false;
   bool _preserveSenderWhenRepeating = true;
+  bool _forwardRichMarkdown = false;
+  bool _mediaMetadataEnabled = true;
+  bool _panguOnReceive = false;
+  bool _panguOnSend = false;
+  bool _panguOnEdit = false;
   bool _quickRepliesEnabled = true;
   late List<QuickReactionChoice> _quickReactions;
   bool _groupImageMessages = true;
   bool _hideBlockedUserMessages = false;
+  bool _autoRevealRestrictedMedia = false;
   bool _liquidGlassBottomBar = false;
+  bool _simpleMode = false;
   bool _showChannelsTab = false;
   bool _showContactsTab = true;
   bool _showMomentsTab = true;
@@ -1358,6 +1392,8 @@ class ThemeController extends ChangeNotifier {
   late ArchivedChatsDisplayMode _archivedChatsDisplayMode;
   late UnreadBadgeMode _unreadBadgeMode;
   late UnreadBadgeOverflowMode _unreadBadgeOverflowMode;
+  late bool _showFolderUnreadBadges;
+  late bool _hideAllChatsFolder;
 
   AppearanceMode get mode => _mode;
   bool get themingEnabled => _themingEnabled;
@@ -1576,6 +1612,27 @@ class ThemeController extends ChangeNotifier {
     }
   }
 
+  void _loadScopedMessageBubbleSettings() {
+    _customMessageBubbleBackground = _decodeCustomMessageBubbleBackground(
+      _scopedThemeKey(_customMessageBubbleBackgroundKey),
+    );
+    _messageBubblesEnabled =
+        _prefs.getBool(_scopedThemeKey(_messageBubblesEnabledKey)) ?? true;
+    _messageBubbleBackground = MessageBubbleBackground.fromStorage(
+      _prefs.getString(_scopedThemeKey(_messageBubbleBackgroundKey)),
+    );
+    _messageBubbleApplicationScope = MessageBubbleApplicationScope.values
+        .firstWhere(
+          (scope) =>
+              scope.name ==
+              _prefs.getString(
+                _scopedThemeKey(_messageBubbleApplicationScopeKey),
+              ),
+          orElse: () => MessageBubbleApplicationScope.allMessages,
+        );
+    _repairMissingCustomMessageBubble();
+  }
+
   void _repairMissingCustomMessageBubble() {
     final custom = _customMessageBubbleBackground;
     if (custom == null) {
@@ -1606,24 +1663,7 @@ class ThemeController extends ChangeNotifier {
     _lightCloudTheme = _decodeTheme(_scopedThemeKey(_lightCloudThemeKey));
     _darkCloudTheme = _decodeTheme(_scopedThemeKey(_darkCloudThemeKey));
     _prefs.remove(_scopedThemeKey(_legacyUseTelegramThemeForUiKey));
-    _customMessageBubbleBackground = _decodeCustomMessageBubbleBackground(
-      _scopedThemeKey(_customMessageBubbleBackgroundKey),
-    );
-    _messageBubblesEnabled =
-        _prefs.getBool(_scopedThemeKey(_messageBubblesEnabledKey)) ?? true;
-    _messageBubbleBackground = MessageBubbleBackground.fromStorage(
-      _prefs.getString(_scopedThemeKey(_messageBubbleBackgroundKey)),
-    );
-    _messageBubbleApplicationScope = MessageBubbleApplicationScope.values
-        .firstWhere(
-          (scope) =>
-              scope.name ==
-              _prefs.getString(
-                _scopedThemeKey(_messageBubbleApplicationScopeKey),
-              ),
-          orElse: () => MessageBubbleApplicationScope.allMessages,
-        );
-    _repairMissingCustomMessageBubble();
+    _loadScopedMessageBubbleSettings();
     AppTheme.applyBrand(_brandColor);
   }
 
@@ -1777,6 +1817,7 @@ class ThemeController extends ChangeNotifier {
   bool get hideSidebarPhone => _hideSidebarPhone;
   bool get showMemberTags => _showMemberTags;
   bool get showPlainMemberRoleTags => _showPlainMemberRoleTags;
+
   NameColorAudience get chatListNameColorAudience => _chatListNameColorAudience;
   NameColorAudience get chatNameColorAudience => _chatNameColorAudience;
   StatusEmojiDisplayMode get chatListStatusEmojiMode =>
@@ -1796,15 +1837,45 @@ class ThemeController extends ChangeNotifier {
       _mobileMessageActionMenuStyle;
   bool get enterToSend => _enterToSend;
   bool get openChatsAtLatest => _openChatsAtLatest;
+
+  /// Whether a wide chat keeps its trailing group context pane closed until
+  /// the chat header button opens it.
+  bool get hideChatContextPane => _hideChatContextPane;
   LinkOpenMode get linkOpenMode => _linkOpenMode;
   bool get showSavedMessagesIdentity => _showSavedMessagesIdentity;
   bool get preserveSenderWhenRepeating => _preserveSenderWhenRepeating;
+  bool get forwardRichMarkdown => _forwardRichMarkdown;
+
+  /// Shows the metadata row in the photo and video viewers' menus.
+  bool get mediaMetadataEnabled => _mediaMetadataEnabled;
+
+  /// Whether received messages render with 盘古之白: a display-only space
+  /// between CJK and half-width text. The stored message never changes.
+  bool get panguOnReceive => _panguOnReceive;
+
+  /// Whether composer text is spaced before it is sent.
+  bool get panguOnSend => _panguOnSend;
+
+  /// Whether an edit rewrites the message with spacing. Editing is separate
+  /// from sending because it changes a message the other side already read.
+  bool get panguOnEdit => _panguOnEdit;
   bool get quickRepliesEnabled => _quickRepliesEnabled;
   List<QuickReactionChoice> get quickReactions =>
       List.unmodifiable(_quickReactions);
   bool get groupImageMessages => _groupImageMessages;
   bool get hideBlockedUserMessages => _hideBlockedUserMessages;
+
+  /// Shows message content Telegram marked as restricted without asking first.
+  ///
+  /// Purely local: unlike the account's sensitive-content option it never writes
+  /// `ignore_sensitive_content_restrictions`, so it cannot lift a restriction
+  /// the server still enforces.
+  bool get autoRevealRestrictedMedia => _autoRevealRestrictedMedia;
   bool get liquidGlassBottomBar => _liquidGlassBottomBar;
+
+  /// Collapses the phone composer to one row and moves its tools into the
+  /// More panel. Local presentation pref only; never rewrites other settings.
+  bool get simpleMode => _simpleMode;
   bool get showChannelsTab => _showChannelsTab;
   bool get showContactsTab => _showContactsTab;
   bool get showMomentsTab => _showMomentsTab;
@@ -1820,6 +1891,11 @@ class ThemeController extends ChangeNotifier {
       _unreadBadgeOverflowMode;
   bool get capUnreadBadgeAt99 =>
       _unreadBadgeOverflowMode == UnreadBadgeOverflowMode.capped;
+  bool get showFolderUnreadBadges => _showFolderUnreadBadges;
+
+  /// Whether the folder tabs, menu, and rail omit the "All" entry once the
+  /// account has its own folders. Off by default.
+  bool get hideAllChatsFolder => _hideAllChatsFolder;
 
   NameColorAudience _storedNameColorAudience(
     String key, {
@@ -1851,12 +1927,10 @@ class ThemeController extends ChangeNotifier {
     return value;
   }
 
-  /// App-wide text scale factor, applied at the root via MediaQuery.textScaler
-  /// by the scaled app views. Every surface follows it — chat transcripts,
-  /// chat list, navigation and settings alike.
+  /// App content scale, applied only by opt-in ContentSizeScope widgets.
   double get fontScale => _fontScale;
 
-  /// The scale text actually renders at: the user's own font size preference
+  /// Legacy linear estimate (not used by window roots). The scale text renders at: the user's own font size preference
   /// on top of the platform accessibility text size, capped at the range the
   /// app's layouts are tested against so an extreme system setting cannot
   /// break a fixed layout on its own.
@@ -1872,7 +1946,7 @@ class ThemeController extends ChangeNotifier {
         maxFontScale,
       );
 
-  // Font scaling is applied once by the root MediaQuery; Text applies it
+  // Font scaling is applied once by content scopes; Text applies it
   // implicitly and RichText reads it explicitly. Returning an already scaled
   // size here made chat typography grow twice.
   double chatTextSize(double base) => base;
@@ -1898,7 +1972,7 @@ class ThemeController extends ChangeNotifier {
   List<String> _normalFontFamilyChain([TextStyle? base]) {
     return _normalFontFamilyChainCache ??= dedupeFontFamilies([
       ...(_fontFallbackChain.isNotEmpty
-          ? _fontFallbackChain
+          ? _fontFallbackChain.map(AppFontChoice.resolvePlatformFontFamily)
           : [AppFontChoice._platformFontFamily()]),
       ...AppFontChoice._platformFontFallback(),
       // Last resort. The platform's own UI face carries every weight and every
@@ -1934,16 +2008,40 @@ class ThemeController extends ChangeNotifier {
     return styled;
   }
 
+  /// An explicit system-only selection has the same typography as clearing
+  /// the picker. Mixed chains remain custom, including system-first chains.
+  /// This is a rendering policy only: the stored selection is never rewritten.
+  bool get usesIosSystemTypography =>
+      defaultTargetPlatform == TargetPlatform.iOS &&
+      (_fontFallbackChain.isEmpty ||
+          (_fontFallbackChain.length == 1 &&
+              const {
+                '.AppleSystemUIFont',
+                'CupertinoSystemText',
+                'CupertinoSystemDisplay',
+              }.contains(_fontFallbackChain.single)));
+
   TextStyle _computeAppTextStyle(TextStyle base, {bool boldText = false}) {
     final families = effectiveFontFamilyChain(base);
     final weightedBase = base.copyWith(
+      // Explicit tracking belongs to the caller. Material theme tracking is
+      // removed at the theme boundary below, not from arbitrary rich text.
+      letterSpacing: usesIosSystemTypography
+          ? (base.letterSpacing ?? 0)
+          : base.letterSpacing,
       fontWeight: AppTextWeight.forSystemBoldText(
         base.fontWeight ?? FontWeight.w400,
         boldText: boldText,
       ),
     );
     if (families.isEmpty) return weightedBase;
-    final first = families.first;
+    // Keep point sizes/scaling intact; Flutter selects the optical system face
+    // at the same 20-point boundary as its iOS typography.
+    final first = usesIosSystemTypography
+        ? ((base.fontSize ?? 14) >= 20
+              ? 'CupertinoSystemDisplay'
+              : '.AppleSystemUIFont')
+        : families.first;
     final googleFamily = _googleFamilyFor(first);
     final withPrimary = googleFamily == null
         ? weightedBase.copyWith(fontFamily: first)
@@ -1972,24 +2070,40 @@ class ThemeController extends ChangeNotifier {
   }
 
   TextTheme applyAppTextTheme(TextTheme textTheme, {bool boldText = false}) {
-    TextStyle? apply(TextStyle? style) =>
-        style == null ? null : applyAppTextStyle(style, boldText: boldText);
+    // ThemeData's color/weight theme can have null sizes until Theme.of merges
+    // the locale's geometry. Resolve the optical face from Material 3 geometry
+    // in that case, without installing sizes or overriding localized geometry.
+    final geometry = Typography.material2021().englishLike;
+    TextStyle? apply(TextStyle? style, TextStyle? geometryStyle) {
+      if (style == null) return null;
+      final result = applyAppTextStyle(
+        usesIosSystemTypography ? style.copyWith(letterSpacing: 0) : style,
+        boldText: boldText,
+      );
+      if (!usesIosSystemTypography || style.fontSize != null) return result;
+      return result.copyWith(
+        fontFamily: (geometryStyle?.fontSize ?? 14) >= 20
+            ? 'CupertinoSystemDisplay'
+            : '.AppleSystemUIFont',
+      );
+    }
+
     return textTheme.copyWith(
-      displayLarge: apply(textTheme.displayLarge),
-      displayMedium: apply(textTheme.displayMedium),
-      displaySmall: apply(textTheme.displaySmall),
-      headlineLarge: apply(textTheme.headlineLarge),
-      headlineMedium: apply(textTheme.headlineMedium),
-      headlineSmall: apply(textTheme.headlineSmall),
-      titleLarge: apply(textTheme.titleLarge),
-      titleMedium: apply(textTheme.titleMedium),
-      titleSmall: apply(textTheme.titleSmall),
-      bodyLarge: apply(textTheme.bodyLarge),
-      bodyMedium: apply(textTheme.bodyMedium),
-      bodySmall: apply(textTheme.bodySmall),
-      labelLarge: apply(textTheme.labelLarge),
-      labelMedium: apply(textTheme.labelMedium),
-      labelSmall: apply(textTheme.labelSmall),
+      displayLarge: apply(textTheme.displayLarge, geometry.displayLarge),
+      displayMedium: apply(textTheme.displayMedium, geometry.displayMedium),
+      displaySmall: apply(textTheme.displaySmall, geometry.displaySmall),
+      headlineLarge: apply(textTheme.headlineLarge, geometry.headlineLarge),
+      headlineMedium: apply(textTheme.headlineMedium, geometry.headlineMedium),
+      headlineSmall: apply(textTheme.headlineSmall, geometry.headlineSmall),
+      titleLarge: apply(textTheme.titleLarge, geometry.titleLarge),
+      titleMedium: apply(textTheme.titleMedium, geometry.titleMedium),
+      titleSmall: apply(textTheme.titleSmall, geometry.titleSmall),
+      bodyLarge: apply(textTheme.bodyLarge, geometry.bodyLarge),
+      bodyMedium: apply(textTheme.bodyMedium, geometry.bodyMedium),
+      bodySmall: apply(textTheme.bodySmall, geometry.bodySmall),
+      labelLarge: apply(textTheme.labelLarge, geometry.labelLarge),
+      labelMedium: apply(textTheme.labelMedium, geometry.labelMedium),
+      labelSmall: apply(textTheme.labelSmall, geometry.labelSmall),
     );
   }
 
@@ -2430,13 +2544,58 @@ class ThemeController extends ChangeNotifier {
     setFontFallbackChain(next);
   }
 
+  static double _validStoredFontScale(double? value) =>
+      value != null &&
+          value.isFinite &&
+          value >= minFontScale &&
+          value <= maxFontScale
+      ? value
+      : 1.0;
+
   set fontScale(double value) {
-    final next = value.clamp(minFontScale, maxFontScale);
+    final next = value.isFinite ? value.clamp(minFontScale, maxFontScale) : 1.0;
     if (_fontScale == next) return;
     _fontScale = next;
+    _fontScaleRevision++;
     _fontScaleNeedsPersist = true;
     _scheduleScalePersist();
     notifyListeners();
+  }
+
+  /// Applies immediately and reports the actual storage result. A failed write
+  /// deliberately leaves the selected value visible; calling again retries it.
+  Future<void> setFontScale(double value) {
+    final next = value.isFinite ? value.clamp(minFontScale, maxFontScale) : 1.0;
+    final changed = _fontScale != next;
+    _fontScale = next;
+    _fontScaleRevision++;
+    // Supersede any pending legacy setter write, but leave interface-size
+    // persistence alone. All started font writes are serialized below.
+    _fontScaleNeedsPersist = false;
+    final result = _writeFontScale(next);
+    if (changed) notifyListeners();
+    return result;
+  }
+
+  Future<void> _writeFontScale(double value) {
+    final revision = _fontScaleRevision;
+    final result = _fontScaleWrite.then((_) async {
+      if (!await _prefs.setDouble(_fontKey, value)) {
+        throw StateError('Could not persist font scale');
+      }
+      // Desktop settings sync must also observe the committed value, even if
+      // this was a same-value retry or storage exceeded its 350ms debounce.
+      if (!_scaleControllerDisposed && revision == _fontScaleRevision) {
+        notifyListeners();
+      }
+    });
+    // Keep the queue usable after a failure, while returning the original
+    // failing future to callers that can present persistence feedback.
+    _fontScaleWrite = result.then<void>(
+      (_) {},
+      onError: (Object _, StackTrace _) {},
+    );
+    return result;
   }
 
   set interfaceScale(double value) {
@@ -2471,7 +2630,7 @@ class ThemeController extends ChangeNotifier {
     _scalePersistTimer = null;
     if (_fontScaleNeedsPersist) {
       _fontScaleNeedsPersist = false;
-      _prefs.setDouble(_fontKey, _fontScale);
+      unawaited(_writeFontScale(_fontScale).catchError((Object _) {}));
     }
     if (_interfaceScaleNeedsPersist) {
       _interfaceScaleNeedsPersist = false;
@@ -2481,6 +2640,7 @@ class ThemeController extends ChangeNotifier {
 
   @override
   void dispose() {
+    _scaleControllerDisposed = true;
     GoogleFontWeightLoader.shared.removeListener(_onGoogleFontWeightsLoaded);
     if (_scalePersistTimer != null) {
       _scalePersistTimer!.cancel();
@@ -2648,6 +2808,13 @@ class ThemeController extends ChangeNotifier {
     notifyListeners();
   }
 
+  set hideChatContextPane(bool value) {
+    if (_hideChatContextPane == value) return;
+    _hideChatContextPane = value;
+    _prefs.setBool(_hideChatContextPaneKey, value);
+    notifyListeners();
+  }
+
   set linkOpenMode(LinkOpenMode value) {
     if (_linkOpenMode == value) return;
     _linkOpenMode = value;
@@ -2666,6 +2833,41 @@ class ThemeController extends ChangeNotifier {
     if (_preserveSenderWhenRepeating == value) return;
     _preserveSenderWhenRepeating = value;
     _prefs.setBool(_preserveSenderWhenRepeatingKey, value);
+    notifyListeners();
+  }
+
+  set forwardRichMarkdown(bool value) {
+    if (_forwardRichMarkdown == value) return;
+    _forwardRichMarkdown = value;
+    _prefs.setBool(_forwardRichMarkdownKey, value);
+    notifyListeners();
+  }
+
+  set mediaMetadataEnabled(bool value) {
+    if (_mediaMetadataEnabled == value) return;
+    _mediaMetadataEnabled = value;
+    _prefs.setBool(_mediaMetadataEnabledKey, value);
+    notifyListeners();
+  }
+
+  set panguOnReceive(bool value) {
+    if (_panguOnReceive == value) return;
+    _panguOnReceive = value;
+    _prefs.setBool(_panguOnReceiveKey, value);
+    notifyListeners();
+  }
+
+  set panguOnSend(bool value) {
+    if (_panguOnSend == value) return;
+    _panguOnSend = value;
+    _prefs.setBool(_panguOnSendKey, value);
+    notifyListeners();
+  }
+
+  set panguOnEdit(bool value) {
+    if (_panguOnEdit == value) return;
+    _panguOnEdit = value;
+    _prefs.setBool(_panguOnEditKey, value);
     notifyListeners();
   }
 
@@ -2714,10 +2916,24 @@ class ThemeController extends ChangeNotifier {
     notifyListeners();
   }
 
+  set autoRevealRestrictedMedia(bool value) {
+    if (_autoRevealRestrictedMedia == value) return;
+    _autoRevealRestrictedMedia = value;
+    _prefs.setBool(_autoRevealRestrictedMediaKey, value);
+    notifyListeners();
+  }
+
   set liquidGlassBottomBar(bool value) {
     if (_liquidGlassBottomBar == value) return;
     _liquidGlassBottomBar = value;
     _prefs.setBool(_liquidGlassBottomBarKey, value);
+    notifyListeners();
+  }
+
+  set simpleMode(bool value) {
+    if (_simpleMode == value) return;
+    _simpleMode = value;
+    _prefs.setBool(_simpleModeKey, value);
     notifyListeners();
   }
 
@@ -2785,5 +3001,19 @@ class ThemeController extends ChangeNotifier {
     unreadBadgeOverflowMode = value
         ? UnreadBadgeOverflowMode.capped
         : UnreadBadgeOverflowMode.exact;
+  }
+
+  set showFolderUnreadBadges(bool value) {
+    if (_showFolderUnreadBadges == value) return;
+    _showFolderUnreadBadges = value;
+    _prefs.setBool(_showFolderUnreadBadgesKey, value);
+    notifyListeners();
+  }
+
+  set hideAllChatsFolder(bool value) {
+    if (_hideAllChatsFolder == value) return;
+    _hideAllChatsFolder = value;
+    _prefs.setBool(_hideAllChatsFolderKey, value);
+    notifyListeners();
   }
 }

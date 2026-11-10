@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import '../chats/chat_delete_dialog.dart';
 import '../components/app_dialog.dart';
 import '../components/app_icons.dart';
+import '../components/keyboard_inset_padding.dart';
 import '../components/photo_avatar.dart';
 import '../components/toast.dart';
 import '../components/ui_components.dart';
@@ -527,7 +528,8 @@ class _ChannelDirectMessageTopicViewState
                 onApprove: () => _approve(message),
                 onDecline: () => _decline(message),
                 onEditOffer: () => _editOffer(message),
-                onSuggestChanges: () => _suggestChanges(message),
+                onSuggestChanges: () =>
+                    _composeSuggestedPost(replyToMessageId: message.id),
                 onEditText: message.isPlainText
                     ? () => _editText(message)
                     : null,
@@ -685,7 +687,9 @@ class _ChannelDirectMessageTopicViewState
     }
   }
 
-  Future<void> _composeSuggestedPost() async {
+  /// Composes a suggested post; with [replyToMessageId], one suggesting
+  /// changes to that post.
+  Future<void> _composeSuggestedPost({int replyToMessageId = 0}) async {
     final limits = await _controller.loadLimits();
     if (!mounted) return;
     final draft = await showAppModalSheet<SuggestedPostDraft>(
@@ -702,6 +706,7 @@ class _ChannelDirectMessageTopicViewState
           draft.text,
           price: draft.price,
           sendDate: draft.sendDate,
+          replyToMessageId: replyToMessageId,
           asSuggestedPost: true,
         );
       } else {
@@ -710,6 +715,7 @@ class _ChannelDirectMessageTopicViewState
           caption: draft.text,
           price: draft.price,
           sendDate: draft.sendDate,
+          replyToMessageId: replyToMessageId,
           asSuggestedPost: true,
         );
       }
@@ -769,41 +775,6 @@ class _ChannelDirectMessageTopicViewState
         price: draft.price,
         sendDate: draft.sendDate,
       );
-    } catch (error) {
-      if (mounted) showToast(context, error.toString());
-    }
-  }
-
-  Future<void> _suggestChanges(ChatMessage message) async {
-    final limits = await _controller.loadLimits();
-    if (!mounted) return;
-    final draft = await showAppModalSheet<SuggestedPostDraft>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) => SuggestedPostComposerSheet(limits: limits),
-    );
-    if (draft == null || !mounted) return;
-    try {
-      final attachment = draft.attachment;
-      if (attachment == null) {
-        await _controller.sendText(
-          draft.text,
-          price: draft.price,
-          sendDate: draft.sendDate,
-          replyToMessageId: message.id,
-          asSuggestedPost: true,
-        );
-      } else {
-        await _controller.sendAttachment(
-          attachment,
-          caption: draft.text,
-          price: draft.price,
-          sendDate: draft.sendDate,
-          replyToMessageId: message.id,
-          asSuggestedPost: true,
-        );
-      }
     } catch (error) {
       if (mounted) showToast(context, error.toString());
     }
@@ -1113,9 +1084,11 @@ class _SuggestedPostComposerSheetState
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
-    final keyboard = MediaQuery.viewInsetsOf(context).bottom;
-    return Padding(
-      padding: EdgeInsets.only(bottom: keyboard),
+    return KeyboardInsetPadding(
+      backgroundColor: colors.card,
+      paintBehindKeyboard: !appModalUsesCenteredPresentation(
+        MediaQuery.sizeOf(context),
+      ),
       child: Container(
         padding: const EdgeInsets.fromLTRB(18, 14, 18, 20),
         decoration: BoxDecoration(

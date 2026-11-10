@@ -16,6 +16,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:vector_graphics/vector_graphics_compat.dart'
     show RenderingStrategy;
 
+import '../platform/ohos_support.dart';
 import '../tdlib/json_helpers.dart';
 import '../tdlib/td_client.dart';
 import '../tdlib/td_image_loader.dart';
@@ -1360,12 +1361,14 @@ class ChatWallpaperController extends ChangeNotifier {
   Future<void> applyDefaultWallpaper(
     ChatWallpaper? wallpaper, {
     required bool dark,
+    TdWallpaperQuery? query,
   }) async {
-    if (!_hasActiveClient()) {
+    final queryAccount = query ?? _query;
+    if (query == null && !_hasActiveClient()) {
       throw UnsupportedError('Telegram is not connected');
     }
     if (wallpaper == null) {
-      await _query({
+      await queryAccount({
         '@type': 'deleteDefaultBackground',
         'for_dark_theme': dark,
       });
@@ -1375,7 +1378,7 @@ class ChatWallpaperController extends ChangeNotifier {
         throw UnsupportedError('Chat themes cannot be global wallpapers');
       }
       final payload = await _wallpaperRequestPayload(wallpaper);
-      final response = await _query({
+      final response = await queryAccount({
         '@type': 'setDefaultBackground',
         'background': payload.background,
         'type': payload.type,
@@ -2639,10 +2642,7 @@ class _WallpaperMotionState extends State<_WallpaperMotion>
   }
 }
 
-bool get _supportsWallpaperTilt =>
-    !kIsWeb &&
-    (defaultTargetPlatform == TargetPlatform.android ||
-        defaultTargetPlatform == TargetPlatform.iOS);
+bool get _supportsWallpaperTilt => isMobilePlatform;
 
 /// Maps the gravity-vector change since a wallpaper was opened to a bounded
 /// parallax translation. The baseline keeps an upright phone centered just as

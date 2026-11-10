@@ -20,11 +20,19 @@ echo "== Flutter setup =="
 flutter config --enable-swift-package-manager
 flutter pub get
 
+# A pinned Apple MDK archive stops playing video 44 days after its own build
+# stamp (MDK draws an "MDK SDK is outdated" QR frame); install a verified,
+# still-fresh SDK before the Swift package links its binary target.
+echo "== MDK Apple SDK freshness =="
+sh scripts/refresh-apple-mdk.sh
+
 echo "== CocoaPods =="
 (cd ios && pod install)
 
 echo "== Build IPA =="
-flutter build ipa --release --export-options-plist=ios/ExportOptions.app-store-connect.plist
+flutter build ipa --release \
+  --dart-define="I_DONT_FUCKING_CARE_ABOUT_TOS=false" \
+  --export-options-plist=ios/ExportOptions.app-store-connect.plist
 
 ARCHIVE="$REPO_ROOT/build/ios/archive/Runner.xcarchive"
 TDJSON_DSYM="$ARCHIVE/dSYMs/tdjson.framework.dSYM"

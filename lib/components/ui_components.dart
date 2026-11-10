@@ -18,6 +18,7 @@ import '../platform/adaptive_platform.dart';
 import '../platform/system_ui.dart';
 import '../tdlib/td_models.dart';
 import '../theme/app_theme.dart';
+import '../theme/content_size.dart';
 import '../theme/date_text.dart';
 import '../theme/theme_controller.dart';
 import 'app_icons.dart';
@@ -332,16 +333,9 @@ class NavHeader extends StatelessWidget {
       value: systemUiOverlayStyleForSurface(c.navBar),
       child: Container(
         constraints: BoxConstraints(
-          minHeight:
-              headerHeight +
-              MediaQuery.of(context).padding.top +
-              iPadWindowChromeInsetOf(context),
+          minHeight: headerHeight + topChromeInsetOf(context),
         ),
-        padding: EdgeInsets.only(
-          top:
-              MediaQuery.of(context).padding.top +
-              iPadWindowChromeInsetOf(context),
-        ),
+        padding: headerChromePaddingOf(context),
         decoration: BoxDecoration(
           color: c.navBar,
           border: Border(
@@ -415,10 +409,15 @@ class UnreadBadge extends StatefulWidget {
     required this.count,
     this.muted = false,
     this.onClear,
+    this.chatAvatar = false,
   });
   final int count;
   final bool muted;
   final VoidCallback? onClear;
+
+  /// Only the touch chat-row avatar badge uses the 17pt visual minimum.
+  /// Drag-clear hit geometry and all other badge users stay unchanged.
+  final bool chatAvatar;
 
   @override
   State<UnreadBadge> createState() => _UnreadBadgeState();
@@ -464,7 +463,12 @@ class _UnreadBadgeState extends State<UnreadBadge> {
         .watch<ThemeController>()
         .unreadBadgeOverflowMode;
     final label = overflowMode.format(widget.count);
-    final body = _UnreadBadgeBody(label: label, color: color);
+    final body = _UnreadBadgeBody(
+      label: label,
+      color: color,
+      minimum: widget.chatAvatar ? 17 : AppMetric.unreadBadgeMin,
+      fullCount: widget.chatAvatar ? widget.count : null,
+    );
     if (widget.onClear == null) return body;
     final visualSize = _visualSize(context, label);
     final hitWidth = math.max(AppMetric.hitTarget, visualSize.width);
@@ -481,7 +485,7 @@ class _UnreadBadgeState extends State<UnreadBadge> {
       onPointerUp: (_) => _finishDrag(),
       child: SizedBox(
         width: hitWidth,
-        height: AppMetric.hitTarget,
+        height: math.max(AppMetric.hitTarget, visualSize.height),
         child: CustomPaint(
           painter: _UnreadBadgeMorphPainter(
             color: color,
@@ -511,68 +515,83 @@ class _UnreadBadgeState extends State<UnreadBadge> {
     );
   }
 
-  // The badge width needs a text measurement, and every unread row asks for one
-  // on every rebuild. The label set is tiny ('1'..'99+') and the painter does no
-  // scaling, so the layout result is bit-identical per (label, direction).
-  static final Map<(String, TextDirection), Size> _sizeCache = {};
-
+  // Use the same inherited font and per-font scaler as the visible body.
+  // A label/direction-only cache goes stale after content size, OS accessibility
+  // or font-family changes, displacing the drag tether from the badge centre.
   Size _visualSize(BuildContext context, String label) {
-    final key = (label, Directionality.of(context));
-    final cached = _sizeCache[key];
-    if (cached != null) return cached;
-    const style = TextStyle(
-      fontSize: AppTextSize.caption,
-      fontWeight: AppTextWeight.semibold,
+    final style = DefaultTextStyle.of(context).style.merge(
+      AppTextStyle.caption(
+        context.colors.badgeText,
+        weight: AppTextWeight.semibold,
+      ),
     );
     final painter = TextPainter(
       text: TextSpan(text: label, style: style),
-      textDirection: key.$2,
+      textDirection: Directionality.of(context),
+      textScaler: MediaQuery.textScalerOf(context),
       maxLines: 1,
     )..layout();
     final horizontalPadding = label.length > 1 ? (AppSpacing.xs + 1) * 2 : 0.0;
+    final minimum = widget.chatAvatar ? 17.0 : AppMetric.unreadBadgeMin;
     final size = Size(
-      math.max(AppMetric.unreadBadgeMin, painter.width + horizontalPadding),
-      AppMetric.unreadBadgeMin,
+      math.max(minimum, painter.width + horizontalPadding),
+      math.max(minimum, painter.height),
     );
     painter.dispose();
-    if (_sizeCache.length >= 256) _sizeCache.clear();
-    _sizeCache[key] = size;
     return size;
   }
 }
 
 class _UnreadBadgeBody extends StatelessWidget {
-  const _UnreadBadgeBody({required this.label, required this.color});
+  const _UnreadBadgeBody({
+    required this.label,
+    required this.color,
+    required this.minimum,
+    this.fullCount,
+  });
 
   final String label;
   final Color color;
+  final double minimum;
+  final int? fullCount;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      constraints: const BoxConstraints(
-        minWidth: AppMetric.unreadBadgeMin,
-        minHeight: AppMetric.unreadBadgeMin,
-      ),
-      padding: EdgeInsets.symmetric(
-        horizontal: label.length > 1 ? AppSpacing.xs + 1 : 0,
-      ),
-      alignment: Alignment.center,
-      decoration: BoxDecoration(
-        color: color,
-        borderRadius: BorderRadius.circular(AppMetric.unreadBadgeMin / 2),
-      ),
-      child: Text(
-        label,
-        style: AppTextStyle.caption(
-          // Telegram stores the counter's label colour alongside its fill
-          // (chats_unreadCounterText), so a theme can darken it for a pale
-          // badge instead of being stuck with white.
-          context.colors.badgeText,
-          weight: AppTextWeight.semibold,
+    // A fixed-height row (the topic rail) hands children a bounded cross
+    // extent, and the centering Align inside Container would stretch the
+    // pill into a vertical strip there. Unbounded input keeps it a dot.
+    final body = UnconstrainedBox(
+      child: Container(
+        constraints: BoxConstraints(minWidth: minimum, minHeight: minimum),
+        padding: EdgeInsets.symmetric(
+          horizontal: label.length > 1 ? AppSpacing.xs + 1 : 0,
+        ),
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: color,
+          borderRadius: BorderRadius.circular(
+            fullCount != null ? AppRadius.pill : AppMetric.unreadBadgeMin / 2,
+          ),
+        ),
+        child: Text(
+          label,
+          style: AppTextStyle.caption(
+            // Telegram stores the counter's label colour alongside its fill
+            // (chats_unreadCounterText), so a theme can darken it for a pale
+            // badge instead of being stuck with white.
+            context.colors.badgeText,
+            weight: AppTextWeight.semibold,
+          ),
         ),
       ),
     );
+    return fullCount == null
+        ? body
+        : Semantics(
+            label: fullCount.toString(),
+            excludeSemantics: true,
+            child: body,
+          );
   }
 }
 
@@ -632,7 +651,7 @@ class _UnreadBadgeMorphPainter extends CustomPainter {
       oldDelegate.broken != broken;
 }
 
-/// Group role tag: owner = yellow, admin = teal, member = purple, channel = pink.
+/// Group role tag: owner = yellow, admin = teal, member = slate, channel = pink.
 class RoleTag extends StatelessWidget {
   const RoleTag({
     super.key,
@@ -649,7 +668,7 @@ class RoleTag extends StatelessWidget {
   Color get _color => switch (role) {
     MemberRole.owner => const Color(0xFFFFB300),
     MemberRole.admin => const Color(0xFF16B0A0),
-    MemberRole.member => const Color(0xFF9B7BE8),
+    MemberRole.member => const Color(0xFF69727E),
     MemberRole.channel => const Color(0xFFE85D9E),
   };
 
@@ -1964,12 +1983,14 @@ class ChatPreviewText extends StatelessWidget {
     this.draft = false,
     this.alertPrefix,
     this.fontSize = AppTextSize.footnote,
+    this.chatRowSizing = false,
   });
   final String? sender;
   final String message;
   final bool draft; // render a red "[草稿]" prefix and ignore sender
   final String? alertPrefix;
   final double fontSize;
+  final bool chatRowSizing;
 
   static const _redTags = [
     AppStringKeys.commonUiNewFileBadge,
@@ -1982,11 +2003,19 @@ class ChatPreviewText extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = context.colors;
     final isRed = _redTags.any(message.startsWith);
-    final baseStyle = DefaultTextStyle.of(
-      context,
-    ).style.merge(TextStyle(fontSize: fontSize));
+    final data = ContentSizeScope.of(context);
+    final baseStyle = DefaultTextStyle.of(context).style.merge(
+      TextStyle(
+        fontSize: chatRowSizing
+            ? AppTextSize.chatRowPreviewMessageSize(data.appScale)
+            : fontSize,
+      ),
+    );
     return RichText(
-      textScaler: MediaQuery.textScalerOf(context),
+      // Row span sizes already include the app multiplier, not the OS scaler.
+      textScaler: chatRowSizing
+          ? data.systemTextScaler
+          : ContentSizeScope.chatListPreviewScalerOf(context),
       maxLines: 1,
       overflow: TextOverflow.ellipsis,
       text: TextSpan(
@@ -2005,7 +2034,12 @@ class ChatPreviewText extends StatelessWidget {
           else if (sender != null && sender!.isNotEmpty)
             TextSpan(
               text: '$sender: ',
-              style: TextStyle(color: c.textSecondary),
+              style: TextStyle(
+                color: c.textSecondary,
+                fontSize: chatRowSizing
+                    ? AppTextSize.chatRowPreviewSenderSize(data.appScale)
+                    : null,
+              ),
             ),
           TextSpan(
             text: _previewMessage(context),

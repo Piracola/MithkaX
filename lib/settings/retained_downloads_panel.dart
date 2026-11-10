@@ -1,14 +1,15 @@
 import 'dart:async';
 
 import 'package:flutter/widgets.dart';
-import 'package:open_filex/open_filex.dart';
 
+import '../chat/file_opener.dart';
 import '../components/app_confirm_dialog.dart';
 import '../components/app_icons.dart';
 import '../components/app_interactive_surface.dart';
 import '../components/toast.dart';
 import '../components/ui_components.dart';
 import '../l10n/app_localizations.dart';
+import '../media/media_metadata.dart';
 import '../theme/app_theme.dart';
 import 'retained_download_store.dart';
 
@@ -66,10 +67,11 @@ class _RetainedDownloadsPanelState extends State<RetainedDownloadsPanel> {
 
   Future<void> _open(RetainedDownload item) async {
     try {
-      final result = await OpenFilex.open(item.path);
-      if (result.type != ResultType.done && mounted) {
-        showToast(context, AppStringKeys.fileDetailNoAppCanOpenFile);
-      }
+      await openDownloadedFile(
+        context,
+        item.path,
+        mimeType: mimeForFileName(item.fileName),
+      );
     } catch (_) {
       if (mounted) {
         showToast(context, AppStringKeys.downloadsRetainedUnavailable);
@@ -198,7 +200,7 @@ class _RetainedDownloadsPanelState extends State<RetainedDownloadsPanel> {
                                         ),
                                         const SizedBox(height: 4),
                                         Text(
-                                          '${AppStrings.t(AppStringKeys.downloadsKeptOnDevice)} · ${_bytes(item.size)}',
+                                          '${AppStrings.t(AppStringKeys.downloadsKeptOnDevice)} · ${formatMediaByteSize(item.size)}',
                                           style: TextStyle(
                                             fontSize: 12,
                                             color: c.textSecondary,
@@ -235,14 +237,5 @@ class _RetainedDownloadsPanelState extends State<RetainedDownloadsPanel> {
         ),
       ],
     );
-  }
-
-  static String _bytes(int size) {
-    if (size < 1024) return '$size B';
-    if (size < 1024 * 1024) return '${(size / 1024).toStringAsFixed(1)} KB';
-    if (size < 1024 * 1024 * 1024) {
-      return '${(size / (1024 * 1024)).toStringAsFixed(1)} MB';
-    }
-    return '${(size / (1024 * 1024 * 1024)).toStringAsFixed(1)} GB';
   }
 }

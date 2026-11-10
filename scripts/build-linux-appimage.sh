@@ -45,13 +45,19 @@ cp -a "$bundle/." "$appdir/usr/bin/"
 # while allowing linuxdeploy to collect plugin and dlopen dependencies in lib.
 mv "$appdir/usr/bin/lib" "$appdir/usr/lib"
 ln -s ../lib "$appdir/usr/bin/lib"
+# Drop unused plugins (including package:jni's libjvm-linked library) and
+# strip symbols before linuxdeploy follows their dependencies.
+python3 "$repository_root/scripts/prune-desktop-bundle.py" linux "$appdir/usr/bin"
+# Thumbnails decode through MDK's own FFmpeg; a plugin that links the build
+# host's FFmpeg 6 would otherwise add ~30 MB and a runtime dependency.
+"$repository_root/scripts/check-linux-no-system-ffmpeg.sh" "$appdir"
 # MDK ships this optional decoder on arm64, but its librockchip_mpp dependency
 # belongs to Rockchip board images. Generic desktop AppImages use MDK's FFmpeg
 # fallback instead; the original portable tarball retains the optional plugin.
 rm -f "$appdir/usr/lib/libmdk-rockchip.so"
 install -m 0644 \
   "$repository_root/macos/Runner/Assets.xcassets/AppIcon.appiconset/app_icon_512.png" \
-  "$work/ad.neko.mithka.png"
+  "$work/x.empty.mithka.png"
 
 tool="$work/linuxdeploy-$appimage_arch.AppImage"
 curl --fail --location --retry 3 \
@@ -79,11 +85,18 @@ export DEPLOY_GTK_VERSION=3
 export LD_LIBRARY_PATH="$appdir/usr/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
 "$tool" --appdir "$appdir" --executable "$appdir/usr/bin/mithka" \
   "${libraries[@]}" --plugin gtk \
-  --desktop-file "$repository_root/linux/appimage/ad.neko.mithka.desktop" \
-  --icon-file "$work/ad.neko.mithka.png" \
+  --desktop-file "$repository_root/linux/appimage/x.empty.mithka.desktop" \
+  --icon-file "$work/x.empty.mithka.png" \
   --custom-apprun "$repository_root/linux/appimage/AppRun" --output appimage
 test -s "$output"
 chmod 0755 "$output"
+if find "$appdir" -name 'libjvm.so*' -print | grep -q .; then
+  echo 'The AppImage must not bundle a JVM; package:jni is Android-only' >&2
+  exit 1
+fi
+
+# linuxdeploy copies whatever the bundle links, so check its output as well.
+"$repository_root/scripts/check-linux-no-system-ffmpeg.sh" "$appdir"
 
 # Exercise the produced runtime without requiring FUSE on the CI runner.
 mkdir "$work/check"

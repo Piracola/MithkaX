@@ -17,6 +17,11 @@ import '../platform/adaptive_platform.dart';
 Color _hex(int rgb, [double opacity = 1]) =>
     Color((rgb & 0xFFFFFF) | 0xFF000000).withValues(alpha: opacity);
 
+// This calibration is intentionally limited to iOS and Android. Other target
+// platforms keep their existing typography and geometry.
+bool _isMobileChatPlatform(TargetPlatform? platform) =>
+    isTouchTargetPlatform(platform);
+
 abstract final class AppTextSize {
   static const double tiny = 10;
   static const double caption = 12;
@@ -28,20 +33,53 @@ abstract final class AppTextSize {
   static const double display = 22;
   static const double largeDisplay = 24;
 
-  /// Compact chat typography for native desktop windows while preserving the
-  /// existing touch layouts and every user-selected font family.
+  /// Role-specific chat typography: readable touch sizes and compact native
+  /// desktop sizes, independent of settings/navigation tokens and font family.
   static double chatListTitle([TargetPlatform? platform]) =>
-      isDesktopTargetPlatform(platform) ? callout : body;
+      isDesktopTargetPlatform(platform)
+      ? callout
+      : _isMobileChatPlatform(platform)
+      ? title
+      : bodyLarge;
   static double chatListPreview([TargetPlatform? platform]) =>
+      isDesktopTargetPlatform(platform)
+      ? caption
+      : _isMobileChatPlatform(platform)
+      ? footnote
+      : callout;
+
+  /// Legacy/shared previews retain their standard size at Small on touch.
+  /// Actual chat rows opt into the separate sender/message roles below.
+  static double chatListPreviewContentScale(
+    double appScale, [
+    TargetPlatform? platform,
+  ]) => _isMobileChatPlatform(platform) ? math.max(appScale, 1.0) : appScale;
+
+  /// Pre-OS sizes for actual chat-row spans. Apply the captured OS scaler
+  /// once after resolving the saved content scale, including custom values.
+  static double chatRowPreviewMessageSize(
+    double appScale, [
+    TargetPlatform? platform,
+  ]) => _isMobileChatPlatform(platform)
+      ? math.max(12.5, footnote * appScale)
+      : chatListPreview(platform) * appScale;
+
+  static double chatRowPreviewSenderSize(
+    double appScale, [
+    TargetPlatform? platform,
+  ]) =>
+      chatListPreview(platform) *
+      chatListPreviewContentScale(appScale, platform);
+
+  static double chatListTimestamp([TargetPlatform? platform]) =>
       isDesktopTargetPlatform(platform) ? caption : footnote;
-  static double chatListTimestamp([TargetPlatform? platform]) => caption;
 
   /// The folder-tag line a chat row draws between its name and its preview.
   static double chatListFolderTag([TargetPlatform? platform]) =>
-      isDesktopTargetPlatform(platform) ? tiny : caption - 1;
+      isDesktopTargetPlatform(platform) ? tiny : caption;
 
   static double messageBody([TargetPlatform? platform]) =>
-      isDesktopTargetPlatform(platform) ? callout : body;
+      isDesktopTargetPlatform(platform) ? callout : title;
 }
 
 abstract final class AppTextWeight {
@@ -96,6 +134,28 @@ extension AppTextWeightContext on BuildContext {
 }
 
 abstract final class AppTextStyle {
+  /// Mirrors Flutter Text's OS Bold Text override when measuring a label.
+  /// This is an accessibility measurement, not an app-authored weight: the
+  /// inherited style is unchanged when Bold Text is off, and when on the
+  /// painter must match Flutter's bold override rather than our design ladder.
+  static TextStyle forSystemBoldTextMeasurement(
+    TextStyle style, {
+    required bool boldText,
+  }) => boldText ? style.copyWith(fontWeight: FontWeight.bold) : style;
+
+  /// Message-body-sized text runs only, never an entire bubble subtree.
+  /// Overrides inherited leading (which otherwise produces about 24pt pitch
+  /// at 17pt) without changing font selection, weight, tracking or OS scaling.
+  static TextStyle messageBody(Color color, {TargetPlatform? platform}) =>
+      TextStyle(
+        fontSize: AppTextSize.messageBody(platform),
+        color: color,
+        height: _isMobileChatPlatform(platform) ? 22 / 17 : null,
+        leadingDistribution: _isMobileChatPlatform(platform)
+            ? TextLeadingDistribution.even
+            : null,
+      );
+
   static TextStyle tiny(Color color, {FontWeight? weight}) => TextStyle(
     fontSize: AppTextSize.tiny,
     fontWeight: weight ?? AppTextWeight.regular,
@@ -230,6 +290,10 @@ abstract final class AppIconSize {
   static const double toolbar = 24;
   static const double add = 25;
   static const double chevron = 17;
+
+  /// Simple-mode composer glyphs: the row's cells, and the More panel's items.
+  static const double simpleComposer = 26;
+  static const double simpleComposerPanel = 28;
 }
 
 abstract final class AppMetric {
@@ -240,7 +304,11 @@ abstract final class AppMetric {
   static const double avatarSize = 48;
 
   static double chatListRowHeight([TargetPlatform? platform]) =>
-      isDesktopTargetPlatform(platform) ? 58 : listRowHeight;
+      isDesktopTargetPlatform(platform)
+      ? 58
+      : _isMobileChatPlatform(platform)
+      ? 72
+      : listRowHeight;
 
   /// Rough line box of a text run relative to its font size. Only used to
   /// grow fixed-extent rows, so it errs generous rather than exact.
@@ -288,7 +356,26 @@ abstract final class AppMetric {
   );
 
   static double chatListAvatarSize([TargetPlatform? platform]) =>
-      isDesktopTargetPlatform(platform) ? 44 : avatarSize;
+      isDesktopTargetPlatform(platform)
+      ? 44
+      : _isMobileChatPlatform(platform)
+      ? 49
+      : avatarSize;
+
+  static double chatRowHorizontalInset([TargetPlatform? platform]) =>
+      _isMobileChatPlatform(platform) ? 16 : AppSpacing.xl;
+  static double chatRowPreviewGap([TargetPlatform? platform]) =>
+      _isMobileChatPlatform(platform) ? 2 : AppSpacing.xs;
+  static double chatHeaderAvatarSize([TargetPlatform? platform]) =>
+      _isMobileChatPlatform(platform) ? 38 : headerAvatarSize;
+  static double chatHeaderHitTarget([TargetPlatform? platform]) =>
+      _isMobileChatPlatform(platform) ? 44 : hitTarget;
+  static double chatHeaderAddSize([TargetPlatform? platform]) =>
+      _isMobileChatPlatform(platform) ? 29 : AppIconSize.add;
+  static double chatSearchHeight([TargetPlatform? platform]) =>
+      _isMobileChatPlatform(platform) ? 33 : searchHeight;
+  static double chatSearchIcon([TargetPlatform? platform]) =>
+      _isMobileChatPlatform(platform) ? 18 : searchIcon;
   static const double headerAvatarSize = 36;
   static const double hitTarget = 36;
   static const double searchHeight = 36;
@@ -319,6 +406,12 @@ abstract final class AppMetric {
   static const double badgeOutlinePadding = 1.5;
   static const double unreadBadgeMin = 18;
   static const double unreadDot = 11;
+
+  // The community marker sits on the avatar corner opposite the unread badge,
+  // but it carries a glyph instead of a count, so it needs a little more room
+  // to stay readable.
+  static double communityBadgeSize([TargetPlatform? platform]) =>
+      isDesktopTargetPlatform(platform) ? 18 : 20;
   static const double settingsLeadingInset = AppSpacing.xxl;
   static const double settingsTrailingInset = AppSpacing.xl;
   static const double settingsIconDividerInset = 56;
@@ -328,6 +421,25 @@ abstract final class AppMetric {
   static const double composerPublishButtonHeight = 38;
   static const double composerFormatButtonWidth = 32;
   static const double composerFormatButtonHeight = 28;
+
+  // Simple-mode phone composer (简洁模式): one row of square cells around the
+  // field, and the More panel that gathers the rest of the tools.
+  static const double simpleComposerCell = 44;
+  static const double simpleComposerBarInset = 7;
+
+  /// Below this typing-field width the row drops its Mic cell while there is
+  /// something to send, so the field keeps room for a few words.
+  static const double simpleComposerNarrowField = 150;
+  static const double simpleComposerPanelHeight = 248;
+
+  /// Large text grows the More panel up to this share of the screen height.
+  static const double simpleComposerPanelMaxScreenFraction = 0.45;
+
+  /// Narrowest More-panel column at 100% text; it scales with the label.
+  static const double simpleComposerPanelCellMinWidth = 84;
+  static const int simpleComposerPanelMaxColumns = 8;
+  static const double simpleComposerPanelListRowHeight = 52;
+  static const double simpleComposerPanelLabelLineHeight = 16;
   static const double mediaTile = 92;
   static const double overlayCloseButton = 22;
 }
@@ -383,6 +495,13 @@ abstract final class AppTheme {
   static final Color tagRed = _hex(0xFA5151);
   static final Color onlineDot = _hex(0x1AC81A);
   static final Color cloverGreen = _hex(0x2DBE60);
+
+  /// A read message's delivery ring.
+  static const Color readMark = Color(0xFF34C759);
+
+  /// [readMark] on a light card footer (the gift card's, the transfer
+  /// envelope's): 4.4:1 on white, where [readMark] is 2.2:1.
+  static const Color readMarkOnLightCard = Color(0xFF248A3D);
 
   // MARK: Metrics
   static const double rowHeight = AppMetric.listRowHeight;
@@ -719,6 +838,49 @@ double contrastRatio(Color a, Color b) {
   final first = a.computeLuminance();
   final second = b.computeLuminance();
   return (math.max(first, second) + 0.05) / (math.min(first, second) + 0.05);
+}
+
+/// The colour with HSL [hue] (degrees) and [saturation] (0–1) whose WCAG
+/// relative luminance is [luminance]: a binary search over HSL lightness.
+///
+/// Every hue lands at the same perceived brightness, which is what keeps a
+/// tint derived from a yellow as calm as one derived from a blue. Channels
+/// stay fractional, so the result is the exact search answer rather than the
+/// nearest 8-bit colour.
+Color atLuminance(double hue, double saturation, double luminance) {
+  var lower = 0.0;
+  var upper = 1.0;
+  for (var step = 0; step < 14; step++) {
+    final lightness = (lower + upper) / 2;
+    if (_hslColor(hue, saturation, lightness).computeLuminance() < luminance) {
+      lower = lightness;
+    } else {
+      upper = lightness;
+    }
+  }
+  return _hslColor(hue, saturation, (lower + upper) / 2);
+}
+
+/// [HSLColor.toColor] rounds to 8-bit channels; this keeps them fractional.
+Color _hslColor(double hue, double saturation, double lightness) {
+  final chroma = (1 - (2 * lightness - 1).abs()) * saturation;
+  final huePrime = (hue % 360) / 60;
+  final secondary = chroma * (1 - (huePrime % 2 - 1).abs());
+  final match = lightness - chroma / 2;
+  final (red, green, blue) = switch (huePrime) {
+    < 1 => (chroma, secondary, 0.0),
+    < 2 => (secondary, chroma, 0.0),
+    < 3 => (0.0, chroma, secondary),
+    < 4 => (0.0, secondary, chroma),
+    < 5 => (secondary, 0.0, chroma),
+    _ => (chroma, 0.0, secondary),
+  };
+  return Color.from(
+    alpha: 1,
+    red: red + match,
+    green: green + match,
+    blue: blue + match,
+  );
 }
 
 /// Returns whichever neutral text color has the stronger WCAG contrast.

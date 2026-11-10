@@ -15,6 +15,13 @@ Map<String, dynamic> communityFullInfoRequest(int communityId) => {
   'community_id': communityId,
 };
 
+/// Linked-chat entries from a getCommunityFullInfo response
+/// (communityFullInfo.chats). Every entry carries chat_id and
+/// can_view_history.
+List<Map<String, dynamic>> communityCatalogEntries(
+  Map<String, dynamic> response,
+) => response.objects('chats') ?? const <Map<String, dynamic>>[];
+
 class CommunitySummary {
   CommunitySummary({
     required this.id,
@@ -22,13 +29,14 @@ class CommunitySummary {
     required this.haveAccess,
     required this.isAdministrator,
     required this.canEditChatList,
+    this.canChangeInfo = false,
     this.photo,
-    this.collapsed = true,
+    this.collapsed = false,
   });
 
   factory CommunitySummary.fromTd(
     Map<String, dynamic> object, {
-    bool collapsed = true,
+    bool collapsed = false,
   }) {
     final status = object.obj('status');
     final isCreator = status?.type == 'communityMemberStatusCreator';
@@ -48,6 +56,7 @@ class CommunitySummary {
           isCreator ||
           (rights?.boolean('can_edit_chat_list') ?? false) ||
           (object.obj('permissions')?.boolean('can_edit_chat_list') ?? false),
+      canChangeInfo: isCreator || (rights?.boolean('can_change_info') ?? false),
       photo: TDParse.smallPhoto(object.obj('photo')),
       collapsed: serverCollapsed ?? collapsed,
     );
@@ -58,6 +67,7 @@ class CommunitySummary {
   bool haveAccess;
   bool isAdministrator;
   bool canEditChatList;
+  bool canChangeInfo;
   TdFileRef? photo;
   bool collapsed;
 
@@ -66,7 +76,33 @@ class CommunitySummary {
     haveAccess = other.haveAccess;
     isAdministrator = other.isAdministrator;
     canEditChatList = other.canEditChatList;
+    canChangeInfo = other.canChangeInfo;
     photo = other.photo;
+  }
+}
+
+/// Decides which community, if any, a chat row advertises on its avatar corner.
+///
+/// That marker is the only route into a hub once the community's chats are
+/// listed separately, so it disappears exactly where it would promise nothing:
+/// with communities switched off, for a chat in no community, for a folded
+/// community (its own row is the entry point then) and for one the account
+/// cannot open.
+abstract final class CommunityRowBadge {
+  static CommunitySummary? communityFor({
+    required int chatId,
+    required Map<int, int> communityByChat,
+    required Map<int, CommunitySummary> communities,
+    required bool communitiesEnabled,
+  }) {
+    if (!communitiesEnabled) return null;
+    final communityId = communityByChat[chatId];
+    if (communityId == null) return null;
+    final community = communities[communityId];
+    if (community == null || community.collapsed || !community.haveAccess) {
+      return null;
+    }
+    return community;
   }
 }
 

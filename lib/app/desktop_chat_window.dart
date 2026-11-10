@@ -5,16 +5,21 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../auth/account_store.dart' show AccountSummary;
 import '../call/call_manager.dart';
 import '../call/call_overlay_host.dart';
 import '../chat/chat_info_view.dart';
 import '../chat/chat_members_view.dart';
 import '../chat/chat_view.dart';
+import '../chat/chat_view_model.dart';
 import '../chat/desktop_chat_context_pane.dart';
 import '../chat/group_remark_controller.dart';
+import '../chat/link_preview_fixer.dart';
 import '../chat/music_player_controller.dart';
 import '../chats/chat_folder_tag_controller.dart';
-import '../components/keyboard_dismiss_on_tap.dart';
+import '../config/build_flags.dart';
+import '../history/message_history_settings.dart';
+import '../history/message_history_store.dart';
 import '../l10n/app_locale_controller.dart';
 import '../l10n/app_localizations.dart';
 import '../settings/ai_settings_controller.dart';
@@ -37,7 +42,9 @@ import 'desktop_chat_window_stub.dart'
     if (dart.library.io) 'desktop_chat_window_io.dart'
     as implementation;
 import 'desktop_utility_window_models.dart';
+import 'detail_content_reveal.dart';
 import 'global_video_split_host.dart';
+import 'scaled_app_view.dart';
 
 export 'desktop_chat_window_models.dart';
 
@@ -158,12 +165,41 @@ class _DesktopChatWindowAppState extends State<DesktopChatWindowApp> {
     DesktopChatWindowService.instance.attachChildPresentationReload(
       _reloadPresentationPreferences,
     );
+    // Telegram §1.4 ghost folding resolves the owning account through this
+    // static bridge; the primary window wires it to its AccountStore, but
+    // this process has none — without the wiring every mirror lookup in the
+    // ChatViewModel (ghost fold, reply anchors, view-edits) reads null and
+    // silently no-ops. This window is one account, pinned for its lifetime.
+    if (allowTelegramTosViolations) {
+      final slot = widget.arguments.accountSlot;
+      final userId = widget.arguments.accountUserId;
+      final accountName = widget.arguments.accountName;
+      ChatViewModel.accountSummaryProvider = userId == null
+          ? null
+          : (candidateSlot) => candidateSlot == slot
+                ? AccountSummary(
+                    slot: slot,
+                    userId: userId,
+                    name: accountName,
+                    phone: '',
+                  )
+                : null;
+    }
     KeywordBlocker.shared.initialize(widget.prefs);
+    LinkPreviewFixer.shared.initialize(widget.prefs);
     HiddenSenderStore.shared
       ..initialize(widget.prefs)
       ..addListener(_handleHiddenSendersChanged);
     CountryMessageFilter.shared.initialize(widget.prefs);
     MusicPlayerController.shared.initialize(widget.prefs);
+    // Telegram §1.4 surfaces in a popped-out chat window: ghost bubbles and
+    // the mirror-driven reply anchors read these two singletons. They are
+    // process-wide, and this window runs in its OWN process — without the
+    // seed here the switches read as off and the kept copies never fold in.
+    if (allowTelegramTosViolations) {
+      MessageHistorySettings.shared.initialize(widget.prefs);
+      MessageHistoryStore.shared.initialize(widget.prefs);
+    }
     unawaited(_ai.initialize());
     unawaited(SensitiveContentController.shared.initialize());
     unawaited(BlockedUserService.shared.loadBlockedUsers());
@@ -194,6 +230,12 @@ class _DesktopChatWindowAppState extends State<DesktopChatWindowApp> {
         _readingHiddenSenders = true;
         HiddenSenderStore.shared.initialize(widget.prefs);
         _readingHiddenSenders = false;
+        // Settings changed in the primary window (ghost rendering, badge
+        // style…): re-seed the §1.4 singletons from the reloaded prefs so
+        // this window converges instead of keeping its boot-time values.
+        if (allowTelegramTosViolations) {
+          MessageHistorySettings.shared.initialize(widget.prefs);
+        }
 
         final previousTheme = _theme;
         final previousTranslation = _translation;
@@ -359,10 +401,8 @@ class _DesktopChatWindowAppState extends State<DesktopChatWindowApp> {
                 const Positioned.fill(child: GlobalCallOverlayHost()),
               ],
             );
-            return _DesktopChatScaledView(
-              textScale: _theme.effectiveTextScale(
-                MediaQuery.textScalerOf(context),
-              ),
+            return ScaledAppView(
+              textScale: _theme.fontScale,
               interfaceScale: _theme.renderedInterfaceScale,
               child: appSurface,
             );
@@ -395,21 +435,31 @@ class _DesktopStandaloneChatSurface extends StatefulWidget {
 class _DesktopStandaloneChatSurfaceState
     extends State<_DesktopStandaloneChatSurface> {
   ChatKind? _kind;
-  bool _contextDismissed = false;
+
+  /// This window's hand-made pane choice. Null follows the app-wide default in
+  /// [ThemeController.hideChatContextPane].
+  bool? _contextDismissed;
+  int? _forumTopicId;
 
   @override
   void didUpdateWidget(_DesktopStandaloneChatSurface oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.arguments.chatId == widget.arguments.chatId) return;
     _kind = null;
-    _contextDismissed = false;
+    _contextDismissed = null;
+    _forumTopicId = null;
+  }
+
+  void _openTopicTranscript(int? topicId) {
+    if (_forumTopicId == topicId) return;
+    setState(() => _forumTopicId = topicId);
   }
 
   void _handleKindResolved(ChatKind kind) {
     if (_kind == kind) return;
     setState(() {
       _kind = kind;
-      _contextDismissed = false;
+      _contextDismissed = null;
     });
   }
 
@@ -417,7 +467,9 @@ class _DesktopStandaloneChatSurfaceState
       desktopStandaloneChatUsesContextPane(
         width: MediaQuery.sizeOf(context).width,
         kind: _kind,
-        dismissed: _contextDismissed,
+        dismissed:
+            _contextDismissed ??
+            context.watch<ThemeController>().hideChatContextPane,
       );
 
   Future<void> _openFullInfo() async {
@@ -474,7 +526,11 @@ class _DesktopStandaloneChatSurfaceState
       unawaited(_openFullInfo());
       return;
     }
-    setState(() => _contextDismissed = !_contextDismissed);
+    setState(
+      () => _contextDismissed =
+          !(_contextDismissed ??
+              context.read<ThemeController>().hideChatContextPane),
+    );
   }
 
   @override
@@ -492,9 +548,15 @@ class _DesktopStandaloneChatSurfaceState
           )
         : null;
     final chat = ChatView(
-      key: ValueKey('desktop-standalone-chat-${widget.arguments.chatId}'),
+      key: ValueKey((
+        'desktop-standalone-chat',
+        widget.arguments.chatId,
+        _forumTopicId,
+      )),
       chatId: widget.arguments.chatId,
       title: widget.arguments.title,
+      forumTopicId: _forumTopicId,
+      onOpenTopicTranscript: _openTopicTranscript,
       showBackButton: false,
       requestComposerFocusOnReady: true,
       onChatKindResolved: _handleKindResolved,
@@ -506,63 +568,13 @@ class _DesktopStandaloneChatSurfaceState
       onOpenFullInfo: () => unawaited(_openFullInfo()),
       onOpenUserProfile: _openUserProfile,
     );
-    return chat;
-  }
-}
-
-class _DesktopChatScaledView extends StatelessWidget {
-  const _DesktopChatScaledView({
-    required this.textScale,
-    required this.interfaceScale,
-    required this.child,
-  });
-
-  final double textScale;
-  final double interfaceScale;
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) {
-    final media = MediaQuery.of(context);
-    final scale = interfaceScale;
-    final virtualSize = Size(
-      media.size.width / scale,
-      media.size.height / scale,
-    );
-    final scaledMedia = media.copyWith(
-      size: virtualSize,
-      padding: _unscale(media.padding, scale),
-      viewPadding: _unscale(media.viewPadding, scale),
-      viewInsets: _unscale(media.viewInsets, scale),
-      systemGestureInsets: _unscale(media.systemGestureInsets, scale),
-      textScaler: TextScaler.linear(textScale),
-    );
-    return AppKeyboardDismissOnTap(
-      child: ClipRect(
-        child: OverflowBox(
-          alignment: Alignment.topLeft,
-          minWidth: virtualSize.width,
-          maxWidth: virtualSize.width,
-          minHeight: virtualSize.height,
-          maxHeight: virtualSize.height,
-          child: Transform.scale(
-            scale: scale,
-            alignment: Alignment.topLeft,
-            child: SizedBox(
-              width: virtualSize.width,
-              height: virtualSize.height,
-              child: MediaQuery(data: scaledMedia, child: child),
-            ),
-          ),
-        ),
-      ),
+    return DetailContentReveal(
+      motionKey: ValueKey((
+        'desktop-standalone-topic',
+        widget.arguments.chatId,
+        _forumTopicId,
+      )),
+      child: chat,
     );
   }
-
-  EdgeInsets _unscale(EdgeInsets insets, double scale) => EdgeInsets.fromLTRB(
-    insets.left / scale,
-    insets.top / scale,
-    insets.right / scale,
-    insets.bottom / scale,
-  );
 }

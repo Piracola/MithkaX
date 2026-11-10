@@ -29,6 +29,7 @@ import '../chat/media_spoiler.dart';
 import '../chat/message_reaction_availability.dart';
 import '../chat/music_player_controller.dart';
 import '../chat/outgoing_attachment.dart';
+import '../chat/pangu_spacing.dart';
 import '../chat/quick_reaction_choice.dart';
 import '../chat/rich_text_composer_view.dart';
 import '../chat/rich_text_format.dart';
@@ -40,6 +41,7 @@ import '../chat/video_sticker_view.dart';
 import '../chats/chat_list_view_model.dart';
 import '../components/app_icons.dart';
 import '../components/app_interactive_surface.dart';
+import '../components/app_text_selection_toolbar.dart';
 import '../components/desktop_content_constraint.dart';
 import '../components/photo_avatar.dart';
 import '../components/toast.dart';
@@ -50,6 +52,7 @@ import '../platform/adaptive_platform.dart';
 import '../profile/adaptive_profile_launcher.dart';
 import '../settings/accent_color_picker_view.dart';
 import '../tdlib/chat_membership.dart';
+import '../tdlib/display_text.dart';
 import '../tdlib/json_helpers.dart';
 import '../tdlib/td_client.dart';
 import '../tdlib/td_models.dart';
@@ -127,6 +130,169 @@ class ChannelPostThreadTarget {
   final int messageThreadId;
 }
 
+/// The `getMessageThreadHistory` request for a channel post's comments.
+///
+/// A post's own coordinates (`chat_id` = the channel, `message_id` = the post)
+/// make TDLib resolve the thread itself, and for a post nobody has commented on
+/// yet that resolution ends in a 500 "Receive messages in an unexpected chat":
+/// the reply search returns nothing, so the linked discussion chat the result
+/// has to be replayed in stays unknown, while the thread it already resolved
+/// points exactly there. The thread coordinates `getMessageThread` returns
+/// address the same thread without that resolution and answer an empty list for
+/// a fresh post. Only a post whose thread is not resolved yet falls back to its
+/// own coordinates.
+@visibleForTesting
+Map<String, dynamic> channelPostCommentsRequest({
+  required ChannelPost post,
+  ChannelPostThreadTarget? target,
+  int fromMessageId = 0,
+  int offset = 0,
+  int limit = 100,
+}) => {
+  '@type': 'getMessageThreadHistory',
+  'chat_id': target?.chatId ?? post.channel.id,
+  'message_id': target?.messageThreadId ?? post.message.id,
+  'from_message_id': fromMessageId,
+  'offset': offset,
+  'limit': limit,
+};
+
+/// One walk through a channel's history for the Moments feed.
+@visibleForTesting
+class ChannelHistoryLoad {
+  const ChannelHistoryLoad({
+    required this.messages,
+    required this.reachedStart,
+    required this.reconnected,
+    this.oldestMessageId,
+    this.oldestDate,
+  });
+
+  /// Every message the walk read below its starting cursor, service
+  /// messages included; the feed filters those itself.
+  final List<ChatMessage> messages;
+
+  /// A page held nothing older than its cursor: the channel's first message
+  /// has been read.
+  final bool reachedStart;
+
+  /// A walk from the newest message met the history loaded before it, so
+  /// nothing between the two was skipped.
+  final bool reconnected;
+
+  /// The lowest message id read, and that message's date. Everything newer
+  /// than it, back to the cursor, is in [messages].
+  final int? oldestMessageId;
+  final int? oldestDate;
+}
+
+typedef ChannelHistoryQuery =
+    Future<Map<String, dynamic>> Function(Map<String, dynamic> request);
+
+/// Pages a channel's history backwards from [fromMessageId] (0 = newest).
+///
+/// TDLib chooses how many messages a `getChatHistory` page carries, and the
+/// first page of a channel it has not cached yet usually holds only the last
+/// message. Reading one page per channel left a channel's earlier posts —
+/// an album an hour older than its latest text, say — out of the feed. The
+/// walk keeps paging until [wanted] messages arrived, the channel's start was
+/// reached, or [maxPages] pages were read. With [knownNewestMessageId] (a
+/// refresh of a channel already in the feed) it instead pages until it meets
+/// that loaded history again.
+///
+/// `from_message_id` is inclusive, so a page repeats its cursor; only ids
+/// below it count. A first-page failure is rethrown; a later one keeps what
+/// already arrived.
+@visibleForTesting
+Future<ChannelHistoryLoad> loadChannelHistory({
+  required ChannelHistoryQuery query,
+  required int chatId,
+  required int fromMessageId,
+  required int wanted,
+  int? knownNewestMessageId,
+  int maxPages = 5,
+  bool Function()? cancelled,
+}) async {
+  final messages = <ChatMessage>[];
+  var cursor = fromMessageId;
+  var reachedStart = false;
+  var reconnected = false;
+  int? oldestId;
+  int? oldestDate;
+  for (var page = 0; page < maxPages; page++) {
+    final Map<String, dynamic> response;
+    try {
+      response = await query({
+        '@type': 'getChatHistory',
+        'chat_id': chatId,
+        'from_message_id': cursor,
+        'offset': 0,
+        'limit': wanted,
+        'only_local': false,
+      });
+    } catch (_) {
+      if (page == 0) rethrow;
+      break;
+    }
+    if (cancelled?.call() == true) break;
+    var advanced = false;
+    for (final raw
+        in response.objects('messages') ?? const <Map<String, dynamic>>[]) {
+      final id = raw.int64('id');
+      if (id == null || (cursor != 0 && id >= cursor)) continue;
+      advanced = true;
+      if (oldestId == null || id < oldestId) {
+        oldestId = id;
+        oldestDate = raw.integer('date') ?? oldestDate;
+      }
+      final message = TDParse.message(raw);
+      if (message != null) messages.add(message);
+    }
+    if (!advanced) {
+      reachedStart = true;
+      break;
+    }
+    cursor = oldestId!;
+    if (knownNewestMessageId != null) {
+      if (cursor <= knownNewestMessageId) {
+        reconnected = true;
+        break;
+      }
+    } else if (messages.length >= wanted) {
+      break;
+    }
+  }
+  return ChannelHistoryLoad(
+    messages: messages,
+    reachedStart: reachedStart,
+    reconnected: reconnected,
+    oldestMessageId: oldestId,
+    oldestDate: oldestDate,
+  );
+}
+
+/// The date the merged feed is complete after: every post newer than it is
+/// loaded.
+///
+/// Each channel has been read back to its own boundary. Below the newest of
+/// those, a channel that still has unread history may own posts that sort
+/// between the ones already loaded, so rendering them would show a gap that
+/// later fills in above the reader. Channels whose start was reached impose
+/// no boundary. The boundary second itself is not complete: an album shares
+/// one date, and a page can end inside it.
+@visibleForTesting
+int channelFeedCompleteSince(
+  Map<int, int> loadedSinceByChannel,
+  Set<int> exhaustedChannels,
+) {
+  var since = 0;
+  for (final entry in loadedSinceByChannel.entries) {
+    if (exhaustedChannels.contains(entry.key)) continue;
+    if (entry.value > since) since = entry.value;
+  }
+  return since;
+}
+
 class _MomentsFeedScrollAnchor {
   const _MomentsFeedScrollAnchor({required this.key, required this.leading});
 
@@ -142,19 +308,26 @@ class _MomentsHistorySnapshot {
     this.offset,
     this.nonMutedOnly,
     this.postableChannels,
+    this.completeSince,
   );
 
   final List<ChannelPost> posts;
   final double offset;
   final bool nonMutedOnly;
   final List<ChatSummary> postableChannels;
+
+  /// The retained posts are every loaded post newer than this date, so each
+  /// restored channel is complete back to it.
+  final int completeSince;
 }
 
 String _channelMomentsScrollKey({
   required int accountSlot,
   required bool isRootTab,
   required List<ChatSummary> initialChannels,
+  ChatSummary? channel,
 }) {
+  if (channel != null) return '$accountSlot:channel:${channel.id}';
   final ids = initialChannels.map((channel) => channel.id).toList()..sort();
   return '$accountSlot:$isRootTab:${ids.join(',')}';
 }
@@ -168,7 +341,9 @@ class ChannelPostComment {
     this.entities = const [],
     this.senderPhoto,
     this.date = 0,
+    this.replyToChatId,
     this.replyToMessageId,
+    this.replyToSenderName,
     this.reactionCount = 0,
   });
 
@@ -179,7 +354,9 @@ class ChannelPostComment {
   final List<MessageTextEntity> entities;
   final TdFileRef? senderPhoto;
   final int date;
+  final int? replyToChatId;
   final int? replyToMessageId;
+  final String? replyToSenderName;
   final int reactionCount;
 }
 
@@ -748,6 +925,7 @@ class ChannelMomentsView extends StatefulWidget {
     this.isRootTab = false,
     this.title = AppStringKeys.tabMoments,
     this.initialChannels = const [],
+    this.channel,
     this.onOpenDetail,
     this.historyStorage,
   });
@@ -755,6 +933,10 @@ class ChannelMomentsView extends StatefulWidget {
   final bool isRootTab;
   final String title;
   final List<ChatSummary> initialChannels;
+
+  /// Shows only this channel — its whole history as one feed — instead of
+  /// merging every joined channel. [title] and [initialChannels] are unused.
+  final ChatSummary? channel;
   final ValueChanged<Widget>? onOpenDetail;
   final PageStorageBucket? historyStorage;
 
@@ -775,8 +957,13 @@ class _ChannelMomentsViewState extends State<ChannelMomentsView> {
   StreamSubscription? _tdSub;
   Timer? _refreshTimer;
   Timer? _metadataHydrationTimer;
+  Timer? _windowHydrationTimer;
   final Map<int, List<ChannelPost>> _postsByChannel = {};
   final Map<int, int> _oldestMessageByChannel = {};
+
+  /// Per channel, the date of the oldest message read; see
+  /// [channelFeedCompleteSince].
+  final Map<int, int> _loadedSinceByChannel = {};
   final Set<int> _loadingChannels = {};
   final Set<int> _exhaustedChannels = {};
   final Set<String> _loadingLikeNames = {};
@@ -799,9 +986,18 @@ class _ChannelMomentsViewState extends State<ChannelMomentsView> {
   bool _refreshingLatest = false;
   bool _nonMutedOnly = false;
   int _feedLoadGeneration = 0;
+  int _lastBuiltPostIndex = 0;
+  int _hydratedWindowStart = 0;
+  int _hydratedWindowEnd = 0;
   static const _perChannelPageSize = 30;
   static const _metadataHydrationLimit = 60;
   static const _feedLimit = 500;
+  static const _olderChannelsPerRound = 4;
+
+  ChatSummary? get _scopedChannel => widget.channel;
+
+  /// One channel's own feed has no cap: it is that channel's whole history.
+  int? get _postLimit => _scopedChannel == null ? _feedLimit : null;
 
   @override
   void initState() {
@@ -810,8 +1006,12 @@ class _ChannelMomentsViewState extends State<ChannelMomentsView> {
       accountSlot: TdClient.shared.activeSlot,
       isRootTab: widget.isRootTab,
       initialChannels: widget.initialChannels,
+      channel: _scopedChannel,
     );
-    _pendingScrollOffset = _channelMomentsScrollOffsets[_scrollSessionKey];
+    // A channel's own feed opens at its newest post, like its chat does.
+    _pendingScrollOffset = _scopedChannel == null
+        ? _channelMomentsScrollOffsets[_scrollSessionKey]
+        : null;
     final saved = widget.historyStorage?.readState(
       context,
       identifier: _scrollSessionKey,
@@ -824,6 +1024,7 @@ class _ChannelMomentsViewState extends State<ChannelMomentsView> {
           (id) => math.min(id, post.message.id),
           ifAbsent: () => post.message.id,
         );
+        _loadedSinceByChannel[post.channel.id] = saved.completeSince;
       }
       _nonMutedOnly = saved.nonMutedOnly;
       _postableChannels = saved.postableChannels;
@@ -831,12 +1032,25 @@ class _ChannelMomentsViewState extends State<ChannelMomentsView> {
       _pendingScrollOffset = null;
     }
     _scroll = ScrollController(initialScrollOffset: _lastScrollOffset);
-    _model.addListener(_onModel);
+    // A single channel needs no chat list; loading one would only invalidate
+    // and reload this feed every time any chat moved.
+    if (_scopedChannel == null) _model.addListener(_onModel);
     _scroll.addListener(_onScroll);
-    _tdSub = TdClient.shared.subscribe().listen(_handleTdUpdate);
-    _model.onAppear();
+    _tdSub = TdClient.shared
+        .updatesOfAny(const [
+          'updateNewMessage',
+          'updateMessageContent',
+          'updateMessageEdited',
+          'updateMessageInteractionInfo',
+          'updateMessageUnreadReactions',
+          'updateDeleteMessages',
+          'updateChatAddedToList',
+          'updateChatRemovedFromList',
+        ])
+        .listen(_handleTdUpdate);
+    if (_scopedChannel == null) _model.onAppear();
     _loadMe();
-    if (widget.initialChannels.isNotEmpty) {
+    if (widget.initialChannels.isNotEmpty || _scopedChannel != null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
         if (saved is _MomentsHistorySnapshot) {
@@ -859,10 +1073,24 @@ class _ChannelMomentsViewState extends State<ChannelMomentsView> {
     }
     // Retain exactly the rendered feed, including every member of its albums.
     // Capping raw messages at 500 would truncate a 500-post album-heavy feed.
+    final rendered = _posts;
     final retainedIds = {
-      for (final post in _posts)
+      for (final post in rendered)
         for (final message in post.messages) (post.channel.id, message.id),
     };
+    var completeSince = channelFeedCompleteSince(
+      _loadedSinceByChannel,
+      _exhaustedChannels,
+    );
+    final limit = _postLimit;
+    if (limit != null && rendered.length >= limit) {
+      // The cap cut the feed inside its complete range: only posts newer
+      // than the last rendered one are all retained.
+      completeSince = math.max(
+        completeSince,
+        rendered.last.messages.map((message) => message.date).reduce(math.min),
+      );
+    }
     final retained = _postsByChannel.values
         .expand((posts) => posts)
         .where(
@@ -876,6 +1104,7 @@ class _ChannelMomentsViewState extends State<ChannelMomentsView> {
         _lastScrollOffset,
         _nonMutedOnly,
         List.of(_postableChannels),
+        completeSince,
       ),
       identifier: _scrollSessionKey,
     );
@@ -886,6 +1115,7 @@ class _ChannelMomentsViewState extends State<ChannelMomentsView> {
     _tdSub?.cancel();
     _refreshTimer?.cancel();
     _metadataHydrationTimer?.cancel();
+    _windowHydrationTimer?.cancel();
     _replyController.dispose();
     _replyFocus.dispose();
     super.dispose();
@@ -915,10 +1145,7 @@ class _ChannelMomentsViewState extends State<ChannelMomentsView> {
         _scheduleScrollRestore();
         return;
       }
-      if (pending > position.maxScrollExtent &&
-          _channels.any(
-            (channel) => !_exhaustedChannels.contains(channel.id),
-          )) {
+      if (pending > position.maxScrollExtent && _canLoadOlder) {
         _loadChannelPosts(loadOlder: true);
         _scheduleScrollRestore();
         return;
@@ -1019,9 +1246,10 @@ class _ChannelMomentsViewState extends State<ChannelMomentsView> {
         if (_joinedChannelCache.remove(chatId) == null) return;
         _invalidateChannels();
         _exhaustedChannels.remove(chatId);
+        _invalidateFeed();
         if (update.type == 'updateChatRemovedFromList') {
           _postsByChannel.remove(chatId);
-          _invalidateFeed();
+          _loadedSinceByChannel.remove(chatId);
           if (mounted) setState(() {});
         }
     }
@@ -1174,6 +1402,8 @@ class _ChannelMomentsViewState extends State<ChannelMomentsView> {
   List<ChatSummary> get _channels {
     final cached = _channelsCache;
     if (cached != null) return cached;
+    final scoped = _scopedChannel;
+    if (scoped != null) return _channelsCache = [scoped];
     final byId = <int, ChatSummary>{};
     for (final chat in widget.initialChannels) {
       if (chat.kind == ChatKind.channel &&
@@ -1207,9 +1437,43 @@ class _ChannelMomentsViewState extends State<ChannelMomentsView> {
   List<ChannelPost> get _posts {
     final cached = _postsCache;
     if (cached != null) return cached;
-    final posts = _postsByChannel.values.expand((items) => items).toList()
-      ..sort((a, b) => b.message.date.compareTo(a.message.date));
-    return _postsCache = _groupPostAlbums(posts).take(_feedLimit).toList();
+    final completeSince = channelFeedCompleteSince(
+      _loadedSinceByChannel,
+      _exhaustedChannels,
+    );
+    final posts =
+        _postsByChannel.values
+            .expand((items) => items)
+            .where((post) => post.message.date > completeSince)
+            .toList()
+          ..sort((a, b) => b.message.date.compareTo(a.message.date));
+    final grouped = _groupPostAlbums(posts);
+    final limit = _postLimit;
+    return _postsCache = limit == null ? grouped : grouped.take(limit).toList();
+  }
+
+  /// Whether paging older history can still extend the rendered feed.
+  bool get _canLoadOlder {
+    final limit = _postLimit;
+    if (limit != null && _posts.length >= limit) return false;
+    return _channels.any((channel) => !_exhaustedChannels.contains(channel.id));
+  }
+
+  /// The channels whose read history ends nearest to now. They hold the
+  /// feed's completeness boundary up, so paging them is what extends it;
+  /// paging every channel at each scroll end fetched history the feed could
+  /// not show yet.
+  Set<int> _channelsBoundingFeed() {
+    final open =
+        _loadedSinceByChannel.entries
+            .where(
+              (entry) =>
+                  !_exhaustedChannels.contains(entry.key) &&
+                  !_loadingChannels.contains(entry.key),
+            )
+            .toList()
+          ..sort((a, b) => b.value.compareTo(a.value));
+    return {for (final entry in open.take(_olderChannelsPerRound)) entry.key};
   }
 
   GlobalKey _postKey(ChannelPost post) {
@@ -1320,8 +1584,11 @@ class _ChannelMomentsViewState extends State<ChannelMomentsView> {
       _loadingPosts = false;
       return;
     }
+    if (loadOlder && !_canLoadOlder) return;
     final channels = allChannels;
     final generation = _feedLoadGeneration;
+    final olderTargets = loadOlder ? _channelsBoundingFeed() : const <int>{};
+    final loads = <Future<bool>>[];
     for (final channel in channels) {
       if (!await _isJoinedChannel(channel)) continue;
       final hasLoaded = _postsByChannel.containsKey(channel.id);
@@ -1330,8 +1597,15 @@ class _ChannelMomentsViewState extends State<ChannelMomentsView> {
           (hasLoaded && !loadOlder)) {
         continue;
       }
+      // Older pages go only to the channels holding the boundary up. One
+      // whose last read failed has no boundary yet and is retried.
+      if (hasLoaded &&
+          _loadedSinceByChannel.containsKey(channel.id) &&
+          !olderTargets.contains(channel.id)) {
+        continue;
+      }
       _loadingChannels.add(channel.id);
-      unawaited(
+      loads.add(
         _loadPostsForChannel(
           channel,
           fromMessageId: loadOlder
@@ -1341,6 +1615,9 @@ class _ChannelMomentsViewState extends State<ChannelMomentsView> {
         ),
       );
     }
+    if (loads.isNotEmpty) {
+      unawaited(_continueAfterLoads(loads, generation));
+    }
     // Near the bottom of the feed the scroll listener calls this on every
     // tick; only a changed spinner state is worth a rebuild.
     final loading = _loadingChannels.isNotEmpty;
@@ -1349,7 +1626,28 @@ class _ChannelMomentsViewState extends State<ChannelMomentsView> {
     if (mounted) setState(() {});
   }
 
+  /// A round that moved the completeness boundary can still leave the end of
+  /// the feed on screen — one busy channel holds the boundary just above the
+  /// last rendered post. No scroll event follows then, so keep paging while
+  /// the end is in reach.
+  Future<void> _continueAfterLoads(
+    List<Future<bool>> loads,
+    int generation,
+  ) async {
+    final progressed = (await Future.wait(loads)).any((moved) => moved);
+    if (!progressed || !mounted || generation != _feedLoadGeneration) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !_scroll.hasClients) return;
+      if (_pendingScrollOffset != null) return; // the restore pages itself
+      if (_scroll.position.extentAfter < 600) {
+        _loadChannelPosts(loadOlder: true);
+      }
+    });
+  }
+
   Future<bool> _isJoinedChannel(ChatSummary channel) async {
+    // A channel's own feed reads whatever its chat can show, joined or not.
+    if (_scopedChannel != null) return true;
     final cached = _joinedChannelCache[channel.id];
     if (cached != null) return cached;
     final joined = await isJoinedGroupOrChannelChat(channel.id);
@@ -1358,53 +1656,91 @@ class _ChannelMomentsViewState extends State<ChannelMomentsView> {
     _invalidateChannels();
     if (!joined) {
       _postsByChannel.remove(channel.id);
-      _invalidateFeed();
       _oldestMessageByChannel.remove(channel.id);
+      _loadedSinceByChannel.remove(channel.id);
       _exhaustedChannels.add(channel.id);
+      _invalidateFeed();
       if (mounted) setState(() {});
     }
     return joined;
   }
 
-  Future<void> _loadPostsForChannel(
+  /// Reads one round of [channel]'s history into the feed and reports whether
+  /// the feed can now show more than before.
+  ///
+  /// [fromMessageId] 0 reads from the newest message: the first read of a
+  /// channel, or a refresh that pages down until it meets the loaded posts.
+  Future<bool> _loadPostsForChannel(
     ChatSummary channel, {
     required int fromMessageId,
     int? generation,
     bool notify = true,
   }) async {
     final accountSlot = TdClient.shared.activeSlot;
+    bool isCurrent() =>
+        mounted && (generation == null || generation == _feedLoadGeneration);
+    final known = _postsByChannel[channel.id];
+    final knownNewest = fromMessageId == 0 && known != null && known.isNotEmpty
+        ? known.map((post) => post.message.id).reduce(math.max)
+        : null;
     try {
-      final response = await TdClient.shared.queryForSlot({
-        '@type': 'getChatHistory',
-        'chat_id': channel.id,
-        'from_message_id': fromMessageId,
-        'offset': 0,
-        'limit': _perChannelPageSize,
-        'only_local': false,
-      }, accountSlot);
-      final messages =
-          (response.objects('messages') ?? const <Map<String, dynamic>>[])
-              .map(TDParse.message)
-              .whereType<ChatMessage>()
-              .where((message) => !message.isService)
-              .map(
-                (message) => ChannelPost(
-                  channel: channel,
-                  message: message,
-                  accountSlot: accountSlot,
-                ),
-              )
-              .toList();
-      if (generation != null && generation != _feedLoadGeneration) return;
-      if (messages.isEmpty) {
-        _exhaustedChannels.add(channel.id);
+      final load = await loadChannelHistory(
+        query: (request) => TdClient.shared.queryForSlot(request, accountSlot),
+        chatId: channel.id,
+        fromMessageId: fromMessageId,
+        wanted: _perChannelPageSize,
+        knownNewestMessageId: knownNewest,
+        cancelled: () => !isCurrent(),
+      );
+      if (!isCurrent()) return false;
+      final previousSince = channelFeedCompleteSince(
+        _loadedSinceByChannel,
+        _exhaustedChannels,
+      );
+      final knownIds = {for (final post in known ?? const []) post.message.id};
+      final posts = load.messages
+          .where((message) => !message.isService)
+          .map(
+            (message) => ChannelPost(
+              channel: channel,
+              message: message,
+              accountSlot: accountSlot,
+            ),
+          )
+          .toList();
+      final added = posts.any((post) => !knownIds.contains(post.message.id));
+      _appendPosts(channel.id, posts);
+      final oldestId = load.oldestMessageId;
+      final oldestDate = load.oldestDate;
+      if (oldestId != null && oldestDate != null) {
+        // A refresh that ran out of pages before meeting the loaded posts
+        // left a gap below it. Move the boundary up to what this walk read;
+        // the next older read starts there and fills the gap.
+        final gap =
+            knownNewest != null && !load.reconnected && !load.reachedStart;
+        final previousId = _oldestMessageByChannel[channel.id];
+        final previousDate = _loadedSinceByChannel[channel.id];
+        _oldestMessageByChannel[channel.id] = gap || previousId == null
+            ? oldestId
+            : math.min(previousId, oldestId);
+        _loadedSinceByChannel[channel.id] = gap || previousDate == null
+            ? oldestDate
+            : math.min(previousDate, oldestDate);
+      } else {
+        // An empty channel still has a boundary: it has nothing to wait for.
+        _loadedSinceByChannel.putIfAbsent(channel.id, () => 0);
       }
-      _appendPosts(channel.id, messages);
+      if (load.reachedStart) _exhaustedChannels.add(channel.id);
+      _invalidateFeed();
       _schedulePostMetadataHydration();
+      return added ||
+          channelFeedCompleteSince(_loadedSinceByChannel, _exhaustedChannels) !=
+              previousSince;
     } catch (_) {
-      if (generation != null && generation != _feedLoadGeneration) return;
+      if (!isCurrent()) return false;
       _postsByChannel.putIfAbsent(channel.id, () => const []);
       _invalidateFeed();
+      return false;
     } finally {
       if (generation == null || generation == _feedLoadGeneration) {
         _loadingChannels.remove(channel.id);
@@ -1424,6 +1760,7 @@ class _ChannelMomentsViewState extends State<ChannelMomentsView> {
       _postsByChannel.clear();
       _invalidateFeed();
       _oldestMessageByChannel.clear();
+      _loadedSinceByChannel.clear();
       _exhaustedChannels.clear();
       _loadingChannels.clear();
       _postableSignature = '';
@@ -1445,14 +1782,47 @@ class _ChannelMomentsViewState extends State<ChannelMomentsView> {
     _metadataHydrationTimer?.cancel();
     _metadataHydrationTimer = Timer(const Duration(milliseconds: 220), () {
       if (!mounted) return;
-      final posts = _posts.take(_metadataHydrationLimit).toList();
-      _loadAuthors(posts);
-      _loadForwardAttributions(posts);
-      _loadReplyQuotes(posts);
-      _loadLikeNames(posts);
-      _loadThreadTargets(posts);
-      _loadComments(posts);
+      _hydratePosts([
+        ..._posts.take(_metadataHydrationLimit),
+        ..._takeHydrationWindow(),
+      ]);
     });
+  }
+
+  /// Rows past the head hydrate as they are built: a window around the first
+  /// row built outside the previous window. A channel's own feed is read far
+  /// deeper than the head.
+  void _noteBuiltPost(int index) {
+    if (index < _metadataHydrationLimit ||
+        (index >= _hydratedWindowStart && index < _hydratedWindowEnd)) {
+      return;
+    }
+    _lastBuiltPostIndex = index;
+    _windowHydrationTimer?.cancel();
+    _windowHydrationTimer = Timer(const Duration(milliseconds: 220), () {
+      if (mounted) _hydratePosts(_takeHydrationWindow());
+    });
+  }
+
+  List<ChannelPost> _takeHydrationWindow() {
+    final feed = _posts;
+    _hydratedWindowStart = math.max(
+      _metadataHydrationLimit,
+      _lastBuiltPostIndex - 30,
+    );
+    _hydratedWindowEnd = math.min(feed.length, _lastBuiltPostIndex + 20);
+    if (_hydratedWindowStart >= _hydratedWindowEnd) return const [];
+    return feed.sublist(_hydratedWindowStart, _hydratedWindowEnd);
+  }
+
+  void _hydratePosts(List<ChannelPost> posts) {
+    if (posts.isEmpty) return;
+    _loadAuthors(posts);
+    _loadForwardAttributions(posts);
+    _loadReplyQuotes(posts);
+    _loadLikeNames(posts);
+    _loadThreadTargets(posts);
+    _loadComments(posts);
   }
 
   void _loadReplyQuotes(List<ChannelPost> posts) {
@@ -1512,18 +1882,20 @@ class _ChannelMomentsViewState extends State<ChannelMomentsView> {
       return;
     }
     try {
-      final raw = await TdClient.shared.query({
+      final raw = await TdClient.shared.queryForSlot({
         '@type': 'getMessage',
         'chat_id': post.channel.id,
         'message_id': replyToMessageId,
-      });
+      }, post.accountSlot);
       final quoted = TDParse.message(raw);
       if (quoted == null) return;
       message.replyToPreview = _replyPreview(quoted);
       message.replyToImage = quoted.previewImage;
       message.replyToImageWidth = quoted.imageWidth;
       message.replyToImageHeight = quoted.imageHeight;
-      message.replyToSender = await _senderName(quoted) ?? post.channel.title;
+      message.replyToSender =
+          await _senderName(quoted, accountSlot: post.accountSlot) ??
+          post.channel.title;
     } catch (_) {
       message.replyToPreview ??= '';
       message.replyToSender ??= post.channel.title;
@@ -1562,25 +1934,15 @@ class _ChannelMomentsViewState extends State<ChannelMomentsView> {
     var shouldNotify = false;
     try {
       try {
-        final properties = await TdClient.shared.query({
+        final properties = await TdClient.shared.queryForSlot({
           '@type': 'getMessageProperties',
           'chat_id': post.channel.id,
           'message_id': post.message.id,
-        });
+        }, post.accountSlot);
         if (properties.boolean('can_get_message_thread') == false) return null;
       } catch (_) {}
-      final thread = await TdClient.shared.query({
-        '@type': 'getMessageThread',
-        'chat_id': post.channel.id,
-        'message_id': post.message.id,
-      });
-      final chatId = thread.int64('chat_id');
-      final threadId = thread.int64('message_thread_id');
-      if (chatId == null || threadId == null || threadId == 0) return null;
-      final target = ChannelPostThreadTarget(
-        chatId: chatId,
-        messageThreadId: threadId,
-      );
+      final target = await _fetchChannelPostThreadTarget(post);
+      if (target == null) return null;
       post.threadTarget = target;
       shouldNotify = true;
       return target;
@@ -1595,14 +1957,10 @@ class _ChannelMomentsViewState extends State<ChannelMomentsView> {
   Future<void> _loadCommentsForPost(ChannelPost post, String key) async {
     try {
       final target = await _resolveThreadTarget(post);
-      final response = await TdClient.shared.query({
-        '@type': 'getMessageThreadHistory',
-        'chat_id': post.channel.id,
-        'message_id': post.message.id,
-        'from_message_id': 0,
-        'offset': 0,
-        'limit': 5,
-      });
+      final response = await TdClient.shared.queryForSlot(
+        channelPostCommentsRequest(post: post, target: target, limit: 5),
+        post.accountSlot,
+      );
       final rawMessages =
           response.objects('messages') ?? const <Map<String, dynamic>>[];
       final entries = <_LoadedPostComment>[];
@@ -1626,7 +1984,10 @@ class _ChannelMomentsViewState extends State<ChannelMomentsView> {
       final comments = <ChannelPostComment>[];
       for (final entry in entries.take(4)) {
         final message = entry.message;
-        final senderName = await _senderName(message);
+        final senderName = await _senderName(
+          message,
+          accountSlot: post.accountSlot,
+        );
         comments.add(
           ChannelPostComment(
             chatId: entry.chatId,
@@ -1679,9 +2040,9 @@ class _ChannelMomentsViewState extends State<ChannelMomentsView> {
   }
 
   List<MessageTextEntity> _commentEntities(ChatMessage message) {
-    return message.text == message.text.trim()
-        ? message.textEntities
-        : const [];
+    // The comment text is shown trimmed; keep the formatting by re-addressing
+    // the entities to the trimmed string instead of dropping them all.
+    return trimTextForDisplay(message.text, message.textEntities).entities;
   }
 
   void _appendPosts(int channelId, List<ChannelPost> posts) {
@@ -1700,11 +2061,19 @@ class _ChannelMomentsViewState extends State<ChannelMomentsView> {
           post.authorName = previous.authorName;
           post.authorPhoto = previous.authorPhoto;
         }
-        post.message.replyToSender = previous.message.replyToSender;
-        post.message.replyToPreview = previous.message.replyToPreview;
-        post.message.replyToImage = previous.message.replyToImage;
-        post.message.replyToImageWidth = previous.message.replyToImageWidth;
-        post.message.replyToImageHeight = previous.message.replyToImageHeight;
+        if (post.message.replyToMessageId ==
+                previous.message.replyToMessageId &&
+            post.message.replyToChatId == previous.message.replyToChatId) {
+          post.message.replyToSender ??= previous.message.replyToSender;
+          if (!post.message.isContentRestricted) {
+            post.message.replyToPreview ??= previous.message.replyToPreview;
+            post.message.replyToImage ??= previous.message.replyToImage;
+            post.message.replyToImageWidth ??=
+                previous.message.replyToImageWidth;
+            post.message.replyToImageHeight ??=
+                previous.message.replyToImageHeight;
+          }
+        }
         final likesChanged =
             _reactionCount(previous.message) != _reactionCount(post.message);
         final commentsChanged =
@@ -1720,11 +2089,6 @@ class _ChannelMomentsViewState extends State<ChannelMomentsView> {
       ..sort((a, b) => b.message.date.compareTo(a.message.date));
     _postsByChannel[channelId] = merged;
     _invalidateFeed();
-    if (merged.isNotEmpty) {
-      _oldestMessageByChannel[channelId] = merged
-          .map((post) => post.message.id)
-          .reduce((a, b) => a < b ? a : b);
-    }
   }
 
   void _loadLikeNames(List<ChannelPost> posts) {
@@ -1760,18 +2124,18 @@ class _ChannelMomentsViewState extends State<ChannelMomentsView> {
     final previousPhoto = post.authorPhoto;
     try {
       if (senderId != null && senderId > 0) {
-        final user = await TdClient.shared.query({
+        final user = await TdClient.shared.queryForSlot({
           '@type': 'getUser',
           'user_id': senderId,
-        });
+        }, post.accountSlot);
         final name = TDParse.userName(user).trim();
         if (name.isNotEmpty) post.authorName = name;
         post.authorPhoto = TDParse.smallPhoto(user.obj('profile_photo'));
       } else if (senderId != null && senderId < 0) {
-        final chat = await TdClient.shared.query({
+        final chat = await TdClient.shared.queryForSlot({
           '@type': 'getChat',
           'chat_id': senderId,
-        });
+        }, post.accountSlot);
         final name = chat.str('title')?.trim();
         if (name != null && name.isNotEmpty) post.authorName = name;
         post.authorPhoto = TDParse.smallPhoto(chat.obj('photo'));
@@ -1791,21 +2155,24 @@ class _ChannelMomentsViewState extends State<ChannelMomentsView> {
 
   Future<void> _loadLikeNamesForPost(ChannelPost post, String key) async {
     try {
-      final response = await TdClient.shared.query({
+      final response = await TdClient.shared.queryForSlot({
         '@type': 'getMessageAddedReactions',
         'chat_id': post.channel.id,
         'message_id': post.message.id,
         'reaction_type': {'@type': 'reactionTypeEmoji', 'emoji': '👍'},
         'offset': '',
         'limit': 4,
-      });
+      }, post.accountSlot);
       final raw =
           response.objects('added_reactions') ??
           response.objects('reactions') ??
           const <Map<String, dynamic>>[];
       final names = <String>[];
       for (final item in raw) {
-        final name = await _reactionSenderName(item.obj('sender_id'));
+        final name = await _reactionSenderName(
+          item.obj('sender_id'),
+          accountSlot: post.accountSlot,
+        );
         if (name != null && !names.contains(name)) names.add(name);
       }
       post.likeNames = names;
@@ -1817,25 +2184,29 @@ class _ChannelMomentsViewState extends State<ChannelMomentsView> {
     }
   }
 
-  Future<String?> _reactionSenderName(Map<String, dynamic>? sender) async {
+  Future<String?> _reactionSenderName(
+    Map<String, dynamic>? sender, {
+    int? accountSlot,
+  }) async {
+    final slot = accountSlot ?? TdClient.shared.activeSlot;
     try {
       switch (sender?.type) {
         case 'messageSenderUser':
           final userId = sender?.int64('user_id');
           if (userId == null) return null;
-          final user = await TdClient.shared.query({
+          final user = await TdClient.shared.queryForSlot({
             '@type': 'getUser',
             'user_id': userId,
-          });
+          }, slot);
           final name = TDParse.userName(user).trim();
           return name.isEmpty ? null : name;
         case 'messageSenderChat':
           final chatId = sender?.int64('chat_id');
           if (chatId == null) return null;
-          final chat = await TdClient.shared.query({
+          final chat = await TdClient.shared.queryForSlot({
             '@type': 'getChat',
             'chat_id': chatId,
-          });
+          }, slot);
           final name = chat.str('title')?.trim();
           return name == null || name.isEmpty ? null : name;
       }
@@ -1843,7 +2214,8 @@ class _ChannelMomentsViewState extends State<ChannelMomentsView> {
     return null;
   }
 
-  Future<String?> _senderName(ChatMessage message) async {
+  Future<String?> _senderName(ChatMessage message, {int? accountSlot}) async {
+    final slot = accountSlot ?? TdClient.shared.activeSlot;
     final senderId = message.senderId;
     if (senderId == null) {
       final title = message.senderTitle?.trim();
@@ -1851,17 +2223,17 @@ class _ChannelMomentsViewState extends State<ChannelMomentsView> {
     }
     try {
       if (senderId > 0) {
-        final user = await TdClient.shared.query({
+        final user = await TdClient.shared.queryForSlot({
           '@type': 'getUser',
           'user_id': senderId,
-        });
+        }, slot);
         final name = TDParse.userName(user).trim();
         return name.isEmpty ? null : name;
       }
-      final chat = await TdClient.shared.query({
+      final chat = await TdClient.shared.queryForSlot({
         '@type': 'getChat',
         'chat_id': senderId,
-      });
+      }, slot);
       final name = chat.str('title')?.trim();
       return name == null || name.isEmpty ? null : name;
     } catch (_) {
@@ -1927,7 +2299,7 @@ class _ChannelMomentsViewState extends State<ChannelMomentsView> {
         }
         return;
       }
-      await _sendThreadReply(target, text);
+      await _sendThreadReply(target, text, accountSlot: post.accountSlot);
       _replyController.clear();
       if (mounted) showToast(context, AppStringKeys.momentsReplied);
     } catch (e) {
@@ -1942,14 +2314,16 @@ class _ChannelMomentsViewState extends State<ChannelMomentsView> {
 
   Future<void> _sendThreadReply(
     ChannelPostThreadTarget target,
-    String text,
-  ) async {
+    String text, {
+    int? accountSlot,
+  }) async {
+    final slot = accountSlot ?? TdClient.shared.activeSlot;
     final content = {
       '@type': 'inputMessageText',
       'text': {'@type': 'formattedText', 'text': text},
     };
     try {
-      await TdClient.shared.query({
+      await TdClient.shared.queryForSlot({
         '@type': 'sendMessage',
         'chat_id': target.chatId,
         'topic_id': {
@@ -1957,9 +2331,9 @@ class _ChannelMomentsViewState extends State<ChannelMomentsView> {
           'message_thread_id': target.messageThreadId,
         },
         'input_message_content': content,
-      });
+      }, slot);
     } catch (_) {
-      await TdClient.shared.query({
+      await TdClient.shared.queryForSlot({
         '@type': 'sendMessage',
         'chat_id': target.chatId,
         'reply_to': {
@@ -1967,7 +2341,7 @@ class _ChannelMomentsViewState extends State<ChannelMomentsView> {
           'message_id': target.messageThreadId,
         },
         'input_message_content': content,
-      });
+      }, slot);
     }
   }
 
@@ -2013,6 +2387,7 @@ class _ChannelMomentsViewState extends State<ChannelMomentsView> {
     for (final channel in _postableChannels) {
       _exhaustedChannels.remove(channel.id);
       _oldestMessageByChannel.remove(channel.id);
+      _loadedSinceByChannel.remove(channel.id);
       _postsByChannel.remove(channel.id);
     }
     _invalidateFeed();
@@ -2020,7 +2395,9 @@ class _ChannelMomentsViewState extends State<ChannelMomentsView> {
   }
 
   Color _profileHeaderColor(BuildContext context) {
-    final colorId = _meProfileAccentColorId >= 0
+    final colorId = _scopedChannel != null
+        ? -1
+        : _meProfileAccentColorId >= 0
         ? _meProfileAccentColorId
         : _meAccentColorId;
     if (colorId >= 0 && colorId < kAccentColors.length) {
@@ -2038,31 +2415,35 @@ class _ChannelMomentsViewState extends State<ChannelMomentsView> {
     final c = context.colors;
     final posts = _posts;
     final useDesktopLayout = isDesktopTargetPlatform();
+    final scoped = _scopedChannel;
     return Material(
       color: c.groupedBackground,
       child: Column(
         children: [
           NavHeader(
-            title: widget.title.l10n(context),
+            title: scoped?.title ?? widget.title.l10n(context),
             onBack: widget.isRootTab ? null : () => Navigator.of(context).pop(),
             trailing: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                GestureDetector(
-                  behavior: HitTestBehavior.opaque,
-                  onTap: _toggleNonMutedOnly,
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(8, 8, 0, 8),
-                    child: Icon(
-                      _nonMutedOnly
-                          ? HeroAppIcons.solidBell.data
-                          : HeroAppIcons.bellSlash.data,
-                      size: 24,
-                      color: _nonMutedOnly ? AppTheme.brand : c.textPrimary,
+                // Muting filters which channels merge; one channel has none.
+                if (scoped == null) ...[
+                  GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTap: _toggleNonMutedOnly,
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(8, 8, 0, 8),
+                      child: Icon(
+                        _nonMutedOnly
+                            ? HeroAppIcons.solidBell.data
+                            : HeroAppIcons.bellSlash.data,
+                        size: 24,
+                        color: _nonMutedOnly ? AppTheme.brand : c.textPrimary,
+                      ),
                     ),
                   ),
-                ),
-                const SizedBox(width: AppSpacing.lg),
+                  const SizedBox(width: AppSpacing.lg),
+                ],
                 GestureDetector(
                   key: const ValueKey('moments-refresh-latest'),
                   behavior: HitTestBehavior.opaque,
@@ -2111,9 +2492,11 @@ class _ChannelMomentsViewState extends State<ChannelMomentsView> {
       findChildIndexCallback: (key) => _feedIndexByKey[key],
       itemBuilder: (context, i) {
         if (i == 0) {
+          // A channel's own feed is headed by the channel, like a profile.
+          final scoped = _scopedChannel;
           final composer = _MomentsComposerHeader(
-            meName: _meName,
-            mePhoto: _mePhoto,
+            name: scoped?.title ?? _meName,
+            photo: scoped == null ? _mePhoto : scoped.photo,
             backgroundColor: _profileHeaderColor(context),
             canCompose: _postableChannels.isNotEmpty,
             onCompose: _openNewPostComposer,
@@ -2128,6 +2511,7 @@ class _ChannelMomentsViewState extends State<ChannelMomentsView> {
           return useDesktopLayout ? _desktopFeedCard(empty) : empty;
         }
         final post = posts[i - 1];
+        _noteBuiltPost(i - 1);
         // Listening to the post's own revision keeps metadata hydration from
         // rebuilding (and re-laying out the rich text of) every other row.
         final row = ValueListenableBuilder<int>(
@@ -2333,15 +2717,15 @@ class _ChannelMomentsViewState extends State<ChannelMomentsView> {
 
 class _MomentsComposerHeader extends StatelessWidget {
   const _MomentsComposerHeader({
-    required this.meName,
-    this.mePhoto,
+    required this.name,
+    this.photo,
     required this.backgroundColor,
     required this.canCompose,
     required this.onCompose,
   });
 
-  final String meName;
-  final TdFileRef? mePhoto;
+  final String name;
+  final TdFileRef? photo;
   final Color backgroundColor;
   final bool canCompose;
   final VoidCallback onCompose;
@@ -2358,7 +2742,7 @@ class _MomentsComposerHeader extends StatelessWidget {
             child: Stack(
               children: [
                 Positioned.fill(
-                  child: mePhoto == null
+                  child: photo == null
                       ? ColoredBox(color: backgroundColor)
                       : Stack(
                           fit: StackFit.expand,
@@ -2368,7 +2752,7 @@ class _MomentsComposerHeader extends StatelessWidget {
                                 sigmaX: 28,
                                 sigmaY: 28,
                               ),
-                              child: TDImage(photo: mePhoto, cornerRadius: 0),
+                              child: TDImage(photo: photo, cornerRadius: 0),
                             ),
                             ColoredBox(
                               color: Colors.black.withValues(alpha: 0.18),
@@ -2383,7 +2767,7 @@ class _MomentsComposerHeader extends StatelessWidget {
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
-                      PhotoAvatar(title: meName, photo: mePhoto, size: 74),
+                      PhotoAvatar(title: name, photo: photo, size: 74),
                       const SizedBox(width: 12),
                       Expanded(
                         child: Padding(
@@ -2393,7 +2777,7 @@ class _MomentsComposerHeader extends StatelessWidget {
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               Text(
-                                meName,
+                                name,
                                 maxLines: 2,
                                 overflow: TextOverflow.ellipsis,
                                 style: TextStyle(
@@ -2636,11 +3020,7 @@ class _ChannelMomentsSearchViewState extends State<ChannelMomentsSearchView> {
   Widget _header() {
     final c = context.colors;
     return Container(
-      padding: EdgeInsets.only(
-        top:
-            MediaQuery.of(context).padding.top +
-            iPadWindowChromeInsetOf(context),
-      ),
+      padding: headerChromePaddingOf(context),
       decoration: BoxDecoration(
         color: c.navBar,
         border: Border(bottom: BorderSide(color: c.divider, width: 0.5)),
@@ -2916,7 +3296,15 @@ class _ChannelPostDetailViewState extends State<ChannelPostDetailView> {
   void initState() {
     super.initState();
     _target = post.threadTarget;
-    _tdSub = TdClient.shared.subscribe().listen(_handleTdUpdate);
+    _tdSub = TdClient.shared
+        .updatesOfAny(const [
+          'updateNewMessage',
+          'updateMessageContent',
+          'updateMessageEdited',
+          'updateMessageInteractionInfo',
+          'updateDeleteMessages',
+        ])
+        .listen(_handleTdUpdate);
     _loadMe();
     _loadComments();
   }
@@ -2932,7 +3320,9 @@ class _ChannelPostDetailViewState extends State<ChannelPostDetailView> {
 
   Future<void> _loadMe() async {
     try {
-      final me = await TdClient.shared.query({'@type': 'getMe'});
+      final me = await TdClient.shared.queryForSlot({
+        '@type': 'getMe',
+      }, post.accountSlot);
       if (!mounted) return;
       final name = TDParse.userName(me).trim();
       setState(() {
@@ -2963,18 +3353,8 @@ class _ChannelPostDetailViewState extends State<ChannelPostDetailView> {
   Future<ChannelPostThreadTarget?> _resolveThreadTarget() async {
     if (_target != null) return _target;
     try {
-      final thread = await TdClient.shared.query({
-        '@type': 'getMessageThread',
-        'chat_id': post.channel.id,
-        'message_id': post.message.id,
-      });
-      final chatId = thread.int64('chat_id');
-      final threadId = thread.int64('message_thread_id');
-      if (chatId == null || threadId == null || threadId == 0) return null;
-      final target = ChannelPostThreadTarget(
-        chatId: chatId,
-        messageThreadId: threadId,
-      );
+      final target = await _fetchChannelPostThreadTarget(post);
+      if (target == null) return null;
       post.threadTarget = target;
       _target = target;
       return target;
@@ -2992,14 +3372,10 @@ class _ChannelPostDetailViewState extends State<ChannelPostDetailView> {
         if (mounted) setState(() => _loading = false);
         return;
       }
-      final response = await TdClient.shared.query({
-        '@type': 'getMessageThreadHistory',
-        'chat_id': post.channel.id,
-        'message_id': post.message.id,
-        'from_message_id': 0,
-        'offset': 0,
-        'limit': 120,
-      });
+      final response = await TdClient.shared.queryForSlot(
+        _commentsRequest(fromMessageId: 0, offset: 0, limit: 120),
+        post.accountSlot,
+      );
       final rawMessages =
           response.objects('messages') ?? const <Map<String, dynamic>>[];
       final kept = <_LoadedPostComment>[];
@@ -3019,6 +3395,45 @@ class _ChannelPostDetailViewState extends State<ChannelPostDetailView> {
           ),
         );
       }
+      final keptByChatAndId =
+          <({int chatId, int messageId}), _LoadedPostComment>{
+            for (final entry in kept)
+              (chatId: entry.chatId, messageId: entry.message.id): entry,
+          };
+      final missingRepliesByChat = <int, Set<int>>{};
+      for (final entry in kept) {
+        final rid = entry.message.replyToMessageId;
+        final rChatId = entry.message.replyToChatId ?? entry.chatId;
+        final isPostRoot =
+            (rChatId == post.channel.id && rid == post.message.id) ||
+            (rChatId == target.chatId && rid == target.messageThreadId);
+        if (rid == null ||
+            isPostRoot ||
+            keptByChatAndId.containsKey((chatId: rChatId, messageId: rid))) {
+          continue;
+        }
+        missingRepliesByChat.putIfAbsent(rChatId, () => <int>{}).add(rid);
+      }
+      final externalReplyTargets =
+          <({int chatId, int messageId}), ChatMessage>{};
+      for (final batch in missingRepliesByChat.entries) {
+        try {
+          final res = await TdClient.shared.queryForSlot({
+            '@type': 'getMessages',
+            'chat_id': batch.key,
+            'message_ids': batch.value.toList(),
+          }, post.accountSlot);
+          for (final raw
+              in res.objects('messages') ?? const <Map<String, dynamic>>[]) {
+            final quoted = TDParse.message(raw);
+            if (quoted != null) {
+              final qChatId = quoted.chatId ?? batch.key;
+              externalReplyTargets[(chatId: qChatId, messageId: quoted.id)] =
+                  quoted;
+            }
+          }
+        } catch (_) {}
+      }
       // One query per distinct sender, in parallel. Resolving inline below
       // serialized up to 120 getUser/getChat round-trips, mostly repeats.
       final firstBySender = <int, ChatMessage>{};
@@ -3028,18 +3443,34 @@ class _ChannelPostDetailViewState extends State<ChannelPostDetailView> {
           firstBySender.putIfAbsent(senderId, () => entry.message);
         }
       }
+      for (final quoted in externalReplyTargets.values) {
+        final senderId = quoted.senderId;
+        if (senderId != null) {
+          firstBySender.putIfAbsent(senderId, () => quoted);
+        }
+      }
       final senders = <int, _CommentSender>{};
       await Future.wait(
         firstBySender.entries.map((entry) async {
           senders[entry.key] = await _commentSender(entry.value);
         }),
       );
+      final externalReplySenders = <({int chatId, int messageId}), String>{};
+      for (final entry in externalReplyTargets.entries) {
+        final quoted = entry.value;
+        final senderId = quoted.senderId;
+        final cached = senderId == null ? null : senders[senderId];
+        final sender = cached ?? await _commentSender(quoted);
+        externalReplySenders[entry.key] = sender.name;
+      }
       final comments = <ChannelPostComment>[];
       for (final entry in kept) {
         final message = entry.message;
         final senderId = message.senderId;
         final cached = senderId == null ? null : senders[senderId];
         final sender = cached ?? await _commentSender(message);
+        final rid = message.replyToMessageId;
+        final rChatId = message.replyToChatId ?? entry.chatId;
         comments.add(
           ChannelPostComment(
             chatId: entry.chatId,
@@ -3049,7 +3480,11 @@ class _ChannelPostDetailViewState extends State<ChannelPostDetailView> {
             text: _commentText(message),
             entities: _commentEntities(message),
             date: message.date,
-            replyToMessageId: message.replyToMessageId,
+            replyToChatId: rid == null ? null : rChatId,
+            replyToMessageId: rid,
+            replyToSenderName: rid == null
+                ? null
+                : externalReplySenders[(chatId: rChatId, messageId: rid)],
             reactionCount: _reactionCount(message),
           ),
         );
@@ -3065,14 +3500,29 @@ class _ChannelPostDetailViewState extends State<ChannelPostDetailView> {
     }
   }
 
+  /// The `getMessageThreadHistory` request for this post's comments.
+  ///
+  /// Delegates to [channelPostCommentsRequest] so the feed and this view agree.
+  Map<String, dynamic> _commentsRequest({
+    required int fromMessageId,
+    required int offset,
+    required int limit,
+  }) => channelPostCommentsRequest(
+    post: post,
+    target: _target,
+    fromMessageId: fromMessageId,
+    offset: offset,
+    limit: limit,
+  );
+
   String _commentText(ChatMessage message) {
     return message.text.trim();
   }
 
   List<MessageTextEntity> _commentEntities(ChatMessage message) {
-    return message.text == message.text.trim()
-        ? message.textEntities
-        : const [];
+    // The comment text is shown trimmed; keep the formatting by re-addressing
+    // the entities to the trimmed string instead of dropping them all.
+    return trimTextForDisplay(message.text, message.textEntities).entities;
   }
 
   int _reactionCount(ChatMessage message) =>
@@ -3083,10 +3533,10 @@ class _ChannelPostDetailViewState extends State<ChannelPostDetailView> {
     final senderId = message.senderId;
     try {
       if (senderId != null && senderId > 0) {
-        final user = await TdClient.shared.query({
+        final user = await TdClient.shared.queryForSlot({
           '@type': 'getUser',
           'user_id': senderId,
-        });
+        }, post.accountSlot);
         final name = TDParse.userName(user).trim();
         return _CommentSender(
           name: name.isNotEmpty
@@ -3096,10 +3546,10 @@ class _ChannelPostDetailViewState extends State<ChannelPostDetailView> {
         );
       }
       if (senderId != null && senderId < 0) {
-        final chat = await TdClient.shared.query({
+        final chat = await TdClient.shared.queryForSlot({
           '@type': 'getChat',
           'chat_id': senderId,
-        });
+        }, post.accountSlot);
         final name = chat.str('title')?.trim();
         return _CommentSender(
           name: name == null || name.isEmpty
@@ -3134,7 +3584,7 @@ class _ChannelPostDetailViewState extends State<ChannelPostDetailView> {
     try {
       final replyMessageId = replyTo?.messageId;
       if (replyMessageId == null) {
-        await TdClient.shared.query({
+        await TdClient.shared.queryForSlot({
           '@type': 'sendMessage',
           'chat_id': target.chatId,
           'topic_id': {
@@ -3142,10 +3592,10 @@ class _ChannelPostDetailViewState extends State<ChannelPostDetailView> {
             'message_thread_id': target.messageThreadId,
           },
           'input_message_content': content,
-        });
+        }, post.accountSlot);
       } else {
         try {
-          await TdClient.shared.query({
+          await TdClient.shared.queryForSlot({
             '@type': 'sendMessage',
             'chat_id': target.chatId,
             'topic_id': {
@@ -3157,9 +3607,9 @@ class _ChannelPostDetailViewState extends State<ChannelPostDetailView> {
               'message_id': replyMessageId,
             },
             'input_message_content': content,
-          });
+          }, post.accountSlot);
         } catch (_) {
-          await TdClient.shared.query({
+          await TdClient.shared.queryForSlot({
             '@type': 'sendMessage',
             'chat_id': target.chatId,
             'reply_to': {
@@ -3167,7 +3617,7 @@ class _ChannelPostDetailViewState extends State<ChannelPostDetailView> {
               'message_id': replyMessageId,
             },
             'input_message_content': content,
-          });
+          }, post.accountSlot);
         }
       }
       _replyController.clear();
@@ -3410,12 +3860,17 @@ class _CommentThreadList extends StatelessWidget {
         ),
       );
     }
-    final byId = {for (final comment in comments) comment.messageId: comment};
-    final roots = comments.where((comment) => _isRoot(comment, byId)).toList();
+    final byChatAndId = <({int chatId, int messageId}), ChannelPostComment>{
+      for (final comment in comments)
+        (chatId: comment.chatId, messageId: comment.messageId): comment,
+    };
+    final roots = comments
+        .where((comment) => _isRoot(comment, byChatAndId))
+        .toList();
     final childrenByRoot = <int, List<ChannelPostComment>>{};
     for (final comment in comments) {
-      if (_isRoot(comment, byId)) continue;
-      final rootId = _rootId(comment, byId);
+      if (_isRoot(comment, byChatAndId)) continue;
+      final rootId = _rootId(comment, byChatAndId);
       childrenByRoot.putIfAbsent(rootId, () => []).add(comment);
     }
     // Flattened once per build so the tiles themselves can be built lazily.
@@ -3423,12 +3878,18 @@ class _CommentThreadList extends StatelessWidget {
     for (final root in roots) {
       final children =
           childrenByRoot[root.messageId] ?? const <ChannelPostComment>[];
-      entries.add(_ThreadEntry(comment: root, endsGroup: children.isEmpty));
+      entries.add(
+        _ThreadEntry(
+          comment: root,
+          prefix: _rootReplyPrefix(root),
+          endsGroup: children.isEmpty,
+        ),
+      );
       for (var i = 0; i < children.length; i++) {
         entries.add(
           _ThreadEntry(
             comment: children[i],
-            prefix: _replyPrefix(children[i], root, byId),
+            prefix: _replyPrefix(children[i], root, byChatAndId),
             nested: true,
             endsGroup: i == children.length - 1,
           ),
@@ -3459,38 +3920,76 @@ class _CommentThreadList extends StatelessWidget {
     );
   }
 
-  bool _isRoot(ChannelPostComment comment, Map<int, ChannelPostComment> byId) {
-    final replyTo = comment.replyToMessageId;
-    return replyTo == null ||
-        replyTo == post.message.id ||
-        replyTo == post.threadTarget?.messageThreadId ||
-        !byId.containsKey(replyTo);
+  ({int chatId, int messageId})? _replyKey(ChannelPostComment comment) {
+    final rid = comment.replyToMessageId;
+    if (rid == null) return null;
+    return (chatId: comment.replyToChatId ?? comment.chatId, messageId: rid);
   }
 
-  int _rootId(ChannelPostComment comment, Map<int, ChannelPostComment> byId) {
+  bool _isPostRootReply(ChannelPostComment comment) {
+    final rid = comment.replyToMessageId;
+    if (rid == null) return true;
+    final rChatId = comment.replyToChatId ?? comment.chatId;
+    if (rChatId == post.channel.id && rid == post.message.id) return true;
+    final target = post.threadTarget;
+    if (target != null &&
+        rChatId == target.chatId &&
+        rid == target.messageThreadId) {
+      return true;
+    }
+    return false;
+  }
+
+  bool _isRoot(
+    ChannelPostComment comment,
+    Map<({int chatId, int messageId}), ChannelPostComment> byChatAndId,
+  ) {
+    if (_isPostRootReply(comment)) return true;
+    final key = _replyKey(comment);
+    return key == null || !byChatAndId.containsKey(key);
+  }
+
+  int _rootId(
+    ChannelPostComment comment,
+    Map<({int chatId, int messageId}), ChannelPostComment> byChatAndId,
+  ) {
     var current = comment;
-    final seen = <int>{};
-    while (current.replyToMessageId != null &&
-        byId.containsKey(current.replyToMessageId) &&
-        seen.add(current.messageId)) {
-      final parent = byId[current.replyToMessageId]!;
-      if (_isRoot(parent, byId)) return parent.messageId;
+    final seen = <({int chatId, int messageId})>{};
+    while (seen.add((chatId: current.chatId, messageId: current.messageId))) {
+      final key = _replyKey(current);
+      if (key == null) break;
+      final parent = byChatAndId[key];
+      if (parent == null) break;
+      if (_isRoot(parent, byChatAndId)) return parent.messageId;
       current = parent;
     }
     return current.messageId;
   }
 
+  String? _rootReplyPrefix(ChannelPostComment comment) {
+    if (_isPostRootReply(comment)) return null;
+    final parentName = comment.replyToSenderName?.trim();
+    if (parentName == null || parentName.isEmpty) return null;
+    return AppStrings.t(AppStringKeys.momentsReplyPrefix, {
+      'value1': parentName,
+    });
+  }
+
   String? _replyPrefix(
     ChannelPostComment comment,
     ChannelPostComment root,
-    Map<int, ChannelPostComment> byId,
+    Map<({int chatId, int messageId}), ChannelPostComment> byChatAndId,
   ) {
-    final replyTo = comment.replyToMessageId;
-    if (replyTo == null || replyTo == root.messageId) return null;
-    final parent = byId[replyTo];
-    if (parent == null) return null;
+    final key = _replyKey(comment);
+    if (key == null ||
+        (key.chatId == root.chatId && key.messageId == root.messageId)) {
+      return null;
+    }
+    final parent = byChatAndId[key];
+    final parentName = parent?.senderName ?? comment.replyToSenderName;
+    if (parentName == null || parentName.trim().isEmpty) return null;
     return AppStrings.t(AppStringKeys.momentsReplyPrefix, {
-      'value1': parent.senderName,
+      'value1': parentName,
     });
   }
 }
@@ -3701,17 +4200,10 @@ class _ChannelPostComposerViewState extends State<ChannelPostComposerView> {
   Widget _header() {
     final c = context.colors;
     return Container(
-      padding: EdgeInsets.only(
-        top:
-            MediaQuery.of(context).padding.top +
-            iPadWindowChromeInsetOf(context),
-        left: AppSpacing.xxl,
-        right: AppSpacing.xxl,
-      ),
-      height:
-          MediaQuery.of(context).padding.top +
-          iPadWindowChromeInsetOf(context) +
-          AppMetric.composerHeaderHeight,
+      padding:
+          headerChromePaddingOf(context) +
+          const EdgeInsets.symmetric(horizontal: AppSpacing.xxl),
+      height: topChromeInsetOf(context) + AppMetric.composerHeaderHeight,
       color: c.groupedBackground,
       child: Row(
         children: [
@@ -3786,8 +4278,10 @@ class _ChannelPostComposerViewState extends State<ChannelPostComposerView> {
             maxLines: 16,
             textInputAction: TextInputAction.newline,
             contextMenuBuilder: (context, editableTextState) {
-              return AdaptiveTextSelectionToolbar.editableText(
-                editableTextState: editableTextState,
+              return AppTextSelectionToolbar.fromButtonItems(
+                context: context,
+                anchors: editableTextState.contextMenuAnchors,
+                items: editableTextState.contextMenuButtonItems,
               );
             },
             style: AppTextStyle.bodyLarge(c.textPrimary).copyWith(height: 1.4),
@@ -4096,13 +4590,24 @@ class _ChannelPostComposerViewState extends State<ChannelPostComposerView> {
       return;
     }
     setState(() => _sending = true);
+    // Read the switch before any await: 盘古之白 applies to whatever this
+    // composer posts, body and captions alike.
+    final spaceOutgoing = context.read<ThemeController>().panguOnSend;
     try {
-      final formatted = _richTextPayload?.text.trim() == text
+      final parsed = _richTextPayload?.text.trim() == text
           ? _richTextPayload!
           : await parseTelegramMarkdownWithTdLib(
               text,
               query: TdClient.shared.query,
             );
+      // Spacing lands after Markdown parsing, so the entity offsets TDLib
+      // produced stay valid for the text that goes out.
+      final spaced = PanguSpacing.gated(
+        enabled: spaceOutgoing,
+        text: parsed.text,
+        entities: parsed.entities,
+      );
+      final formatted = FormattedTextPayload(spaced.text, spaced.entities);
       if (_attachments.isEmpty) {
         await _sendTextPost(channel, formatted);
       } else {
@@ -4275,22 +4780,32 @@ class ChannelPostRow extends StatelessWidget {
             ],
             if (text.isNotEmpty) ...[
               const SizedBox(height: 12),
-              TelegramRichText(
-                text: text,
-                entities: _displayTextMessage?.textEntities ?? const [],
-                quoteBackgroundColor: _momentQuoteFill(c),
-                style: TextStyle(
-                  fontSize: 15,
-                  height: 1.35,
-                  color: c.textPrimary,
-                ),
-                onMentionTap: (userId, name) {
-                  unawaited(
-                    openAdaptiveUserProfile(
-                      context,
-                      userId: userId,
-                      name: name,
+              Builder(
+                builder: (context) {
+                  // Trim the raw selected caption and its entities together.
+                  // Passing `_displayText` would discard its original offsets.
+                  final display = trimTextForDisplay(
+                    _displayTextMessage?.text ?? '',
+                    _displayTextMessage?.textEntities ?? const [],
+                  );
+                  return TelegramRichText(
+                    text: display.text,
+                    entities: display.entities,
+                    quoteBackgroundColor: _momentQuoteFill(c),
+                    style: TextStyle(
+                      fontSize: 15,
+                      height: 1.35,
+                      color: c.textPrimary,
                     ),
+                    onMentionTap: (userId, name) {
+                      unawaited(
+                        openAdaptiveUserProfile(
+                          context,
+                          userId: userId,
+                          name: name,
+                        ),
+                      );
+                    },
                   );
                 },
               ),
@@ -6373,9 +6888,7 @@ class MomentsViewModel extends ChangeNotifier {
     _started = true;
     loading = true;
     notifyListeners();
-    _sub = TdClient.shared.subscribe().listen((update) {
-      if (update.type == 'updateChatActiveStories') _handle(update);
-    });
+    _sub = TdClient.shared.updatesOf('updateChatActiveStories').listen(_handle);
     unawaited(_loadSelf());
     unawaited(_loadAll());
   }
@@ -6501,4 +7014,20 @@ class MomentsViewModel extends ChangeNotifier {
       ..sort((a, b) => b.order.compareTo(a.order));
     notifyListeners();
   }
+}
+
+/// The discussion thread holding [post]'s comments, or null when TDLib
+/// reports none.
+Future<ChannelPostThreadTarget?> _fetchChannelPostThreadTarget(
+  ChannelPost post,
+) async {
+  final thread = await TdClient.shared.queryForSlot({
+    '@type': 'getMessageThread',
+    'chat_id': post.channel.id,
+    'message_id': post.message.id,
+  }, post.accountSlot);
+  final chatId = thread.int64('chat_id');
+  final threadId = thread.int64('message_thread_id');
+  if (chatId == null || threadId == null || threadId == 0) return null;
+  return ChannelPostThreadTarget(chatId: chatId, messageThreadId: threadId);
 }

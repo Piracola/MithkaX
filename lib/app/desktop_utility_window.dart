@@ -20,6 +20,7 @@ import '../chat/chat_view_model.dart';
 import '../chat/checklist_composer_view.dart';
 import '../chat/contact_share_picker_view.dart';
 import '../chat/group_remark_controller.dart';
+import '../chat/link_preview_fixer.dart';
 import '../chat/location_picker_view.dart';
 import '../chat/music_player_controller.dart';
 import '../chat/outgoing_attachment.dart';
@@ -35,8 +36,10 @@ import '../chat/video_playback_preferences.dart';
 import '../chats/chat_folder_tag_controller.dart';
 import '../chats/search_view.dart';
 import '../components/confirm_dialog.dart';
-import '../components/keyboard_dismiss_on_tap.dart';
 import '../components/toast.dart';
+import '../config/build_flags.dart';
+import '../history/message_history_settings.dart';
+import '../history/message_history_store.dart';
 import '../l10n/app_locale_controller.dart';
 import '../l10n/app_localizations.dart';
 import '../notifications/notification_preferences.dart';
@@ -73,6 +76,7 @@ import 'desktop_utility_window_stub.dart'
     if (dart.library.io) 'desktop_utility_window_io.dart'
     as implementation;
 import 'global_video_split_host.dart';
+import 'scaled_app_view.dart';
 
 export 'desktop_utility_window_models.dart';
 
@@ -170,7 +174,10 @@ class _DesktopUtilityWindowAppState extends State<DesktopUtilityWindowApp> {
     widget.prefs,
   );
   late final MithkaProService _mithkaPro = MithkaProService.shared;
-  late final AppIconController _appIcons = AppIconController(widget.prefs);
+  late final AppIconController _appIcons = AppIconController(
+    widget.prefs,
+    proService: _mithkaPro,
+  );
   late final AutoDownloadMediaController _autoDownload =
       AutoDownloadMediaController.shared;
   late final NotificationPreferences _notificationPreferences =
@@ -199,25 +206,41 @@ class _DesktopUtilityWindowAppState extends State<DesktopUtilityWindowApp> {
 
   ChatViewModel get _pickerViewModel {
     final existing = _composerPickerViewModel;
-    if (existing != null) return existing;
+    if (existing != null) return _withPanguPreferences(existing);
     final created = ChatViewModel(
       chatId: widget.arguments.chatId!,
       title: widget.arguments.title,
       markReadOnOpen: false,
     )..onAppear();
     _composerPickerViewModel = created;
-    return created;
+    return _withPanguPreferences(created);
   }
+
+  /// The picker window has no chat view to mirror 盘古之白 from, so its model
+  /// reads the switches straight off this window's theme controller.
+  ChatViewModel _withPanguPreferences(ChatViewModel model) => model
+    ..panguOnSend = _theme.panguOnSend
+    ..panguOnEdit = _theme.panguOnEdit;
 
   @override
   void initState() {
     super.initState();
     KeywordBlocker.shared.initialize(widget.prefs);
+    LinkPreviewFixer.shared.initialize(widget.prefs);
     HiddenSenderStore.shared
       ..initialize(widget.prefs)
       ..addListener(_handleHiddenSendersChanged);
     CountryMessageFilter.shared.initialize(widget.prefs);
     MusicPlayerController.shared.initialize(widget.prefs);
+    // Telegram §1.4 surfaces reached from a utility window (chat info's kept
+    // messages row and per-chat recording switch): these singletons are
+    // process-wide and this window runs in its own process, so without the
+    // seed here the switch reads the default and the exclude/record actions
+    // act on a store with no exclusions loaded.
+    if (allowTelegramTosViolations) {
+      MessageHistorySettings.shared.initialize(widget.prefs);
+      MessageHistoryStore.shared.initialize(widget.prefs);
+    }
     _autoDownload.initialize(widget.prefs);
     _notificationPreferences.initialize(widget.prefs);
     _performance.start();
@@ -231,6 +254,12 @@ class _DesktopUtilityWindowAppState extends State<DesktopUtilityWindowApp> {
     _auth.start();
     _auth.reloadAuthState();
     unawaited(_accounts.refresh());
+    // Telegram §1.4 ghost folding resolves the owning account through this
+    // static bridge (the primary window wires it in main). This window's
+    // ChatViews run against its pinned slot's proxy account.
+    if (allowTelegramTosViolations) {
+      ChatViewModel.accountSummaryProvider = _accounts.summaryForSlot;
+    }
     unawaited(_sensitiveContent.initialize());
     unawaited(BlockedUserService.shared.loadBlockedUsers());
     if (widget.arguments.kind == DesktopUtilityWindowKind.settings) {
@@ -325,6 +354,9 @@ class _DesktopUtilityWindowAppState extends State<DesktopUtilityWindowApp> {
           if (desktopHotkeys != null) await desktopHotkeys.reload();
           // Inside the reload, so the listener does not echo it back.
           HiddenSenderStore.shared.initialize(widget.prefs);
+          if (allowTelegramTosViolations) {
+            MessageHistorySettings.shared.initialize(widget.prefs);
+          }
         } on Object {
           // A transient platform-preferences failure must not unregister an
           // otherwise healthy TD proxy window from the primary bridge.
@@ -590,7 +622,9 @@ class _DesktopUtilityWindowAppState extends State<DesktopUtilityWindowApp> {
         if (!confirmed || !mounted) return;
       }
       var sentAny = false;
-      if (await TdClient.shared.activeAccountUsesBotApi() ||
+      if (result.sendsAsFormattedText) {
+        // Inline formatting alone travels as an ordinary message (below).
+      } else if (await TdClient.shared.activeAccountUsesBotApi() ||
           await _pickerViewModel.currentUserIsPremium()) {
         for (final segment in result.segments) {
           if (segment.isHtml) {
@@ -716,6 +750,7 @@ class _DesktopUtilityWindowAppState extends State<DesktopUtilityWindowApp> {
       chatId: widget.arguments.chatId!,
       title: widget.arguments.title,
       showBackButton: false,
+      accountUserId: widget.arguments.accountUserId,
     ),
     DesktopUtilityWindowKind.userProfile => ProfileDetailView(
       userId: widget.arguments.userId!,
@@ -868,10 +903,8 @@ class _DesktopUtilityWindowAppState extends State<DesktopUtilityWindowApp> {
             if (!desktopUtilityWindowHasUsableMetrics(media.size)) {
               return ColoredBox(color: currentTheme.scaffoldBackgroundColor);
             }
-            return _DesktopUtilityScaledView(
-              textScale: _theme.effectiveTextScale(
-                MediaQuery.textScalerOf(context),
-              ),
+            return ScaledAppView(
+              textScale: _theme.fontScale,
               interfaceScale: _theme.renderedInterfaceScale,
               child: appSurface,
             );
@@ -1017,62 +1050,5 @@ class _DesktopLocationPickerRootState
         onSend: widget.onSend,
       );
     },
-  );
-}
-
-class _DesktopUtilityScaledView extends StatelessWidget {
-  const _DesktopUtilityScaledView({
-    required this.textScale,
-    required this.interfaceScale,
-    required this.child,
-  });
-
-  final double textScale;
-  final double interfaceScale;
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) {
-    final media = MediaQuery.of(context);
-    final scale = interfaceScale;
-    final virtualSize = Size(
-      media.size.width / scale,
-      media.size.height / scale,
-    );
-    final scaledMedia = media.copyWith(
-      size: virtualSize,
-      padding: _unscale(media.padding, scale),
-      viewPadding: _unscale(media.viewPadding, scale),
-      viewInsets: _unscale(media.viewInsets, scale),
-      systemGestureInsets: _unscale(media.systemGestureInsets, scale),
-      textScaler: TextScaler.linear(textScale),
-    );
-    return AppKeyboardDismissOnTap(
-      child: ClipRect(
-        child: OverflowBox(
-          alignment: Alignment.topLeft,
-          minWidth: virtualSize.width,
-          maxWidth: virtualSize.width,
-          minHeight: virtualSize.height,
-          maxHeight: virtualSize.height,
-          child: Transform.scale(
-            scale: scale,
-            alignment: Alignment.topLeft,
-            child: SizedBox(
-              width: virtualSize.width,
-              height: virtualSize.height,
-              child: MediaQuery(data: scaledMedia, child: child),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  EdgeInsets _unscale(EdgeInsets insets, double scale) => EdgeInsets.fromLTRB(
-    insets.left / scale,
-    insets.top / scale,
-    insets.right / scale,
-    insets.bottom / scale,
   );
 }

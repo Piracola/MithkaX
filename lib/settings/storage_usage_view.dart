@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -18,6 +19,7 @@ import '../theme/app_motion.dart';
 import '../theme/app_theme.dart';
 import 'auto_download_settings_view.dart';
 import 'data_storage_service.dart';
+import 'download_location_view.dart';
 import 'downloads_view.dart';
 import 'network_usage_view.dart';
 
@@ -602,6 +604,13 @@ class _StorageUsageViewState extends State<StorageUsageView> {
   Widget _relatedStorageCard({required bool desktopDense}) {
     final c = context.colors;
     final destinations = <(String, AppIconData, Color, Widget)>[
+      if (Platform.isAndroid)
+        (
+          AppStringKeys.storageDownloadLocation,
+          HeroAppIcons.solidFolder,
+          const Color(0xFF3C8CF0),
+          const DownloadLocationView(),
+        ),
       (
         AppStringKeys.generalAutoDownloadMedia,
         HeroAppIcons.download,
@@ -1029,6 +1038,7 @@ class _StorageActionCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
+    final actionColor = destructive ? AppTheme.tagRed : AppTheme.brand;
     return SettingsPanel(
       padding: EdgeInsets.all(desktopDense ? 14 : 17),
       child: Row(
@@ -1100,15 +1110,11 @@ class _StorageActionCard extends StatelessWidget {
                 borderRadius: BorderRadius.circular(AppRadius.control),
               ),
               child: showProgress
-                  ? const SizedBox(
-                      width: 15,
-                      height: 15,
-                      child: AppActivityIndicator(),
-                    )
+                  ? AppActivityIndicator(size: 15, color: actionColor)
                   : Text(
                       action,
                       style: TextStyle(
-                        color: destructive ? AppTheme.tagRed : AppTheme.brand,
+                        color: actionColor,
                         fontSize: desktopDense ? 12 : 14,
                         fontWeight: FontWeight.w600,
                       ),
@@ -1368,11 +1374,7 @@ class _StorageManagerViewState extends State<_StorageManagerView> {
                     borderRadius: BorderRadius.circular(AppRadius.control),
                   ),
                   child: _working
-                      ? const SizedBox(
-                          width: 14,
-                          height: 14,
-                          child: AppActivityIndicator(),
-                        )
+                      ? AppActivityIndicator(size: 14, color: AppTheme.tagRed)
                       : Text(
                           AppStrings.t(
                             AppStringKeys.storageManagerClearSelected,

@@ -12,16 +12,20 @@ import '../platform/adaptive_platform.dart';
 import '../settings/translation_controller.dart';
 import '../tdlib/td_models.dart';
 import '../theme/app_theme.dart';
+import '../theme/content_size.dart';
 import '../theme/date_text.dart';
 import '../theme/message_name_colors.dart';
 import '../theme/telegram_cloud_theme.dart';
 import '../theme/theme_controller.dart';
 import 'chat_appearance_preview.dart';
 import 'desktop_message_quote_source.dart';
+import 'desktop_message_text_selection.dart';
 import 'media_album_layout.dart';
 import 'media_preview_geometry.dart';
 import 'media_spoiler.dart';
 import 'message_action_menu.dart';
+import 'message_direction.dart';
+import 'message_reaction_chips.dart';
 import 'message_reply_count_badge.dart';
 import 'mobile_message_text_selection.dart';
 import 'telegram_rich_text.dart';
@@ -46,6 +50,7 @@ class ImageMediaAlbumBubble extends StatelessWidget {
     this.peerPhoto,
     this.meName = AppStringKeys.chatMeLabel,
     this.mePhoto,
+    this.meId,
     this.hasCustomChatTheme = false,
     this.showCommentAttachment = false,
     this.channelHasLinkedDiscussion = false,
@@ -61,11 +66,14 @@ class ImageMediaAlbumBubble extends StatelessWidget {
     this.onAvatarTap,
     this.onAvatarLongPress,
     this.onOpenForwarded,
+    this.onTapViaBot,
     this.onOpenImage,
     this.onPlayVideo,
     this.onEditCaption,
     this.onOpenComments,
     this.onLongPress,
+    this.onToggleReaction,
+    this.onShowReactionUsers,
     this.mobileTextSelectionAreaKey,
     this.onMobileTextSelectionChanged,
     this.onMobileTextSelectionDisposed,
@@ -85,6 +93,7 @@ class ImageMediaAlbumBubble extends StatelessWidget {
   final bool isGroup;
   final String meName;
   final TdFileRef? mePhoto;
+  final int? meId;
   final bool hasCustomChatTheme;
   final bool showCommentAttachment;
   final bool channelHasLinkedDiscussion;
@@ -100,6 +109,7 @@ class ImageMediaAlbumBubble extends StatelessWidget {
   final ValueChanged<ChatMessage>? onAvatarTap;
   final ValueChanged<ChatMessage>? onAvatarLongPress;
   final ValueChanged<ChatMessage>? onOpenForwarded;
+  final ValueChanged<ChatMessage>? onTapViaBot;
   final ValueChanged<ChatMessage>? onOpenImage;
   final ValueChanged<ChatMessage>? onPlayVideo;
   final ValueChanged<ChatMessage>? onEditCaption;
@@ -110,6 +120,13 @@ class ImageMediaAlbumBubble extends StatelessWidget {
     MessageActionSource source,
   )?
   onLongPress;
+
+  /// Toggles a bucket on the album's interaction owner, which carries the
+  /// album's reactions.
+  final void Function(ChatMessage message, MessageReaction reaction)?
+  onToggleReaction;
+  final void Function(ChatMessage message, MessageReaction reaction)?
+  onShowReactionUsers;
   final GlobalKey<SelectionAreaState>? mobileTextSelectionAreaKey;
   final ValueChanged<SelectedContent?>? onMobileTextSelectionChanged;
   final VoidCallback? onMobileTextSelectionDisposed;
@@ -125,9 +142,12 @@ class ImageMediaAlbumBubble extends StatelessWidget {
   ChatMessage get _first => messages.first;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) =>
+      ContentSizeScope(child: Builder(builder: _buildContent));
+
+  Widget _buildContent(BuildContext context) {
     final first = _first;
-    final outgoing = first.isOutgoing;
+    final outgoing = isOutgoingTranscriptMessage(first, meId);
     final avatarTitle = outgoing
         ? (first.senderIsChat ? (first.senderName ?? meName) : meName)
         : (isGroup && (first.senderName?.isNotEmpty ?? false))
@@ -144,7 +164,12 @@ class ImageMediaAlbumBubble extends StatelessWidget {
       behavior: HitTestBehavior.opaque,
       onTap: () => onAvatarTap?.call(first),
       onLongPress: outgoing ? null : () => onAvatarLongPress?.call(first),
-      child: PhotoAvatar(title: avatarTitle, photo: avatarPhoto, size: 38),
+      child: PhotoAvatar(
+        title: avatarTitle,
+        photo: avatarPhoto,
+        size: 38 * ContentSizeScope.of(context).appScale,
+        isDeleted: !outgoing && isGroup && first.senderIsDeleted,
+      ),
     );
 
     return LayoutBuilder(
@@ -163,14 +188,36 @@ class ImageMediaAlbumBubble extends StatelessWidget {
             math.min(chatWidth * 0.75, telegramDesktopMediaPreviewMaxSide),
           ),
         );
-        final body = outgoing
+        final reactionOwner = selectMediaAlbumInteractionOwner(messages);
+        final media = reactionOwner.reactions.isEmpty
             ? gallery
+            : Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: outgoing
+                    ? CrossAxisAlignment.end
+                    : CrossAxisAlignment.start,
+                children: [
+                  gallery,
+                  const SizedBox(height: 4),
+                  MessageReactionChips(
+                    message: reactionOwner,
+                    outgoing: outgoing,
+                    onToggle: onToggleReaction == null
+                        ? null
+                        : (reaction) =>
+                              onToggleReaction!(reactionOwner, reaction),
+                    onShowUsers: onShowReactionUsers,
+                  ),
+                ],
+              );
+        final body = outgoing
+            ? media
             : Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   if (isGroup && first.senderName != null)
                     _senderHeader(context),
-                  gallery,
+                  media,
                 ],
               );
 
@@ -386,6 +433,16 @@ class ImageMediaAlbumBubble extends StatelessWidget {
               padding: const EdgeInsets.fromLTRB(10, 7, 10, 2),
               child: _forwardHeader(context, _first),
             ),
+          if (_first.hasViaBotAttribution)
+            Padding(
+              padding: EdgeInsets.fromLTRB(
+                10,
+                _first.hasForwardAttribution ? 0 : 7,
+                10,
+                2,
+              ),
+              child: _viaBotHeader(context, _first),
+            ),
           Padding(
             padding: const EdgeInsets.all(padding),
             child: Column(
@@ -496,9 +553,7 @@ class ImageMediaAlbumBubble extends StatelessWidget {
                                     );
                                   }
                                 },
-                                child: SelectionArea(
-                                  contextMenuBuilder: (_, _) =>
-                                      const SizedBox.shrink(),
+                                child: DesktopMessageTextSelectionArea(
                                   child: selectionContent,
                                 ),
                               );
@@ -599,6 +654,34 @@ class ImageMediaAlbumBubble extends StatelessWidget {
             child: Text(
               AppStrings.t(AppStringKeys.messageBubbleForwardedFrom, {
                 'value1': message.forwardDisplayName,
+              }),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+                color: colors.linkBlue,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _viaBotHeader(BuildContext context, ChatMessage message) {
+    final colors = context.colors;
+    return GestureDetector(
+      key: ValueKey('messageViaBotHeader-${message.id}'),
+      behavior: HitTestBehavior.opaque,
+      onTap: onTapViaBot != null ? () => onTapViaBot!.call(message) : null,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Flexible(
+            child: Text(
+              AppStrings.t(AppStringKeys.messageBubbleViaBot, {
+                'value1': message.viaBotDisplayName,
               }),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,

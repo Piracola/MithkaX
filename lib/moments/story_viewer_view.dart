@@ -31,10 +31,12 @@ import '../components/app_interactive_surface.dart';
 import '../components/photo_avatar.dart';
 import '../components/toast.dart';
 import '../components/ui_components.dart';
+import '../config/build_flags.dart';
 import '../media/video_playback_reporting.dart';
 import '../media/video_view_compatibility.dart';
 import '../platform/adaptive_platform.dart';
 import '../platform/keyboard_modifiers.dart';
+import '../settings/ghost_mode_controller.dart';
 import '../tdlib/json_helpers.dart';
 import '../tdlib/td_client.dart';
 import '../tdlib/td_image_loader.dart';
@@ -275,12 +277,17 @@ class _StoryViewerViewState extends State<StoryViewerView>
       _volumePanelVisible = false;
     });
 
-    // Mark the story as viewed (best-effort).
-    TdClient.shared.send({
-      '@type': 'openStory',
-      'story_poster_chat_id': widget.chatId,
-      'story_id': sid,
-    });
+    // Mark the story as viewed (best-effort). Ghost mode skips the report;
+    // the local seen markers then stay unupdated, the same trade-off
+    // AyuGram accepts.
+    if (!(allowTelegramTosViolations &&
+        GhostModeController.shared.shouldBlockStories(widget.chatId).isBlock)) {
+      TdClient.shared.send({
+        '@type': 'openStory',
+        'story_poster_chat_id': widget.chatId,
+        'story_id': sid,
+      });
+    }
 
     try {
       final story = await TdClient.shared
@@ -579,8 +586,7 @@ class _StoryViewerViewState extends State<StoryViewerView>
 
   @override
   Widget build(BuildContext context) {
-    final top =
-        MediaQuery.of(context).padding.top + iPadWindowChromeInsetOf(context);
+    final top = topChromeInsetOf(context);
     final desktop = storyViewerUsesDesktopControls(Theme.of(context).platform);
     final viewer = Scaffold(
       backgroundColor: Colors.black,
@@ -739,7 +745,7 @@ class _StoryViewerViewState extends State<StoryViewerView>
                 ),
               SizedBox(
                 height:
-                    MediaQuery.of(context).padding.bottom +
+                    MediaQuery.paddingOf(context).bottom +
                     (_current?.canBeReplied ?? false ? 68 : 58),
               ),
             ],
@@ -793,7 +799,7 @@ class _StoryViewerViewState extends State<StoryViewerView>
             Positioned(
               left: 18,
               top: top + 96,
-              bottom: MediaQuery.of(context).padding.bottom + 72,
+              bottom: MediaQuery.paddingOf(context).bottom + 72,
               child: Center(
                 child: _desktopNavigationButton(
                   key: const ValueKey('storyDesktopPrevious'),
@@ -806,7 +812,7 @@ class _StoryViewerViewState extends State<StoryViewerView>
             Positioned(
               right: 18,
               top: top + 96,
-              bottom: MediaQuery.of(context).padding.bottom + 72,
+              bottom: MediaQuery.paddingOf(context).bottom + 72,
               child: Center(
                 child: _desktopNavigationButton(
                   key: const ValueKey('storyDesktopNext'),
@@ -820,7 +826,7 @@ class _StoryViewerViewState extends State<StoryViewerView>
           if (_current?.areas.isNotEmpty ?? false)
             Positioned.fill(
               top: top + 96,
-              bottom: MediaQuery.of(context).padding.bottom + 88,
+              bottom: MediaQuery.paddingOf(context).bottom + 88,
               child: _storyAreas(),
             ),
           if ((_current?.isVideo ?? false) && _volumePanelVisible)
@@ -829,7 +835,7 @@ class _StoryViewerViewState extends State<StoryViewerView>
             Positioned(
               left: 12,
               right: 12,
-              bottom: MediaQuery.of(context).padding.bottom + 8,
+              bottom: MediaQuery.paddingOf(context).bottom + 8,
               child: _actionBar(),
             ),
         ],

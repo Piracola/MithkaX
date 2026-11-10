@@ -288,13 +288,18 @@ class HandoffService {
       var slot = await TdClient.shared.readySlotForUserId(
         activity.accountUserId,
       );
+      // AuthReloading is a re-read of a running client (account switch, add
+      // account) — the gate below must wait it out exactly like a cold start,
+      // or a Handoff activity landing mid-switch would bind to the old client.
       if (slot == null &&
           (TdClient.shared.configuredSlots.isEmpty ||
-              auth.step is AuthInitializing)) {
+              auth.step is AuthInitializing ||
+              auth.step is AuthReloading)) {
         await waitForHandoffStartup(
           isReady: () =>
               TdClient.shared.configuredSlots.isNotEmpty &&
-              auth.step is! AuthInitializing,
+              auth.step is! AuthInitializing &&
+              auth.step is! AuthReloading,
           isActive: () => _started,
         );
         if (!_started) return;
@@ -365,7 +370,7 @@ class HandoffService {
 
   Future<String> _chatTitle({required int slot, required int chatId}) async {
     final clientId = TdClient.shared.clientId(slot);
-    if (clientId == null) return 'Mithka';
+    if (clientId == null) return 'Mithka X';
     try {
       final chat = await TdClient.shared
           .queryTo({'@type': 'getChat', 'chat_id': chatId}, clientId)
@@ -374,10 +379,10 @@ class HandoffService {
           .str('title')
           ?.replaceAll(RegExp(r'[\r\n]+'), ' ')
           .trim();
-      if (title == null || title.isEmpty) return 'Mithka';
+      if (title == null || title.isEmpty) return 'Mithka X';
       return title.length <= 256 ? title : title.substring(0, 256);
     } catch (_) {
-      return 'Mithka';
+      return 'Mithka X';
     }
   }
 

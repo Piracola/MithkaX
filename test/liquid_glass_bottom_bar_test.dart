@@ -10,7 +10,95 @@ import 'package:mithka/theme/theme_controller.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'helpers/glass_review_capture.dart';
+
 void main() {
+  testWidgets('icon-only capsule slots fit at larger text scales', (
+    tester,
+  ) async {
+    const labels = ['Chats', 'Channels', 'Contacts', 'Moments'];
+    for (final scale in [1.0, 1.4, 2.0]) {
+      for (var selected = 0; selected < labels.length; selected++) {
+        await tester.pumpWidget(
+          MaterialApp(
+            theme: ThemeData(extensions: [AppColors.light]),
+            home: MediaQuery(
+              data: MediaQueryData(textScaler: TextScaler.linear(scale)),
+              child: Scaffold(
+                body: Align(
+                  alignment: Alignment.bottomCenter,
+                  child: SizedBox(
+                    width: 318,
+                    child: LiquidGlassBottomBar(
+                      selection: selected,
+                      itemCount: labels.length,
+                      child: SizedBox(
+                        height: 62,
+                        child: Row(
+                          children: [
+                            for (final label in labels)
+                              Expanded(
+                                child: Center(
+                                  child: Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 2,
+                                    ),
+                                    child: Column(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
+                                      children: [
+                                        SizedBox(
+                                          key: ValueKey('scaled-icon-$label'),
+                                          width: 36,
+                                          height: 28,
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+        final indicator = find.byKey(const ValueKey('liquid-glass-selection'));
+        final decoration =
+            tester.widget<DecoratedBox>(indicator).decoration as BoxDecoration;
+        final radius = decoration.borderRadius! as BorderRadius;
+        final shape = radius.toRRect(tester.getRect(indicator));
+        expect(
+          radius,
+          BorderRadius.circular(tester.getSize(indicator).height / 2),
+        );
+        for (final prefix in ['scaled-icon']) {
+          final bounds = tester.getRect(
+            find.byKey(ValueKey('$prefix-${labels[selected]}')),
+          );
+          for (final point in [
+            bounds.topLeft,
+            bounds.topRight,
+            bounds.bottomLeft,
+            bounds.bottomRight,
+          ]) {
+            expect(
+              shape.contains(point),
+              isTrue,
+              reason: '$prefix, scale $scale, selected $selected',
+            );
+          }
+        }
+      }
+    }
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('glass setting defaults off and persists both choices', (
     tester,
   ) async {
@@ -106,4 +194,136 @@ void main() {
     );
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets('selection capsule derives its radius from its own height', (
+    tester,
+  ) async {
+    // The glass row is icon-only. Its full capsule follows the outer surface
+    // across the 5pt inset; the classic icon + label bar is a separate path.
+    for (final rowHeight in [62.0, 71.0]) {
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: ThemeData(extensions: [AppColors.light]),
+          home: Scaffold(
+            body: Align(
+              alignment: Alignment.bottomCenter,
+              child: SizedBox(
+                width: 318,
+                child: LiquidGlassBottomBar(
+                  selection: 0,
+                  itemCount: 4,
+                  child: SizedBox(
+                    height: rowHeight,
+                    child: Row(
+                      children: [
+                        for (var index = 0; index < 4; index++)
+                          Expanded(
+                            child: Center(
+                              child: SizedBox(
+                                key: ValueKey('capsule-icon-$index'),
+                                width: 36,
+                                height: 28,
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      final pill = find.byKey(const ValueKey('liquid-glass-selection'));
+      final rect = tester.getRect(pill);
+      final decoration =
+          tester.widget<DecoratedBox>(pill).decoration as BoxDecoration;
+      final radius = decoration.borderRadius! as BorderRadius;
+      expect(rect.height, rowHeight);
+      expect(radius, BorderRadius.circular(rowHeight / 2));
+      final shape = radius.toRRect(rect);
+      final icon = tester.getRect(find.byKey(const ValueKey('capsule-icon-0')));
+      for (final corner in [
+        icon.topLeft,
+        icon.topRight,
+        icon.bottomLeft,
+        icon.bottomRight,
+      ]) {
+        expect(shape.contains(corner), isTrue);
+      }
+      expect(tester.takeException(), isNull);
+    }
+  });
+
+  testWidgets(
+    'capture patterned glass surfaces for visual review',
+    (tester) async {
+      for (final scene in [
+        (name: 'capsule-light', dark: false, highContrast: false),
+        (name: 'capsule-dark', dark: true, highContrast: false),
+        (name: 'capsule-high-contrast', dark: false, highContrast: true),
+      ]) {
+        await tester.pumpWidget(
+          MaterialApp(
+            theme: ThemeData(
+              brightness: scene.dark ? Brightness.dark : Brightness.light,
+              extensions: [scene.dark ? AppColors.dark : AppColors.light],
+            ),
+            home: Scaffold(
+              body: Center(
+                child: glassReviewBoundary(
+                  SizedBox(
+                    width: 390,
+                    height: 180,
+                    child: MediaQuery(
+                      data: MediaQueryData(highContrast: scene.highContrast),
+                      child: Stack(
+                        children: [
+                          Positioned.fill(
+                            child: CustomPaint(painter: _ReviewBackdrop()),
+                          ),
+                          const Align(
+                            alignment: Alignment.bottomCenter,
+                            child: LiquidGlassBottomBar(
+                              selection: 1,
+                              itemCount: 4,
+                              child: SizedBox(
+                                height: 62,
+                                width: double.infinity,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+        await tester.pump();
+        await tester.pump(const Duration(seconds: 1));
+        await captureGlassReviewImage(tester, scene.name);
+      }
+    },
+    skip: !captureGlassReview,
+  );
+}
+
+class _ReviewBackdrop extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    const colors = [Color(0xFF186AAB), Color(0xFFF6CC5D), Color(0xFFEA6262)];
+    for (var index = 0; index * 18 < size.width; index++) {
+      canvas.drawRect(
+        Rect.fromLTWH(index * 18.0, 0, 18, size.height),
+        Paint()..color = colors[index % colors.length],
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(_ReviewBackdrop oldDelegate) => false;
 }

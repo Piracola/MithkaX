@@ -11,6 +11,7 @@ import '../auth/account_store.dart';
 import '../auth/auth_manager.dart';
 import '../components/app_confirm_dialog.dart';
 import '../components/app_icons.dart';
+import '../components/keyboard_inset_padding.dart';
 import '../components/toast.dart';
 import '../components/ui_components.dart';
 import '../l10n/app_localizations.dart';
@@ -243,18 +244,26 @@ class _AccountBackupViewState extends State<AccountBackupView> {
     );
   }
 
-  Future<void> _copyPyrogramSession() async {
+  Future<void> _copySession({required bool gramJs}) async {
     final ok = await showAppConfirmDialog(
       context,
-      title: AppStringKeys.accountBackupCopyPyrogramTitle,
-      message: AppStringKeys.accountBackupCopyPyrogramMessage,
-      confirmText: AppStringKeys.accountBackupCopyPyrogramSession,
+      title: gramJs
+          ? AppStringKeys.accountBackupCopyGramJsTitle
+          : AppStringKeys.accountBackupCopyPyrogramTitle,
+      message: gramJs
+          ? AppStringKeys.accountBackupCopyGramJsMessage
+          : AppStringKeys.accountBackupCopyPyrogramMessage,
+      confirmText: gramJs
+          ? AppStringKeys.accountBackupCopyGramJsSession
+          : AppStringKeys.accountBackupCopyPyrogramSession,
     );
     if (!ok || !mounted || _working) return;
     setState(() => _working = true);
     try {
-      final backup = await _service.exportActiveSession();
-      await SensitiveClipboard.shared.copy(backup.sessionString);
+      final sessionString = gramJs
+          ? await _service.exportActiveGramJsSession()
+          : (await _service.exportActiveSession()).sessionString;
+      await SensitiveClipboard.shared.copy(sessionString);
       if (mounted) {
         showToast(context, AppStrings.t(AppStringKeys.accountBackupCopied));
       }
@@ -291,7 +300,7 @@ class _AccountBackupViewState extends State<AccountBackupView> {
     }
   }
 
-  Future<void> _loadPyrogramSession() async {
+  Future<void> _loadSession() async {
     if (_working) return;
     final sessionString = await showGeneralDialog<String>(
       context: context,
@@ -301,7 +310,7 @@ class _AccountBackupViewState extends State<AccountBackupView> {
       transitionDuration: const Duration(milliseconds: 190),
       pageBuilder: (_, _, _) => const Align(
         alignment: Alignment.bottomCenter,
-        child: _PyrogramSessionImportSheet(),
+        child: _SessionImportSheet(),
       ),
       transitionBuilder: (_, animation, _, child) => SlideTransition(
         position: Tween<Offset>(
@@ -419,11 +428,12 @@ class _AccountBackupViewState extends State<AccountBackupView> {
                   _actionButton(),
                   _localBackupButton(),
                   _copyPyrogramButton(),
-                  _loadPyrogramButton(),
+                  _copyGramJsButton(),
+                  _loadSessionButton(),
                 ],
               ),
             ] else
-              SettingsCard.rows(rows: [_loadPyrogramButton()]),
+              SettingsCard.rows(rows: [_loadSessionButton()]),
             _notice(),
             const SettingsSectionHeader(AppStringKeys.accountBackupSessions),
             if (_loading)
@@ -471,15 +481,23 @@ class _AccountBackupViewState extends State<AccountBackupView> {
     return _tileButton(
       icon: HeroAppIcons.code,
       title: AppStringKeys.accountBackupCopyPyrogramSession,
-      onTap: _working || !_supported ? null : _copyPyrogramSession,
+      onTap: _working || !_supported ? null : () => _copySession(gramJs: false),
     );
   }
 
-  Widget _loadPyrogramButton() {
+  Widget _copyGramJsButton() {
+    return _tileButton(
+      icon: HeroAppIcons.commandLine,
+      title: AppStringKeys.accountBackupCopyGramJsSession,
+      onTap: _working || !_supported ? null : () => _copySession(gramJs: true),
+    );
+  }
+
+  Widget _loadSessionButton() {
     return _tileButton(
       icon: HeroAppIcons.upload,
-      title: AppStringKeys.accountBackupLoadPyrogramSession,
-      onTap: _working || !_supported ? null : _loadPyrogramSession,
+      title: AppStringKeys.accountBackupLoadSession,
+      onTap: _working || !_supported ? null : _loadSession,
     );
   }
 
@@ -568,16 +586,14 @@ class _AccountBackupViewState extends State<AccountBackupView> {
   }
 }
 
-class _PyrogramSessionImportSheet extends StatefulWidget {
-  const _PyrogramSessionImportSheet();
+class _SessionImportSheet extends StatefulWidget {
+  const _SessionImportSheet();
 
   @override
-  State<_PyrogramSessionImportSheet> createState() =>
-      _PyrogramSessionImportSheetState();
+  State<_SessionImportSheet> createState() => _SessionImportSheetState();
 }
 
-class _PyrogramSessionImportSheetState
-    extends State<_PyrogramSessionImportSheet> {
+class _SessionImportSheetState extends State<_SessionImportSheet> {
   final _controller = TextEditingController();
   final _focusNode = FocusNode();
 
@@ -605,8 +621,8 @@ class _PyrogramSessionImportSheetState
   Widget build(BuildContext context) {
     final c = context.colors;
     final media = MediaQuery.of(context);
-    return Padding(
-      padding: EdgeInsets.only(bottom: media.viewInsets.bottom),
+    return KeyboardInsetPadding(
+      backgroundColor: c.groupedBackground,
       child: DefaultTextStyle(
         style: AppTextStyle.body(c.textPrimary),
         child: Container(
@@ -626,7 +642,7 @@ class _PyrogramSessionImportSheetState
                     Expanded(
                       child: Text(
                         AppStrings.t(
-                          AppStringKeys.accountBackupLoadPyrogramTitle,
+                          AppStringKeys.accountBackupLoadSessionTitle,
                         ),
                         style: TextStyle(
                           fontSize: 18,
@@ -651,7 +667,7 @@ class _PyrogramSessionImportSheetState
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  AppStrings.t(AppStringKeys.accountBackupLoadPyrogramMessage),
+                  AppStrings.t(AppStringKeys.accountBackupLoadSessionMessage),
                   style: TextStyle(
                     fontSize: 13,
                     height: 1.35,
@@ -682,7 +698,7 @@ class _PyrogramSessionImportSheetState
                                 child: Text(
                                   AppStrings.t(
                                     AppStringKeys
-                                        .accountBackupLoadPyrogramPlaceholder,
+                                        .accountBackupLoadSessionPlaceholder,
                                   ),
                                   style: TextStyle(
                                     fontSize: 14,
@@ -721,7 +737,7 @@ class _PyrogramSessionImportSheetState
                       child: _SheetActionButton(
                         onPressed: _paste,
                         icon: HeroAppIcons.code,
-                        label: AppStringKeys.accountBackupLoadPyrogramPaste,
+                        label: AppStringKeys.accountBackupLoadSessionPaste,
                         filled: false,
                       ),
                     ),
@@ -729,7 +745,7 @@ class _PyrogramSessionImportSheetState
                     Expanded(
                       child: _SheetActionButton(
                         onPressed: _submit,
-                        label: AppStringKeys.accountBackupLoadPyrogramConfirm,
+                        label: AppStringKeys.accountBackupLoadSessionConfirm,
                         filled: true,
                       ),
                     ),

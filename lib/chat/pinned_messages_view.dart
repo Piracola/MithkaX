@@ -125,11 +125,7 @@ class _PinnedMessagesViewState extends State<PinnedMessagesView> {
   Widget _header() {
     final c = context.colors;
     return Container(
-      padding: EdgeInsets.only(
-        top:
-            MediaQuery.of(context).padding.top +
-            iPadWindowChromeInsetOf(context),
-      ),
+      padding: headerChromePaddingOf(context),
       decoration: BoxDecoration(
         color: c.navBar,
         border: Border(bottom: BorderSide(color: c.divider, width: 0.5)),
@@ -267,6 +263,7 @@ class _PinnedMessagesViewState extends State<PinnedMessagesView> {
   Widget _messageBody(ChatMessage message) {
     final c = context.colors;
     final caption = _caption(message);
+    final captionStyle = AppTextStyle.messageBody(c.textPrimary);
     final media = message.image;
     if (media != null) {
       final size = _mediaSize(message);
@@ -310,7 +307,12 @@ class _PinnedMessagesViewState extends State<PinnedMessagesView> {
               caption,
               maxLines: 4,
               overflow: TextOverflow.ellipsis,
-              style: TextStyle(fontSize: 17, height: 1.3, color: c.textPrimary),
+              style: captionStyle.copyWith(
+                // This pinned-media role is 17pt on every platform. Only
+                // touch leading changes; desktop retains its explicit 1.3.
+                fontSize: 17,
+                height: captionStyle.height ?? 1.3,
+              ),
             ),
           ],
         ],

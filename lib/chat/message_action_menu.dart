@@ -14,6 +14,7 @@ import 'package:mithka/l10n/app_localizations.dart';
 import 'package:provider/provider.dart';
 
 import '../components/app_icons.dart';
+import '../config/build_flags.dart';
 import '../platform/adaptive_platform.dart';
 import '../settings/translation_controller.dart';
 import '../tdlib/td_models.dart';
@@ -27,6 +28,10 @@ import 'quick_reaction_choice.dart';
 enum MessageAction {
   copy(HeroAppIcons.file, AppStringKeys.messageActionCopy),
   copyImage(HeroAppIcons.image, AppStringKeys.messageActionCopyImage),
+  copyMessageLink(
+    HeroAppIcons.link,
+    AppStringKeys.messageActionCopyMessageLink,
+  ),
   edit(HeroAppIcons.pen, AppStringKeys.messageActionEdit),
   suggestOffer(HeroAppIcons.penToSquare, AppStringKeys.suggestedPostEditOffer),
   translate(HeroAppIcons.language, AppStringKeys.messageActionTranslate),
@@ -53,16 +58,21 @@ enum MessageAction {
   save(HeroAppIcons.solidStar, AppStringKeys.messageActionFavorite),
   saveSticker(HeroAppIcons.circlePlus, AppStringKeys.imageEditAdd),
   viewStickerSet(HeroAppIcons.tableCells, AppStringKeys.messageActionSticker),
+  viewEdits(HeroAppIcons.clock, AppStringKeys.messageActionViewEdits),
+  info(HeroAppIcons.circleInfo, AppStringKeys.messageActionInfo),
+  removeMirror(HeroAppIcons.trash, AppStringKeys.historyRemoveFromMirrorAction),
   delete(HeroAppIcons.trash, AppStringKeys.chatDelete);
 
   const MessageAction(this.glyph, this.label);
+
   final AppIconData glyph;
   final String label;
 
   bool get isDestructive =>
       this == MessageAction.delete ||
       this == MessageAction.report ||
-      this == MessageAction.block;
+      this == MessageAction.block ||
+      this == MessageAction.removeMirror;
 }
 
 enum MessageActionSource { normal, video }
@@ -314,10 +324,13 @@ class MessageActionMenu extends StatelessWidget {
     required this.onSelect,
     this.allowForwarding = true,
     this.allowTranslation = true,
+    this.allowReply = true,
     this.allowQuote = false,
     this.hasSelectedQuote = false,
     this.allowSuggestedPostOffer = false,
     this.allowHideSender = false,
+    this.allowCopyMessageLink = false,
+    this.allowViewEdits = false,
     this.source = MessageActionSource.normal,
     this.showingOriginalTranslation = false,
     this.layout = MessageActionMenuLayout.adaptive,
@@ -327,12 +340,23 @@ class MessageActionMenu extends StatelessWidget {
   final ValueChanged<MessageAction> onSelect;
   final bool allowForwarding;
   final bool allowTranslation;
+
+  /// Offer reply, and quote along with it: a quote is a reply carrying a
+  /// quoted range, so it disappears wherever Telegram refuses the reply.
+  final bool allowReply;
   final bool allowQuote;
   final bool hasSelectedQuote;
   final bool allowSuggestedPostOffer;
 
   /// Offer to hide this sender's messages on this device (groups only).
   final bool allowHideSender;
+
+  /// Offer [MessageAction.copyMessageLink] (server-verified availability).
+  final bool allowCopyMessageLink;
+
+  /// Offer [MessageAction.viewEdits]: a kept edit trail exists for this
+  /// message in the local mirror (compile-time gated feature).
+  final bool allowViewEdits;
   final MessageActionSource source;
   final bool showingOriginalTranslation;
   final MessageActionMenuLayout layout;
@@ -466,7 +490,14 @@ class MessageActionMenu extends StatelessWidget {
     required bool isDesktop,
     required bool isMacOS,
   }) {
-    if (message.isCall) return [MessageAction.delete];
+    // Call logs aren't reactable, but their delivery metadata stays useful —
+    // and a mirrored call still owes its read stamp.
+    if (message.isCall) {
+      return [
+        if (allowTelegramTosViolations) MessageAction.info,
+        MessageAction.delete,
+      ];
+    }
     final result = <MessageAction>[];
     if (_hasCopyableText) {
       result.add(MessageAction.copy);
@@ -492,20 +523,27 @@ class MessageActionMenu extends StatelessWidget {
         !message.isContentRestricted) {
       result.add(MessageAction.copyImage);
     }
+    // The availability flag already covers service messages, calls and
+    // protected content — the menu never guesses it client-side.
+    if (allowCopyMessageLink) {
+      result.add(MessageAction.copyMessageLink);
+    }
     if (!_hasCopyableText && message.isOutgoing && _isEditableMessage) {
       result.add(MessageAction.edit);
     }
     if (allowSuggestedPostOffer && !message.isService && _isEditableMessage) {
       result.add(MessageAction.suggestOffer);
     }
-    final canQuote = allowQuote && canQuoteMessageText(message);
-    result.add(
-      isDesktop && canQuote && hasSelectedQuote
-          ? MessageAction.quote
-          : MessageAction.reply,
-    );
-    if (!isDesktop && canQuote) {
-      result.add(MessageAction.quote);
+    if (allowReply) {
+      final canQuote = allowQuote && canQuoteMessageText(message);
+      result.add(
+        isDesktop && canQuote && hasSelectedQuote
+            ? MessageAction.quote
+            : MessageAction.reply,
+      );
+      if (!isDesktop && canQuote) {
+        result.add(MessageAction.quote);
+      }
     }
     if (message.hasActualReplies) {
       result.add(MessageAction.replies);
@@ -538,6 +576,12 @@ class MessageActionMenu extends StatelessWidget {
       result.add(MessageAction.viewStickerSet);
     }
     if (allowHideSender) result.add(MessageAction.hideSender);
+    if (allowViewEdits) result.add(MessageAction.viewEdits);
+    if (message.mirrorEntry != null) result.add(MessageAction.removeMirror);
+    // MithkaX restore (Telegram §1.4, compile-gated): upstream dropped the
+    // Info entry in 786689ac, which stranded the mirror's read-time row —
+    // its only host. Non-mirrored messages keep it for the delivery card.
+    if (allowTelegramTosViolations) result.add(MessageAction.info);
     result.add(MessageAction.delete);
     return result;
   }
@@ -577,7 +621,7 @@ class MessageActionMenu extends StatelessWidget {
         : secondRow.length;
     return LayoutBuilder(
       builder: (context, constraints) {
-        final maxWidth = MediaQuery.of(context).size.width - 24;
+        final maxWidth = MediaQuery.sizeOf(context).width - 24;
         final availableWidth = constraints.hasBoundedWidth
             ? constraints.maxWidth.clamp(0.0, maxWidth)
             : maxWidth;

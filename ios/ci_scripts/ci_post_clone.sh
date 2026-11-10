@@ -123,6 +123,7 @@ flutter_build_ios_config_with_retry() {
   n=1
   while :; do
     if flutter build ios --config-only --release \
+      --dart-define="I_DONT_FUCKING_CARE_ABOUT_TOS=false" \
       --build-name="$XCODE_BUILD_NAME" \
       --build-number="$APP_BUILD_NUMBER" \
       --dart-define="GIT_COMMIT=$GIT_COMMIT" \
@@ -234,10 +235,8 @@ case "$APP_BUILD_NUMBER" in
     exit 1
     ;;
 esac
-# The same marketing train macOS uploads on: a nightly collapses onto X.Y.0 so
-# App Store Connect sees one train whose builds differ by build number, rather
-# than a version per night it would have to review from scratch. A release
-# keeps the exact patch it is named for.
+# Match macOS: preserve the exact source/GitHub marketing version, including
+# the patch, for nightly, release, master, and local builds alike.
 XCODE_BUILD_NAME="$(sh "$REPO/scripts/apple_marketing_version.sh" \
   "$APP_BUILD_NAME" "${CI_BRANCH:-${GITHUB_REF_NAME:-}}")"
 echo "▸ iOS app version: $XCODE_BUILD_NAME+$APP_BUILD_NUMBER (source: $APP_BUILD_NAME)"
@@ -286,6 +285,7 @@ else
 fi
 
 # --- Native TDLib framework (git-ignored; manifest-pinned release artifact) --
+python3 scripts/verify_firebase_configuration.py --platform ios
 echo "▸ preparing pinned tdjson.xcframework"
 "$REPO/scripts/build-tdjson-ios.sh"
 
@@ -307,6 +307,15 @@ echo "▸ generating Flutter iOS build inputs"
 flutter config --enable-swift-package-manager
 flutter precache --ios
 flutter pub get
+
+# libmdk stops playing video 44 days after its own build stamp without a key
+# (it draws an "MDK SDK is outdated" QR frame), so the Apple SDK cannot be a
+# pinned archive: install a verified, still-fresh one before CocoaPods and the
+# Swift package resolve it. scripts/refresh-apple-mdk.sh refuses an fvp that
+# predates build-time resolution instead of linking an expiring SDK.
+echo "▸ refreshing the MDK Apple SDK"
+sh scripts/refresh-apple-mdk.sh
+
 prefetch_sqlite3_ios_arm64
 flutter_build_ios_config_with_retry
 python3 - <<PY >> ios/Flutter/Generated.xcconfig

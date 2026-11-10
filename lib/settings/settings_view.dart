@@ -16,6 +16,7 @@ import 'package:provider/provider.dart';
 import '../app/adaptive_split_layout.dart';
 import '../app/app_version.dart';
 import '../app/ipad_window_chrome.dart';
+import '../app/top_corner_cluster.dart';
 import '../auth/account_store.dart';
 import '../auth/auth_manager.dart';
 import '../chat/chat_sticker_packs_view.dart';
@@ -23,8 +24,6 @@ import '../components/app_icons.dart';
 import '../components/app_interactive_surface.dart';
 import '../components/ui_components.dart';
 import '../l10n/app_localizations.dart';
-import '../pro/mithka_pro_service.dart';
-import '../pro/mithka_pro_view.dart';
 import '../security/local_app_lock_views.dart';
 import '../theme/app_motion.dart';
 import '../theme/app_theme.dart';
@@ -41,6 +40,7 @@ import 'developer_settings_view.dart';
 import 'feature_settings_view.dart';
 import 'general_settings_view.dart';
 import 'language_settings_view.dart';
+import 'mithkax_settings_view.dart';
 import 'notification_settings_view.dart';
 import 'privacy_detail_views.dart';
 import 'privacy_security_view.dart';
@@ -223,54 +223,66 @@ class _SettingsViewState extends State<SettingsView> {
     return Scaffold(
       key: const ValueKey('settings-split-layout'),
       backgroundColor: c.groupedBackground,
+      // Each column clears the top edge on its own: on an opened iPhone Duo
+      // the status items sit in one corner, so both columns start at the
+      // same band as the main screen instead of under the full status height.
       body: SafeArea(
+        top: false,
         bottom: false,
         child: Row(
           children: [
             SizedBox(
               key: const ValueKey('settings-category-sidebar'),
               width: sidebarWidth,
-              child: ColoredBox(
-                color: sidebarColor,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    _splitSidebarHeader(context),
-                    _searchField(context, compact: true),
-                    Expanded(
-                      child: ListView(
-                        key: const PageStorageKey<String>(
-                          'settings-category-list',
+              child: _splitColumn(
+                topColor: sidebarColor,
+                child: ColoredBox(
+                  color: sidebarColor,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      // Built below the column's pane, so it reads where
+                      // the column starts and where the cluster is.
+                      Builder(builder: _splitSidebarHeader),
+                      _searchField(context, compact: true),
+                      Expanded(
+                        child: ListView(
+                          key: const PageStorageKey<String>(
+                            'settings-category-list',
+                          ),
+                          padding: const EdgeInsets.fromLTRB(
+                            AppSpacing.md,
+                            AppSpacing.sm,
+                            AppSpacing.md,
+                            AppSpacing.xl,
+                          ),
+                          children: query.isEmpty
+                              ? _sidebarTree(context, categories, selected)
+                              : _sidebarMatches(context, matches),
                         ),
-                        padding: const EdgeInsets.fromLTRB(
-                          AppSpacing.md,
-                          AppSpacing.sm,
-                          AppSpacing.md,
-                          AppSpacing.xl,
-                        ),
-                        children: query.isEmpty
-                            ? _sidebarTree(context, categories, selected)
-                            : _sidebarMatches(context, matches),
                       ),
-                    ),
-                    // Signing out belongs to the account, not to any one
-                    // section, so it sits under the tree rather than inside a
-                    // category's screen.
-                    if (widget.allowSessionLifecycleActions)
-                      _sidebarLogOut(context),
-                  ],
+                      // Signing out belongs to the account, not to any one
+                      // section, so it sits under the tree rather than inside a
+                      // category's screen.
+                      if (widget.allowSessionLifecycleActions)
+                        _sidebarLogOut(context),
+                    ],
+                  ),
                 ),
               ),
             ),
             Container(width: AppMetric.divider, color: c.divider),
             Expanded(
-              child: ColoredBox(
-                color: c.groupedBackground,
-                child: _splitDetailNavigator(
-                  context,
-                  selected: selected,
-                  query: query,
-                  matches: matches,
+              child: _splitColumn(
+                topColor: c.navBar,
+                child: ColoredBox(
+                  color: c.groupedBackground,
+                  child: _splitDetailNavigator(
+                    context,
+                    selected: selected,
+                    query: query,
+                    matches: matches,
+                  ),
                 ),
               ),
             ),
@@ -280,19 +292,60 @@ class _SettingsViewState extends State<SettingsView> {
     );
   }
 
+  /// One settings column: keeps the window's top inset, or the shared band
+  /// beside a corner status cluster, and tells its header where that is.
+  /// In that band the column's own top colour runs to the screen edge, as on
+  /// the main screen, instead of leaving a separate strip.
+  Widget _splitColumn({required Color topColor, required Widget child}) =>
+      TopClusterPane(
+        child: Builder(
+          builder: (context) => ColoredBox(
+            color: TopClusterInsets.bandActiveOf(context)
+                ? topColor
+                : Colors.transparent,
+            child: SafeArea(
+              left: false,
+              right: false,
+              bottom: false,
+              child: child,
+            ),
+          ),
+        ),
+      );
+
   Widget _splitSidebarHeader(BuildContext context) {
     final c = context.colors;
     final desktopDense = !kIsWeb && isDesktopTargetPlatform();
+    // Beside a corner status cluster the column starts on the main screen's
+    // band, so the title shares the detail header's row and centre line.
+    final band = !desktopDense && TopClusterInsets.bandActiveOf(context);
     // The enclosing SafeArea only clears the system inset; iPadOS floating
     // windows additionally need clearance for the traffic-light controls.
     return Container(
-      constraints: BoxConstraints(minHeight: desktopDense ? 48 : 58),
-      padding: EdgeInsets.fromLTRB(
-        desktopDense ? 14 : AppSpacing.lg,
-        (desktopDense ? 8 : AppSpacing.md) + iPadWindowChromeInsetOf(context),
-        desktopDense ? 14 : AppSpacing.lg,
-        desktopDense ? 4 : AppSpacing.xs,
+      constraints: BoxConstraints(
+        minHeight: band
+            ? AppMetric.navHeaderHeight
+            : desktopDense
+            ? 48
+            : 58,
       ),
+      padding:
+          EdgeInsets.fromLTRB(
+            desktopDense ? 14 : AppSpacing.lg,
+            (band
+                    ? 0
+                    : desktopDense
+                    ? 8
+                    : AppSpacing.md) +
+                iPadWindowChromeInsetOf(context),
+            desktopDense ? 14 : AppSpacing.lg,
+            band
+                ? 0
+                : desktopDense
+                ? 4
+                : AppSpacing.xs,
+          ) +
+          TopClusterInsets.of(context),
       alignment: Alignment.centerLeft,
       child: Row(
         children: [
@@ -671,7 +724,6 @@ class _SettingsViewState extends State<SettingsView> {
 
   List<_SettingsDestination> _destinations(BuildContext context) {
     final developer = context.watch<DeveloperModeController>();
-    final pro = context.watch<MithkaProService>();
     return [
       _SettingsDestination(
         id: 'notifications',
@@ -776,20 +828,6 @@ class _SettingsViewState extends State<SettingsView> {
           'locale',
         ],
       ),
-      if (pro.storeAvailable)
-        _SettingsDestination(
-          id: 'mithka-pro',
-          owner: _SettingsOwner.mithka,
-          group: 1,
-          order: 0,
-          titleKey: AppStringKeys.mithkaProTitle,
-          icon: HeroAppIcons.solidStar,
-          color: const Color(0xFF7C5CFC),
-          destination: () => const MithkaProView(),
-          trailingKey: pro.isPro ? AppStringKeys.mithkaProActive : null,
-          platformNeutralRoute: true,
-          searchTerms: const ['pro', 'support', 'subscription'],
-        ),
       _SettingsDestination(
         id: 'mithka-theme',
         owner: _SettingsOwner.mithka,
@@ -938,10 +976,27 @@ class _SettingsViewState extends State<SettingsView> {
         searchTerms: const ['backup', 'restore', 'session', 'export', 'import'],
       ),
       _SettingsDestination(
-        id: 'mithka-features',
+        id: 'mithkax-features',
         owner: _SettingsOwner.mithka,
         group: 5,
         order: 0,
+        titleKey: AppStringKeys.mithkaxSettingsTitle,
+        icon: HeroAppIcons.wandMagicSparkles,
+        color: const Color(0xFF7467F0),
+        destination: () => const MithkaXSettingsView(),
+        searchTerms: const [
+          'mithkax',
+          'message history',
+          'ghost mode',
+          'local premium',
+          'deleted messages',
+        ],
+      ),
+      _SettingsDestination(
+        id: 'mithka-features',
+        owner: _SettingsOwner.mithka,
+        group: 5,
+        order: 10,
         titleKey: AppStringKeys.featureTitle,
         icon: HeroAppIcons.grip,
         color: const Color(0xFF3C8CF0),
@@ -958,7 +1013,7 @@ class _SettingsViewState extends State<SettingsView> {
         id: 'mithka-ai',
         owner: _SettingsOwner.mithka,
         group: 5,
-        order: 10,
+        order: 20,
         titleKey: AppStringKeys.aiSettingsTitle,
         icon: HeroAppIcons.cpuChip,
         color: const Color(0xFF7467F0),
@@ -976,7 +1031,7 @@ class _SettingsViewState extends State<SettingsView> {
         id: 'mithka-proxy',
         owner: _SettingsOwner.mithka,
         group: 5,
-        order: 20,
+        order: 30,
         titleKey: AppStringKeys.proxyTitle,
         icon: HeroAppIcons.globe,
         color: const Color(0xFF34A2DF),
@@ -987,7 +1042,7 @@ class _SettingsViewState extends State<SettingsView> {
         id: 'mithka-advanced',
         owner: _SettingsOwner.mithka,
         group: 5,
-        order: 30,
+        order: 40,
         titleKey: AppStringKeys.advancedTitle,
         icon: HeroAppIcons.objectGroup,
         color: const Color(0xFF16B0A0),
@@ -1005,7 +1060,7 @@ class _SettingsViewState extends State<SettingsView> {
           id: 'mithka-developer',
           owner: _SettingsOwner.mithka,
           group: 5,
-          order: 40,
+          order: 50,
           titleKey: AppStringKeys.developerModeTitle,
           icon: HeroAppIcons.code,
           color: const Color(0xFFFF5A5F),
@@ -1021,7 +1076,7 @@ class _SettingsViewState extends State<SettingsView> {
         id: 'mithka-about',
         owner: _SettingsOwner.mithka,
         group: 5,
-        order: 50,
+        order: 60,
         titleKey: AppStringKeys.settingsAboutMithka,
         icon: HeroAppIcons.circleInfo,
         color: const Color(0xFF8E8E93),
@@ -1173,9 +1228,7 @@ class _SettingsViewState extends State<SettingsView> {
     Widget row(String? version) => SettingsRow(
       key: ValueKey('settings-destination-${destination.id}'),
       title: destination.titleKey,
-      value: showOwner
-          ? destination.owner?.titleKey ?? ''
-          : destination.trailingKey ?? version ?? '',
+      value: showOwner ? destination.owner?.titleKey ?? '' : version ?? '',
       leading: SettingsIconTile(
         icon: destination.icon,
         backgroundColor: destination.color,
@@ -1202,11 +1255,7 @@ class _SettingsViewState extends State<SettingsView> {
     BuildContext? context,
   }) {
     Navigator.of(context ?? this.context).push(
-      destination.platformNeutralRoute
-          ? AppPageRoute<void>(
-              pageBuilder: (_, _, _) => destination.destination(),
-            )
-          : MaterialPageRoute<void>(builder: (_) => destination.destination()),
+      AppPageRoute<void>(pageBuilder: (_, _, _) => destination.destination()),
     );
   }
 
@@ -1331,6 +1380,7 @@ const _settingsCategoryDefinitions = <_SettingsCategoryDefinition>[
     titleKey: AppStringKeys.advancedTitle,
     icon: HeroAppIcons.grip,
     destinationIds: [
+      'mithkax-features',
       'mithka-features',
       'mithka-ai',
       'mithka-proxy',
@@ -1385,8 +1435,6 @@ class _SettingsDestination {
     required this.destination,
     this.splitDestination,
     this.owner,
-    this.trailingKey,
-    this.platformNeutralRoute = false,
     this.showsVersion = false,
     this.searchTerms = const [],
   });
@@ -1400,8 +1448,6 @@ class _SettingsDestination {
   final Color color;
   final Widget Function() destination;
   final Widget Function()? splitDestination;
-  final String? trailingKey;
-  final bool platformNeutralRoute;
   final bool showsVersion;
   final List<String> searchTerms;
 

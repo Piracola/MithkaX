@@ -14,7 +14,10 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../chat/custom_emoji.dart';
 import '../chat/emoji_store.dart';
+import '../config/build_flags.dart';
+import '../history/message_history_store.dart';
 import '../notifications/notification_preferences.dart';
+import '../settings/local_premium.dart';
 import '../tdlib/json_helpers.dart';
 import '../tdlib/td_client.dart';
 import '../tdlib/td_models.dart';
@@ -59,10 +62,16 @@ class AccountSummary {
 
   /// Telegram Premium, from getMe. Cached with the rest so Premium-only
   /// entries (Business, the emoji status button) are right from the first
-  /// frame instead of appearing once the account answers.
+  /// frame instead of appearing once the account answers. Always the raw
+  /// server value — the local-premium overlay is applied at read time via
+  /// [premiumForView], never baked in.
   final bool isPremium;
   final bool isBotApi;
   final Uri? botApiEndpoint;
+
+  /// The premium answer for display surfaces: the raw server value OR the
+  /// self-build local-premium overlay when it is enabled for this build.
+  bool get premiumForView => LocalPremium.shared.premiumForMe(isPremium);
 
   AccountSummary copyWith({String? avatarPath}) => AccountSummary(
     slot: slot,
@@ -143,29 +152,35 @@ class AccountStore extends ChangeNotifier {
       _activeSlot = prefs.getInt('drachma.activeSlot') ?? 0,
       _summaries = _readCachedSummaries(prefs) {
     // The cached identities let the first frame show the right name and
-    // avatar. Without them the window starts as "Mithka", then remounts when
+    // avatar. Without them the window starts as "Mithka X", then remounts when
     // getMe lands, because its identity key changes from no user to a user.
     _selfIds.addAll(_summaries.map((summary) => summary.userId));
     // Restore an add-account that was in progress when the app was killed, so
     // its half-created slot can still be cleaned up.
     _pendingSlot = prefs.getInt(_pendingKey);
     _returnSlot = prefs.getInt(_returnKey) ?? 0;
+    // The local-premium overlay changes what every premiumForView/activeIsPremium
+    // reader sees without any getMe round-trip — forward its notifications so
+    // dependents rebuild the moment the switch flips.
+    LocalPremium.shared.addListener(_localPremiumChanged);
     // Refresh the switcher when one of our own accounts changes (e.g. after a
     // name edit) — TDLib emits updateUser for us. Filtered to known self-ids so
     // it doesn't fire for every contact seen in chats.
-    TdClient.shared.subscribe().listen((u) {
-      if (u.type == 'updateAuthorizationState') {
-        final state = u.obj('authorization_state');
-        if (state?.type == 'authorizationStateReady') {
-          unawaited(_removePendingSessionReplacementSource());
-          unawaited(refresh());
-        }
-        return;
-      }
-      if (u.type != 'updateUser') return;
-      final uid = u.obj('user')?.int64('id');
-      if (uid != null && _selfIds.contains(uid)) refresh();
-    });
+    TdClient.shared
+        .updatesOfAny(const ['updateAuthorizationState', 'updateUser'])
+        .listen((u) {
+          if (u.type == 'updateAuthorizationState') {
+            final state = u.obj('authorization_state');
+            if (state?.type == 'authorizationStateReady') {
+              unawaited(_removePendingSessionReplacementSource());
+              unawaited(refresh());
+            }
+            return;
+          }
+          if (u.type != 'updateUser') return;
+          final uid = u.obj('user')?.int64('id');
+          if (uid != null && _selfIds.contains(uid)) refresh();
+        });
   }
 
   static const _pendingKey = 'drachma.pendingSlot';
@@ -227,20 +242,32 @@ class AccountStore extends ChangeNotifier {
   List<AccountSummary> get summaries => _summaries;
   bool get activeIsBotApi => TdClient.shared.isBotApiSlot(_activeSlot);
 
-  /// Whether the active account has Telegram Premium, as last seen.
-  bool get activeIsPremium {
-    for (final summary in _summaries) {
-      if (summary.slot == _activeSlot) return summary.isPremium;
-    }
-    return false;
-  }
+  void _localPremiumChanged() => notifyListeners();
 
-  int? get activeUserId {
+  /// The summary for the active slot, when one has been recorded.
+  AccountSummary? get activeSummary {
     for (final summary in _summaries) {
-      if (summary.slot == _activeSlot) return summary.userId;
+      if (summary.slot == _activeSlot) return summary;
     }
     return null;
   }
+
+  /// The summary recorded for a specific slot, when one exists.
+  AccountSummary? summaryForSlot(int slot) {
+    for (final summary in _summaries) {
+      if (summary.slot == slot) return summary;
+    }
+    return null;
+  }
+
+  /// Whether the active account has Telegram Premium, as last seen. The
+  /// self-build local-premium switch (Telegram §1.4) short-circuits this to
+  /// true for our own account when enabled; every consumer reads through
+  /// here so the override applies in one place.
+  bool get activeIsPremium =>
+      LocalPremium.shared.premiumForMe(activeSummary?.isPremium ?? false);
+
+  int? get activeUserId => activeSummary?.userId;
 
   void _activeAccountChanged() {
     CustomEmojiCenter.shared.reset();
@@ -417,6 +444,9 @@ class AccountStore extends ChangeNotifier {
         phone: phone,
         avatarPath: avatarFileId == null ? null : cachedAvatar,
         emojiStatusId: TDParse.emojiStatusCustomEmojiId(me.obj('emoji_status')),
+        // Raw server value. LocalPremium is a display-time overlay — baking
+        // it in here would persist it into the prefs cache and leave Premium
+        // on after the switch turns off until the next getMe.
         isPremium: me.boolean('is_premium') ?? false,
         isBotApi: botApiAccount != null,
         botApiEndpoint: botApiAccount?.endpoint,
@@ -570,6 +600,9 @@ class AccountStore extends ChangeNotifier {
       if (userId != null) {
         await AccountBackupService.shared.deleteAccountId('$userId');
         await NotificationPreferences.shared.removeAccount(userId);
+        if (allowTelegramTosViolations) {
+          MessageHistoryStore.shared.removeAccount(userId);
+        }
       }
       notifyListeners();
       auth.reloadAuthState();
@@ -592,6 +625,9 @@ class AccountStore extends ChangeNotifier {
     if (userId != null) {
       await AccountBackupService.shared.deleteAccountId('$userId');
       await NotificationPreferences.shared.removeAccount(userId);
+      if (allowTelegramTosViolations) {
+        MessageHistoryStore.shared.removeAccount(userId);
+      }
     }
     notifyListeners();
     await refresh();
@@ -650,6 +686,9 @@ class AccountStore extends ChangeNotifier {
     if (userId != null) {
       await AccountBackupService.shared.deleteAccountId('$userId');
       await NotificationPreferences.shared.removeAccount(userId);
+      if (allowTelegramTosViolations) {
+        MessageHistoryStore.shared.removeAccount(userId);
+      }
     }
     await refresh();
   }

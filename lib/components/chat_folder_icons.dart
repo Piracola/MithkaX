@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/widgets.dart';
 
+import '../theme/app_theme.dart';
 import 'app_icons.dart';
 
 const chatFolderIconNames = [
@@ -87,6 +88,60 @@ class ChatFolderIcon extends StatelessWidget {
     return CustomPaint(
       size: Size.square(size),
       painter: _FolderGlyphPainter(name, color),
+    );
+  }
+}
+
+/// Standalone unread pill for folder tabs and rails. Horizontal tabs place it
+/// after the title with its own spacing, as native Telegram does; the narrow
+/// side rail floats it over the glyph's top-right corner instead so the title
+/// keeps the full rail width.
+class FolderUnreadBadge extends StatelessWidget {
+  const FolderUnreadBadge({
+    super.key,
+    required this.label,
+    this.accent = false,
+  });
+
+  /// Pre-formatted count text. Callers run the count through
+  /// [UnreadBadgeOverflowMode] so folder badges honour the app-wide
+  /// cap-at-99+ setting.
+  final String label;
+
+  /// Accent fill when the folder holds an unmuted unread chat; grey when all
+  /// of them are muted, matching Telegram's inactive folder badges.
+  final bool accent;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    return Container(
+      constraints: const BoxConstraints(
+        minWidth: AppMetric.unreadBadgeMin,
+        minHeight: AppMetric.unreadBadgeMin,
+      ),
+      padding: EdgeInsets.symmetric(
+        horizontal: label.length > 1 ? AppSpacing.xs + 1 : 0,
+      ),
+      decoration: BoxDecoration(
+        color: accent ? AppTheme.brand : c.textTertiary,
+        borderRadius: BorderRadius.circular(AppMetric.unreadBadgeMin / 2),
+      ),
+      child: Align(
+        widthFactor: 1,
+        heightFactor: 1,
+        child: FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Text(
+            label,
+            maxLines: 1,
+            style: AppTextStyle.caption(
+              c.badgeText,
+              weight: AppTextWeight.semibold,
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

@@ -80,72 +80,62 @@ void main() {
     }
   });
 
-  testWidgets(
-    'holding the right or left video edge repeatedly seeks and stops on release',
-    (tester) async {
-      tester.view.devicePixelRatio = 1;
-      tester.view.physicalSize = const Size(390, 844);
-      addTearDown(tester.view.resetDevicePixelRatio);
-      addTearDown(tester.view.resetPhysicalSize);
-      final previousPlatform = VideoPlayerPlatform.instance;
-      final platform = _FakeMobileVideoPlatform();
-      VideoPlayerPlatform.instance = platform;
-      debugDefaultTargetPlatformOverride = TargetPlatform.android;
-      try {
-        SharedPreferences.setMockInitialValues(const {});
-        final sourcePath = File('pubspec.yaml').absolute.path;
-        await tester.pumpWidget(
-          MaterialApp(
-            locale: const Locale('en'),
-            localizationsDelegates: const [AppLocalizations.delegate],
-            supportedLocales: AppLocalizations.supportedLocales,
-            home: VideoPlayerView(
-              video: TdFileRef(id: 782, localPath: sourcePath),
-              initialPlaying: false,
-              onClose: () {},
-              streamQuery: _completedVideoQuery(sourcePath, fileId: 782),
-            ),
+  testWidgets('holding a video edge raises the rate and stops on release', (
+    tester,
+  ) async {
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(390, 844);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    addTearDown(tester.view.resetPhysicalSize);
+    final previousPlatform = VideoPlayerPlatform.instance;
+    final platform = _FakeMobileVideoPlatform();
+    VideoPlayerPlatform.instance = platform;
+    debugDefaultTargetPlatformOverride = TargetPlatform.android;
+    try {
+      SharedPreferences.setMockInitialValues(const {});
+      final sourcePath = File('pubspec.yaml').absolute.path;
+      await tester.pumpWidget(
+        MaterialApp(
+          locale: const Locale('en'),
+          localizationsDelegates: const [AppLocalizations.delegate],
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: VideoPlayerView(
+            video: TdFileRef(id: 782, localPath: sourcePath),
+            onClose: () {},
+            streamQuery: _completedVideoQuery(sourcePath, fileId: 782),
           ),
-        );
-        await _pumpUntilPlayerReady(tester);
-        await tester.tapAt(const Offset(360, 400));
-        await tester.pump(const Duration(milliseconds: 400));
+        ),
+      );
+      await _pumpUntilPlayerReady(tester);
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 200)),
+      );
 
-        final forward = await tester.startGesture(const Offset(360, 400));
-        await tester.pump(const Duration(milliseconds: 600));
-        expect(
-          find.byKey(const ValueKey('video-held-seek-indicator')),
-          findsOneWidget,
-        );
-        await tester.pump(const Duration(milliseconds: 1000));
-        expect(
-          platform.seekPositions.last,
-          greaterThanOrEqualTo(const Duration(seconds: 20)),
-        );
-        await forward.up();
-        await tester.pump();
-        expect(
-          find.byKey(const ValueKey('video-held-seek-indicator')),
-          findsNothing,
-        );
-        final countAfterRelease = platform.seekPositions.length;
-        await tester.pump(const Duration(seconds: 1));
-        expect(platform.seekPositions.length, countAfterRelease);
+      final forward = await tester.startGesture(const Offset(360, 400));
+      await tester.pump(const Duration(milliseconds: 600));
+      expect(find.text('2x'), findsOneWidget);
+      await tester.pump(const Duration(milliseconds: 1000));
+      expect(platform.playbackSpeeds, contains(2.0));
+      await forward.up();
+      await tester.pump();
+      expect(find.text('2x'), findsNothing);
+      final countAfterRelease = platform.playbackSpeeds.length;
+      await tester.pump(const Duration(seconds: 1));
+      expect(platform.playbackSpeeds.length, countAfterRelease);
+      expect(platform.playbackSpeeds.last, 1.0);
 
-        final beforeBackward = platform.seekPositions.last;
-        final backward = await tester.startGesture(const Offset(30, 400));
-        await tester.pump(const Duration(milliseconds: 600));
-        await tester.pump(const Duration(milliseconds: 500));
-        expect(platform.seekPositions.last, lessThan(beforeBackward));
-        await backward.up();
-        await tester.pumpWidget(const SizedBox.shrink());
-        await _pumpUntilDisposed(tester, platform);
-      } finally {
-        VideoPlayerPlatform.instance = previousPlatform;
-        debugDefaultTargetPlatformOverride = null;
-      }
-    },
-  );
+      final backward = await tester.startGesture(const Offset(30, 400));
+      await tester.pump(const Duration(milliseconds: 600));
+      await tester.pump(const Duration(milliseconds: 500));
+      expect(platform.playbackSpeeds.last, 2.0);
+      await backward.up();
+      await tester.pumpWidget(const SizedBox.shrink());
+      await _pumpUntilDisposed(tester, platform);
+    } finally {
+      VideoPlayerPlatform.instance = previousPlatform;
+      debugDefaultTargetPlatformOverride = null;
+    }
+  });
 
   testWidgets('split video returns to fullscreen through the app navigator', (
     tester,
@@ -717,7 +707,7 @@ void main() {
     },
   );
 
-  testWidgets('queued loading remains dismissible before chrome is ready', (
+  testWidgets('queued loading keeps dismiss and navigation available', (
     tester,
   ) async {
     tester.view.devicePixelRatio = 1;
@@ -755,8 +745,10 @@ void main() {
     expect(_semanticsWidget('Loading video'), findsOneWidget);
     expect(_semanticsWidget('Close'), findsOneWidget);
     expect(find.byType(FVideoPlayer), findsNothing);
-    expect(_semanticsWidget('Previous video'), findsNothing);
-    expect(_semanticsWidget('Next video'), findsNothing);
+    // The queue chrome belongs to the loading screen, so dismissing and
+    // switching videos work before the first frame decodes.
+    expect(_semanticsWidget('Previous video'), findsOneWidget);
+    expect(_semanticsWidget('Next video'), findsOneWidget);
     await tester.tap(_semanticsWidget('Close'));
     expect(closeCalls, 1);
     expect(tester.takeException(), isNull);
@@ -2626,17 +2618,16 @@ void main() {
         tester.view.resetViewPadding();
       });
 
-      const thumbnailChannel = MethodChannel('fc_native_video_thumbnail');
-      final messenger =
-          TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
-      final firstThumbnail = Completer<Object?>();
+      // The provider seam, not the plugin channel: the built-in thumbnailer
+      // skips the channel on a Linux host whatever the target override says.
+      final previousThumbnailProvider = FVideoThumbnail.platformProvider;
+      final firstThumbnail = Completer<Uint8List?>();
       var thumbnailRequests = 0;
-      messenger.setMockMethodCallHandler(thumbnailChannel, (call) {
-        expect(call.method, 'saveThumbnailToBytes');
+      FVideoThumbnail.platformProvider = (request) {
         thumbnailRequests++;
         if (thumbnailRequests == 1) return firstThumbnail.future;
-        return Future<Object?>.value(_transparentPixelPng);
-      });
+        return Future<Uint8List?>.value(_transparentPixelPng);
+      };
 
       final previousPlatform = VideoPlayerPlatform.instance;
       final platform = _FakeMobileVideoPlatform();
@@ -2740,7 +2731,7 @@ void main() {
         expect(platform.disposeCalls, 1);
       } finally {
         if (!firstThumbnail.isCompleted) firstThumbnail.complete(null);
-        messenger.setMockMethodCallHandler(thumbnailChannel, null);
+        FVideoThumbnail.platformProvider = previousThumbnailProvider;
         VideoPlayerPlatform.instance = previousPlatform;
         debugDefaultTargetPlatformOverride = null;
       }
@@ -2925,6 +2916,87 @@ void main() {
       debugDefaultTargetPlatformOverride = null;
     }
   });
+
+  testWidgets('loading Android video already shows its chrome', (tester) async {
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(390, 844);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    addTearDown(tester.view.resetPhysicalSize);
+    final previousPlatform = VideoPlayerPlatform.instance;
+    final platform = _FakeMobileVideoPlatform(holdInitialization: true);
+    VideoPlayerPlatform.instance = platform;
+    debugDefaultTargetPlatformOverride = TargetPlatform.android;
+    var closeCalls = 0;
+    try {
+      SharedPreferences.setMockInitialValues(const {});
+      final sourcePath = File('pubspec.yaml').absolute.path;
+      await tester.pumpWidget(
+        MaterialApp(
+          locale: const Locale('en'),
+          localizationsDelegates: const [AppLocalizations.delegate],
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: VideoPlayerView(
+            video: TdFileRef(id: 790, localPath: sourcePath),
+            title: 'Loading clip',
+            durationSeconds: 120,
+            width: 1920,
+            height: 1080,
+            onClose: () => closeCalls++,
+            streamQuery: _completedVideoQuery(sourcePath, fileId: 790),
+          ),
+        ),
+      );
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 100)),
+      );
+      await _pumpUntilPlayerCreated(tester, platform);
+      await tester.pump(const Duration(milliseconds: 250));
+
+      // The first frame is still loading, yet the controls are on screen with
+      // the metadata the message already carries.
+      expect(platform.createCalls, 1);
+      expect(platform.initializedEvents, 0);
+      expect(find.byType(FVideoPlayer), findsNothing);
+      expect(_semanticsWidget('Loading video'), findsOneWidget);
+      expect(_playerControlOpacity(tester), 1);
+      expect(_playerChromeIgnoresPointer(), isFalse);
+      expect(_semanticsWidget('Close'), findsOneWidget);
+      expect(_semanticsWidget('More'), findsOneWidget);
+      expect(_semanticsWidget('Play'), findsOneWidget);
+      expect(find.text('Loading clip'), findsOneWidget);
+      expect(find.textContaining('2:00'), findsWidgets);
+      expect(_timeline, findsOneWidget);
+      // The spinner owns the middle, so no transport waits there inertly.
+      expect(_semanticsWidget('Seek backward 10 seconds'), findsNothing);
+
+      // Controls stay tappable while loading, and the spinner survives hiding.
+      await tester.tapAt(const Offset(5, 150));
+      await tester.pump(const Duration(milliseconds: 400));
+      expect(_playerControlOpacity(tester), 0);
+      expect(_semanticsWidget('Loading video'), findsOneWidget);
+      await tester.tapAt(const Offset(5, 150));
+      await tester.pump(const Duration(milliseconds: 400));
+      expect(_playerControlOpacity(tester), 1);
+      expect(closeCalls, 0);
+
+      platform.releaseInitialization();
+      await _pumpUntilPlayerReady(tester);
+
+      // Playback takes over the same chrome instead of introducing it.
+      expect(find.byType(FVideoPlayer), findsOneWidget);
+      expect(_semanticsWidget('Loading video'), findsNothing);
+      expect(_playerControlOpacity(tester), 1);
+      expect(_semanticsWidget('Seek backward 10 seconds'), findsOneWidget);
+      expect(find.text('Loading clip'), findsOneWidget);
+      expect(closeCalls, 0);
+
+      await tester.pumpWidget(const SizedBox.shrink());
+      await _pumpUntilDisposed(tester, platform);
+    } finally {
+      VideoPlayerPlatform.instance = previousPlatform;
+      debugDefaultTargetPlatformOverride = null;
+    }
+  });
 }
 
 Future<void> _pumpUntilPlayerReady(WidgetTester tester) async {
@@ -2934,6 +3006,22 @@ Future<void> _pumpUntilPlayerReady(WidgetTester tester) async {
   for (
     var attempt = 0;
     attempt < 40 && find.byType(FVideoPlayer).evaluate().isEmpty;
+    attempt++
+  ) {
+    await tester.runAsync(
+      () => Future<void>.delayed(const Duration(milliseconds: 10)),
+    );
+    await tester.pump(const Duration(milliseconds: 25));
+  }
+}
+
+Future<void> _pumpUntilPlayerCreated(
+  WidgetTester tester,
+  _FakeMobileVideoPlatform platform,
+) async {
+  for (
+    var attempt = 0;
+    attempt < 40 && platform.heldPlayerIds.isEmpty;
     attempt++
   ) {
     await tester.runAsync(
@@ -3160,6 +3248,7 @@ class _FakeMobileVideoPlatform extends VideoPlayerPlatform {
   _FakeMobileVideoPlatform({
     this.initializationFailures = 0,
     this.playFailures = 0,
+    this.holdInitialization = false,
     this.initializationFailureMessage =
         'The loopback source could not be opened.',
   });
@@ -3167,9 +3256,13 @@ class _FakeMobileVideoPlatform extends VideoPlayerPlatform {
   static const duration = Duration(minutes: 2);
   final int initializationFailures;
   final int playFailures;
+
+  /// Keeps created players in the loading state until [releaseInitialization].
+  final bool holdInitialization;
   final String initializationFailureMessage;
   final Map<int, StreamController<VideoEvent>> _events = {};
   final Map<int, Duration> _positions = {};
+  final List<int> _heldPlayerIds = [];
   var _nextPlayerId = 1;
   var createCalls = 0;
   var initializedEvents = 0;
@@ -3214,6 +3307,10 @@ class _FakeMobileVideoPlatform extends VideoPlayerPlatform {
           );
           return;
         }
+        if (holdInitialization) {
+          _heldPlayerIds.add(playerId);
+          return;
+        }
         initializedEvents++;
         controller.add(
           VideoEvent(
@@ -3227,10 +3324,33 @@ class _FakeMobileVideoPlatform extends VideoPlayerPlatform {
     return controller.stream;
   }
 
+  /// Players whose initialization is parked by [holdInitialization].
+  List<int> get heldPlayerIds => List<int>.unmodifiable(_heldPlayerIds);
+
+  /// Reports every held player as initialized, ending the loading state.
+  void releaseInitialization() {
+    for (final playerId in List<int>.of(_heldPlayerIds)) {
+      // The map owns this controller and dispose() closes it.
+      // ignore: close_sinks
+      final controller = _events[playerId];
+      if (controller == null || controller.isClosed) continue;
+      initializedEvents++;
+      controller.add(
+        VideoEvent(
+          eventType: VideoEventType.initialized,
+          duration: duration,
+          size: const Size(1920, 1080),
+        ),
+      );
+    }
+    _heldPlayerIds.clear();
+  }
+
   @override
   Future<void> dispose(int playerId) async {
     disposeCalls++;
     disposedPlayerIds.add(playerId);
+    _heldPlayerIds.remove(playerId);
     await _events.remove(playerId)?.close();
     _positions.remove(playerId);
   }
