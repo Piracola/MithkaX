@@ -1970,7 +1970,6 @@
     <string name="historyKindVideoNote">ビデオメッセージ</string>
     <string name="historyKindVoice">ボイスメッセージ</string>
     <string name="historyNoExcludedChats">除外されたチャットはありません。</string>
-    <string name="historyReadAtLabel">既読時刻</string>
     <string name="historyRecordBots">ボットとの対話を記録</string>
     <string name="historyRecordChannels">チャンネルで記録</string>
     <string name="historyRecordDeleted">削除されたメッセージを保持</string>
@@ -1978,7 +1977,6 @@
     <string name="historyRecordGroups">グループで記録</string>
     <string name="historyRecordNote">両スイッチはデフォルトでオフです。有効にするまで何も記録されません。保持したコピーは本端末にのみ保存され、削除するまで残ります。</string>
     <string name="historyRecordPrivate">私聊で記録</string>
-    <string name="historyRecordReadTimes">既読時刻を記録</string>
     <string name="historyRecordSection">記録</string>
     <string name="historyReincludeAction">記録を再開</string>
     <string name="historyRemoveFromMirrorAction">ミラーから削除</string>
@@ -2114,7 +2112,7 @@
     <string name="linkHandlerUnsupportedTelegramLink">この Telegram リンクを開くことはまだサポートされていません</string>
     <string name="linkHandlerWritingStyle">文体</string>
     <string name="listSeparator">、</string>
-    <string name="mithkaxSettingsTitle">Mithka X</string>
+    <string name="mithkaxSettingsTitle">Ayu機能</string>
     <string name="mithkaxHistorySection">メッセージ履歴</string>
     <string name="mithkaxGhostSection">ゴーストモード</string>
     <string name="mithkaxPremiumSection">ローカルプレミアム</string>
@@ -2221,7 +2219,6 @@
     <string name="messageActionFavorite">お気に入り</string>
     <string name="messageActionForward">転送</string>
     <string name="messageActionHideSender">この人を非表示</string>
-    <string name="messageActionInfo">Info</string>
     <string name="messageActionMultiSelect">複数選択</string>
     <string name="messageActionPlayMuted">ミュートで再生</string>
     <string name="messageActionQuote">引用</string>
@@ -2310,22 +2307,6 @@
     <string name="messageChecklistNewTask">New checklist task</string>
     <string name="messageChecklistProgress">{value1} of {value2} complete</string>
     <string name="messageChecklistTaskHint">Task description</string>
-    <string name="messageInfoForwards">Forwards</string>
-    <string name="messageInfoLoadFailed">Some message details couldn’t be loaded.</string>
-    <string name="messageInfoRead">Read</string>
-    <string name="messageInfoReadDateHidden">Hidden by your privacy settings</string>
-    <string name="messageInfoReadDatePrivate">Hidden by the recipient’s privacy settings</string>
-    <string name="messageInfoReadDateTooOld">No longer available</string>
-    <string name="messageInfoReadDateUnavailable">利用できません</string>
-    <string name="messageInfoSender">Sender</string>
-    <string name="messageInfoSent">Sent</string>
-    <string name="messageInfoText">Text</string>
-    <string name="messageInfoType">Type</string>
-    <string name="messageInfoUnknownViewer">Unknown viewer</string>
-    <string name="messageInfoUnread">Unread</string>
-    <string name="messageInfoViewers">Viewed by</string>
-    <string name="messageInfoViews">表示</string>
-    <string name="messageInformationTitle">Message Info</string>
     <string name="messageLeaveAComment">コメントを残す</string>
     <string name="messageLinkCopied">リンクをコピーしました</string>
     <string name="messagePollClosed">Closed</string>

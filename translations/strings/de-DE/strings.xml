@@ -1977,7 +1977,6 @@
     <string name="historyKindVideoNote">Videonachricht</string>
     <string name="historyKindVoice">Sprachnachricht</string>
     <string name="historyNoExcludedChats">Keine Chats ausgeschlossen.</string>
-    <string name="historyReadAtLabel">Gelesen am</string>
     <string name="historyRecordBots">In Bot-Chats aufzeichnen</string>
     <string name="historyRecordChannels">In Kanälen aufzeichnen</string>
     <string name="historyRecordDeleted">Gelöschte Nachrichten aufbewahren</string>
@@ -1985,7 +1984,6 @@
     <string name="historyRecordGroups">In Gruppen aufzeichnen</string>
     <string name="historyRecordNote">Beide Schalter sind standardmäßig aus; es wird nichts aufgezeichnet, bis du sie aktivierst. Aufbewahrte Kopien liegen nur auf diesem Gerät und bleiben, bis du sie löschst.</string>
     <string name="historyRecordPrivate">In privaten Chats aufzeichnen</string>
-    <string name="historyRecordReadTimes">Lesezeiten aufzeichnen</string>
     <string name="historyRecordSection">Aufzeichnung</string>
     <string name="historyReincludeAction">Aufnehmen</string>
     <string name="historyRemoveFromMirrorAction">Aus dem Spiegel entfernen</string>
@@ -2120,7 +2118,7 @@
     <string name="linkHandlerTelegramStarsCount">{value1} Telegram Stars</string>
     <string name="linkHandlerUnsupportedTelegramLink">Dieser Telegram-Link wird derzeit nicht unterstützt</string>
     <string name="linkHandlerWritingStyle">Schreibstil</string>
-    <string name="mithkaxSettingsTitle">Mithka X</string>
+    <string name="mithkaxSettingsTitle">Ayu-Funktionen</string>
     <string name="mithkaxHistorySection">Nachrichtenverlauf</string>
     <string name="mithkaxGhostSection">Geistermodus</string>
     <string name="mithkaxPremiumSection">Lokales Premium</string>
@@ -2228,7 +2226,6 @@
     <string name="messageActionFavorite">Favorit</string>
     <string name="messageActionForward">Weiterleiten</string>
     <string name="messageActionHideSender">Absender ausblenden</string>
-    <string name="messageActionInfo">Info</string>
     <string name="messageActionMultiSelect">Mehrfachauswahl</string>
     <string name="messageActionPlayMuted">Stumm abspielen</string>
     <string name="messageActionQuote">Zitieren</string>
@@ -2317,22 +2314,6 @@
     <string name="messageChecklistNewTask">New checklist task</string>
     <string name="messageChecklistProgress">{value1} of {value2} complete</string>
     <string name="messageChecklistTaskHint">Task description</string>
-    <string name="messageInfoForwards">Forwards</string>
-    <string name="messageInfoLoadFailed">Some message details couldn’t be loaded.</string>
-    <string name="messageInfoRead">Read</string>
-    <string name="messageInfoReadDateHidden">Hidden by your privacy settings</string>
-    <string name="messageInfoReadDatePrivate">Hidden by the recipient’s privacy settings</string>
-    <string name="messageInfoReadDateTooOld">No longer available</string>
-    <string name="messageInfoReadDateUnavailable">Nicht verfügbar</string>
-    <string name="messageInfoSender">Sender</string>
-    <string name="messageInfoSent">Sent</string>
-    <string name="messageInfoText">Text</string>
-    <string name="messageInfoType">Type</string>
-    <string name="messageInfoUnknownViewer">Unknown viewer</string>
-    <string name="messageInfoUnread">Unread</string>
-    <string name="messageInfoViewers">Viewed by</string>
-    <string name="messageInfoViews">Aufrufe</string>
-    <string name="messageInformationTitle">Message Info</string>
     <string name="messageLeaveAComment">Kommentar hinterlassen</string>
     <string name="messageLinkCopied">Link kopiert</string>
     <string name="messagePollClosed">Closed</string>

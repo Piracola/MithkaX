@@ -1970,7 +1970,6 @@
     <string name="historyKindVideoNote">影片訊息</string>
     <string name="historyKindVoice">語音訊息</string>
     <string name="historyNoExcludedChats">沒有排除任何聊天。</string>
-    <string name="historyReadAtLabel">已讀時間</string>
     <string name="historyRecordBots">機器人聊天記錄訊息</string>
     <string name="historyRecordChannels">頻道記錄訊息</string>
     <string name="historyRecordDeleted">保存已刪除的訊息</string>
@@ -1978,7 +1977,6 @@
     <string name="historyRecordGroups">群聊記錄訊息</string>
     <string name="historyRecordNote">兩個開關預設關閉，開啟前不記錄任何內容。留存副本只存在本機，清除前一直在。</string>
     <string name="historyRecordPrivate">私聊記錄訊息</string>
-    <string name="historyRecordReadTimes">記錄已讀時間</string>
     <string name="historyRecordSection">記錄</string>
     <string name="historyReincludeAction">恢復記錄</string>
     <string name="historyRemoveFromMirrorAction">從鏡像刪除</string>
@@ -2114,7 +2112,7 @@
     <string name="linkHandlerUnsupportedTelegramLink">暫不支援開啟此 Telegram 連結</string>
     <string name="linkHandlerWritingStyle">寫作風格</string>
     <string name="listSeparator">、</string>
-    <string name="mithkaxSettingsTitle">Mithka X</string>
+    <string name="mithkaxSettingsTitle">Ayu 功能</string>
     <string name="mithkaxHistorySection">訊息歷史</string>
     <string name="mithkaxGhostSection">隱身模式</string>
     <string name="mithkaxPremiumSection">本機大會員</string>
@@ -2221,7 +2219,6 @@
     <string name="messageActionFavorite">收藏</string>
     <string name="messageActionForward">轉發</string>
     <string name="messageActionHideSender">隱藏此人</string>
-    <string name="messageActionInfo">Info</string>
     <string name="messageActionMultiSelect">多選</string>
     <string name="messageActionPlayMuted">靜音播放</string>
     <string name="messageActionQuote">引用</string>
@@ -2310,22 +2307,6 @@
     <string name="messageChecklistNewTask">New checklist task</string>
     <string name="messageChecklistProgress">{value1} of {value2} complete</string>
     <string name="messageChecklistTaskHint">Task description</string>
-    <string name="messageInfoForwards">Forwards</string>
-    <string name="messageInfoLoadFailed">Some message details couldn’t be loaded.</string>
-    <string name="messageInfoRead">Read</string>
-    <string name="messageInfoReadDateHidden">Hidden by your privacy settings</string>
-    <string name="messageInfoReadDatePrivate">Hidden by the recipient’s privacy settings</string>
-    <string name="messageInfoReadDateTooOld">No longer available</string>
-    <string name="messageInfoReadDateUnavailable">無法訪問</string>
-    <string name="messageInfoSender">Sender</string>
-    <string name="messageInfoSent">Sent</string>
-    <string name="messageInfoText">Text</string>
-    <string name="messageInfoType">Type</string>
-    <string name="messageInfoUnknownViewer">Unknown viewer</string>
-    <string name="messageInfoUnread">Unread</string>
-    <string name="messageInfoViewers">Viewed by</string>
-    <string name="messageInfoViews">瀏覽次數</string>
-    <string name="messageInformationTitle">Message Info</string>
     <string name="messageLeaveAComment">發表評論</string>
     <string name="messageLinkCopied">連結已複製</string>
     <string name="messagePollClosed">Closed</string>

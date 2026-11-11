@@ -452,13 +452,11 @@ abstract final class AppStringKeys {
   static const historyNoExcludedChats = 'historyNoExcludedChats';
   static const historyRecordDeleted = 'historyRecordDeleted';
   static const historyRecordEdits = 'historyRecordEdits';
-  static const historyReadAtLabel = 'historyReadAtLabel';
   static const historyRecordBots = 'historyRecordBots';
   static const historyRecordChannels = 'historyRecordChannels';
   static const historyRecordGroups = 'historyRecordGroups';
   static const historyRecordNote = 'historyRecordNote';
   static const historyRecordPrivate = 'historyRecordPrivate';
-  static const historyRecordReadTimes = 'historyRecordReadTimes';
   static const historyRecordSection = 'historyRecordSection';
   static const historyRemoveFromMirrorAction = 'historyRemoveFromMirrorAction';
   static const historyRemovedFromMirrorToast = 'historyRemovedFromMirrorToast';
@@ -2269,7 +2267,6 @@ abstract final class AppStringKeys {
   static const messageActionEdit = 'messageActionEdit';
   static const messageActionFavorite = 'messageActionFavorite';
   static const messageActionForward = 'messageActionForward';
-  static const messageActionInfo = 'messageActionInfo';
   static const messageActionMultiSelect = 'messageActionMultiSelect';
   static const messageActionPlayMuted = 'messageActionPlayMuted';
   static const messageActionQuote = 'messageActionQuote';
@@ -2340,23 +2337,6 @@ abstract final class AppStringKeys {
   static const messageBubblePreviewShort = 'messageBubblePreviewShort';
   static const messageBubbleStretchDescription =
       'messageBubbleStretchDescription';
-  static const messageInformationTitle = 'messageInformationTitle';
-  static const messageInfoForwards = 'messageInfoForwards';
-  static const messageInfoLoadFailed = 'messageInfoLoadFailed';
-  static const messageInfoRead = 'messageInfoRead';
-  static const messageInfoReadDateHidden = 'messageInfoReadDateHidden';
-  static const messageInfoReadDatePrivate = 'messageInfoReadDatePrivate';
-  static const messageInfoReadDateTooOld = 'messageInfoReadDateTooOld';
-  static const messageInfoReadDateUnavailable =
-      'messageInfoReadDateUnavailable';
-  static const messageInfoSender = 'messageInfoSender';
-  static const messageInfoSent = 'messageInfoSent';
-  static const messageInfoText = 'messageInfoText';
-  static const messageInfoType = 'messageInfoType';
-  static const messageInfoUnknownViewer = 'messageInfoUnknownViewer';
-  static const messageInfoUnread = 'messageInfoUnread';
-  static const messageInfoViewers = 'messageInfoViewers';
-  static const messageInfoViews = 'messageInfoViews';
   static const messageBubbleCollapse = 'messageBubbleCollapse';
   static const messageBubbleExpandQuote = 'messageBubbleExpandQuote';
   static const messageBubbleForwardedFrom = 'messageBubbleForwardedFrom';
