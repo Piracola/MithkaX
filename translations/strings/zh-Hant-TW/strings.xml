@@ -968,6 +968,11 @@
     <string name="chatFolderManagementValue1ChatsTapToCopy">{value1} 聊天記錄 · 點選複製</string>
     <string name="chatForwardFailed">轉傳失敗：{value1}</string>
     <string name="chatForwardProtected">此訊息受保護，無法轉傳</string>
+    <string name="chatForwardPending">轉傳訊息</string>
+    <string name="chatForwardPendingCount">轉傳 {value1} 則訊息</string>
+    <string name="chatForwardPendingMore">以及另外 {value1} 則</string>
+    <string name="chatForwardOptionsTitle">轉傳選項</string>
+    <string name="chatForwardChangeRecipient">更換收件人</string>
     <string name="chatForwardRemoveCaption">移除說明</string>
     <string name="chatForwardRemoveSender">隱藏傳送者</string>
     <string name="chatForwardRenderMarkdown">轉發時渲染 Markdown</string>

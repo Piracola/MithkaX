@@ -968,6 +968,11 @@
     <string name="chatFolderManagementValue1ChatsTapToCopy">{value1} discussions · appuyez pour copier</string>
     <string name="chatForwardFailed">Échec du transfert : {value1}</string>
     <string name="chatForwardProtected">Ce message est protégé et ne peut pas être transféré</string>
+    <string name="chatForwardPending">Transférer le message</string>
+    <string name="chatForwardPendingCount">Transférer {value1} messages</string>
+    <string name="chatForwardPendingMore">et {value1} autres</string>
+    <string name="chatForwardOptionsTitle">Options de transfert</string>
+    <string name="chatForwardChangeRecipient">Changer le destinataire</string>
     <string name="chatForwardRemoveCaption">Supprimer la légende</string>
     <string name="chatForwardRemoveSender">Masquer l’expéditeur</string>
     <string name="chatForwardRenderMarkdown">Rendre le Markdown lors du transfert</string>

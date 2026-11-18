@@ -968,6 +968,11 @@
     <string name="chatFolderManagementValue1ChatsTapToCopy">{value1} 채팅 · 복사하려면 탭하세요.</string>
     <string name="chatForwardFailed">전달 실패: {value1}</string>
     <string name="chatForwardProtected">이 메시지는 보호되어 전달할 수 없습니다</string>
+    <string name="chatForwardPending">메시지 전달</string>
+    <string name="chatForwardPendingCount">메시지 {value1}개 전달</string>
+    <string name="chatForwardPendingMore">외 {value1}개</string>
+    <string name="chatForwardOptionsTitle">전달 옵션</string>
+    <string name="chatForwardChangeRecipient">받는 사람 변경</string>
     <string name="chatForwardRemoveCaption">캡션 제거</string>
     <string name="chatForwardRemoveSender">보낸 사람 숨기기</string>
     <string name="chatForwardRenderMarkdown">전달할 때 Markdown 렌더링</string>

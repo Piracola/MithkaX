@@ -968,6 +968,11 @@
     <string name="chatFolderManagementValue1ChatsTapToCopy">{value1} Chats · Zum Kopieren tippen</string>
     <string name="chatForwardFailed">Weiterleiten fehlgeschlagen: {value1}</string>
     <string name="chatForwardProtected">Diese Nachricht ist geschützt und kann nicht weitergeleitet werden</string>
+    <string name="chatForwardPending">Weiterleiten</string>
+    <string name="chatForwardPendingCount">{value1} Nachrichten weiterleiten</string>
+    <string name="chatForwardPendingMore">und {value1} weitere</string>
+    <string name="chatForwardOptionsTitle">Weiterleiten-Optionen</string>
+    <string name="chatForwardChangeRecipient">Empfänger ändern</string>
     <string name="chatForwardRemoveCaption">Beschriftung entfernen</string>
     <string name="chatForwardRemoveSender">Absender ausblenden</string>
     <string name="chatForwardRenderMarkdown">Markdown beim Weiterleiten darstellen</string>

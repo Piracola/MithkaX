@@ -968,6 +968,11 @@
     <string name="chatFolderManagementValue1ChatsTapToCopy">{value1} チャット · タップしてコピー</string>
     <string name="chatForwardFailed">転送に失敗しました：{value1}</string>
     <string name="chatForwardProtected">このメッセージは保護されているため転送できません</string>
+    <string name="chatForwardPending">メッセージを転送</string>
+    <string name="chatForwardPendingCount">{value1} 件のメッセージを転送</string>
+    <string name="chatForwardPendingMore">他 {value1} 件</string>
+    <string name="chatForwardOptionsTitle">転送オプション</string>
+    <string name="chatForwardChangeRecipient">宛先を変更</string>
     <string name="chatForwardRemoveCaption">キャプションを削除</string>
     <string name="chatForwardRemoveSender">送信者を非表示</string>
     <string name="chatForwardRenderMarkdown">転送時にMarkdownを反映</string>

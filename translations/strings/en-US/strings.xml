@@ -968,6 +968,11 @@
     <string name="chatFolderManagementValue1ChatsTapToCopy">{value1} chats · tap to copy</string>
     <string name="chatForwardFailed">Forward failed: {value1}</string>
     <string name="chatForwardProtected">This message is protected and can’t be forwarded</string>
+    <string name="chatForwardPending">Forward message</string>
+    <string name="chatForwardPendingCount">Forward {value1} messages</string>
+    <string name="chatForwardPendingMore">and {value1} more</string>
+    <string name="chatForwardOptionsTitle">Forward options</string>
+    <string name="chatForwardChangeRecipient">Change recipient</string>
     <string name="chatForwardRemoveCaption">Remove caption</string>
     <string name="chatForwardRemoveSender">Remove sender</string>
     <string name="chatForwardRenderMarkdown">Render Markdown when forwarding</string>

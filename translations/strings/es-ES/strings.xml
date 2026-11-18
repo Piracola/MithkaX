@@ -968,6 +968,11 @@
     <string name="chatFolderManagementValue1ChatsTapToCopy">{value1} chats · toque para copiar</string>
     <string name="chatForwardFailed">No se pudo reenviar: {value1}</string>
     <string name="chatForwardProtected">Este mensaje está protegido y no se puede reenviar</string>
+    <string name="chatForwardPending">Reenviar mensaje</string>
+    <string name="chatForwardPendingCount">Reenviar {value1} mensajes</string>
+    <string name="chatForwardPendingMore">y {value1} más</string>
+    <string name="chatForwardOptionsTitle">Opciones de reenvío</string>
+    <string name="chatForwardChangeRecipient">Cambiar destinatario</string>
     <string name="chatForwardRemoveCaption">Quitar pie de foto</string>
     <string name="chatForwardRemoveSender">Ocultar remitente</string>
     <string name="chatForwardRenderMarkdown">Renderizar Markdown al reenviar</string>
