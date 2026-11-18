@@ -173,7 +173,7 @@ class EmojiChannelSource {
   }) async {
     try {
       final messages = await _client.query({
-        '@type': 'getChatMessages',
+        '@type': 'getMessages',
         'chat_id': chatId,
         'message_ids': [messageId],
       }, timeout: const Duration(seconds: 15));

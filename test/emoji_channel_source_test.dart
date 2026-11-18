@@ -154,7 +154,7 @@ void main() {
             switch (request['@type']) {
               case 'searchPublicChat':
                 return {'@type': 'chat', 'id': '-1'};
-              case 'getChatMessages':
+              case 'getMessages':
                 final ids = request['message_ids'] as List?;
                 if (ids == null || ids.length != 1 || ids[0] != 43) {
                   return {'@type': 'messages', 'messages': []};
@@ -237,7 +237,7 @@ void main() {
         final source = EmojiChannelSource(
           client: _ScriptedTdClient((request) async {
             switch (request['@type']) {
-              case 'getChatMessages':
+              case 'getMessages':
                 final ids = request['message_ids'] as List;
                 final id = ids[0] as int;
                 return {
@@ -293,6 +293,56 @@ void main() {
           ),
           32,
         );
+      },
+    );
+
+    test(
+      'document fetches use a TDLib method that actually exists (regression: '
+      'getChatMessages is not in the TDLib schema — real TDLib answered '
+      'error and every font/preview download failed)',
+      () async {
+        final seenMethods = <String>[];
+        final source = EmojiChannelSource(
+          client: _ScriptedTdClient((request) async {
+            seenMethods.add(request['@type'] as String);
+            switch (request['@type']) {
+              case 'getMessages':
+                return {
+                  '@type': 'messages',
+                  'messages': [
+                    {
+                      '@type': 'message',
+                      'id': 43,
+                      'content': {
+                        '@type': 'messageDocument',
+                        'document': {
+                          '@type': 'document',
+                          'mime_type': 'font/ttf',
+                          'document': {
+                            '@type': 'file',
+                            'id': 7777,
+                            'expected_size': 8,
+                          },
+                        },
+                      },
+                    },
+                  ],
+                };
+              case 'downloadFile':
+                return {'@type': 'error', 'code': 400, 'message': 'stop'};
+            }
+            return {'@type': 'ok'};
+          }),
+        );
+        // downloadFont surfaces null on failure; the point here is the METHOD
+        // it tried: anything but getMessages means real TDLib would error out.
+        await source.downloadFont(
+          chatId: -1,
+          messageId: 43,
+          destPath: '/tmp/wont-write.ttf',
+        );
+        expect(seenMethods.first, 'getMessages');
+        expect(seenMethods, isNot(contains('getChatMessages')));
       },
     );
   });
