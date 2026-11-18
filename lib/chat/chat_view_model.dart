@@ -4508,6 +4508,19 @@ class ChatViewModel extends ChangeNotifier {
 
   Future<void> refreshPeerRestrictionState() => _loadChatHeader();
 
+  /// Loads only what a topic-selection surface needs: the chat header (which
+  /// resolves the topic rights and peer identity) plus the topic list. A
+  /// picker page has no transcript of its own, so the history windows, read
+  /// marking and openChat bookkeeping of [onAppear] stay with the transcript
+  /// this page hands off to.
+  Future<void> loadHeaderAndTopics() async {
+    await _loadChatHeader();
+    if (_isDisposed) return;
+    if (supportsTopics) {
+      await loadForumTopics();
+    }
+  }
+
   Future<void> _loadSecretChatState() async {
     final secretChatId = _secretChatId;
     if (secretChatId == null) return;

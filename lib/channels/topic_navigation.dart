@@ -3,6 +3,7 @@ import 'package:flutter/widgets.dart';
 import '../app/adaptive_split_layout.dart';
 import '../chat/custom_emoji.dart';
 import '../components/app_icons.dart';
+import '../components/chat_folder_icons.dart';
 import '../components/ui_components.dart';
 import '../l10n/app_localizations.dart';
 import '../tdlib/td_models.dart';
@@ -405,5 +406,180 @@ class _RailHeader extends StatelessWidget {
         ],
       ),
     );
+  }
+}
+
+/// The bot-chat topic tab strip: a horizontal, folder-tab-styled selector
+/// pinned under the chat header. Mirrors the chat list's folder tabs — label
+/// with the topic icon, unread badge pill, and the 4pt selection indicator
+/// that slides to the chosen tab — so a bot's topic set reads exactly like
+/// the folder strip it sits above.
+class TopicTabStrip extends StatelessWidget {
+  const TopicTabStrip({
+    super.key,
+    required this.topics,
+    required this.selectedTopicId,
+    required this.onSelected,
+    this.showUnreadBadges = true,
+    this.badgeOverflowLabel,
+    this.isLoading = false,
+  });
+
+  final List<TopicNavigationItem> topics;
+
+  /// The open transcript's topic id; null = the "All" pseudo-topic.
+  final int? selectedTopicId;
+  final ValueChanged<int?> onSelected;
+
+  /// Folder-tab badge parity: honours the chat-list unread-badge setting.
+  final bool showUnreadBadges;
+
+  /// Pre-formatted count text for [topics]' total unread; when null the strip
+  /// derives per-topic labels itself (capped at 99+).
+  final String? Function(int count)? badgeOverflowLabel;
+
+  /// Shows the trailing shimmer tab while a topic page is still in flight.
+  final bool isLoading;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    final tabHeight = AppMetric.rowExtentFor(
+      context,
+      base: 44,
+      lines: const [AppTextSize.callout],
+    );
+    return Container(
+      height: tabHeight,
+      decoration: BoxDecoration(
+        color: c.listHeaderTint,
+        border: Border(bottom: BorderSide(color: c.divider, width: 0.5)),
+      ),
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+        itemCount: topics.length + 1 + (isLoading ? 1 : 0),
+        separatorBuilder: (_, _) => const SizedBox(width: 28),
+        itemBuilder: (context, index) {
+          if (isLoading && index == topics.length) {
+            return SizedBox(
+              height: tabHeight,
+              child: Center(
+                child: AppActivityIndicator(size: 16, color: c.textTertiary),
+              ),
+            );
+          }
+          final all = index == 0;
+          final topic = all ? null : topics[index - 1];
+          final selected = all
+              ? selectedTopicId == null
+              : topic!.id == selectedTopicId;
+          return _TopicTab(
+            key: ValueKey('topic-tab-${topic?.id ?? "all"}'),
+            topic: topic,
+            selected: selected,
+            showUnreadBadge: showUnreadBadges,
+            badgeOverflowLabel: badgeOverflowLabel,
+            onTap: () => onSelected(topic?.id),
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _TopicTab extends StatelessWidget {
+  const _TopicTab({
+    super.key,
+    required this.topic,
+    required this.selected,
+    required this.onTap,
+    this.showUnreadBadge = true,
+    this.badgeOverflowLabel,
+  });
+
+  final TopicNavigationItem? topic;
+  final bool selected;
+  final VoidCallback onTap;
+  final bool showUnreadBadge;
+  final String? Function(int count)? badgeOverflowLabel;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    final isAll = topic == null;
+    final name = isAll
+        ? AppStringKeys.topicChatAllFilter.l10n(context)
+        : topic!.name;
+    final unread = topic?.unreadCount ?? 0;
+    final iconId = topic?.iconCustomEmojiId ?? 0;
+    final rawColor = topic?.iconColor ?? 0;
+    final iconColor = selected
+        ? AppTheme.brand
+        : rawColor == 0
+        ? c.textSecondary
+        : Color(0xFF000000 | (rawColor & 0xFFFFFF));
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: onTap,
+      child: SizedBox(
+        height: 44,
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.end,
+          children: [
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (iconId != 0)
+                  CustomEmojiView(id: iconId, size: 17)
+                else
+                  AppIcon(
+                    isAll ? HeroAppIcons.inbox : HeroAppIcons.hashtag,
+                    size: 17,
+                    color: iconColor,
+                  ),
+                const SizedBox(width: AppSpacing.xs + 1),
+                ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 168),
+                  child: Text(
+                    name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: AppTextSize.callout,
+                      fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
+                      color: c.textPrimary,
+                    ),
+                  ),
+                ),
+                if (showUnreadBadge && !isAll && unread > 0) ...[
+                  const SizedBox(width: 5),
+                  FolderUnreadBadge(
+                    key: ValueKey('topic-tab-unread-${topic!.id}'),
+                    label: _badgeLabel(unread),
+                    accent: !topic!.isMuted,
+                  ),
+                ],
+              ],
+            ),
+            const SizedBox(height: 7),
+            Container(
+              width: 38,
+              height: 4,
+              decoration: BoxDecoration(
+                color: AppTheme.brand.withValues(alpha: selected ? 1 : 0),
+                borderRadius: BorderRadius.circular(AppRadius.sm),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _badgeLabel(int count) {
+    final custom = badgeOverflowLabel?.call(count);
+    if (custom != null) return custom;
+    return count > 99 ? '99+' : '$count';
   }
 }

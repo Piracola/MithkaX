@@ -7333,25 +7333,27 @@ class _ChatViewState extends State<ChatView> {
                                           : _header()),
                                 body: showPeerRestrictionBlock
                                     ? _restrictedPeerBlockPage()
-                                    : _withTopicNavigation(
-                                        Column(
-                                          children: [
-                                            Expanded(
-                                              child: _transcriptLayer(
-                                                searchPane: searchPane,
+                                    : _botTopicTabStrip(
+                                        _withTopicNavigation(
+                                          Column(
+                                            children: [
+                                              Expanded(
+                                                child: _transcriptLayer(
+                                                  searchPane: searchPane,
+                                                ),
                                               ),
-                                            ),
-                                            _chatMusicPlayer(),
-                                            // A narrow chat trades the composer
-                                            // for the hit navigator; a wide one
-                                            // keeps composing beside the results.
-                                            if (searching && !searchPane)
-                                              _searchNavigator()
-                                            else if (_isSelecting)
-                                              _selectionActionBar()
-                                            else
-                                              _composerArea(),
-                                          ],
+                                              _chatMusicPlayer(),
+                                              // A narrow chat trades the composer
+                                              // for the hit navigator; a wide one
+                                              // keeps composing beside the results.
+                                              if (searching && !searchPane)
+                                                _searchNavigator()
+                                              else if (_isSelecting)
+                                                _selectionActionBar()
+                                              else
+                                                _composerArea(),
+                                            ],
+                                          ),
                                         ),
                                       ),
                                 trailingPane: searchPane
@@ -7408,6 +7410,34 @@ class _ChatViewState extends State<ChatView> {
       generalAvatarTitle: _vm.peerTitle.isEmpty ? widget.title : _vm.peerTitle,
       generalAvatarPhoto: _vm.peerPhoto,
       child: child,
+    );
+  }
+
+  /// The bot-chat topic strip: a folder-tab-styled selector pinned under the
+  /// header, shown for every bot topic conversation on a narrow screen — the
+  /// whole chat included, where the "All" tab is the selected one. Wide
+  /// shells render their rail instead.
+  Widget _botTopicTabStrip(Widget child) {
+    if (!_topicsKnown ||
+        _vm.isForum ||
+        usesSplitSelectionLayout(MediaQuery.sizeOf(context))) {
+      return child;
+    }
+    final theme = context.watch<ThemeController>();
+    return Column(
+      children: [
+        TopicTabStrip(
+          topics: [
+            for (final topic in _vm.forumTopics) _topicNavigationItem(topic),
+          ],
+          selectedTopicId: widget.forumTopicId,
+          onSelected: _openTopicTranscript,
+          showUnreadBadges: theme.showFolderUnreadBadges,
+          badgeOverflowLabel: theme.unreadBadgeOverflowMode.format,
+          isLoading: _vm.forumTopicsLoading && _vm.forumTopics.isEmpty,
+        ),
+        Expanded(child: child),
+      ],
     );
   }
 

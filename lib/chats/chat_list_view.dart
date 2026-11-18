@@ -28,6 +28,7 @@ import '../app/horizontal_safe_viewport.dart';
 import '../app/ipad_window_chrome.dart';
 import '../auth/account_store.dart';
 import '../auth/auth_manager.dart';
+import '../channels/topic_picker_view.dart';
 import '../chat/chat_picker_view.dart';
 import '../chat/chat_view.dart';
 import '../chat/custom_emoji.dart';
@@ -1550,8 +1551,21 @@ class _ChatListViewState extends State<ChatListView>
       return;
     }
     if (chat.supportsTopics) {
-      // Forum/topic chats always open in the regular chat transcript; the
-      // topic feed surface is gone.
+      // A forum group opens on its topic-selection page first — the middle
+      // step exteraless shows — and each topic hands off to its transcript.
+      // Bot topic chats keep opening straight into the bot conversation,
+      // whose header carries the topic picker.
+      if (chat.isForum &&
+          !usesSplitSelectionLayout(MediaQuery.sizeOf(context))) {
+        unawaited(
+          Navigator.of(context).push(
+            MaterialPageRoute<void>(
+              builder: (_) => TopicPickerView(chat: chat),
+            ),
+          ),
+        );
+        return;
+      }
       unawaited(
         pushAppChatRoute(
           context,
