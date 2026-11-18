@@ -9072,6 +9072,10 @@ class _ChatViewState extends State<ChatView> {
       replaceWithAppChatRoute<void, void>(
         context,
         AppChatPageRoute<void>(
+          // An in-place topic swap: the new transcript replaces this one in a
+          // single frame so the header and tab strip never flash or slide.
+          transitionDuration: Duration.zero,
+          reverseTransitionDuration: Duration.zero,
           builder: (_) => ChatView(
             chatId: widget.chatId,
             title: widget.title,

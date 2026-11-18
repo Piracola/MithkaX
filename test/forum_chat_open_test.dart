@@ -14,6 +14,7 @@ import 'package:mithka/auth/account_store.dart';
 import 'package:mithka/auth/auth_manager.dart';
 import 'package:mithka/channels/topic_navigation.dart';
 import 'package:mithka/chat/chat_view.dart';
+import 'package:mithka/app/app_navigator.dart';
 import 'package:mithka/chats/chat_list_view.dart';
 import 'package:mithka/l10n/app_localizations.dart';
 import 'package:mithka/settings/translation_controller.dart';
@@ -173,6 +174,20 @@ void main() {
     expect(find.byKey(const ValueKey('topic-tab-all')), findsOneWidget);
     expect(find.byKey(const ValueKey('topic-tab-1')), findsOneWidget);
     expect(find.byKey(const ValueKey('topic-tab-50')), findsOneWidget);
+
+    // Tapping a tab swaps the transcript in place: the replacement route is
+    // instant (no fade/slide flash) and the strip keeps its scroll offset.
+    await tester.tap(find.byKey(const ValueKey('topic-tab-50')));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(find.byType(ChatView), findsOneWidget);
+    final route = ModalRoute.of(tester.element(find.byType(ChatView)));
+    expect(route, isA<AppChatPageRoute<void>>());
+    expect(
+      (route as AppChatPageRoute<void>).transitionDuration,
+      Duration.zero,
+      reason: 'a topic switch must not animate the whole page',
+    );
 
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump(const Duration(seconds: 6));
