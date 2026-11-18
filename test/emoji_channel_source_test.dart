@@ -23,7 +23,8 @@ void main() {
 
   group('parseCatalog', () {
     test('parses the exteraless-shaped catalog message', () {
-      const body = '#emojiv2\n'
+      const body =
+          '#emojiv2\n'
           '{\n'
           '    "emojis": [\n'
           '        {"name": "Apple", "version": 2, "id": "apple", "preview": 22, "file": 23},\n'
@@ -69,7 +70,7 @@ void main() {
               if (request['query'] != '#emojiv2') {
                 return {'@type': 'messages', 'total_count': 0, 'messages': []};
               }
-              if (request['chat_id'] != '-3778471221') {
+              if (request['chat_id'] != -3778471221) {
                 return {'@type': 'messages', 'total_count': 0, 'messages': []};
               }
               return {
@@ -122,11 +123,7 @@ void main() {
                 'type': {'@type': 'chatTypeSupergroup'},
               };
             case 'searchChatMessages':
-              return {
-                '@type': 'messages',
-                'total_count': 0,
-                'messages': [],
-              };
+              return {'@type': 'messages', 'total_count': 0, 'messages': []};
           }
           return {'@type': 'ok'};
         }),
@@ -136,78 +133,96 @@ void main() {
   });
 
   group('downloadFont', () {
-    test('walks message → document → downloadFile and copies to dest',
-        () async {
-      final tmpDir = await Directory.systemTemp.createTemp('emoji_channel');
-      addTearDown(() => tmpDir.delete(recursive: true));
-      final fakeTdPath = '${tmpDir.path}/td-cache.ttf';
-      File(fakeTdPath).writeAsBytesSync(List.filled(64, 9), flush: true);
-      final destPath = '${tmpDir.path}/dest.ttf';
+    test(
+      'walks message → document → downloadFile and copies to dest',
+      () async {
+        final tmpDir = await Directory.systemTemp.createTemp('emoji_channel');
+        addTearDown(() => tmpDir.delete(recursive: true));
+        final fakeTdPath = '${tmpDir.path}/td-cache.ttf';
+        File(fakeTdPath).writeAsBytesSync(List.filled(64, 9), flush: true);
+        final destPath = '${tmpDir.path}/dest.ttf';
 
-      final source = EmojiChannelSource(
-        client: _ScriptedTdClient((request) async {
-          switch (request['@type']) {
-            case 'searchPublicChat':
-              return {'@type': 'chat', 'id': '-1'};
-            case 'getChatMessages':
-              if (request['message_ids'] != [43]) {
-                return {'@type': 'messages', 'messages': []};
-              }
-              return {
-                '@type': 'messages',
-                'messages': [
-                  {
-                    '@type': 'message',
-                    'id': 43,
-                    'content': {
-                      '@type': 'messageDocument',
-                      'document': {
-                        '@type': 'document',
+        final source = EmojiChannelSource(
+          client: _ScriptedTdClient((request) async {
+            switch (request['@type']) {
+              case 'searchPublicChat':
+                return {'@type': 'chat', 'id': '-1'};
+              case 'getChatMessages':
+                final ids = request['message_ids'] as List?;
+                if (ids == null || ids.length != 1 || ids[0] != 43) {
+                  return {'@type': 'messages', 'messages': []};
+                }
+                return {
+                  '@type': 'messages',
+                  'messages': [
+                    {
+                      '@type': 'message',
+                      'id': 43,
+                      'content': {
+                        '@type': 'messageDocument',
                         'document': {
-                          '@type': 'file',
-                          'id': 7777,
-                          'expected_size': 64,
+                          '@type': 'document',
+                          'document': {
+                            '@type': 'file',
+                            'id': 7777,
+                            'expected_size': 64,
+                          },
                         },
                       },
                     },
+                  ],
+                };
+              case 'downloadFile':
+                if (request['file_id'] != 7777) {
+                  return {
+                    '@type': 'file',
+                    'id': 7777,
+                    'local': {
+                      '@type': 'localFile',
+                      'path': '',
+                      'is_downloading_completed': false,
+                    },
+                  };
+                }
+                if (request['synchronous'] != true) {
+                  return {
+                    '@type': 'file',
+                    'id': 7777,
+                    'local': {
+                      '@type': 'localFile',
+                      'path': '',
+                      'is_downloading_completed': false,
+                    },
+                  };
+                }
+                return {
+                  '@type': 'file',
+                  'id': 7777,
+                  'local': {
+                    '@type': 'localFile',
+                    'path': fakeTdPath,
+                    'is_downloading_completed': true,
                   },
-                ],
-              };
-            case 'downloadFile':
-              if (request['file_id'] != 7777) {
-                return {'@type': 'file', 'id': 7777, 'local': {'@type': 'localFile', 'path': '', 'is_downloading_completed': false}};
-              }
-              if (request['synchronous'] != true) {
-                return {'@type': 'file', 'id': 7777, 'local': {'@type': 'localFile', 'path': '', 'is_downloading_completed': false}};
-              }
-              return {
-                '@type': 'file',
-                'id': 7777,
-                'local': {
-                  '@type': 'localFile',
-                  'path': fakeTdPath,
-                  'is_downloading_completed': true,
-                },
-              };
-          }
-          return {'@type': 'ok'};
-        }),
-      );
+                };
+            }
+            return {'@type': 'ok'};
+          }),
+        );
 
-      final bytes = await source.downloadFont(
-        chatId: -1,
-        messageId: 43,
-        destPath: destPath,
-      );
-      expect(bytes, 64);
-      expect(File(destPath).lengthSync(), 64);
-    });
+        final bytes = await source.downloadFont(
+          chatId: -1,
+          messageId: 43,
+          destPath: destPath,
+        );
+        expect(bytes, 64);
+        expect(File(destPath).lengthSync(), 64);
+      },
+    );
   });
 }
 
-typedef _Handler = Future<Map<String, dynamic>> Function(
-  Map<String, dynamic> request,
-);
+typedef _Handler =
+    Future<Map<String, dynamic>> Function(Map<String, dynamic> request);
 
 class _ScriptedTdClient implements TdClient {
   _ScriptedTdClient(this.handler);
@@ -227,8 +242,7 @@ class _ScriptedTdClient implements TdClient {
   }) => handler(request);
 
   @override
-  dynamic noSuchMethod(Invocation invocation) =>
-      super.noSuchMethod(invocation);
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
 class _NoClientTdClient implements TdClient {
@@ -236,6 +250,5 @@ class _NoClientTdClient implements TdClient {
   bool get hasActiveClient => false;
 
   @override
-  dynamic noSuchMethod(Invocation invocation) =>
-      super.noSuchMethod(invocation);
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
