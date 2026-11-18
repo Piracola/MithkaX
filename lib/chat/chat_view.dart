@@ -7351,7 +7351,7 @@ class _ChatViewState extends State<ChatView> {
                                           : _header()),
                                 body: showPeerRestrictionBlock
                                     ? _restrictedPeerBlockPage()
-                                    : _botTopicTabStrip(
+                                    : _topicTabStrip(
                                         _withTopicNavigation(
                                           Column(
                                             children: [
@@ -7431,20 +7431,19 @@ class _ChatViewState extends State<ChatView> {
     );
   }
 
-  /// The bot-chat topic strip: a folder-tab-styled selector pinned under the
-  /// header, shown for every bot topic conversation on a narrow screen — the
-  /// whole chat included, where the "All" tab is the selected one. Wide
+  /// The topic tab strip: a folder-tab-styled selector pinned under the
+  /// header, shown for forum groups and bot topic chats on narrow layouts —
+  /// the whole chat included, where the "All" tab is the selected one. Wide
   /// shells render their rail instead.
-  Widget _botTopicTabStrip(Widget child) {
-    if (!_topicsKnown ||
-        _vm.isForum ||
-        usesSplitSelectionLayout(MediaQuery.sizeOf(context))) {
+  Widget _topicTabStrip(Widget child) {
+    if (!_topicsKnown || usesSplitSelectionLayout(MediaQuery.sizeOf(context))) {
       return child;
     }
     final theme = context.watch<ThemeController>();
     return Column(
       children: [
         TopicTabStrip(
+          chatId: widget.chatId,
           topics: [
             for (final topic in _vm.forumTopics) _topicNavigationItem(topic),
           ],

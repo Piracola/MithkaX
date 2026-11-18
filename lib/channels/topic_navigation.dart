@@ -409,14 +409,39 @@ class _RailHeader extends StatelessWidget {
   }
 }
 
-/// The bot-chat topic tab strip: a horizontal, folder-tab-styled selector
-/// pinned under the chat header. Mirrors the chat list's folder tabs — label
-/// with the topic icon, unread badge pill, and the 4pt selection indicator
-/// that slides to the chosen tab — so a bot's topic set reads exactly like
-/// the folder strip it sits above.
-class TopicTabStrip extends StatelessWidget {
+/// Remembers each chat's tab-strip scroll offset across transcript swaps.
+/// Opening a topic replaces the whole ChatView (its state reads the topic
+/// once), so the fresh strip rebuilds at offset 0 without this — shifting
+/// the tabs the user was looking at. Keyed by chat, never cleared: it is a
+/// few floats per forum chat.
+class TopicTabStripScrollMemory {
+  TopicTabStripScrollMemory._();
+
+  static final Map<int, double> _offsets = {};
+
+  static double? read(int chatId) => _offsets[chatId];
+
+  static void write(int chatId, double offset) {
+    // Guard degenerate extents before the list has laid out.
+    if (!offset.isFinite || offset < 0) return;
+    _offsets[chatId] = offset;
+  }
+
+  /// Drops every remembered offset. Tests only.
+  @visibleForTesting
+  static void resetForTesting() => _offsets.clear();
+}
+
+/// The topic tab strip: a horizontal, folder-tab-styled selector pinned
+/// under the chat header for forum groups and bot topic chats on narrow
+/// layouts. Mirrors the chat list's folder tabs — label with the topic
+/// icon, unread badge pill, and the 4pt selection indicator under the
+/// chosen tab. Switching topics must not move the strip: the scroll offset
+/// lives in [TopicTabStripScrollMemory] and survives the transcript swap.
+class TopicTabStrip extends StatefulWidget {
   const TopicTabStrip({
     super.key,
+    required this.chatId,
     required this.topics,
     required this.selectedTopicId,
     required this.onSelected,
@@ -424,6 +449,9 @@ class TopicTabStrip extends StatelessWidget {
     this.badgeOverflowLabel,
     this.isLoading = false,
   });
+
+  /// The chat whose topics these are; keys the scroll-offset memory.
+  final int chatId;
 
   final List<TopicNavigationItem> topics;
 
@@ -442,6 +470,34 @@ class TopicTabStrip extends StatelessWidget {
   final bool isLoading;
 
   @override
+  State<TopicTabStrip> createState() => _TopicTabStripState();
+}
+
+class _TopicTabStripState extends State<TopicTabStrip> {
+  late final ScrollController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = ScrollController(
+      initialScrollOffset: TopicTabStripScrollMemory.read(widget.chatId) ?? 0,
+    );
+    _controller.addListener(_rememberOffset);
+  }
+
+  @override
+  void dispose() {
+    _rememberOffset();
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _rememberOffset() {
+    if (!_controller.hasClients) return;
+    TopicTabStripScrollMemory.write(widget.chatId, _controller.offset);
+  }
+
+  @override
   Widget build(BuildContext context) {
     final c = context.colors;
     final tabHeight = AppMetric.rowExtentFor(
@@ -449,6 +505,8 @@ class TopicTabStrip extends StatelessWidget {
       base: 44,
       lines: const [AppTextSize.callout],
     );
+    final topics = widget.topics;
+    final isLoading = widget.isLoading;
     return Container(
       height: tabHeight,
       decoration: BoxDecoration(
@@ -456,6 +514,7 @@ class TopicTabStrip extends StatelessWidget {
         border: Border(bottom: BorderSide(color: c.divider, width: 0.5)),
       ),
       child: ListView.separated(
+        controller: _controller,
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
         itemCount: topics.length + 1 + (isLoading ? 1 : 0),
@@ -472,15 +531,15 @@ class TopicTabStrip extends StatelessWidget {
           final all = index == 0;
           final topic = all ? null : topics[index - 1];
           final selected = all
-              ? selectedTopicId == null
-              : topic!.id == selectedTopicId;
+              ? widget.selectedTopicId == null
+              : topic!.id == widget.selectedTopicId;
           return _TopicTab(
             key: ValueKey('topic-tab-${topic?.id ?? "all"}'),
             topic: topic,
             selected: selected,
-            showUnreadBadge: showUnreadBadges,
-            badgeOverflowLabel: badgeOverflowLabel,
-            onTap: () => onSelected(topic?.id),
+            showUnreadBadge: widget.showUnreadBadges,
+            badgeOverflowLabel: widget.badgeOverflowLabel,
+            onTap: () => widget.onSelected(topic?.id),
           );
         },
       ),
