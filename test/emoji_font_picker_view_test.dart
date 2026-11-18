@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -8,6 +7,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mithka/l10n/app_localizations.dart';
 import 'package:mithka/settings/appearance_view.dart';
 import 'package:mithka/theme/app_theme.dart';
+import 'package:mithka/theme/emoji_channel_source.dart';
 import 'package:mithka/theme/emoji_font_catalog.dart';
 import 'package:mithka/theme/theme_controller.dart';
 import 'package:provider/provider.dart';
@@ -18,25 +18,13 @@ import 'support/l10n_fixtures.dart';
 
 /// The emoji font picker round: 系统默认 first / apple second / rest
 /// alphabetical, downloaded packs show 已下载 · size, swipe-to-delete clears
-/// the cached file.
+/// the cached file. The manifest rides the fake channel source.
 void main() {
   setUpAll(() => L10nFixtures.load().install());
   TestWidgetsFlutterBinding.ensureInitialized();
 
   const paths = MethodChannel('plugins.flutter.io/path_provider');
   late Directory temporary;
-
-  const manifestBody = '''
-{
-  "generated": "2026-11-18",
-  "fonts": [
-    {"key": "apple", "label": "Apple Color Emoji", "license": "Apple", "kind": "color", "format": "ttf", "url": "https://example.com/apple.ttf"},
-    {"key": "twemoji", "label": "Twemoji", "license": "CC-BY-4.0", "kind": "color", "format": "ttf", "url": "https://example.com/twemoji.ttf"},
-    {"key": "blobmoji", "label": "Blobmoji", "license": "OFL-1.1", "kind": "color", "format": "ttf", "url": "https://example.com/blobmoji.ttf"},
-    {"key": "openmoji", "label": "OpenMoji", "license": "CC-BY-SA-4.0", "kind": "color", "format": "ttf", "url": "https://example.com/openmoji.ttf"}
-  ]
-}
-''';
 
   setUpAll(() async {
     EmojiFontCatalog.debugSkipEngineFontLoad = true;
@@ -53,9 +41,43 @@ void main() {
   });
 
   late EmojiFontCatalog pickerCatalog;
+  late _FakeChannelSource channel;
 
-  Future<List<EmojiFontManifestEntry>> manifest() async =>
-      pickerCatalog.parseManifestForTesting(manifestBody);
+  List<EmojiFontManifestEntry> channelEntries() => const [
+    EmojiFontManifestEntry(
+      key: 'apple',
+      label: 'Apple Color Emoji',
+      license: 'Apple',
+      chatId: -100,
+      channelMessageId: 23,
+      channelPreviewMessageId: 22,
+      sizeBytes: 63,
+    ),
+    EmojiFontManifestEntry(
+      key: 'twemoji',
+      label: 'Twemoji',
+      license: 'CC-BY-4.0',
+      chatId: -100,
+      channelMessageId: 49,
+      sizeBytes: 512,
+    ),
+    EmojiFontManifestEntry(
+      key: 'blobmoji',
+      label: 'Blobmoji',
+      license: 'OFL-1.1',
+      chatId: -100,
+      channelMessageId: 24,
+      sizeBytes: 2048,
+    ),
+    EmojiFontManifestEntry(
+      key: 'openmoji',
+      label: 'OpenMoji',
+      license: 'CC-BY-SA-4.0',
+      chatId: -100,
+      channelMessageId: 34,
+      sizeBytes: 4096,
+    ),
+  ];
 
   Future<void> pumpPicker(WidgetTester tester) async {
     SharedPreferences.setMockInitialValues({});
@@ -75,7 +97,9 @@ void main() {
           ],
           supportedLocales: AppLocalizations.supportedLocales,
           theme: ThemeData(extensions: [AppColors.light]),
-          home: EmojiFontPickerView(manifestOverride: manifest()),
+          home: EmojiFontPickerView(
+            manifestOverride: Future.value(channelEntries()),
+          ),
         ),
       ),
     );
@@ -84,7 +108,8 @@ void main() {
   }
 
   testWidgets('row order: system, apple, then alphabetical', (tester) async {
-    pickerCatalog = EmojiFontCatalog.forTesting();
+    channel = _FakeChannelSource();
+    pickerCatalog = EmojiFontCatalog.forTesting()..debugChannelSource = channel;
     await pumpPicker(tester);
     expect(find.text('System default'), findsOneWidget);
     final labels = tester
@@ -113,11 +138,8 @@ void main() {
   });
 
   testWidgets('download state captions flip after a download', (tester) async {
-    pickerCatalog = EmojiFontCatalog.forTesting();
-    HttpOverrides.global = _ManifestHttpOverrides({
-      'https://example.com/apple.ttf': List.filled(63, 1).join(),
-    });
-    addTearDown(() => HttpOverrides.global = null);
+    channel = _FakeChannelSource({23: List.filled(63, 1)});
+    pickerCatalog = EmojiFontCatalog.forTesting()..debugChannelSource = channel;
     await pumpPicker(tester);
     final appleRow = find.text('Apple Color Emoji');
     expect(appleRow, findsOneWidget);
@@ -137,107 +159,30 @@ void main() {
   });
 }
 
-class _ManifestHttpOverrides extends HttpOverrides {
-  _ManifestHttpOverrides(this._bodies);
+/// Scripted channel source for the picker: serves the catalog plus whatever
+/// font bodies a test seeds, keyed by message id.
+class _FakeChannelSource implements EmojiChannelSource {
+  _FakeChannelSource([Map<int, List<int>>? fonts]) : _fonts = fonts ?? {};
 
-  final Map<String, String> _bodies;
-
-  @override
-  HttpClient createHttpClient(SecurityContext? context) =>
-      _ManifestHttpClient(_bodies);
-}
-
-class _ManifestHttpClient implements HttpClient {
-  _ManifestHttpClient(this._bodies);
-
-  final Map<String, String> _bodies;
-
-  Future<HttpClientRequest> _request(Uri url) async =>
-      _ManifestHttpClientRequest(url, _bodies);
+  final Map<int, List<int>> _fonts;
 
   @override
-  Future<HttpClientRequest> getUrl(Uri url) => _request(url);
+  Future<List<EmojiFontManifestEntry>?> fetchCatalog() async => const [];
 
   @override
-  Future<HttpClientRequest> openUrl(String method, Uri url) => _request(url);
-
-  @override
-  void close({bool force = false}) {}
-
-  @override
-  dynamic noSuchMethod(Invocation invocation) => null;
-}
-
-class _ManifestHttpClientRequest implements HttpClientRequest {
-  _ManifestHttpClientRequest(this.url, this._bodies);
-
-  final Uri url;
-  final Map<String, String> _bodies;
-
-  @override
-  Future<HttpClientResponse> close() async {
-    final body = _bodies[url.toString()];
-    final bytes = body == null ? <int>[] : body.codeUnits;
-    return _ManifestHttpClientResponse(url, bytes, body == null ? 404 : 200);
+  Future<int?> downloadFont({
+    required int chatId,
+    required int messageId,
+    required String destPath,
+  }) async {
+    final bytes = _fonts[messageId];
+    if (bytes == null) return null;
+    final file = File(destPath);
+    await file.parent.create(recursive: true);
+    await file.writeAsBytes(bytes, flush: true);
+    return bytes.length;
   }
 
   @override
-  Future<void> addStream(Stream<List<int>> stream) async {}
-
-  @override
-  dynamic noSuchMethod(Invocation invocation) => null;
-}
-
-class _ManifestHttpClientResponse extends Stream<List<int>>
-    implements HttpClientResponse {
-  _ManifestHttpClientResponse(this.url, this.bytes, this.statusCode);
-
-  final Uri url;
-  final List<int> bytes;
-  @override
-  final int statusCode;
-
-  @override
-  int get contentLength => bytes.length;
-
-  @override
-  bool get isRedirect => false;
-
-  @override
-  HttpHeaders get headers => _ManifestHttpHeaders();
-
-  @override
-  List<RedirectInfo> get redirects => const [];
-
-  @override
-  bool get persistentConnection => true;
-
-  @override
-  String get reasonPhrase => 'OK';
-
-  @override
-  dynamic noSuchMethod(Invocation invocation) => null;
-
-  @override
-  StreamSubscription<List<int>> listen(
-    void Function(List<int> event)? onData, {
-    Function? onError,
-    void Function()? onDone,
-    bool? cancelOnError,
-  }) {
-    return Stream<List<int>>.value(bytes).listen(
-      onData,
-      onError: onError,
-      onDone: onDone,
-      cancelOnError: cancelOnError,
-    );
-  }
-}
-
-class _ManifestHttpHeaders implements HttpHeaders {
-  @override
-  List<String>? operator [](String name) => null;
-
-  @override
-  dynamic noSuchMethod(Invocation invocation) => null;
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }

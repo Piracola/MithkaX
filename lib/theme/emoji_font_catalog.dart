@@ -1,19 +1,18 @@
 //
 //  emoji_font_catalog.dart
 //
-//  Runtime emoji font catalog backed by the MithkaX emoji font source
-//  (dl.mintabyss.eu.org/emojifonts). Font binaries are downloaded on demand,
-//  integrity-checked against the manifest's sha256, and loaded with Flutter's
-//  FontLoader.
+//  Runtime emoji font catalog served entirely from the @mithka_metadata
+//  Telegram channel (#emojiv2). Font binaries are channel documents fetched
+//  through the active TDLib account, verified against the catalog's byte
+//  size, and loaded with Flutter's FontLoader. No external HTTP host is
+//  involved — the manifest cache keeps the last catalog for offline starts.
 //
 
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:crypto/crypto.dart' as crypto;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
-import 'package:http/http.dart' as http;
 import 'package:mithka/l10n/app_localizations.dart';
 import 'package:mithka/tdlib/json_helpers.dart';
 import 'package:path_provider/path_provider.dart';
@@ -32,11 +31,6 @@ class EmojiFontChoice {
     key: 'system',
     label: AppStringKeys.emojiFontCatalogSystemDefault,
   );
-
-  /// The runtime family the Apple Color Emoji font registers under. Same
-  /// deterministic namespace the downloaded catalog fonts use, so every
-  /// consumer (theme chains, previews) treats it like any loaded pack.
-  static const bundledAppleFamily = 'MithkaEmoji_apple';
 
   final String key;
   final String label;
@@ -73,127 +67,44 @@ List<String> _dedupeFontFamilies(Iterable<String> values) {
   ];
 }
 
+/// One pack in the channel catalog: a font document (and optionally a
+/// preview PNG) inside @mithka_metadata, addressed by message id and
+/// downloaded through TDLib.
 class EmojiFontManifestEntry {
   const EmojiFontManifestEntry({
     required this.key,
     required this.label,
     required this.license,
-    required this.kind,
-    required this.url,
-    required this.format,
-    required this.coveragePct,
-    required this.emojiVersion,
-    required this.updated,
-    this.sha256,
-    this.sizeBytes,
-    this.chatId,
-    this.channelMessageId,
+    required this.chatId,
+    required this.channelMessageId,
     this.channelPreviewMessageId,
+    this.sizeBytes,
   });
-
-  /// A pack served as a document in the @mithka_metadata channel. The url
-  /// stays empty — this entry downloads through TDLib, never HTTP.
-  const EmojiFontManifestEntry.channel({
-    required String key,
-    required String label,
-    required String license,
-    required int chatId,
-    required int messageId,
-    int? previewMessageId,
-    int? sizeBytes,
-  }) : this(
-         key: key,
-         label: label,
-         license: license,
-         kind: 'color',
-         url: '',
-         format: 'ttf',
-         coveragePct: 0,
-         emojiVersion: '',
-         updated: '',
-         sizeBytes: sizeBytes,
-         chatId: chatId,
-         channelMessageId: messageId,
-         channelPreviewMessageId: previewMessageId,
-       );
 
   final String key;
   final String label;
   final String license;
-  final String kind;
-  final String url;
-  final String format;
-  final int coveragePct;
-  final String emojiVersion;
-  final String updated;
 
-  /// Content hash from the manifest. When present, a cached file is only
-  /// trusted when its sha256 matches — stronger than the legacy size check.
-  final String? sha256;
-
-  /// Byte size from the manifest, used to show the download size in the
-  /// picker before the pack is fetched.
+  /// Byte size from the catalog message, used to verify cached files and to
+  /// show the download size before the pack is fetched.
   final int? sizeBytes;
 
-  /// @mithka_metadata chat id when this pack is served from the channel.
-  final int? chatId;
+  /// @mithka_metadata chat id (0 until the caller stamps the resolved id).
+  final int chatId;
 
   /// Message id of this pack's font document inside the channel.
-  final int? channelMessageId;
+  final int channelMessageId;
 
   /// Message id of this pack's preview PNG inside the channel; null when the
   /// catalog message carries no usable preview id.
   final int? channelPreviewMessageId;
 
-  bool get isChannelServed => channelMessageId != null && channelMessageId! > 0;
+  bool get isChannelServed => channelMessageId > 0;
 
   String get runtimeFamily => EmojiFontChoice.runtimeFamilyForKey(key);
 
-  String get extension {
-    // Channel documents always arrive as .ttf binaries.
-    if (isChannelServed) return 'ttf';
-    final path = Uri.tryParse(url)?.path ?? '';
-    final name = path.split('/').last;
-    final dot = name.lastIndexOf('.');
-    return dot < 0 ? 'ttf' : name.substring(dot + 1);
-  }
-
-  factory EmojiFontManifestEntry.fromJson(Map<String, dynamic> json) {
-    // Both manifest generations are accepted: the MithkaX source lists a
-    // flat `url` + `format` (preferred), while the legacy shapes —
-    // iebb/emojifonts' `formats: {sbix|colrv0|svginot|glyf: url}` map and
-    // a top-level `ttc` url — still resolve.
-    var url = (json['url'] as String?)?.trim() ?? '';
-    var format = (json['format'] as String?)?.trim() ?? '';
-    if (url.isEmpty) {
-      final formats = (json['formats'] as Map?)?.cast<String, dynamic>() ?? {};
-      const preferredFormats = ['sbix', 'glyf', 'colrv0', 'svginot', 'ttc'];
-      for (final candidate in preferredFormats) {
-        final value = formats[candidate];
-        if (value is String && value.startsWith('https://')) {
-          url = value;
-          format = candidate;
-          break;
-        }
-      }
-    }
-    if (url.isEmpty || !url.startsWith('https://')) {
-      throw const FormatException('emoji font has no supported format');
-    }
-    return EmojiFontManifestEntry(
-      key: (json['key'] as String?)?.trim() ?? '',
-      label: (json['label'] as String?)?.trim() ?? '',
-      license: (json['license'] as String?)?.trim() ?? '',
-      kind: (json['kind'] as String?)?.trim() ?? '',
-      url: url,
-      format: format,
-      coveragePct: (json['coverage_pct'] as num?)?.round() ?? 0,
-      emojiVersion: (json['emoji_version'] as String?)?.trim() ?? '',
-      updated: (json['updated'] as String?)?.trim() ?? '',
-      sha256: (json['sha256'] as String?)?.trim(),
-      sizeBytes: (json['bytes'] as num?)?.toInt(),
-    );
-  }
+  /// Channel documents always arrive as .ttf binaries.
+  String get extension => 'ttf';
 }
 
 class EmojiFontCatalog {
@@ -210,13 +121,9 @@ class EmojiFontCatalog {
   static const cacheRevision = 2;
   static const cacheDirectoryName = 'emoji_fonts_v$cacheRevision';
 
-  /// The MithkaX emoji font source. The manifest carries sha256 hashes for
-  /// every font binary, so cached files are verified by content, not size.
-  /// Primary source is the @mithka_metadata Telegram channel (no external
-  /// host once signed in); this URL is the HTTP fallback for TDLib-less
-  /// environments (widget tests, demo builds).
-  static const manifestUrl =
-      'https://dl.mintabyss.eu.org/emojifonts/manifest.json';
+  /// The catalog source is the @mithka_metadata Telegram channel, reached
+  /// through the active TDLib account; the self-hosted HTTP source and its
+  /// manifest url were removed with it.
 
   /// Pluggable channel source; production shares one instance so the
   /// channel chat id resolves once per process. Tests inject a fake.
@@ -251,52 +158,37 @@ class EmojiFontCatalog {
       if (cached.isNotEmpty) return cached;
     }
 
-    // Primary: the @mithka_metadata channel catalog via TDLib.
-    try {
-      final source = debugChannelSource ?? _channelSource;
-      final entries = await source.fetchCatalog();
-      if (entries != null && entries.isNotEmpty) {
-        _channelLastChatId = entries.first.chatId;
-        await cacheFile.parent.create(recursive: true);
-        await cacheFile.writeAsString(
-          jsonEncode({
-            'generated': DateTime.now().toIso8601String(),
-            'source': 'channel',
-            'fonts': [
-              for (final e in entries)
-                {
-                  'key': e.key,
-                  'label': e.label,
-                  'license': e.license,
-                  'kind': e.kind,
-                  'chat_id': e.chatId,
-                  'message_id': e.channelMessageId,
-                  'preview_message_id': e.channelPreviewMessageId,
-                  'bytes': e.sizeBytes,
-                },
-            ],
-          }),
-          flush: true,
-        );
-        return entries;
+    final entries = await (debugChannelSource ?? _channelSource).fetchCatalog();
+    if (entries == null || entries.isEmpty) {
+      // Channel unreachable (no account / offline): serve the last catalog.
+      if (await cacheFile.exists()) {
+        final cached = await _readManifest(cacheFile);
+        if (cached.isNotEmpty) return cached;
       }
-    } catch (_) {}
-
-    try {
-      final response = await http.get(Uri.parse(manifestUrl));
-      if (response.statusCode < 200 || response.statusCode >= 300) {
-        throw HttpException(
-          'HTTP ${response.statusCode}',
-          uri: response.request?.url,
-        );
-      }
-      await cacheFile.parent.create(recursive: true);
-      await cacheFile.writeAsBytes(response.bodyBytes, flush: true);
-      return _parseManifest(utf8.decode(response.bodyBytes));
-    } catch (_) {
-      if (await cacheFile.exists()) return _readManifest(cacheFile);
-      rethrow;
+      throw const FileSystemException('emoji font catalog unavailable');
     }
+    _channelLastChatId = entries.first.chatId;
+    await cacheFile.parent.create(recursive: true);
+    await cacheFile.writeAsString(
+      jsonEncode({
+        'generated': DateTime.now().toIso8601String(),
+        'source': 'channel',
+        'fonts': [
+          for (final e in entries)
+            {
+              'key': e.key,
+              'label': e.label,
+              'license': e.license,
+              'chat_id': e.chatId,
+              'message_id': e.channelMessageId,
+              'preview_message_id': e.channelPreviewMessageId,
+              'bytes': e.sizeBytes,
+            },
+        ],
+      }),
+      flush: true,
+    );
+    return entries;
   }
 
   Future<String?> loadCached(String key) async {
@@ -351,8 +243,8 @@ class EmojiFontCatalog {
   }
 
   /// Brings the entry's cached file to a verified, complete state: downloads
-  /// when missing, hash-mismatched (manifest sha256) or size-mismatched
-  /// (legacy installs whose manifest carried no hash).
+  /// when missing or size-mismatched (against the catalog's byte size,
+  /// falling back to the size recorded at download time).
   Future<void> ensureFontDownloaded(EmojiFontManifestEntry entry) async {
     final file = await _fontFile(entry);
     if (await _verifyFontFile(entry, file)) return;
@@ -401,27 +293,15 @@ class EmojiFontCatalog {
 
   List<EmojiFontManifestEntry> _parseManifest(String body) {
     final decoded = jsonDecode(body) as Map<String, dynamic>;
-    // The channel-source cache: entries carry the channel message id instead
-    // of an HTTP url.
-    if (decoded['source'] == 'channel') {
-      final fonts = decoded['fonts'] as List? ?? const [];
-      return [
-            for (final item in fonts)
-              if (item is Map) _tryParseChannelEntry(item),
-          ]
-          .whereType<EmojiFontManifestEntry>()
-          .where((entry) => entry.key != 'fluent')
-          .toList()
-        ..retainAfterFirstByKey();
-    }
+    // The cached channel catalog: entries carry the channel message ids.
     final fonts = decoded['fonts'] as List? ?? const [];
     return [
           for (final item in fonts)
-            if (item is Map) tryParseEntry(Map<String, dynamic>.from(item)),
+            if (item is Map) _tryParseChannelEntry(item),
         ]
         .whereType<EmojiFontManifestEntry>()
         // The Fluent pack is deliberately absent (its release binary is
-        // mis-built and the user removed the set): drop any manifest's
+        // mis-built and the user removed the set): drop any catalog's
         // fluent rows, any spelling, instead of shipping broken rows.
         .where((entry) => entry.key != 'fluent')
         .toList()
@@ -437,13 +317,14 @@ class EmojiFontCatalog {
     if (key.isEmpty || label.isEmpty || messageId == null || messageId <= 0) {
       return null;
     }
-    return EmojiFontManifestEntry.channel(
+    return EmojiFontManifestEntry(
       key: key,
       label: label,
       license: (json['license'] as String?)?.trim() ?? '',
       chatId: chatId ?? 0,
-      messageId: messageId,
-      previewMessageId: (previewMessageId != null && previewMessageId > 0)
+      channelMessageId: messageId,
+      channelPreviewMessageId:
+          (previewMessageId != null && previewMessageId > 0)
           ? previewMessageId
           : null,
       sizeBytes: jsonInt(json['bytes']),
@@ -458,7 +339,7 @@ class EmojiFontCatalog {
   /// Cached font bytes are loaded straight into the engine — a truncated
   /// file would register as a broken family or crash the loader, so every
   /// write goes through a temp file + atomic rename and every read verifies
-  /// the recorded size (and the manifest's sha256 when it has one).
+  /// the recorded size (the catalog's byte size wins when present).
   static const _sizeIndexFileName = 'sizes.json';
 
   Future<File> _sizeIndexFile() async {
@@ -488,46 +369,21 @@ class EmojiFontCatalog {
   }
 
   Future<int> _downloadFontTo(EmojiFontManifestEntry entry, File file) async {
-    // Channel-served packs come through TDLib, not HTTP.
-    if (entry.isChannelServed) {
-      final chatId = entry.chatId ?? _channelLastChatId;
-      final messageId = entry.channelMessageId!;
-      if (chatId != null && chatId > 0) {
-        final bytes = await (debugChannelSource ?? _channelSource).downloadFont(
-          chatId: chatId,
-          messageId: messageId,
-          destPath: '${file.path}.tmp',
-        );
-        if (bytes != null && bytes > 0) {
-          if (await file.exists()) await file.delete();
-          await File('${file.path}.tmp').rename(file.path);
-          return bytes;
-        }
-      }
+    final chatId = entry.chatId != 0 ? entry.chatId : _channelLastChatId;
+    if (chatId == null || chatId == 0 || !entry.isChannelServed) {
       throw const FileSystemException('channel emoji font unavailable');
     }
-    final response = await http.get(Uri.parse(entry.url));
-    if (response.statusCode < 200 || response.statusCode >= 300) {
-      throw HttpException(
-        'HTTP ${response.statusCode}',
-        uri: response.request?.url,
-      );
+    final bytes = await (debugChannelSource ?? _channelSource).downloadFont(
+      chatId: chatId,
+      messageId: entry.channelMessageId,
+      destPath: '${file.path}.tmp',
+    );
+    if (bytes == null || bytes <= 0) {
+      throw const FileSystemException('channel emoji font unavailable');
     }
-    await file.parent.create(recursive: true);
-    final tmp = File('${file.path}.tmp');
-    await tmp.writeAsBytes(response.bodyBytes, flush: true);
     if (await file.exists()) await file.delete();
-    await tmp.rename(file.path);
-    return response.bodyBytes.length;
-  }
-
-  EmojiFontManifestEntry? tryParseEntry(Map<String, dynamic> json) {
-    try {
-      final entry = EmojiFontManifestEntry.fromJson(json);
-      return entry.key.isEmpty || entry.label.isEmpty ? null : entry;
-    } catch (_) {
-      return null;
-    }
+    await File('${file.path}.tmp').rename(file.path);
+    return bytes;
   }
 
   Future<File> _manifestCacheFile() async {
@@ -547,8 +403,8 @@ class EmojiFontCatalog {
   Future<File?> channelPreviewFile(EmojiFontManifestEntry entry) async {
     final previewMessageId = entry.channelPreviewMessageId;
     if (previewMessageId == null || previewMessageId <= 0) return null;
-    final chatId = entry.chatId ?? _channelLastChatId;
-    if (chatId == null || chatId <= 0) return null;
+    final chatId = entry.chatId != 0 ? entry.chatId : _channelLastChatId;
+    if (chatId == null || chatId == 0) return null;
     final dir = await _cacheDir();
     final file = File('${dir.path}/preview_${entry.key}.png');
     if (await file.exists()) {
@@ -599,17 +455,17 @@ class EmojiFontCatalog {
     _loadedFamilies.add(family);
   }
 
-  /// A font file is valid when its content matches what the manifest says it
-  /// should be: the sha256 when the manifest carries one, otherwise the size
-  /// recorded at download time. Files without any recorded expectation
-  /// (legacy caches from before the size index) are trusted by existence
-  /// alone.
+  /// A font file is valid when its size matches the byte size recorded at
+  /// download time (the same size the catalog message carries). Files with
+  /// no recorded expectation (a size index that predates the download) are
+  /// trusted by existence alone. The catalog's own byte size wins when both
+  /// are present — the canonical source of truth.
   Future<bool> _verifyFontFile(EmojiFontManifestEntry entry, File file) async {
     if (!await file.exists()) return false;
-    final hash = entry.sha256;
-    if (hash != null && hash.isNotEmpty) {
+    final catalogSize = entry.sizeBytes;
+    if (catalogSize != null && catalogSize > 0) {
       try {
-        return _sha256Of(await file.readAsBytes()) == hash.toLowerCase();
+        return await file.length() == catalogSize;
       } catch (_) {
         return false;
       }
@@ -619,9 +475,6 @@ class EmojiFontCatalog {
     if (recorded == null) return true;
     return await file.length() == recorded;
   }
-
-  static String _sha256Of(List<int> bytes) =>
-      crypto.sha256.convert(bytes).toString();
 }
 
 extension _EmojiFontEntryDedupe on List<EmojiFontManifestEntry> {

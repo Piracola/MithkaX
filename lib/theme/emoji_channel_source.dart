@@ -76,13 +76,13 @@ class EmojiChannelSource {
         if (entries == null) continue;
         return [
           for (final entry in entries)
-            EmojiFontManifestEntry.channel(
+            EmojiFontManifestEntry(
               key: entry.key,
               label: entry.label,
               license: entry.license,
               chatId: chatId,
-              messageId: entry.channelMessageId!,
-              previewMessageId: entry.channelPreviewMessageId,
+              channelMessageId: entry.channelMessageId,
+              channelPreviewMessageId: entry.channelPreviewMessageId,
               sizeBytes: entry.sizeBytes,
             ),
         ];
@@ -99,7 +99,7 @@ class EmojiChannelSource {
 
   /// Catalog text is `<tag>\n{json}` — the same body the exteraless helper
   /// parses. Mapped onto [EmojiFontManifestEntry]s with the channel message
-  /// id kept as the download address; chatId is left 0 for the caller to
+  /// id kept as the download address; chatId is left 0 for fetchCatalog to
   /// stamp once the channel is known.
   @visibleForTesting
   static List<EmojiFontManifestEntry>? parseCatalog(String body) {
@@ -119,13 +119,15 @@ class EmojiChannelSource {
       final preview = (item['preview'] as num?)?.toInt();
       if (key.isEmpty || label.isEmpty || file == null || file <= 0) continue;
       entries.add(
-        EmojiFontManifestEntry.channel(
+        EmojiFontManifestEntry(
           key: key,
           label: label,
           license: (item['license'] as String?)?.trim() ?? '',
           chatId: 0,
-          messageId: file,
-          previewMessageId: (preview != null && preview > 0) ? preview : null,
+          channelMessageId: file,
+          channelPreviewMessageId: (preview != null && preview > 0)
+              ? preview
+              : null,
           sizeBytes: size,
         ),
       );

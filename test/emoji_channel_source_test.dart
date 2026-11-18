@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/services.dart';
@@ -40,7 +39,6 @@ void main() {
       expect(apple.channelPreviewMessageId, 22);
       expect(apple.isChannelServed, isTrue);
       expect(apple.extension, 'ttf');
-      expect(apple.url, isEmpty);
     });
 
     test('entries without a preview id keep a null preview id', () {
