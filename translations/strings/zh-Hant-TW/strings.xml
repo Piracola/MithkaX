@@ -975,6 +975,8 @@
     <string name="chatForwardChangeRecipient">更換收件人</string>
     <string name="chatForwardRemoveCaption">移除說明</string>
     <string name="chatForwardRemoveSender">隱藏傳送者</string>
+    <string name="chatForwardShowSender">顯示傳送者</string>
+    <string name="chatForwardShowCaption">顯示說明</string>
     <string name="chatForwardRenderMarkdown">轉發時渲染 Markdown</string>
     <string name="chatForwardRenderMarkdownPremium">轉發時渲染 Markdown 需要 Telegram Premium</string>
     <string name="chatForwardToTitle">轉傳至</string>

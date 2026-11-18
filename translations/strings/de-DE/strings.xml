@@ -975,6 +975,8 @@
     <string name="chatForwardChangeRecipient">Empfänger ändern</string>
     <string name="chatForwardRemoveCaption">Beschriftung entfernen</string>
     <string name="chatForwardRemoveSender">Absender ausblenden</string>
+    <string name="chatForwardShowSender">Absender anzeigen</string>
+    <string name="chatForwardShowCaption">Beschriftung anzeigen</string>
     <string name="chatForwardRenderMarkdown">Markdown beim Weiterleiten darstellen</string>
     <string name="chatForwardRenderMarkdownPremium">Markdown beim Weiterleiten erfordert Telegram Premium</string>
     <string name="chatForwardToTitle">Weiterleiten an</string>

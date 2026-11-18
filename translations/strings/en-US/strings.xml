@@ -975,6 +975,8 @@
     <string name="chatForwardChangeRecipient">Change recipient</string>
     <string name="chatForwardRemoveCaption">Remove caption</string>
     <string name="chatForwardRemoveSender">Remove sender</string>
+    <string name="chatForwardShowSender">Show sender</string>
+    <string name="chatForwardShowCaption">Show caption</string>
     <string name="chatForwardRenderMarkdown">Render Markdown when forwarding</string>
     <string name="chatForwardRenderMarkdownPremium">Rendering Markdown when forwarding needs Telegram Premium</string>
     <string name="chatForwardToTitle">Forward to</string>

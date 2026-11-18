@@ -975,6 +975,8 @@
     <string name="chatForwardChangeRecipient">Changer le destinataire</string>
     <string name="chatForwardRemoveCaption">Supprimer la légende</string>
     <string name="chatForwardRemoveSender">Masquer l’expéditeur</string>
+    <string name="chatForwardShowSender">Afficher l’expéditeur</string>
+    <string name="chatForwardShowCaption">Afficher la légende</string>
     <string name="chatForwardRenderMarkdown">Rendre le Markdown lors du transfert</string>
     <string name="chatForwardRenderMarkdownPremium">Rendre le Markdown lors du transfert nécessite Telegram Premium</string>
     <string name="chatForwardToTitle">Transférer vers</string>

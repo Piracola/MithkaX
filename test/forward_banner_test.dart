@@ -260,4 +260,109 @@ void main() {
       findsOneWidget,
     );
   });
+
+  /// The options sheet is interactive: tapping a toggle row re-renders it
+  /// immediately (action label flips, checkbox follows) — the exteraless
+  /// ToggleButton behavior. The regression this pins: a stateless sheet left
+  /// the rows visually frozen ("toggles can't be tapped").
+  Future<void> pumpSheet(
+    WidgetTester tester,
+    PendingForward forward, {
+    Widget? hostChild,
+  }) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        locale: const Locale('en'),
+        localizationsDelegates: const [
+          AppLocalizations.delegate,
+          GlobalMaterialLocalizations.delegate,
+          GlobalWidgetsLocalizations.delegate,
+          GlobalCupertinoLocalizations.delegate,
+        ],
+        supportedLocales: AppLocalizations.supportedLocales,
+        theme: ThemeData(extensions: [AppColors.light]),
+        home: ForwardOptionsHost(
+          onForwardOptionsChanged: () {},
+          child: Scaffold(body: ForwardOptionsSheet(forward: forward)),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+  }
+
+  String rowLabel(WidgetTester tester, Key key) => tester
+      .widget<Text>(
+        find.descendant(of: find.byKey(key), matching: find.byType(Text)).first,
+      )
+      .data!;
+
+  testWidgets('tapping hide-sender flips the action label immediately', (
+    tester,
+  ) async {
+    final forward = pendingForwardFromHandoff(
+      _handoff(
+        hasCaption: true,
+        messages: [
+          ChatMessage(
+            id: 5,
+            isOutgoing: false,
+            text: 'caption',
+            date: 1,
+            image: TdFileRef(id: 1),
+          ),
+        ],
+      ),
+    );
+    await pumpSheet(tester, forward);
+    expect(
+      rowLabel(tester, const ValueKey('composerForwardOptionSender')),
+      'Remove sender',
+    );
+    await tester.tap(find.byKey(const ValueKey('composerForwardOptionSender')));
+    await tester.pumpAndSettle();
+    expect(
+      rowLabel(tester, const ValueKey('composerForwardOptionSender')),
+      'Show sender',
+    );
+    expect(forward.removeSender, isTrue);
+  });
+
+  testWidgets('hiding the caption visibly forces the sender row too', (
+    tester,
+  ) async {
+    final forward = pendingForwardFromHandoff(
+      _handoff(
+        hasCaption: true,
+        messages: [
+          ChatMessage(
+            id: 5,
+            isOutgoing: false,
+            text: 'caption',
+            date: 1,
+            image: TdFileRef(id: 1),
+          ),
+        ],
+      ),
+    );
+    await pumpSheet(tester, forward);
+    expect(
+      rowLabel(tester, const ValueKey('composerForwardOptionCaption')),
+      'Remove caption',
+    );
+    await tester.tap(
+      find.byKey(const ValueKey('composerForwardOptionCaption')),
+    );
+    await tester.pumpAndSettle();
+    // The caption→copy rule hid the sender as well; both rows show the state.
+    expect(forward.removeCaption, isTrue);
+    expect(forward.removeSender, isTrue);
+    expect(
+      rowLabel(tester, const ValueKey('composerForwardOptionSender')),
+      'Show sender',
+    );
+    expect(
+      rowLabel(tester, const ValueKey('composerForwardOptionCaption')),
+      'Show caption',
+    );
+  });
 }

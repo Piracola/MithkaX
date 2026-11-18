@@ -3487,6 +3487,13 @@ class ChatViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// The forward options sheet mutated the pending forward's toggles in
+  /// place; re-notify so the composer banner below the sheet reflects them.
+  void notifyForwardOptionsChanged() {
+    if (pendingForward == null) return;
+    notifyListeners();
+  }
+
   /// Sends the composer's pending forward into this chat and clears it.
   /// The result plan surfaces through [protectedForwardLastPlan] for the
   /// partial-migration toast, exactly like the in-chat forward path.

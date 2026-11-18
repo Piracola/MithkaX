@@ -11365,7 +11365,10 @@ class _ChatViewState extends State<ChatView> {
     final result = await showAppModalSheet<ForwardOptionsResult>(
       context: context,
       backgroundColor: Colors.transparent,
-      builder: (_) => ForwardOptionsSheet(forward: forward),
+      builder: (_) => ForwardOptionsHost(
+        onForwardOptionsChanged: () => _vm.notifyForwardOptionsChanged(),
+        child: ForwardOptionsSheet(forward: forward),
+      ),
     );
     if (result == null || !mounted) return;
     if (result is ForwardOptionsApply) return;

@@ -975,6 +975,8 @@
     <string name="chatForwardChangeRecipient">宛先を変更</string>
     <string name="chatForwardRemoveCaption">キャプションを削除</string>
     <string name="chatForwardRemoveSender">送信者を非表示</string>
+    <string name="chatForwardShowSender">送信者を表示</string>
+    <string name="chatForwardShowCaption">キャプションを表示</string>
     <string name="chatForwardRenderMarkdown">転送時にMarkdownを反映</string>
     <string name="chatForwardRenderMarkdownPremium">転送時のMarkdown反映にはTelegram Premiumが必要です</string>
     <string name="chatForwardToTitle">転送先</string>

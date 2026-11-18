@@ -1020,6 +1020,8 @@ abstract final class AppStringKeys {
   static const chatForwardProtected = 'chatForwardProtected';
   static const chatForwardRemoveCaption = 'chatForwardRemoveCaption';
   static const chatForwardRemoveSender = 'chatForwardRemoveSender';
+  static const chatForwardShowCaption = 'chatForwardShowCaption';
+  static const chatForwardShowSender = 'chatForwardShowSender';
   static const chatReplyInAnotherChatTitle = 'chatReplyInAnotherChatTitle';
   static const chatForwardRenderMarkdown = 'chatForwardRenderMarkdown';
   static const chatForwardRenderMarkdownPremium =

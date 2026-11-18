@@ -7,10 +7,17 @@
 //  caption→copy forcing rule), render-markdown, change recipient, apply,
 //  cancel.
 //
+//  The toggles are action-labeled rows (exteraless ToggleButton): the label
+//  names the action tapping performs — “Hide sender” while the sender is
+//  shown, “Show sender” once hidden — and every tap re-renders both rows
+//  immediately, so the coupled caption→sender rule is visible the moment it
+//  fires.
+//
 
 import 'package:flutter/material.dart';
 
 import '../components/app_icons.dart';
+import '../components/app_interactive_surface.dart';
 import '../l10n/app_localizations.dart';
 import '../theme/app_theme.dart';
 import 'forward_handoff.dart';
@@ -35,14 +42,27 @@ class ForwardOptionsChangeRecipient extends ForwardOptionsResult {
   const ForwardOptionsChangeRecipient();
 }
 
-class ForwardOptionsSheet extends StatelessWidget {
+class ForwardOptionsSheet extends StatefulWidget {
   const ForwardOptionsSheet({super.key, required this.forward});
 
   final PendingForward forward;
 
   @override
+  State<ForwardOptionsSheet> createState() => _ForwardOptionsSheetState();
+}
+
+class _ForwardOptionsSheetState extends State<ForwardOptionsSheet> {
+  void _toggle(VoidCallback toggle) {
+    setState(toggle);
+    // The composer banner below reads the same PendingForward; sync the
+    // host so the banner (and later send options) match the sheet.
+    ForwardOptionsHost.maybeOf(context)?.onForwardOptionsChanged();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final colors = context.colors;
+    final forward = widget.forward;
     return Material(
       key: const ValueKey('composerForwardOptionsSheet'),
       color: colors.panelBackground,
@@ -74,18 +94,30 @@ class ForwardOptionsSheet extends StatelessWidget {
             const SizedBox(height: 6),
             _ForwardOptionToggleRow(
               key: const ValueKey('composerForwardOptionSender'),
-              icon: HeroAppIcons.user,
-              label: AppStringKeys.chatForwardRemoveSender.l10n(context),
+              icon: forward.removeSender
+                  ? HeroAppIcons.user
+                  : HeroAppIcons.eyeSlash,
+              label:
+                  (forward.removeSender
+                          ? AppStringKeys.chatForwardShowSender
+                          : AppStringKeys.chatForwardRemoveSender)
+                      .l10n(context),
               value: forward.removeSender,
-              onChanged: forward.toggleSender,
+              onTap: () => _toggle(forward.toggleSender),
             ),
             if (forward.hasCaption)
               _ForwardOptionToggleRow(
                 key: const ValueKey('composerForwardOptionCaption'),
-                icon: HeroAppIcons.image,
-                label: AppStringKeys.chatForwardRemoveCaption.l10n(context),
+                icon: forward.removeCaption
+                    ? HeroAppIcons.image
+                    : HeroAppIcons.font,
+                label:
+                    (forward.removeCaption
+                            ? AppStringKeys.chatForwardShowCaption
+                            : AppStringKeys.chatForwardRemoveCaption)
+                        .l10n(context),
                 value: forward.removeCaption,
-                onChanged: forward.toggleCaption,
+                onTap: () => _toggle(forward.toggleCaption),
               ),
             if (forward.markdownOffer.available)
               _ForwardOptionToggleRow(
@@ -93,7 +125,7 @@ class ForwardOptionsSheet extends StatelessWidget {
                 icon: HeroAppIcons.code,
                 label: AppStringKeys.chatForwardRenderMarkdown.l10n(context),
                 value: forward.renderMarkdown,
-                onChanged: forward.toggleRenderMarkdown,
+                onTap: () => _toggle(forward.toggleRenderMarkdown),
               ),
             const SizedBox(height: 6),
             _ForwardOptionMenuRow(
@@ -136,50 +168,77 @@ class ForwardOptionsSheet extends StatelessWidget {
   }
 }
 
+/// Notifies the sheet's host (the composer) that toggle state changed, so the
+/// banner preview below stays in sync while the sheet is open.
+class ForwardOptionsHost extends InheritedWidget {
+  const ForwardOptionsHost({
+    super.key,
+    required this.onForwardOptionsChanged,
+    required super.child,
+  });
+
+  final VoidCallback onForwardOptionsChanged;
+
+  static ForwardOptionsHost? maybeOf(BuildContext context) =>
+      context.dependOnInheritedWidgetOfExactType<ForwardOptionsHost>();
+
+  @override
+  bool updateShouldNotify(ForwardOptionsHost oldWidget) =>
+      onForwardOptionsChanged != oldWidget.onForwardOptionsChanged;
+}
+
 class _ForwardOptionToggleRow extends StatelessWidget {
   const _ForwardOptionToggleRow({
-    super.key,
     required this.icon,
     required this.label,
     required this.value,
-    required this.onChanged,
+    required this.onTap,
+    super.key,
   });
 
   final AppIconData icon;
   final String label;
   final bool value;
-  final VoidCallback onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    return _ForwardOptionMenuRow(
-      icon: icon,
-      label: label,
-      trailing: _ForwardToggle(value: value),
-      onTap: onChanged,
-    );
-  }
-}
-
-class _ForwardToggle extends StatelessWidget {
-  const _ForwardToggle({required this.value});
-
-  final bool value;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
-    return Container(
-      width: 20,
-      height: 20,
-      decoration: BoxDecoration(
-        color: value ? colors.linkBlue : colors.searchFill,
-        borderRadius: BorderRadius.circular(AppRadius.md),
-        border: Border.all(color: value ? colors.linkBlue : colors.divider),
+    return _ForwardOptionMenuRow(
+      icon: icon,
+      label: label,
+      trailing: AnimatedContainer(
+        key: const ValueKey('composerForwardOptionToggleBox'),
+        duration: const Duration(milliseconds: 150),
+        width: 20,
+        height: 20,
+        decoration: BoxDecoration(
+          color: value ? colors.linkBlue : colors.searchFill,
+          borderRadius: BorderRadius.circular(AppRadius.md),
+          border: Border.all(
+            color: value ? colors.linkBlue : colors.divider,
+            width: value ? 0 : 1,
+          ),
+        ),
+        child: Center(
+          child: AnimatedSwitcher(
+            duration: const Duration(milliseconds: 120),
+            transitionBuilder: (child, animation) => FadeTransition(
+              opacity: animation,
+              child: ScaleTransition(scale: animation, child: child),
+            ),
+            child: value
+                ? const AppIcon(
+                    HeroAppIcons.check,
+                    key: ValueKey('on'),
+                    size: 14,
+                    color: Colors.white,
+                  )
+                : const SizedBox.shrink(key: ValueKey('off')),
+          ),
+        ),
       ),
-      child: value
-          ? const AppIcon(HeroAppIcons.check, size: 14, color: Colors.white)
-          : null,
+      onTap: onTap,
     );
   }
 }
@@ -187,12 +246,12 @@ class _ForwardToggle extends StatelessWidget {
 /// One full-width 48dp menu row: icon, label, optional trailing control.
 class _ForwardOptionMenuRow extends StatelessWidget {
   const _ForwardOptionMenuRow({
-    super.key,
     required this.icon,
     required this.label,
     required this.onTap,
     this.trailing,
     this.color,
+    super.key,
   });
 
   final AppIconData icon;
@@ -204,9 +263,9 @@ class _ForwardOptionMenuRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
+    return AppInteractiveSurface(
       onTap: onTap,
+      borderRadius: BorderRadius.circular(AppRadius.md),
       child: SizedBox(
         height: 48,
         child: Padding(

@@ -975,6 +975,8 @@
     <string name="chatForwardChangeRecipient">Cambiar destinatario</string>
     <string name="chatForwardRemoveCaption">Quitar pie de foto</string>
     <string name="chatForwardRemoveSender">Ocultar remitente</string>
+    <string name="chatForwardShowSender">Mostrar remitente</string>
+    <string name="chatForwardShowCaption">Mostrar pie de foto</string>
     <string name="chatForwardRenderMarkdown">Renderizar Markdown al reenviar</string>
     <string name="chatForwardRenderMarkdownPremium">Renderizar Markdown al reenviar requiere Telegram Premium</string>
     <string name="chatForwardToTitle">Reenviar a</string>

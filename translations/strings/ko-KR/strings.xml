@@ -975,6 +975,8 @@
     <string name="chatForwardChangeRecipient">받는 사람 변경</string>
     <string name="chatForwardRemoveCaption">캡션 제거</string>
     <string name="chatForwardRemoveSender">보낸 사람 숨기기</string>
+    <string name="chatForwardShowSender">보낸 사람 표시</string>
+    <string name="chatForwardShowCaption">캡션 표시</string>
     <string name="chatForwardRenderMarkdown">전달할 때 Markdown 렌더링</string>
     <string name="chatForwardRenderMarkdownPremium">전달 시 Markdown 렌더링에는 Telegram Premium가 필요해요</string>
     <string name="chatForwardToTitle">전달 대상</string>
