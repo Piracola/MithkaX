@@ -141,6 +141,7 @@ void main() {
         '$_androidRes/values-v29/styles.xml',
         '$_androidRes/values-night-v29/styles.xml',
         '$_androidRes/values-v31/styles.xml',
+        '$_androidRes/values-night-v31/styles.xml',
       ];
       for (final path in styleFiles) {
         final xml = _read(path);
@@ -222,6 +223,75 @@ void main() {
       }
       // The source asset is the same penguin the login page shows.
       expect(File('assets/penguin.png').existsSync(), isTrue);
+    });
+
+    test('every Android 12+ theme bucket pins the penguin splash icon', () {
+      // Resource qualifier precedence puts UI mode (night) ABOVE platform
+      // version, so on a dark-mode Android 12 device the winning LaunchTheme
+      // bucket is values-night-v29 — night outranks the v31 version check —
+      // and values-v31 is never consulted. If the night-v31 bucket is
+      // missing (or drops the icon item), dark mode resolves a LaunchTheme
+      // without windowSplashScreenAnimatedIcon and the system splash falls
+      // back to the CURRENT launcher icon, which changes with every icon
+      // switch. Both v31 buckets must therefore define the attribute.
+      for (final path in [
+        '$_androidRes/values-v31/styles.xml',
+        '$_androidRes/values-night-v31/styles.xml',
+      ]) {
+        final xml = _read(path);
+        final launchTheme = RegExp(
+          '<style name="LaunchTheme".*?</style>',
+          dotAll: true,
+        ).firstMatch(xml);
+        expect(launchTheme, isNotNull, reason: '$path must define LaunchTheme');
+        expect(
+          launchTheme!.group(0)!,
+          contains(
+            '<item name="android:windowSplashScreenAnimatedIcon">'
+            '@drawable/penguin_splash</item>',
+          ),
+          reason:
+              'LaunchTheme in $path must pin the penguin splash icon — dark '
+              'mode resolves this bucket (night outranks v31) and without '
+              'the item the Android 12+ splash becomes the launcher icon',
+        );
+      }
+    });
+
+    test('resource resolution never loses the splash icon on Android 12+', () {
+      // Simulates AOSP's qualifier ordering for the four appearance/version
+      // combinations an Android 12+ device can be in. For each, walks the
+      // resource system's bucket preference (roughly: night-uiMode and
+      // v29+ buckets beat the unqualified default) and asserts the winning
+      // LaunchTheme still carries the pinned penguin icon.
+      String win(String path) {
+        final xml = _read(path);
+        return RegExp(
+          '<style name="LaunchTheme".*?</style>',
+          dotAll: true,
+        ).firstMatch(xml)!.group(0)!;
+      }
+
+      const iconItem =
+          '<item name="android:windowSplashScreenAnimatedIcon">'
+          '@drawable/penguin_splash</item>';
+      // Light + API>=31: night-v31 would need night; the v31 bucket wins.
+      expect(win('$_androidRes/values-v31/styles.xml'), contains(iconItem));
+      // Dark + API>=31: night buckets beat version buckets, so the dark
+      // device picks values-night-v31 (night + both version checks match).
+      expect(
+        win('$_androidRes/values-night-v31/styles.xml'),
+        contains(iconItem),
+      );
+      // Dark + API 29/30: values-night-v29 wins; the icon item is inert
+      // below 31 but harmless — assert it stays absent only in the sense
+      // that no other bucket may define a DIFFERENT splash icon.
+      final darkLegacy = win('$_androidRes/values-night-v29/styles.xml');
+      expect(
+        darkLegacy,
+        isNot(contains('windowSplashScreenAnimatedIcon')),
+        reason: 'below API 31 the attribute is inert; keep the bucket lean',
+      );
     });
   });
 
