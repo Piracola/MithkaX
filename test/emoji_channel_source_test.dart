@@ -37,9 +37,18 @@ void main() {
       final apple = entries.first;
       expect(apple.label, 'Apple');
       expect(apple.channelMessageId, 23);
+      expect(apple.channelPreviewMessageId, 22);
       expect(apple.isChannelServed, isTrue);
       expect(apple.extension, 'ttf');
       expect(apple.url, isEmpty);
+    });
+
+    test('entries without a preview id keep a null preview id', () {
+      const body =
+          '#emojiv2 {"emojis": [{'
+          '"name": "X", "id": "x", "file": 7}]}';
+      final entries = EmojiChannelSource.parseCatalog(body);
+      expect(entries?.single.channelPreviewMessageId, isNull);
     });
 
     test('rejects a body without the tag or json', () {
@@ -162,6 +171,7 @@ void main() {
                         '@type': 'messageDocument',
                         'document': {
                           '@type': 'document',
+                          'mime_type': 'font/ttf',
                           'document': {
                             '@type': 'file',
                             'id': 7777,
@@ -216,6 +226,75 @@ void main() {
         );
         expect(bytes, 64);
         expect(File(destPath).lengthSync(), 64);
+      },
+    );
+
+    test(
+      'downloadPreview rejects a non-image document and succeeds on PNGs',
+      () async {
+        final tmpDir = await Directory.systemTemp.createTemp('emoji_prev');
+        addTearDown(() => tmpDir.delete(recursive: true));
+        File('${tmpDir.path}/td.png').writeAsBytesSync(List.filled(32, 1));
+        String mimeFor(int id) => id == 90 ? 'image/png' : 'font/ttf';
+        final source = EmojiChannelSource(
+          client: _ScriptedTdClient((request) async {
+            switch (request['@type']) {
+              case 'getChatMessages':
+                final ids = request['message_ids'] as List;
+                final id = ids[0] as int;
+                return {
+                  '@type': 'messages',
+                  'messages': [
+                    {
+                      '@type': 'message',
+                      'id': id,
+                      'content': {
+                        '@type': 'messageDocument',
+                        'document': {
+                          '@type': 'document',
+                          'mime_type': mimeFor(id),
+                          'document': {
+                            '@type': 'file',
+                            'id': 5000 + id,
+                            'expected_size': 32,
+                          },
+                        },
+                      },
+                    },
+                  ],
+                };
+              case 'downloadFile':
+                return {
+                  '@type': 'file',
+                  'local': {
+                    '@type': 'localFile',
+                    'path': '${tmpDir.path}/td.png',
+                    'is_downloading_completed': true,
+                  },
+                };
+            }
+            return {'@type': 'ok'};
+          }),
+        );
+        // A font message where a preview should be: refused, no file written.
+        expect(
+          await source.downloadPreview(
+            chatId: -1,
+            messageId: 43,
+            destPath: '${tmpDir.path}/bad.png',
+          ),
+          isNull,
+        );
+        expect(File('${tmpDir.path}/bad.png').existsSync(), isFalse);
+        // A real preview PNG downloads and lands on disk.
+        expect(
+          await source.downloadPreview(
+            chatId: -1,
+            messageId: 90,
+            destPath: '${tmpDir.path}/good.png',
+          ),
+          32,
+        );
       },
     );
   });

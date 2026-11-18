@@ -3669,7 +3669,7 @@ class EmojiFontPickerView extends StatefulWidget {
 }
 
 class _EmojiFontPickerViewState extends State<EmojiFontPickerView> {
-  static const _fallbackPreviewAsset = 'assets/emoji_preview/noto.svg';
+  static const _fallbackPreviewAsset = 'assets/penguin.png';
   static const _previewAssets = {
     'apple': 'assets/emoji_preview/apple.png',
     'noto': 'assets/emoji_preview/noto.svg',
@@ -3795,7 +3795,10 @@ class _EmojiFontPickerViewState extends State<EmojiFontPickerView> {
       context,
       key: entry.key,
       title: entry.label,
-      preview: _EmojiPreviewImage(asset: _previewAssetForKey(entry.key)),
+      preview: _EntryEmojiPreview(
+        asset: _previewAssetForKey(entry.key),
+        entry: entry,
+      ),
       selected: theme.emojiFontChoice.key == entry.key,
       loading: _loadingKey == entry.key,
       failed: _failedKey == entry.key,
@@ -4124,101 +4127,84 @@ class _EmojiPreviewImage extends StatelessWidget {
         asset,
         width: 26,
         height: 26,
-        placeholderBuilder: (_) => const _TearJoyFallbackIcon(),
-        errorBuilder: (_, _, _) => const _TearJoyFallbackIcon(),
+        placeholderBuilder: (_) => const _PenguinFallbackIcon(),
+        errorBuilder: (_, _, _) => const _PenguinFallbackIcon(),
       );
     }
     return Image.asset(
       asset,
       width: 26,
       height: 26,
-      errorBuilder: (_, _, _) => const _TearJoyFallbackIcon(),
+      errorBuilder: (_, _, _) => const _PenguinFallbackIcon(),
     );
   }
 }
 
-class _TearJoyFallbackIcon extends StatelessWidget {
-  const _TearJoyFallbackIcon();
+/// The last-resort preview face: the fork's penguin, never a generic emoji
+class _PenguinFallbackIcon extends StatelessWidget {
+  const _PenguinFallbackIcon();
 
   @override
   Widget build(BuildContext context) {
-    return const SizedBox(
+    return Image.asset(
+      'assets/penguin.png',
       width: 26,
       height: 26,
-      child: CustomPaint(painter: _TearJoyFallbackPainter()),
+      errorBuilder: (_, _, _) => const SizedBox(width: 26, height: 26),
     );
   }
 }
 
-class _TearJoyFallbackPainter extends CustomPainter {
-  const _TearJoyFallbackPainter();
+/// A row preview that prefers the pack's real channel preview image (the
+/// @mithka_metadata preview PNG named by the catalog message) and falls back
+/// to the bundled asset map — the penguin when even that misses. This is
+/// what keeps channel-served packs with keys the bundled map never heard of
+/// (blob, google, cursed…) from rendering as a generic fallback face.
+class _EntryEmojiPreview extends StatefulWidget {
+  const _EntryEmojiPreview({required this.asset, required this.entry});
+
+  final String asset;
+  final EmojiFontManifestEntry entry;
 
   @override
-  void paint(Canvas canvas, Size size) {
-    final face = Paint()..color = const Color(0xFFFFD447);
-    final stroke = Paint()
-      ..color = const Color(0xFF5A3210)
-      ..style = PaintingStyle.stroke
-      ..strokeCap = StrokeCap.round
-      ..strokeWidth = size.width * 0.08;
-    final tear = Paint()..color = const Color(0xFF37A8FF);
-    final center = Offset(size.width / 2, size.height / 2);
-    final radius = size.shortestSide * 0.43;
-    canvas.drawCircle(center, radius, face);
+  State<_EntryEmojiPreview> createState() => _EntryEmojiPreviewState();
+}
 
-    canvas.drawArc(
-      Rect.fromCenter(
-        center: Offset(size.width * 0.34, size.height * 0.39),
-        width: size.width * 0.28,
-        height: size.height * 0.18,
-      ),
-      0.15,
-      2.6,
-      false,
-      stroke,
-    );
-    canvas.drawArc(
-      Rect.fromCenter(
-        center: Offset(size.width * 0.66, size.height * 0.39),
-        width: size.width * 0.28,
-        height: size.height * 0.18,
-      ),
-      0.4,
-      2.6,
-      false,
-      stroke,
-    );
-    canvas.drawArc(
-      Rect.fromCenter(
-        center: Offset(size.width * 0.5, size.height * 0.55),
-        width: size.width * 0.48,
-        height: size.height * 0.34,
-      ),
-      0.1,
-      2.95,
-      false,
-      stroke,
-    );
-    canvas.drawOval(
-      Rect.fromCenter(
-        center: Offset(size.width * 0.18, size.height * 0.58),
-        width: size.width * 0.18,
-        height: size.height * 0.28,
-      ),
-      tear,
-    );
-    canvas.drawOval(
-      Rect.fromCenter(
-        center: Offset(size.width * 0.82, size.height * 0.58),
-        width: size.width * 0.18,
-        height: size.height * 0.28,
-      ),
-      tear,
-    );
+class _EntryEmojiPreviewState extends State<_EntryEmojiPreview> {
+  String? _channelPath;
+  bool _resolved = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadChannelPreview();
+  }
+
+  Future<void> _loadChannelPreview() async {
+    final file = await EmojiFontCatalog.shared.channelPreviewFile(widget.entry);
+    if (!mounted) return;
+    setState(() {
+      _resolved = true;
+      if (file != null) _channelPath = file.path;
+    });
   }
 
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+  Widget build(BuildContext context) {
+    if (!_resolved) {
+      return const SizedBox(width: 26, height: 26);
+    }
+    final channelPath = _channelPath;
+    if (channelPath != null) {
+      return Image.file(
+        File(channelPath),
+        width: 26,
+        height: 26,
+        errorBuilder: (_, _, _) => _EmojiPreviewImage(asset: widget.asset),
+      );
+    }
+    return _EmojiPreviewImage(asset: widget.asset);
+  }
 }
 
 class FontAddView extends StatefulWidget {

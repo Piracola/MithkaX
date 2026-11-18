@@ -88,6 +88,7 @@ class EmojiFontManifestEntry {
     this.sizeBytes,
     this.chatId,
     this.channelMessageId,
+    this.channelPreviewMessageId,
   });
 
   /// A pack served as a document in the @mithka_metadata channel. The url
@@ -98,6 +99,7 @@ class EmojiFontManifestEntry {
     required String license,
     required int chatId,
     required int messageId,
+    int? previewMessageId,
     int? sizeBytes,
   }) : this(
          key: key,
@@ -112,6 +114,7 @@ class EmojiFontManifestEntry {
          sizeBytes: sizeBytes,
          chatId: chatId,
          channelMessageId: messageId,
+         channelPreviewMessageId: previewMessageId,
        );
 
   final String key;
@@ -137,6 +140,10 @@ class EmojiFontManifestEntry {
 
   /// Message id of this pack's font document inside the channel.
   final int? channelMessageId;
+
+  /// Message id of this pack's preview PNG inside the channel; null when the
+  /// catalog message carries no usable preview id.
+  final int? channelPreviewMessageId;
 
   bool get isChannelServed => channelMessageId != null && channelMessageId! > 0;
 
@@ -264,6 +271,7 @@ class EmojiFontCatalog {
                   'kind': e.kind,
                   'chat_id': e.chatId,
                   'message_id': e.channelMessageId,
+                  'preview_message_id': e.channelPreviewMessageId,
                   'bytes': e.sizeBytes,
                 },
             ],
@@ -425,6 +433,7 @@ class EmojiFontCatalog {
     final label = (json['label'] as String?)?.trim() ?? '';
     final chatId = jsonInt(json['chat_id']);
     final messageId = jsonInt(json['message_id']);
+    final previewMessageId = jsonInt(json['preview_message_id']);
     if (key.isEmpty || label.isEmpty || messageId == null || messageId <= 0) {
       return null;
     }
@@ -434,6 +443,9 @@ class EmojiFontCatalog {
       license: (json['license'] as String?)?.trim() ?? '',
       chatId: chatId ?? 0,
       messageId: messageId,
+      previewMessageId: (previewMessageId != null && previewMessageId > 0)
+          ? previewMessageId
+          : null,
       sizeBytes: jsonInt(json['bytes']),
     );
   }
@@ -481,12 +493,11 @@ class EmojiFontCatalog {
       final chatId = entry.chatId ?? _channelLastChatId;
       final messageId = entry.channelMessageId!;
       if (chatId != null && chatId > 0) {
-        final bytes = await (debugChannelSource ?? _channelSource)
-            .downloadFont(
-              chatId: chatId,
-              messageId: messageId,
-              destPath: '${file.path}.tmp',
-            );
+        final bytes = await (debugChannelSource ?? _channelSource).downloadFont(
+          chatId: chatId,
+          messageId: messageId,
+          destPath: '${file.path}.tmp',
+        );
         if (bytes != null && bytes > 0) {
           if (await file.exists()) await file.delete();
           await File('${file.path}.tmp').rename(file.path);
@@ -527,6 +538,29 @@ class EmojiFontCatalog {
   Future<File> _fontFile(EmojiFontManifestEntry entry) async {
     final dir = await _cacheDir();
     return File('${dir.path}/${entry.key}.${entry.extension}');
+  }
+
+  /// Returns a cached channel preview image for [entry], downloading it
+  /// from the @mithka_metadata channel on first use. Null when the entry
+  /// has no channel preview id or the download fails — callers fall back to
+  /// the bundled asset map.
+  Future<File?> channelPreviewFile(EmojiFontManifestEntry entry) async {
+    final previewMessageId = entry.channelPreviewMessageId;
+    if (previewMessageId == null || previewMessageId <= 0) return null;
+    final chatId = entry.chatId ?? _channelLastChatId;
+    if (chatId == null || chatId <= 0) return null;
+    final dir = await _cacheDir();
+    final file = File('${dir.path}/preview_${entry.key}.png');
+    if (await file.exists()) {
+      if (await file.length() > 0) return file;
+      return null;
+    }
+    final bytes = await (debugChannelSource ?? _channelSource).downloadPreview(
+      chatId: chatId,
+      messageId: previewMessageId,
+      destPath: file.path,
+    );
+    return (bytes != null && bytes > 0) ? file : null;
   }
 
   Future<File?> _cachedFontFileForKey(String key) async {

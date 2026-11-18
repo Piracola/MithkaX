@@ -35,10 +35,10 @@ class EmojiChannelSource {
     if (cached != null) return cached;
     if (!_client.hasActiveClient) return null;
     try {
-      final chat = await _client.query(
-        {'@type': 'searchPublicChat', 'username': channelUsername},
-        timeout: const Duration(seconds: 10),
-      );
+      final chat = await _client.query({
+        '@type': 'searchPublicChat',
+        'username': channelUsername,
+      }, timeout: const Duration(seconds: 10));
       final id = chat.int64('id');
       if (id == null || id == 0) return null;
       _cachedChatId = id;
@@ -59,18 +59,15 @@ class EmojiChannelSource {
     final chatId = await _chatId();
     if (chatId == null) return null;
     try {
-      final response = await _client.query(
-        {
-          '@type': 'searchChatMessages',
-          'chat_id': chatId,
-          'query': catalogTag,
-          'from_message_id': 0,
-          'offset': 0,
-          'limit': 4,
-          'filter': {'@type': 'searchMessagesFilterEmpty'},
-        },
-        timeout: const Duration(seconds: 15),
-      );
+      final response = await _client.query({
+        '@type': 'searchChatMessages',
+        'chat_id': chatId,
+        'query': catalogTag,
+        'from_message_id': 0,
+        'offset': 0,
+        'limit': 4,
+        'filter': {'@type': 'searchMessagesFilterEmpty'},
+      }, timeout: const Duration(seconds: 15));
       final messages = response.objects('messages') ?? const [];
       for (final message in messages) {
         final text = message.obj('content')?.obj('text')?.str('text');
@@ -85,6 +82,7 @@ class EmojiChannelSource {
               license: entry.license,
               chatId: chatId,
               messageId: entry.channelMessageId!,
+              previewMessageId: entry.channelPreviewMessageId,
               sizeBytes: entry.sizeBytes,
             ),
         ];
@@ -118,6 +116,7 @@ class EmojiChannelSource {
       final label = (item['name'] as String?)?.trim() ?? '';
       final file = (item['file'] as num?)?.toInt();
       final size = (item['size'] as num?)?.toInt();
+      final preview = (item['preview'] as num?)?.toInt();
       if (key.isEmpty || label.isEmpty || file == null || file <= 0) continue;
       entries.add(
         EmojiFontManifestEntry.channel(
@@ -126,6 +125,7 @@ class EmojiChannelSource {
           license: (item['license'] as String?)?.trim() ?? '',
           chatId: 0,
           messageId: file,
+          previewMessageId: (preview != null && preview > 0) ? preview : null,
           sizeBytes: size,
         ),
       );
@@ -139,36 +139,62 @@ class EmojiChannelSource {
     required int chatId,
     required int messageId,
     required String destPath,
+  }) => _downloadChannelDocument(
+    chatId: chatId,
+    messageId: messageId,
+    destPath: destPath,
+    expectedMimeType: 'font/',
+  );
+
+  /// Downloads a pack's preview image (a PNG document in the channel) to
+  /// [destPath]. Returns the byte length, or null on any failure — the
+  /// caller falls back to a bundled asset.
+  Future<int?> downloadPreview({
+    required int chatId,
+    required int messageId,
+    required String destPath,
+  }) => _downloadChannelDocument(
+    chatId: chatId,
+    messageId: messageId,
+    destPath: destPath,
+    expectedMimeType: 'image/',
+  );
+
+  /// Shared message → document → downloadFile pipeline for both font and
+  /// preview documents. [expectedMimeType] rejects wrong-kind messages (a
+  /// font where a preview should be, and vice versa).
+  Future<int?> _downloadChannelDocument({
+    required int chatId,
+    required int messageId,
+    required String destPath,
+    required String expectedMimeType,
   }) async {
     try {
-      final messages = await _client.query(
-        {
-          '@type': 'getChatMessages',
-          'chat_id': chatId,
-          'message_ids': [messageId],
-        },
-        timeout: const Duration(seconds: 15),
-      );
+      final messages = await _client.query({
+        '@type': 'getChatMessages',
+        'chat_id': chatId,
+        'message_ids': [messageId],
+      }, timeout: const Duration(seconds: 15));
       final list = messages.objects('messages') ?? const [];
       Map<String, dynamic>? message;
       for (final candidate in list) {
         if (candidate.int64('id') == messageId) message = candidate;
       }
       if (message == null) return null;
-      final doc = message.obj('content')?.obj('document')?.obj('document');
+      final document = message.obj('content')?.obj('document');
+      final doc = document?.obj('document');
       final fileId = doc?.int64('id');
       if (fileId == null || fileId == 0) return null;
-      final file = await _client.query(
-        {
-          '@type': 'downloadFile',
-          'file_id': fileId,
-          'priority': 32,
-          'offset': 0,
-          'limit': 0,
-          'synchronous': true,
-        },
-        timeout: const Duration(minutes: 10),
-      );
+      final mime = document?.str('mime_type') ?? '';
+      if (!mime.startsWith(expectedMimeType)) return null;
+      final file = await _client.query({
+        '@type': 'downloadFile',
+        'file_id': fileId,
+        'priority': 32,
+        'offset': 0,
+        'limit': 0,
+        'synchronous': true,
+      }, timeout: const Duration(minutes: 10));
       final local = file.obj('local');
       final path = local?.str('path');
       final done = local?.boolean('is_downloading_completed') == true;
@@ -181,7 +207,7 @@ class EmojiChannelSource {
       return await dst.length();
     } catch (error) {
       debugPrint(
-        '[emoji_channel_source] font download failed '
+        '[emoji_channel_source] document download failed '
         'type=${error.runtimeType}',
       );
       return null;
