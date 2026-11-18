@@ -31,6 +31,7 @@ import '../auth/auth_manager.dart';
 import '../chat/chat_picker_view.dart';
 import '../chat/chat_view.dart';
 import '../chat/custom_emoji.dart';
+import '../chat/forward_handoff.dart';
 import '../chat/link_handler.dart';
 import '../communities/community_models.dart';
 import '../communities/community_view.dart';
@@ -418,6 +419,7 @@ class ChatListSelection {
     this.initialMessageId,
     this.forumTopicId,
     this.composerFocusRequestId = 0,
+    this.pendingForwardHandoff,
   });
 
   ChatListSelection.fromChat(
@@ -428,7 +430,8 @@ class ChatListSelection {
        chat = chat,
        resolvedKind = chat.kind,
        initialMessageId = null,
-       forumTopicId = null;
+       forumTopicId = null,
+       pendingForwardHandoff = null;
 
   final int chatId;
   final String title;
@@ -440,6 +443,11 @@ class ChatListSelection {
   /// into the group chat; null shows the whole chat.
   final int? forumTopicId;
   final int composerFocusRequestId;
+
+  /// A forward picked in another chat (forward-to-chat). Non-null only on the
+  /// selection a forward flow creates; it is handed to the transcript's
+  /// composer once and never re-applied on rebuilds.
+  final ForwardMessagesHandoff? pendingForwardHandoff;
 
   ChatKind? get kind => chat?.kind ?? resolvedKind;
   bool get isForum => chat?.isForum ?? false;
@@ -453,6 +461,7 @@ class ChatListSelection {
     initialMessageId: initialMessageId,
     forumTopicId: forumTopicId,
     composerFocusRequestId: composerFocusRequestId,
+    pendingForwardHandoff: pendingForwardHandoff,
   );
 
   /// Whether [other] would land on the transcript this selection already
@@ -474,6 +483,7 @@ class ChatListSelection {
     resolvedKind: resolvedKind,
     forumTopicId: topicId,
     composerFocusRequestId: composerFocusRequestId,
+    pendingForwardHandoff: pendingForwardHandoff,
   );
 }
 

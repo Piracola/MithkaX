@@ -86,6 +86,8 @@ import 'emoji_recents_store.dart';
 import 'emoji_store.dart';
 import 'emoji_text_controller.dart';
 import 'favorite_sticker_store.dart';
+import 'forward_handoff.dart';
+import 'forward_options.dart' show isForwardProtectedError;
 import 'gif_item.dart';
 import 'gif_preview.dart';
 import 'gif_store.dart';
@@ -557,6 +559,7 @@ class ChatInputBar extends StatefulWidget {
     this.onMediaKindChanged,
     this.onBotTopicCreated,
     this.onReplyOptionsRequested,
+    this.onForwardOptionsRequested,
     this.onReplySourceJump,
     this.quickReplyLoader,
     this.quickReplySender,
@@ -614,6 +617,10 @@ class ChatInputBar extends StatefulWidget {
   /// options sheet (quote selection, reply in another chat). Null leaves the
   /// banner body inert; hosts that cannot present options keep tap-to-nothing.
   final VoidCallback? onReplyOptionsRequested;
+
+  /// Tapping the pending-forward banner's body asks the host to present the
+  /// forward options sheet (hide sender, remove caption, render markdown).
+  final VoidCallback? onForwardOptionsRequested;
 
   /// Long-pressing the reply banner jumps to the original message.
   final ValueChanged<ChatMessage>? onReplySourceJump;
@@ -3151,6 +3158,36 @@ class _ChatInputBarState extends State<ChatInputBar>
       }
       return;
     }
+    // A pending forward rides the send button first (exteraless parity: the
+    // preview panel's send commits the forward; any typed text follows as a
+    // normal message).
+    if (vm.pendingForward != null) {
+      final canAttemptSend = await vm.prepareMessageSend();
+      if (!mounted || !canAttemptSend) return;
+      try {
+        await vm.sendPendingForward();
+        if (!mounted) return;
+        widget.onMessageSent();
+        final plan = vm.protectedForwardLastPlan;
+        if (plan != null && plan.skippedIds.isNotEmpty) {
+          showToast(
+            context,
+            AppStrings.t(AppStringKeys.keptForwardCopyPartToast, {
+              'value1': plan.copiedCount,
+              'value2': plan.skippedIds.length,
+            }),
+          );
+        }
+        if (_controller.text.trim().isNotEmpty) {
+          await _sendCurrentText();
+        } else {
+          _focus.requestFocus();
+        }
+      } catch (error) {
+        if (mounted) _showForwardFailureFromComposer(error);
+      }
+      return;
+    }
     if (_voiceDraft != null) {
       await _sendVoiceDraft();
       return;
@@ -4080,6 +4117,8 @@ class _ChatInputBarState extends State<ChatInputBar>
               children: [
                 if (editingMessage != null)
                   _editBanner(editingMessage)
+                else if (vm.pendingForward != null)
+                  _forwardBanner(vm.pendingForward!)
                 else if (vm.replyTo != null)
                   _replyBanner(vm.replyTo!),
                 if (editingMessage == null)
@@ -5013,6 +5052,117 @@ class _ChatInputBarState extends State<ChatInputBar>
           ),
         ],
       ),
+    );
+  }
+
+  /// The pending-forward banner (forward-to-chat, exteraless parity): the
+  /// same strip language as the reply banner, with the option toggles the
+  /// reference client's forward preview panel carries. Tapping the body
+  /// opens the forward options sheet; the close button cancels the forward.
+  Widget _forwardBanner(PendingForward forward) {
+    final c = context.colors;
+    final first = forward.messages.first;
+    final count = forward.messages.length;
+    final title = count > 1
+        ? AppStrings.t(AppStringKeys.chatForwardPendingCount, {'value1': count})
+        : AppStrings.t(AppStringKeys.chatForwardPending);
+    final previewLines = <String>[
+      for (final message in forward.messages.take(2))
+        if (_forwardPreviewLine(message).isNotEmpty)
+          _forwardPreviewLine(message),
+      if (count > 2)
+        AppStrings.t(AppStringKeys.chatForwardPendingMore, {
+          'value1': count - 2,
+        }),
+    ];
+    final thumb = first.image?.thumbnail ?? first.image;
+    return SizedBox(
+      key: const ValueKey('composerForwardBanner'),
+      height: 46,
+      child: Row(
+        children: [
+          SizedBox(
+            width: 52,
+            height: 46,
+            child: Center(
+              child: AppIcon(HeroAppIcons.forward, size: 19, color: c.linkBlue),
+            ),
+          ),
+          Expanded(
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: widget.onForwardOptionsRequested,
+              child: SizedBox(
+                height: 46,
+                child: Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: AppTextStyle.body(
+                          c.linkBlue,
+                          weight: AppTextWeight.semibold,
+                        ),
+                      ),
+                      if (previewLines.isNotEmpty)
+                        Text(
+                          previewLines.join('  '),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: AppTextStyle.body(c.textSecondary),
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+          if (thumb != null) ...[
+            ClipRRect(
+              borderRadius: BorderRadius.circular(6),
+              child: SizedBox(
+                width: 34,
+                height: 34,
+                child: TDImage(photo: thumb, cacheWidth: 68, cacheHeight: 68),
+              ),
+            ),
+            const SizedBox(width: 8),
+          ],
+          SizedBox(
+            width: 52,
+            height: 46,
+            child: AppInteractiveSurface(
+              key: const ValueKey('composerForwardClose'),
+              semanticLabel: AppStringKeys.confirmCancel.l10n(context),
+              onTap: () => vm.clearPendingForward(),
+              borderRadius: BorderRadius.circular(19),
+              child: Center(
+                child: AppIcon(
+                  HeroAppIcons.xmark,
+                  size: 17,
+                  color: c.textTertiary,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _forwardPreviewLine(ChatMessage m) => _replyPreview(m);
+
+  void _showForwardFailureFromComposer(Object error) {
+    showToast(
+      context,
+      isForwardProtectedError(error)
+          ? AppStringKeys.chatForwardProtected
+          : AppStrings.t(AppStringKeys.chatForwardFailed, {'value1': error}),
     );
   }
 
@@ -6211,7 +6361,8 @@ class _ChatInputBarState extends State<ChatInputBar>
         _hasText ||
         editing ||
         _pendingClipboardAttachments.isNotEmpty ||
-        voiceDraft != null;
+        voiceDraft != null ||
+        vm.pendingForward != null;
     final replyTarget = _currentAiReplyTarget();
     final aiReplyWorking =
         replyTarget != null && _aiReplyWorkingTargetId == replyTarget.id;

@@ -17,12 +17,14 @@ import 'package:provider/provider.dart';
 
 import '../app/app_navigator.dart';
 import '../app/bottom_bar_layout.dart';
+import '../app/chat_deep_link_controller.dart';
 import '../app/ipad_window_chrome.dart';
 import '../chat/animated_sticker_view.dart';
 import '../chat/chat_picker_view.dart';
 import '../chat/chat_view.dart';
 import '../chat/custom_emoji.dart';
-import '../chat/forward_options.dart';
+import '../chat/forward_handoff.dart';
+import '../chat/forward_markdown.dart';
 import '../chat/image_preview.dart';
 import '../chat/media_album_layout.dart';
 import '../chat/media_spoiler.dart';
@@ -5654,40 +5656,28 @@ class _PostActions extends StatelessWidget {
   Future<void> _forward(BuildContext context) async {
     final result = await Navigator.of(context).push<ChatPickerResult>(
       MaterialPageRoute(
-        builder: (_) => const ChatPickerView(
+        builder: (_) => ChatPickerView(
           title: AppStringKeys.chatForwardToTitle,
           showForwardOptions: true,
+          accountSlot: post.accountSlot,
         ),
       ),
     );
     if (result == null || !context.mounted) return;
     final target = result.chat;
-    try {
-      await forwardMessagesWithOptions(
-        client: TdClient.shared,
-        targetChatId: target.id,
+    ChatDeepLinkController.shared.openChat(
+      chatId: target.id,
+      title: target.title,
+      accountSlot: post.accountSlot,
+      forwardHandoff: ForwardMessagesHandoff(
         fromChatId: channel.id,
-        messageIds: [message.id],
-        options: result.forwardOptions,
-      );
-      if (context.mounted) {
-        showToast(
-          context,
-          AppStrings.t(AppStringKeys.chatForwardedToName, {
-            'value1': target.title,
-          }),
-        );
-      }
-    } catch (e) {
-      if (context.mounted) {
-        showToast(
-          context,
-          isForwardProtectedError(e)
-              ? AppStringKeys.chatForwardProtected
-              : AppStrings.t(AppStringKeys.chatForwardFailed, {'value1': e}),
-        );
-      }
-    }
+        messages: post.messages,
+        accountSlot: post.accountSlot,
+        clientId: TdClient.shared.clientId(post.accountSlot) ?? 0,
+        hasCaption: forwardSelectionHasCaption(post.messages),
+        markdownOffer: const ForwardMarkdownOffer.none(),
+      ),
+    );
   }
 }
 
