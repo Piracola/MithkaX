@@ -201,6 +201,15 @@ class ChatListViewModel extends ChangeNotifier {
       ? _chats
       : _projectChats(folderId, _visibleChats());
 
+  /// Flat, recipient-oriented view for pickers (forward/share target
+  /// selection): the folder's chats with the archive appended, exactly like
+  /// the reference client's forward picker. Read-only projection — it never
+  /// touches the selection, so a picker can call it per build.
+  List<ChatSummary> chatsForSelection(int? folderId) => [
+    ...chatsForFolder(folderId),
+    ..._archived,
+  ];
+
   /// Whether [chat] is pinned in the folder currently shown to the user (the
   /// Main list's pin when no folder is selected).
   bool isPinnedInSelectedList(ChatSummary chat) =>

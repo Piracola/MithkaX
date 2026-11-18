@@ -1,5 +1,7 @@
 import 'package:flutter/foundation.dart';
 
+import '../chat/forward_handoff.dart';
+
 /// A reply carried from another chat into the newly opened transcript.
 ///
 /// The destination composer holds this as a cross-chat reply: its sends
@@ -53,6 +55,7 @@ class ChatDeepLinkRequest {
     this.preserveChatStack = false,
     this.fromNotification = false,
     this.externalReply,
+    this.forwardHandoff,
   });
 
   final int chatId;
@@ -71,6 +74,10 @@ class ChatDeepLinkRequest {
   /// destination transcript's composer starts with this reply pending.
   final ExternalReplyHandoff? externalReply;
 
+  /// A forward carried over from the picking chat (forward-to-chat): the
+  /// destination transcript's composer starts with this forward pending.
+  final ForwardMessagesHandoff? forwardHandoff;
+
   ChatDeepLinkRequest scopedToAccountSlot(int slot) => ChatDeepLinkRequest(
     chatId: chatId,
     title: title,
@@ -80,6 +87,7 @@ class ChatDeepLinkRequest {
     preserveChatStack: preserveChatStack,
     fromNotification: fromNotification,
     externalReply: externalReply,
+    forwardHandoff: forwardHandoff,
   );
 
   /// Presentation-only payload used when a registered desktop child asks the
@@ -104,11 +112,16 @@ class ChatDeepLinkRequest {
     if (title != null && title is! String) return null;
     final handoff = source['externalReply'];
     if (handoff != null && handoff is! ExternalReplyHandoff) return null;
+    final forwardHandoff = source['forwardHandoff'];
+    if (forwardHandoff != null && forwardHandoff is! ForwardMessagesHandoff) {
+      return null;
+    }
     return ChatDeepLinkRequest(
       chatId: chatId,
       title: _normalizeDesktopChatTitle(title as String?),
       messageId: messageId as int?,
       externalReply: handoff as ExternalReplyHandoff?,
+      forwardHandoff: forwardHandoff as ForwardMessagesHandoff?,
     );
   }
 }
@@ -163,6 +176,7 @@ class ChatDeepLinkController extends ChangeNotifier {
     bool preserveChatStack = false,
     bool fromNotification = false,
     ExternalReplyHandoff? externalReply,
+    ForwardMessagesHandoff? forwardHandoff,
   }) {
     _pending = ChatDeepLinkRequest(
       chatId: chatId,
@@ -173,6 +187,7 @@ class ChatDeepLinkController extends ChangeNotifier {
       preserveChatStack: preserveChatStack,
       fromNotification: fromNotification,
       externalReply: externalReply,
+      forwardHandoff: forwardHandoff,
     );
     notifyListeners();
   }

@@ -12,13 +12,15 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../app/app_navigator.dart';
+import '../app/chat_deep_link_controller.dart';
 import '../app/chat_pane.dart';
 import '../app/ipad_window_chrome.dart';
 import '../chat/chat_members_view.dart';
 import '../chat/chat_picker_view.dart';
 import '../chat/chat_view.dart';
 import '../chat/forum_topic_transcript.dart';
-import '../chat/forward_options.dart';
+import '../chat/forward_handoff.dart';
+import '../chat/forward_markdown.dart';
 import '../chat/group_remark_controller.dart';
 import '../chat/link_preview_fixer.dart';
 import '../chat/message_replies_sheet.dart';
@@ -1758,30 +1760,19 @@ class _TopicChatViewState extends State<TopicChatView> {
     );
     if (result == null || !mounted) return;
     final target = result.chat;
-    try {
-      await forwardMessagesWithOptions(
-        client: TdClient.shared,
-        targetChatId: target.id,
+    ChatDeepLinkController.shared.openChat(
+      chatId: target.id,
+      title: target.title,
+      accountSlot: _accountSlot,
+      forwardHandoff: ForwardMessagesHandoff(
         fromChatId: widget.chat.id,
-        messageIds: [post.message.id],
-        options: result.forwardOptions,
-      );
-      if (!mounted) return;
-      showToast(
-        context,
-        AppStrings.t(AppStringKeys.chatForwardedToName, {
-          'value1': target.title,
-        }),
-      );
-    } catch (e) {
-      if (!mounted) return;
-      showToast(
-        context,
-        isForwardProtectedError(e)
-            ? AppStringKeys.chatForwardProtected
-            : AppStrings.t(AppStringKeys.chatForwardFailed, {'value1': e}),
-      );
-    }
+        messages: [post.message],
+        accountSlot: _accountSlot,
+        clientId: TdClient.shared.clientId(_accountSlot) ?? 0,
+        hasCaption: forwardSelectionHasCaption([post.message]),
+        markdownOffer: const ForwardMarkdownOffer.none(),
+      ),
+    );
   }
 
   Future<void> _addReaction(_TopicPost post, String emoji) async {

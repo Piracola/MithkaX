@@ -590,6 +590,7 @@ abstract class _MainRootViewState<T extends StatefulWidget> extends State<T> {
           accountUserId: replay.accountUserId,
           accountSlot: replay.accountSlot,
           externalReply: replay.externalReply,
+          forwardHandoff: replay.forwardHandoff,
         );
       });
       return;
@@ -599,6 +600,7 @@ abstract class _MainRootViewState<T extends StatefulWidget> extends State<T> {
         chatId: request.chatId,
         title: request.title,
         initialMessageId: request.messageId,
+        pendingForwardHandoff: request.forwardHandoff,
       );
       setState(() => _selection = 0);
       _showMessageChat(nextSelection);
@@ -619,6 +621,7 @@ abstract class _MainRootViewState<T extends StatefulWidget> extends State<T> {
             title: request.title,
             initialMessageId: request.messageId,
             externalReplyHandoff: request.externalReply,
+            forwardHandoff: request.forwardHandoff,
           ),
         ),
       );
@@ -1720,7 +1723,8 @@ abstract class _MainRootViewState<T extends StatefulWidget> extends State<T> {
       key: ValueKey(
         'message-detail-${selected.chatId}-${selected.supportsTopics}-'
         '${selected.initialMessageId ?? 0}-${selected.forumTopicId ?? 0}-'
-        '${selected.composerFocusRequestId}',
+        '${selected.composerFocusRequestId}-'
+        '${selected.pendingForwardHandoff != null ? 1 : 0}',
       ),
       child: ChatView(
         chatId: selected.chatId,
@@ -1735,6 +1739,7 @@ abstract class _MainRootViewState<T extends StatefulWidget> extends State<T> {
         trailingPane: trailingPane,
         trailingPaneWidth: trailingPaneWidth,
         requestComposerFocusOnReady: selected.composerFocusRequestId != 0,
+        forwardHandoff: selected.pendingForwardHandoff,
         exitController: _messageChatExitController,
         revealLatestController: _messageRevealLatestController,
         onChatKindResolved: (kind) =>

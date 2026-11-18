@@ -1012,6 +1012,11 @@ abstract final class AppStringKeys {
   static const chatEditPlainText = 'chatEditPlainText';
   static const chatForwardedToName = 'chatForwardedToName';
   static const chatForwardFailed = 'chatForwardFailed';
+  static const chatForwardPending = 'chatForwardPending';
+  static const chatForwardPendingCount = 'chatForwardPendingCount';
+  static const chatForwardPendingMore = 'chatForwardPendingMore';
+  static const chatForwardOptionsTitle = 'chatForwardOptionsTitle';
+  static const chatForwardChangeRecipient = 'chatForwardChangeRecipient';
   static const chatForwardProtected = 'chatForwardProtected';
   static const chatForwardRemoveCaption = 'chatForwardRemoveCaption';
   static const chatForwardRemoveSender = 'chatForwardRemoveSender';

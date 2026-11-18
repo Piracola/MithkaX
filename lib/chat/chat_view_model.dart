@@ -42,6 +42,7 @@ import 'chat_unread_progress.dart';
 import 'checklist_composer_view.dart';
 import 'checklist_service.dart';
 import 'forum_topic_transcript.dart';
+import 'forward_handoff.dart';
 import 'forward_markdown.dart';
 import 'forward_options.dart';
 import 'gif_item.dart';
@@ -928,6 +929,11 @@ class ChatViewModel extends ChangeNotifier {
 
   /// The account slot whose ids this transcript's data is scoped to.
   int get accountSlot => _accountSlot;
+
+  /// The pinned TDLib client id the current transcript's messages belong to.
+  /// Forward handoffs stamp it so the target chat can pin its forward queries
+  /// to the account that supplied the source ids.
+  int get accountClientIdForForwarding => _accountClientId;
   int _groupBotCommandsGeneration = 0;
   Future<Set<String>>? _aiReplyBlockedSenderKeysFuture;
   int _aiReplyBlockedSenderRevision = 0;
@@ -3454,6 +3460,136 @@ class ChatViewModel extends ChangeNotifier {
   }
 
   // MARK: - Message actions (long-press menu)
+
+  /// The composer's pending forward (forward-to-chat). Set when the
+  /// transcript opens with a [ForwardMessagesHandoff]; cleared on send,
+  /// cancel, or reply selection.
+  PendingForward? pendingForward;
+
+  /// Installs a forward carried from the picking chat. A pending reply and a
+  /// pending forward cannot coexist — the composer shows one banner — so
+  /// adopting a forward drops the reply, exactly like exteraless's field
+  /// panel swap. A forward whose target is this same chat (转发到本聊天)
+  /// stays here and adopts too: the composer preview holds it until send.
+  void adoptForwardHandoff(ForwardMessagesHandoff handoff) {
+    if (handoff.accountSlot != _accountSlot ||
+        handoff.clientId != _accountClientId) {
+      return;
+    }
+    replyTo = null;
+    pendingForward = pendingForwardFromHandoff(handoff);
+    notifyListeners();
+  }
+
+  void clearPendingForward() {
+    if (pendingForward == null) return;
+    pendingForward = null;
+    notifyListeners();
+  }
+
+  /// Sends the composer's pending forward into this chat and clears it.
+  /// The result plan surfaces through [protectedForwardLastPlan] for the
+  /// partial-migration toast, exactly like the in-chat forward path.
+  Future<void> sendPendingForward() async {
+    final forward = pendingForward;
+    if (forward == null) return;
+    final messageIds = [
+      for (final message in forward.messages)
+        if (message.id > 0) message.id,
+    ];
+    if (messageIds.isEmpty) {
+      pendingForward = null;
+      notifyListeners();
+      return;
+    }
+    if (forward.protectedCopy) {
+      final plan = await forwardProtectedAsCopy(
+        query: _client.query,
+        fromChatId: forward.fromChatId,
+        messageIds: messageIds,
+        targetChatId: chatId,
+        topicId: _forumTopicRef,
+      );
+      protectedForwardLastPlan = plan;
+      pendingForward = null;
+      notifyListeners();
+      if (plan.anythingSent) return;
+      throw const ForwardBlockedException();
+    }
+    // Source ids are pinned to the account that supplied them; the same
+    // account owns this transcript, so the owned query route is exact.
+    final forwardQuery = forwardQueryForOwner(
+      _client,
+      accountSlot: forward.accountSlot,
+      clientId: forward.clientId,
+    );
+    var richText = forward.options.richText;
+    // Same second gate as forwardMany: entry points hide the chip for
+    // non-Premium, but the entitlement is re-checked here against the live
+    // TDLib state.
+    if (richText) {
+      try {
+        final user = await forwardQuery({'@type': 'getMe'});
+        richText = user.boolean('is_premium') ?? false;
+      } catch (_) {
+        richText = false;
+      }
+    }
+    final byId = {for (final message in forward.messages) message.id: message};
+    final pendingIds = <int>[];
+    // The handoff's messages carry the text the offer was computed from, so
+    // the rich-text conversion works even though the source transcript's
+    // view model is long gone.
+    bool converts(ChatMessage message) =>
+        forwardMarkdownOfferForMessage(message).available;
+    Future<void> flush() async {
+      if (pendingIds.isEmpty) return;
+      final ids = List<int>.of(pendingIds);
+      pendingIds.clear();
+      await forwardMessagesWithOptions(
+        client: _client,
+        targetChatId: chatId,
+        fromChatId: forward.fromChatId,
+        messageIds: ids,
+        topicId: _forumTopicRef,
+        options: forward.options,
+        query: forwardQuery,
+      );
+    }
+
+    if (!richText) {
+      await forwardMessagesWithOptions(
+        client: _client,
+        targetChatId: chatId,
+        fromChatId: forward.fromChatId,
+        messageIds: messageIds,
+        topicId: _forumTopicRef,
+        options: forward.options,
+        query: forwardQuery,
+      );
+    } else {
+      for (final id in messageIds) {
+        final message = byId[id];
+        if (message == null || !converts(message)) {
+          pendingIds.add(id);
+          continue;
+        }
+        await flush();
+        final sent = await sendMarkdownRichTextForward(
+          query: forwardQuery,
+          fromChatId: forward.fromChatId,
+          messageId: id,
+          targetChatId: chatId,
+          text: message.text,
+          topicId: _forumTopicRef,
+        );
+        if (!sent) pendingIds.add(id);
+      }
+      await flush();
+    }
+    pendingForward = null;
+    notifyListeners();
+  }
 
   Future<void> forward(
     int messageId,

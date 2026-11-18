@@ -116,8 +116,10 @@ import 'composer_reply_options_sheet.dart';
 import 'custom_emoji.dart';
 import 'emoji_store.dart';
 import 'forum_topic_transcript.dart';
+import 'forward_handoff.dart';
 import 'forward_markdown.dart';
 import 'forward_options.dart';
+import 'forward_options_sheet.dart';
 import 'group_remark_controller.dart';
 import 'hide_sender_dialog.dart';
 import 'image_media_album_bubble.dart';
@@ -997,6 +999,7 @@ class ChatView extends StatefulWidget {
     this.initialMessageId,
     this.seedMessage,
     this.externalReplyHandoff,
+    this.forwardHandoff,
     this.showBackButton = true,
     this.headerHeight = 48,
     this.headerColor,
@@ -1028,6 +1031,10 @@ class ChatView extends StatefulWidget {
   /// `ComposerReplyOptionsSheet`'s reply-in-another-chat entry). The
   /// composer starts with this cross-chat reply pending.
   final ExternalReplyHandoff? externalReplyHandoff;
+
+  /// A forward carried over from the picking chat (forward-to-chat). The
+  /// composer starts with this forward pending as a reply-style preview.
+  final ForwardMessagesHandoff? forwardHandoff;
   final bool showBackButton;
 
   /// Minimum toolbar height; accessible title/status text can grow it.
@@ -1638,6 +1645,7 @@ class _ChatViewState extends State<ChatView> {
     _vm.addListener(_publishTopicList);
     _setScrollTarget(widget.initialMessageId);
     _adoptExternalReplyHandoff();
+    _adoptForwardHandoff();
     _vm.onAppear();
     _readSyncTimer = Timer.periodic(const Duration(seconds: 5), (_) {
       if (mounted && _viewTickerEnabled && _isAtLoadedBottom(80)) {
@@ -4513,6 +4521,63 @@ class _ChatViewState extends State<ChatView> {
     }
   }
 
+  /// Shared forward-to-chat flow (exteraless parity): the picker only chooses
+  /// the recipient, then the target chat opens with the forward pending in
+  /// its composer as a reply-style preview panel. Send happens there.
+  Future<void> _openForwardPicker({
+    required List<ChatMessage> messages,
+    required bool protectedCopy,
+  }) async {
+    final accountClientId = _vm.accountClientIdForForwarding;
+    final result = await Navigator.of(context).push<ChatPickerResult>(
+      MaterialPageRoute(
+        builder: (_) => ChatPickerView(
+          title: AppStringKeys.chatForwardToTitle,
+          showForwardOptions: true,
+          accountSlot: _vm.accountSlot,
+        ),
+      ),
+    );
+    if (result == null || !mounted) return;
+    final target = result.chat;
+    if (target.id == _vm.chatId) {
+      // Forwarding to the same chat keeps the user here; the composer holds
+      // the pending forward instead of a new transcript.
+      _vm.adoptForwardHandoff(
+        ForwardMessagesHandoff(
+          fromChatId: _vm.chatId,
+          messages: messages,
+          accountSlot: _vm.accountSlot,
+          clientId: accountClientId,
+          hasCaption: forwardSelectionHasCaption(messages),
+          markdownOffer: _forwardMarkdownOffer([
+            for (final message in messages) message.id,
+          ]),
+          protectedCopy: protectedCopy,
+        ),
+      );
+      _exitSelection();
+      return;
+    }
+    ChatDeepLinkController.shared.openChat(
+      chatId: target.id,
+      title: target.title,
+      accountSlot: _vm.accountSlot,
+      forwardHandoff: ForwardMessagesHandoff(
+        fromChatId: _vm.chatId,
+        messages: messages,
+        accountSlot: _vm.accountSlot,
+        clientId: accountClientId,
+        hasCaption: forwardSelectionHasCaption(messages),
+        markdownOffer: _forwardMarkdownOffer([
+          for (final message in messages) message.id,
+        ]),
+        protectedCopy: protectedCopy,
+      ),
+    );
+    _exitSelection();
+  }
+
   Future<void> _forwardSelected() async {
     final ids = _orderedSelectedIds();
     if (ids.isEmpty) return;
@@ -4520,36 +4585,15 @@ class _ChatViewState extends State<ChatView> {
       _showForwardFailure(const ForwardBlockedException());
       return;
     }
-    final result = await Navigator.of(context).push<ChatPickerResult>(
-      MaterialPageRoute(
-        builder: (_) => ChatPickerView(
-          title: AppStringKeys.chatForwardToTitle,
-          showForwardOptions: true,
-          markdownOffer: _forwardMarkdownOffer(ids),
-        ),
-      ),
+    final byId = {for (final message in _vm.messages) message.id: message};
+    final messages = [
+      for (final id in ids)
+        if (byId[id] != null) byId[id]!,
+    ];
+    await _openForwardPicker(
+      messages: messages,
+      protectedCopy: _protectedCopyEnabled,
     );
-    if (result == null || !mounted) return;
-    final target = result.chat;
-    try {
-      await _vm.forwardMany(ids, target.id, options: result.forwardOptions);
-      if (!mounted) return;
-      if (_protectedCopyEnabled) {
-        _showProtectedCopyResult(_vm.protectedForwardLastPlan);
-        _exitSelection();
-        return;
-      }
-      showToast(
-        context,
-        AppStrings.t(AppStringKeys.chatMessagesForwardedCount, {
-          'value1': ids.length,
-        }),
-      );
-      _exitSelection();
-    } catch (e) {
-      if (!mounted) return;
-      _showForwardFailure(e);
-    }
   }
 
   Future<void> _saveSelected() async {
@@ -7103,37 +7147,11 @@ class _ChatViewState extends State<ChatView> {
       _showForwardFailure(const ForwardBlockedException());
       return;
     }
-    final messageIds = _messagesForForward(
-      message,
-    ).map((candidate) => candidate.id).toList();
-    final result = await Navigator.of(context).push<ChatPickerResult>(
-      MaterialPageRoute(
-        builder: (_) => ChatPickerView(
-          title: AppStringKeys.chatForwardToTitle,
-          showForwardOptions: true,
-          markdownOffer: _forwardMarkdownOffer(messageIds),
-        ),
-      ),
+    final messages = _messagesForForward(message);
+    await _openForwardPicker(
+      messages: messages,
+      protectedCopy: _protectedCopyEnabled,
     );
-    if (result == null || !mounted) return;
-    final target = result.chat;
-    try {
-      await _vm.forwardMany(
-        messageIds,
-        target.id,
-        options: result.forwardOptions,
-      );
-      if (!mounted) return;
-      showToast(
-        context,
-        AppStrings.t(AppStringKeys.chatForwardedToName, {
-          'value1': target.title,
-        }),
-      );
-    } catch (e) {
-      if (!mounted) return;
-      _showForwardFailure(e);
-    }
   }
 
   void _showForwardFailure(Object error) {
@@ -8452,6 +8470,7 @@ class _ChatViewState extends State<ChatView> {
       onMediaSendTapped: _onComposerMediaSendTapped,
       onBotTopicCreated: _openTopicTranscript,
       onReplyOptionsRequested: _showComposerReplyOptions,
+      onForwardOptionsRequested: _showComposerForwardOptions,
       onReplySourceJump: _jumpToReplySource,
     );
   }
@@ -11338,6 +11357,31 @@ class _ChatViewState extends State<ChatView> {
     unawaited(_jumpToMessage(message.id));
   }
 
+  /// Tapping the pending-forward banner opens the forward options sheet:
+  /// hide sender / remove caption (independent toggles with the caption→copy
+  /// rule), render markdown, change recipient, apply, cancel.
+  Future<void> _showComposerForwardOptions() async {
+    final forward = _vm.pendingForward;
+    if (forward == null) return;
+    final result = await showAppModalSheet<ForwardOptionsResult>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (_) => ForwardOptionsSheet(forward: forward),
+    );
+    if (result == null || !mounted) return;
+    if (result is ForwardOptionsApply) return;
+    if (result is ForwardOptionsCancel) {
+      _vm.clearPendingForward();
+      return;
+    }
+    if (result is ForwardOptionsChangeRecipient) {
+      await _openForwardPicker(
+        messages: forward.messages,
+        protectedCopy: forward.protectedCopy,
+      );
+    }
+  }
+
   /// Tapping the reply banner opens the reply options sheet: quote a range,
   /// carry the reply into another chat, or drop it.
   Future<void> _showComposerReplyOptions() async {
@@ -11444,6 +11488,12 @@ class _ChatViewState extends State<ChatView> {
     if (handoff.draftText.isNotEmpty) {
       _vm.setDraft(handoff.draftText);
     }
+  }
+
+  void _adoptForwardHandoff() {
+    final handoff = widget.forwardHandoff;
+    if (handoff == null) return;
+    _vm.adoptForwardHandoff(handoff);
   }
 
   Future<void> _toggleMessageReaction(
