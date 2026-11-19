@@ -86,6 +86,13 @@ class PendingForward {
   bool get removeSender => _removeSender;
   bool get removeCaption => _removeCaption;
 
+  /// A protected-copy forward re-sends as freshly authored messages: there
+  /// is no forward header to hide a sender from and no media caption option
+  /// travels with the copy, so neither toggle applies (the send path
+  /// ignores them). The options sheet hides both rows.
+  bool get canToggleSender => !protectedCopy;
+  bool get canToggleCaption => !protectedCopy;
+
   bool get renderMarkdown => _renderMarkdown && markdownOffer.available;
   bool _renderMarkdown = false;
 

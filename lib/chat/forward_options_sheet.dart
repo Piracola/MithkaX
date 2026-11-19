@@ -19,6 +19,7 @@ import 'package:flutter/material.dart';
 import '../components/app_icons.dart';
 import '../components/app_interactive_surface.dart';
 import '../l10n/app_localizations.dart';
+import '../theme/app_motion.dart';
 import '../theme/app_theme.dart';
 import 'forward_handoff.dart';
 
@@ -63,12 +64,18 @@ class _ForwardOptionsSheetState extends State<ForwardOptionsSheet> {
   Widget build(BuildContext context) {
     final colors = context.colors;
     final forward = widget.forward;
+    // On desktop/wide-tablet layouts the sheet presents centered with all
+    // corners rounded (AppMotion swaps the surface); only the phone
+    // bottom-sheet form rounds the top edge.
+    final centered = appModalUsesCenteredPresentation(
+      MediaQuery.sizeOf(context),
+    );
     return Material(
       key: const ValueKey('composerForwardOptionsSheet'),
       color: colors.panelBackground,
-      borderRadius: const BorderRadius.vertical(
-        top: Radius.circular(AppRadius.xl),
-      ),
+      borderRadius: centered
+          ? const BorderRadius.all(Radius.circular(AppRadius.xl))
+          : const BorderRadius.vertical(top: Radius.circular(AppRadius.xl)),
       clipBehavior: Clip.antiAlias,
       child: SafeArea(
         top: false,
@@ -92,20 +99,21 @@ class _ForwardOptionsSheetState extends State<ForwardOptionsSheet> {
               ),
             ),
             const SizedBox(height: 6),
-            _ForwardOptionToggleRow(
-              key: const ValueKey('composerForwardOptionSender'),
-              icon: forward.removeSender
-                  ? HeroAppIcons.user
-                  : HeroAppIcons.eyeSlash,
-              label:
-                  (forward.removeSender
-                          ? AppStringKeys.chatForwardShowSender
-                          : AppStringKeys.chatForwardRemoveSender)
-                      .l10n(context),
-              value: forward.removeSender,
-              onTap: () => _toggle(forward.toggleSender),
-            ),
-            if (forward.hasCaption)
+            if (forward.canToggleSender)
+              _ForwardOptionToggleRow(
+                key: const ValueKey('composerForwardOptionSender'),
+                icon: forward.removeSender
+                    ? HeroAppIcons.user
+                    : HeroAppIcons.eyeSlash,
+                label:
+                    (forward.removeSender
+                            ? AppStringKeys.chatForwardShowSender
+                            : AppStringKeys.chatForwardRemoveSender)
+                        .l10n(context),
+                value: forward.removeSender,
+                onTap: () => _toggle(forward.toggleSender),
+              ),
+            if (forward.canToggleCaption && forward.hasCaption)
               _ForwardOptionToggleRow(
                 key: const ValueKey('composerForwardOptionCaption'),
                 icon: forward.removeCaption

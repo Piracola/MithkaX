@@ -365,4 +365,40 @@ void main() {
       'Show caption',
     );
   });
+
+  testWidgets('a protected-copy forward hides the sender and caption rows', (
+    tester,
+  ) async {
+    final forward = pendingForwardFromHandoff(
+      ForwardMessagesHandoff(
+        fromChatId: 99,
+        messages: [
+          ChatMessage(
+            id: 5,
+            isOutgoing: false,
+            text: 'caption',
+            date: 1,
+            image: TdFileRef(id: 1),
+          ),
+        ],
+        accountSlot: 0,
+        clientId: 0,
+        hasCaption: true,
+        markdownOffer: const ForwardMarkdownOffer.none(),
+        protectedCopy: true,
+      ),
+    );
+    await pumpSheet(tester, forward);
+    // The copy path re-sends as fresh messages: no forward header to hide a
+    // sender from, and the caption always travels with the copy. Both toggle
+    // rows are meaningless there and must not render.
+    expect(
+      find.byKey(const ValueKey('composerForwardOptionSender')),
+      findsNothing,
+    );
+    expect(
+      find.byKey(const ValueKey('composerForwardOptionCaption')),
+      findsNothing,
+    );
+  });
 }
