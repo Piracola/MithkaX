@@ -986,6 +986,17 @@ class AppIconController extends ChangeNotifier {
       if (_disposed) return false;
       if (isCurrent(next)) return true;
       await _channel.invokeMethod<void>('setIcon', {'name': next.key});
+      // The switch already landed; the new icon only exists on the launcher.
+      // Step aside so the user sees it — the first switch is already forced
+      // back by Android's component kill, and every later one now matches.
+      // The task keeps its state (process + recents entry survive).
+      if (_platform == TargetPlatform.android) {
+        try {
+          await _channel.invokeMethod<void>('moveToBack');
+        } catch (_) {
+          // Older native sides lack the method; the switch itself succeeded.
+        }
+      }
       _variant = next;
       _retainedUnknownState = null;
       _everChoseExplicitly = true;

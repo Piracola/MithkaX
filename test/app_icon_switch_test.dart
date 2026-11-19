@@ -113,6 +113,114 @@ void main() {
     });
   });
 
+  group('post-switch return to launcher', () {
+    // The user only ever sees the icon they picked from the launcher: after a
+    // successful switch the app must step aside (moveTaskToBack) so the home
+    // screen — now showing the new icon — is in front. The task only moves to
+    // the back; the process and the recents entry survive.
+    test('a successful Android switch asks the app to step aside', () async {
+      final calls = <String>[];
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(const MethodChannel('mithka/app_icon'), (
+            call,
+          ) async {
+            calls.add(call.method);
+            return switch (call.method) {
+              'isSupported' => true,
+              'currentIcon' => 'letter_m_neutral',
+              'setIcon' => null,
+              'moveToBack' => null,
+              _ => throw MissingPluginException(),
+            };
+          });
+      addTearDown(() {
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+            .setMockMethodCallHandler(
+              const MethodChannel('mithka/app_icon'),
+              null,
+            );
+      });
+      SharedPreferences.setMockInitialValues({});
+      final prefs = await SharedPreferences.getInstance();
+      final controller = AppIconController(
+        prefs,
+        platform: TargetPlatform.android,
+      );
+      addTearDown(controller.dispose);
+      await controller.initialize();
+
+      expect(await controller.setVariant(AppIconVariant.blue), isTrue);
+      expect(calls, contains('moveToBack'));
+    });
+
+    test('a failed switch never asks the app to step aside', () async {
+      final calls = <String>[];
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(const MethodChannel('mithka/app_icon'), (
+            call,
+          ) async {
+            calls.add(call.method);
+            return switch (call.method) {
+              'isSupported' => true,
+              'currentIcon' => 'letter_m_neutral',
+              'setIcon' => throw PlatformException(code: 'app_icon_failed'),
+              'moveToBack' => null,
+              _ => throw MissingPluginException(),
+            };
+          });
+      addTearDown(() {
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+            .setMockMethodCallHandler(
+              const MethodChannel('mithka/app_icon'),
+              null,
+            );
+      });
+      SharedPreferences.setMockInitialValues({});
+      final prefs = await SharedPreferences.getInstance();
+      final controller = AppIconController(
+        prefs,
+        platform: TargetPlatform.android,
+      );
+      addTearDown(controller.dispose);
+      await controller.initialize();
+
+      expect(await controller.setVariant(AppIconVariant.blue), isFalse);
+      expect(calls, isNot(contains('moveToBack')));
+    });
+
+    test('non-Android platforms stay put', () async {
+      final calls = <String>[];
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(const MethodChannel('mithka/app_icon'), (
+            call,
+          ) async {
+            calls.add(call.method);
+            return switch (call.method) {
+              'isSupported' => true,
+              'currentIcon' => 'letter_m_neutral',
+              'setIcon' => null,
+              'moveToBack' => null,
+              _ => throw MissingPluginException(),
+            };
+          });
+      addTearDown(() {
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+            .setMockMethodCallHandler(
+              const MethodChannel('mithka/app_icon'),
+              null,
+            );
+      });
+      SharedPreferences.setMockInitialValues({});
+      final prefs = await SharedPreferences.getInstance();
+      final controller = AppIconController(prefs, platform: TargetPlatform.iOS);
+      addTearDown(controller.dispose);
+      await controller.initialize();
+
+      expect(await controller.setVariant(AppIconVariant.blue), isTrue);
+      expect(calls, isNot(contains('moveToBack')));
+    });
+  });
+
   group('native icon bridge (source scan)', () {
     final kt = File(
       'android/app/src/main/kotlin/x/empty/mithka/MainActivity.kt',
@@ -174,15 +282,16 @@ void main() {
       expect(
         kt.contains('Thread { ensureLauncherAliasEnabled() }.start()'),
         isTrue,
-        reason: 'the repair makes up to 62 PMS reads; on the main thread that '
+        reason:
+            'the repair makes up to 62 PMS reads; on the main thread that '
             'is the same launch freeze this round removed',
       );
       // The repair must re-root at the shipped default, which resolves live
       // from its manifest state.
       expect(
         kt.contains(
-          'packageManager.setComponentEnabledSetting(\n' +
-          '            primordialNeutralAlias,\n' +
+          'packageManager.setComponentEnabledSetting(\n'
+          '            primordialNeutralAlias,\n'
           '            PackageManager.COMPONENT_ENABLED_STATE_ENABLED,',
         ),
         isTrue,
@@ -200,6 +309,23 @@ void main() {
             'STATE_DEFAULT on a manifest-disabled alias is the same '
             'disabled component without the ENABLED->DISABLED runtime '
             'transition that closes the task',
+      );
+    });
+
+    test('the native side can send the task behind the launcher', () {
+      expect(
+        kt.contains('"moveToBack" -> {'),
+        isTrue,
+        reason:
+            'the app_icon channel must expose moveToBack so the Dart '
+            'controller can step aside after a successful switch',
+      );
+      expect(
+        kt.contains('runOnUiThread { moveTaskToBack(false) }'),
+        isTrue,
+        reason:
+            'moveTaskToBack must run on the UI thread; the switch flow '
+            'calls it straight from the channel handler',
       );
     });
   });
