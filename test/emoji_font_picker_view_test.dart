@@ -70,6 +70,14 @@ void main() {
       sizeBytes: 2048,
     ),
     EmojiFontManifestEntry(
+      key: 'cursed',
+      label: 'Cursed Noto',
+      license: 'MIT',
+      chatId: -100,
+      channelMessageId: 26,
+      sizeBytes: 4096,
+    ),
+    EmojiFontManifestEntry(
       key: 'openmoji',
       label: 'OpenMoji',
       license: 'CC-BY-SA-4.0',
@@ -156,6 +164,30 @@ void main() {
       await tester.pump(const Duration(milliseconds: 20));
     }
     expect(find.text('Downloaded · 63 B'), findsOneWidget);
+  });
+
+  // The last-resort preview face is the system 🐧 emoji glyph, never the
+  // fork's penguin logo asset — unknown keys and failed assets both land
+  // there (regression: the fallback used to be assets/penguin.png).
+  testWidgets('unmapped keys fall back to the system penguin emoji', (
+    tester,
+  ) async {
+    channel = _FakeChannelSource();
+    pickerCatalog = EmojiFontCatalog.forTesting()..debugChannelSource = channel;
+    await pumpPicker(tester);
+    // 'cursed' has no bundled preview asset and no channel preview id.
+    final penguin = find.text('\u{1F427}');
+    expect(penguin, findsOneWidget);
+    final style = tester.widget<Text>(penguin).style;
+    expect(style?.fontFamily, isNotNull);
+    // No row anywhere renders the fork logo as a preview face.
+    expect(
+      find.byWidgetPredicate((w) {
+        if (w is! Image || w.image is! AssetImage) return false;
+        return (w.image as AssetImage).assetName == 'assets/penguin.png';
+      }),
+      findsNothing,
+    );
   });
 }
 

@@ -3669,7 +3669,6 @@ class EmojiFontPickerView extends StatefulWidget {
 }
 
 class _EmojiFontPickerViewState extends State<EmojiFontPickerView> {
-  static const _fallbackPreviewAsset = 'assets/penguin.png';
   static const _previewAssets = {
     'apple': 'assets/emoji_preview/apple.png',
     'noto': 'assets/emoji_preview/noto.svg',
@@ -3939,8 +3938,9 @@ class _EmojiFontPickerViewState extends State<EmojiFontPickerView> {
     return '$downloaded · $size';
   }
 
-  String _previewAssetForKey(String key) =>
-      _previewAssets[key] ?? _fallbackPreviewAsset;
+  /// Keys the bundled asset map never heard of get no bundled picture —
+  /// they preview through the channel image or the system 🐧 emoji.
+  String? _previewAssetForKey(String key) => _previewAssets[key];
 }
 
 /// Formats a byte count the way the update dialog does (1 KB / 9.8 MB …).
@@ -4089,9 +4089,13 @@ class _EmojiFontSwipeRowState extends State<_EmojiFontSwipeRow>
 /// shows what the system default actually looks like instead of a bundled
 /// picture of somebody else's emoji set.
 class _SystemEmojiPreview extends StatelessWidget {
-  const _SystemEmojiPreview();
+  const _SystemEmojiPreview({this.glyph = _faceWithTearsOfJoy});
 
   static const _faceWithTearsOfJoy = '\u{1F602}';
+  static const penguin = '\u{1F427}';
+
+  /// The glyph drawn with the platform emoji font.
+  final String glyph;
 
   @override
   Widget build(BuildContext context) {
@@ -4101,7 +4105,7 @@ class _SystemEmojiPreview extends StatelessWidget {
       height: 26,
       child: Center(
         child: Text(
-          _faceWithTearsOfJoy,
+          glyph,
           textAlign: TextAlign.center,
           style: TextStyle(
             fontSize: 22,
@@ -4118,10 +4122,14 @@ class _SystemEmojiPreview extends StatelessWidget {
 class _EmojiPreviewImage extends StatelessWidget {
   const _EmojiPreviewImage({required this.asset});
 
-  final String asset;
+  /// Null when the pack key has no bundled picture — render the system 🐧
+  /// instead of pretending a branded asset exists.
+  final String? asset;
 
   @override
   Widget build(BuildContext context) {
+    final asset = this.asset;
+    if (asset == null) return const _PenguinFallbackIcon();
     if (asset.endsWith('.svg')) {
       return SvgPicture.asset(
         asset,
@@ -4140,30 +4148,26 @@ class _EmojiPreviewImage extends StatelessWidget {
   }
 }
 
-/// The last-resort preview face: the fork's penguin, never a generic emoji
+/// The last-resort preview face: the system's own 🐧 emoji glyph — a
+/// penguin, but drawn by the platform emoji font, never the fork logo.
 class _PenguinFallbackIcon extends StatelessWidget {
   const _PenguinFallbackIcon();
 
   @override
   Widget build(BuildContext context) {
-    return Image.asset(
-      'assets/penguin.png',
-      width: 26,
-      height: 26,
-      errorBuilder: (_, _, _) => const SizedBox(width: 26, height: 26),
-    );
+    return const _SystemEmojiPreview(glyph: _SystemEmojiPreview.penguin);
   }
 }
 
 /// A row preview that prefers the pack's real channel preview image (the
 /// @mithka_metadata preview PNG named by the catalog message) and falls back
-/// to the bundled asset map — the penguin when even that misses. This is
-/// what keeps channel-served packs with keys the bundled map never heard of
-/// (blob, google, cursed…) from rendering as a generic fallback face.
+/// to the bundled asset map — the system 🐧 emoji when even that misses.
+/// This is what keeps channel-served packs with keys the bundled map never
+/// heard of (blob, google, cursed…) from rendering as a branded logo.
 class _EntryEmojiPreview extends StatefulWidget {
   const _EntryEmojiPreview({required this.asset, required this.entry});
 
-  final String asset;
+  final String? asset;
   final EmojiFontManifestEntry entry;
 
   @override
