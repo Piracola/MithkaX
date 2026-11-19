@@ -1,11 +1,9 @@
 import 'dart:io';
 import 'dart:math' as math;
-
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:mithka/l10n/app_localizations.dart';
 import 'package:video_player/video_player.dart';
-
 import '../components/ui_components.dart';
 import '../media/looping_media_playback.dart';
 import '../media/video_view_compatibility.dart';

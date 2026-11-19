@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mithka/chat/forward_handoff.dart';
-import 'package:mithka/chat/forward_markdown.dart';
+import 'package:mithka/chat/messages/forward_markdown.dart';
 import 'package:mithka/tdlib/td_models.dart';
 
 ChatMessage _msg({int id = 1, String text = '', TdFileRef? image}) =>

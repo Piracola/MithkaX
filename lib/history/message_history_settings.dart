@@ -15,7 +15,6 @@
 
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-
 import '../config/build_flags.dart';
 
 /// How a ghost bubble's deleted badge renders.

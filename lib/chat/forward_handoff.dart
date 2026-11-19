@@ -8,8 +8,8 @@
 //
 
 import '../tdlib/td_models.dart';
-import 'forward_markdown.dart';
-import 'forward_options.dart';
+import 'messages/forward_markdown.dart';
+import 'messages/forward_options.dart';
 
 /// A forward carried from the picking chat into the newly opened transcript.
 ///

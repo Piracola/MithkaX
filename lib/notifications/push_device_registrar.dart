@@ -1,12 +1,10 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
-
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
-
 import '../tdlib/json_helpers.dart' show TdJson, jsonInt;
 import '../tdlib/td_client.dart';
 import 'ios_communication_notification.dart';

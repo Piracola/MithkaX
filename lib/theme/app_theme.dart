@@ -9,9 +9,7 @@
 //
 
 import 'dart:math' as math;
-
 import 'package:flutter/material.dart';
-
 import '../platform/adaptive_platform.dart';
 
 Color _hex(int rgb, [double opacity = 1]) =>

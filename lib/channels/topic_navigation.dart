@@ -1,7 +1,6 @@
 import 'package:flutter/widgets.dart';
-
 import '../app/adaptive_split_layout.dart';
-import '../chat/custom_emoji.dart';
+import '../chat/stickers/custom_emoji.dart';
 import '../components/app_icons.dart';
 import '../components/chat_folder_icons.dart';
 import '../components/ui_components.dart';

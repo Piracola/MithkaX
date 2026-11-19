@@ -9,7 +9,6 @@
 
 import 'dart:async';
 import 'dart:ui' as ui;
-
 import 'package:f_videoplayer/f_videoplayer.dart';
 import 'package:f_videoplayer_fvp/f_videoplayer_fvp.dart';
 import 'package:firebase_analytics/firebase_analytics.dart';
@@ -24,7 +23,6 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-
 import 'app/app_navigator.dart';
 import 'app/app_performance_controller.dart';
 import 'app/app_version.dart';
@@ -49,14 +47,14 @@ import 'auth/account_store.dart';
 import 'auth/auth_manager.dart';
 import 'call/call_manager.dart';
 import 'call/call_overlay_host.dart';
-import 'chat/animated_sticker_view.dart';
+import 'chat/admin/group_remark_controller.dart';
 import 'chat/chat_view.dart';
 import 'chat/chat_view_model.dart';
 import 'chat/favorite_sticker_store.dart';
-import 'chat/gift_tint.dart';
-import 'chat/group_remark_controller.dart';
-import 'chat/link_preview_fixer.dart';
-import 'chat/music_player_controller.dart';
+import 'chat/links_search/link_preview_fixer.dart';
+import 'chat/media/music_player_controller.dart';
+import 'chat/messages/gift_tint.dart';
+import 'chat/stickers/animated_sticker_view.dart';
 import 'chats/chat_folder_tag_controller.dart';
 import 'chats/local_pin_store.dart';
 import 'components/drawer_controller.dart' as dc;

@@ -6,13 +6,11 @@
 
 import 'dart:async';
 import 'dart:convert';
-
 import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:mithka/l10n/app_localizations.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-
-import '../chat/message_translation_cache.dart';
+import '../chat/ai_translation/message_translation_cache.dart';
 import 'ai_settings_controller.dart';
 import 'ai_translation_prompt.dart';
 

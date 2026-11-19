@@ -12,19 +12,17 @@
 //
 
 import 'dart:math' as math;
-
 import 'package:flutter/material.dart';
-
 import '../components/app_icons.dart';
 import '../components/ui_components.dart';
 import '../l10n/app_localizations.dart';
 import '../platform/adaptive_platform.dart';
 import '../theme/app_motion.dart';
 import '../theme/app_theme.dart';
-import 'gif_item.dart';
-import 'gif_preview.dart';
-import 'sticker_item.dart';
-import 'sticker_preview.dart';
+import 'stickers/gif_item.dart';
+import 'stickers/gif_preview.dart';
+import 'stickers/sticker_item.dart';
+import 'stickers/sticker_preview.dart';
 
 /// Which kind of composer media tile a sheet describes.
 enum MediaTileKind { sticker, gif }

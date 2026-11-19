@@ -3,7 +3,6 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:math' as math;
 import 'dart:typed_data';
-
 import 'package:f_videoplayer/f_videoplayer.dart';
 import 'package:f_videoplayer_pip/f_video_picture_in_picture.dart';
 import 'package:flutter/material.dart';
@@ -16,9 +15,8 @@ import 'package:flutter/rendering.dart'
         debugRepaintRainbowEnabled;
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:video_player/video_player.dart';
-
+import '../chat/media/video_stream_debugger.dart';
 import '../chat/video_player_view.dart';
-import '../chat/video_stream_debugger.dart';
 import '../components/app_icons.dart';
 import '../l10n/app_localizations.dart';
 import '../media/video_playback_reporting.dart';

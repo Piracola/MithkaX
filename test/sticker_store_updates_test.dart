@@ -10,8 +10,8 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:mithka/chat/emoji_store.dart';
-import 'package:mithka/chat/sticker_store.dart';
+import 'package:mithka/chat/stickers/emoji_store.dart';
+import 'package:mithka/chat/stickers/sticker_store.dart';
 import 'package:mithka/tdlib/td_bindings.dart';
 import 'package:mithka/tdlib/td_client.dart';
 import 'package:shared_preferences/shared_preferences.dart';

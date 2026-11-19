@@ -15,9 +15,7 @@
 //
 
 import 'dart:async';
-
 import 'package:flutter/foundation.dart';
-
 import '../tdlib/json_helpers.dart';
 import '../tdlib/td_client.dart';
 

@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart' show SelectedContent;
-
 import '../tdlib/td_models.dart';
 import '../theme/app_theme.dart';
-import 'message_text_quote.dart';
+import 'messages/message_text_quote.dart';
 
 /// A selectable preview of the reply target's text, following the reference
 /// client's quote flow: the message itself is the selection surface, the

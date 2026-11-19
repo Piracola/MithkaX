@@ -1,12 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-
 import '../components/app_icons.dart';
 import '../components/app_interactive_surface.dart';
 import '../l10n/app_localizations.dart';
 import '../tdlib/td_models.dart';
 import '../theme/app_theme.dart';
-import 'message_text_quote.dart';
+import 'messages/message_text_quote.dart';
 import 'quote_selection_area.dart';
 
 /// The result of a session with [ComposerReplyOptionsSheet].

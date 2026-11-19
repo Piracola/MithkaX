@@ -6,13 +6,11 @@
 //
 
 import 'dart:convert';
-
 import 'package:dlibphonenumber/dlibphonenumber.dart';
 import 'package:flutter/foundation.dart';
 import 'package:mithka/l10n/app_localizations.dart';
 import 'package:mithka/l10n/gram_amount.dart';
 import 'package:mithka/notifications/scope_notification_settings.dart';
-
 import '../history/message_history_models.dart';
 import 'json_helpers.dart';
 import 'message_gift.dart';

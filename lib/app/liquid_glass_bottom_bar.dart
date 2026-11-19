@@ -1,7 +1,5 @@
 import 'dart:ui' as ui;
-
 import 'package:flutter/widgets.dart';
-
 import '../theme/app_motion.dart';
 import '../theme/app_theme.dart';
 

@@ -9,7 +9,6 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
-
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -20,17 +19,16 @@ import 'package:mithka/l10n/app_localizations.dart';
 import 'package:mithka/l10n/preview_texts.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
-
 import '../app/ipad_window_chrome.dart';
-import '../chat/chat_appearance_preview.dart';
-import '../chat/chat_wallpaper.dart';
-import '../chat/chat_wallpaper_view.dart';
-import '../chat/emoji_store.dart';
-import '../chat/image_media_album_bubble.dart';
-import '../chat/message_action_menu.dart';
-import '../chat/message_bubble.dart';
-import '../chat/message_bubble_chat_preview.dart';
-import '../chat/quick_reaction_choice.dart';
+import '../chat/appearance/chat_appearance_preview.dart';
+import '../chat/appearance/chat_wallpaper.dart';
+import '../chat/appearance/chat_wallpaper_view.dart';
+import '../chat/messages/image_media_album_bubble.dart';
+import '../chat/messages/message_action_menu.dart';
+import '../chat/messages/message_bubble.dart';
+import '../chat/messages/message_bubble_chat_preview.dart';
+import '../chat/messages/quick_reaction_choice.dart';
+import '../chat/stickers/emoji_store.dart';
 import '../components/app_icons.dart';
 import '../components/app_interactive_surface.dart';
 import '../components/toast.dart';

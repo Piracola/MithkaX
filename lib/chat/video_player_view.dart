@@ -10,7 +10,6 @@ import 'dart:async';
 import 'dart:io';
 import 'dart:math' as math;
 import 'dart:ui' as ui;
-
 import 'package:f_videoplayer/f_videoplayer.dart';
 import 'package:f_videoplayer_pip/f_video_picture_in_picture.dart';
 import 'package:flutter/foundation.dart';
@@ -22,7 +21,6 @@ import 'package:mithka/l10n/app_localizations.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:video_player/video_player.dart';
-
 import '../app/app_navigator.dart';
 import '../app/chat_deep_link_controller.dart';
 import '../app/ipad_window_chrome.dart';
@@ -50,15 +48,15 @@ import '../theme/app_theme.dart';
 import '../theme/theme_controller.dart';
 import 'chat_picker_view.dart';
 import 'forward_handoff.dart';
-import 'forward_markdown.dart';
-import 'media_download_service.dart';
-import 'media_library_saver.dart';
-import 'td_video_stream_server.dart';
-import 'video_playback_preferences.dart';
-import 'video_playback_queue.dart';
-import 'video_stream_debugger.dart';
+import 'media/media_download_service.dart';
+import 'media/media_library_saver.dart';
+import 'media/td_video_stream_server.dart';
+import 'media/video_playback_preferences.dart';
+import 'media/video_playback_queue.dart';
+import 'media/video_stream_debugger.dart';
+import 'messages/forward_markdown.dart';
 
-export 'td_video_stream_server.dart';
+export 'media/td_video_stream_server.dart';
 
 typedef VideoPictureInPictureRestoreCallback =
     FutureOr<bool> Function(FVideoPictureInPictureSnapshot snapshot);

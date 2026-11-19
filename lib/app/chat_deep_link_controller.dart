@@ -1,5 +1,4 @@
 import 'package:flutter/foundation.dart';
-
 import '../chat/forward_handoff.dart';
 
 /// A reply carried from another chat into the newly opened transcript.

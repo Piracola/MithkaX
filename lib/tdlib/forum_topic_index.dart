@@ -7,7 +7,6 @@
 //
 
 import 'package:flutter/foundation.dart';
-
 import 'json_helpers.dart';
 
 /// One topic's display identity plus its live unread counter.

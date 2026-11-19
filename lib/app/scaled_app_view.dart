@@ -7,7 +7,6 @@
 //
 
 import 'package:flutter/widgets.dart';
-
 import '../components/keyboard_dismiss_on_tap.dart';
 import '../platform/adaptive_platform.dart';
 import '../theme/content_size.dart';

@@ -1,8 +1,6 @@
 import 'dart:async';
-
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
-
 import '../auth/account_store.dart';
 import '../auth/auth_manager.dart';
 import '../security/local_app_lock_controller.dart';

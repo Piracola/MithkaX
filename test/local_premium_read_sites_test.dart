@@ -27,7 +27,7 @@ void main() {
         'isPremium: me.boolean(\'is_premium\') ?? false,',
       ],
       // the emoji store's getOption read
-      'lib/chat/emoji_store.dart': ['LocalPremium.shared.premiumForMe'],
+      'lib/chat/stickers/emoji_store.dart': ['LocalPremium.shared.premiumForMe'],
       // folder tag entitlement
       'lib/chats/chat_folder_tag_controller.dart': [
         'LocalPremium.shared.premiumForMe',

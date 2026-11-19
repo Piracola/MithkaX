@@ -1,8 +1,6 @@
 import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-
 import '../components/app_icons.dart';
 import '../components/toast.dart';
 import '../components/ui_components.dart';

@@ -1,10 +1,8 @@
 import 'dart:async';
 import 'dart:collection';
-
 import 'package:flutter/foundation.dart';
 import 'package:fvp/fvp.dart';
 import 'package:video_player/video_player.dart';
-
 import '../tdlib/td_client.dart';
 
 /// Whether a permanently looping media surface is allowed to own a native

@@ -7,7 +7,7 @@
 //
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:mithka/chat/custom_emoji.dart';
+import 'package:mithka/chat/stickers/custom_emoji.dart';
 
 /// Same shape as emoji_store_owner_test's _stickerSet(): @type sticker, the
 /// file object, format, width/height, emoji, and full_type.

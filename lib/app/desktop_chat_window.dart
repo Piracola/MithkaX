@@ -1,21 +1,19 @@
 import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-
 import '../auth/account_store.dart' show AccountSummary;
 import '../call/call_manager.dart';
 import '../call/call_overlay_host.dart';
-import '../chat/chat_info_view.dart';
-import '../chat/chat_members_view.dart';
+import '../chat/admin/chat_info_view.dart';
+import '../chat/admin/chat_members_view.dart';
+import '../chat/admin/group_remark_controller.dart';
 import '../chat/chat_view.dart';
 import '../chat/chat_view_model.dart';
 import '../chat/desktop_chat_context_pane.dart';
-import '../chat/group_remark_controller.dart';
-import '../chat/link_preview_fixer.dart';
-import '../chat/music_player_controller.dart';
+import '../chat/links_search/link_preview_fixer.dart';
+import '../chat/media/music_player_controller.dart';
 import '../chats/chat_folder_tag_controller.dart';
 import '../config/build_flags.dart';
 import '../history/message_history_settings.dart';

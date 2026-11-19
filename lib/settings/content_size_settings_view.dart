@@ -1,10 +1,8 @@
 import 'dart:async';
-
 import 'package:flutter/material.dart' show Scrollbar;
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:provider/provider.dart';
-
 import '../components/toast.dart';
 import '../components/ui_components.dart';
 import '../l10n/app_localizations.dart';

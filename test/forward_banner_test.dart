@@ -11,7 +11,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mithka/chat/chat_input_bar.dart';
 import 'package:mithka/chat/chat_view_model.dart';
 import 'package:mithka/chat/forward_handoff.dart';
-import 'package:mithka/chat/forward_markdown.dart';
+import 'package:mithka/chat/messages/forward_markdown.dart';
 import 'package:mithka/chat/forward_options_sheet.dart';
 import 'package:mithka/l10n/app_localizations.dart';
 import 'package:mithka/tdlib/td_models.dart';

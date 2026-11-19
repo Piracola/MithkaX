@@ -1,5 +1,4 @@
 import 'package:flutter/widgets.dart';
-
 import 'desktop_window_drag_area_stub.dart'
     if (dart.library.io) 'desktop_window_drag_area_io.dart'
     as implementation;

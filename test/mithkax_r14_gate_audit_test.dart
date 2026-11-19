@@ -31,7 +31,7 @@ const _entryFiles = <String, List<String>>{
   ],
   'lib/profile/profile_view.dart': ['GhostModeSettingsView'],
   'lib/app/main_tab_view.dart': ['GhostModeSettingsView'],
-  'lib/chat/chat_info_view.dart': ['MessageHistoryView'],
+  'lib/chat/admin/chat_info_view.dart': ['MessageHistoryView'],
   'lib/chat/chat_view.dart': [
     'MessageAction.viewEdits',
     'MessageAction.removeMirror',

@@ -11,14 +11,12 @@
 import 'dart:async';
 import 'dart:math' as math;
 import 'dart:ui' as ui;
-
 import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show HapticFeedback;
 import 'package:mithka/l10n/app_localizations.dart';
 import 'package:provider/provider.dart';
-
 import '../app/adaptive_split_layout.dart';
 import '../app/app_navigator.dart';
 import '../app/bottom_bar_layout.dart';
@@ -30,9 +28,9 @@ import '../auth/account_store.dart';
 import '../auth/auth_manager.dart';
 import '../chat/chat_picker_view.dart';
 import '../chat/chat_view.dart';
-import '../chat/custom_emoji.dart';
 import '../chat/forward_handoff.dart';
-import '../chat/link_handler.dart';
+import '../chat/links_search/link_handler.dart';
+import '../chat/stickers/custom_emoji.dart';
 import '../communities/community_models.dart';
 import '../communities/community_view.dart';
 import '../components/app_confirm_dialog.dart';

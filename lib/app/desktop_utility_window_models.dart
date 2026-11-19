@@ -1,7 +1,5 @@
 import 'dart:convert';
-
 import 'package:flutter/foundation.dart';
-
 import 'desktop_window_argument_normalizers.dart';
 
 const desktopUtilityWindowType = 'mithka.utility';

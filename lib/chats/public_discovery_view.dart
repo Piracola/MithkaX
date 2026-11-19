@@ -1,8 +1,6 @@
 import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:mithka/l10n/app_localizations.dart';
-
 import '../app/primary_chat_launcher.dart';
 import '../components/app_icons.dart';
 import '../components/confirm_dialog.dart';

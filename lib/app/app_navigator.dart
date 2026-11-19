@@ -1,5 +1,4 @@
 import 'package:flutter/widgets.dart';
-
 import '../components/full_page_back_swipe.dart';
 import '../theme/app_motion.dart';
 

@@ -20,11 +20,9 @@
 import 'dart:async';
 import 'dart:ffi' show Abi;
 import 'dart:io';
-
 import 'package:archive/archive_io.dart';
 import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart' show visibleForTesting;
-
 import 'release_feed.dart';
 
 /// What the updater is doing, for the progress sheet.

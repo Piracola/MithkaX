@@ -1,11 +1,9 @@
 import 'dart:async';
-
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:hotkey_manager/hotkey_manager.dart';
 import 'package:provider/provider.dart';
-
 import '../auth/account_store.dart';
 import '../l10n/app_localizations.dart';
 import '../settings/desktop_hotkey_controller.dart';

@@ -1,5 +1,4 @@
 import 'dart:math' as math;
-
 import 'package:flutter/material.dart';
 import '../chat/video_player_view.dart';
 import 'app_navigator.dart';

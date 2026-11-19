@@ -17,12 +17,10 @@
 //
 
 import 'dart:io';
-
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:mithka/l10n/app_localizations.dart';
 import 'package:url_launcher/url_launcher.dart';
-
 import '../app/app_version.dart';
 import '../components/confirm_dialog.dart';
 import '../tdlib/td_client.dart';

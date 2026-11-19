@@ -1,8 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
-
 import 'package:http/http.dart' as http;
-
 import 'ai_endpoint_style.dart';
 import 'ai_stdout_logger.dart';
 

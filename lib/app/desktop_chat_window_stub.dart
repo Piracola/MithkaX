@@ -1,5 +1,4 @@
 import 'package:flutter/widgets.dart';
-
 import 'chat_deep_link_controller.dart';
 import 'desktop_chat_window_models.dart';
 import 'desktop_utility_window_models.dart';

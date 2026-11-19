@@ -1,8 +1,6 @@
 import 'dart:async';
-
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
-
 import '../tdlib/json_helpers.dart' show jsonInt;
 import 'ai_stdout_logger.dart';
 

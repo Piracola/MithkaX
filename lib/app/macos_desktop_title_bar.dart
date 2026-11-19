@@ -1,7 +1,5 @@
 import 'dart:math' as math;
-
 import 'package:flutter/widgets.dart';
-
 import '../theme/app_theme.dart';
 import 'desktop_window_drag_area.dart';
 

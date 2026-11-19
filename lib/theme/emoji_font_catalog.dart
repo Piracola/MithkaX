@@ -10,13 +10,11 @@
 
 import 'dart:convert';
 import 'dart:io';
-
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:mithka/l10n/app_localizations.dart';
 import 'package:mithka/tdlib/json_helpers.dart';
 import 'package:path_provider/path_provider.dart';
-
 import 'emoji_channel_source.dart';
 
 class EmojiFontChoice {

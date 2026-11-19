@@ -9,13 +9,11 @@
 import 'dart:async';
 import 'dart:io';
 import 'dart:math' as math;
-
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:provider/provider.dart';
 import 'package:video_player/video_player.dart';
-
 import '../app/performance_metrics.dart';
 import '../l10n/app_localizations.dart';
 import '../media/inline_video_motion_guard.dart';

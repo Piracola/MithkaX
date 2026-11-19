@@ -10,20 +10,18 @@
 
 import 'dart:async';
 import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:mithka/l10n/app_localizations.dart';
 import 'package:provider/provider.dart';
-
 import '../app/ipad_window_chrome.dart';
 import '../app/primary_chat_launcher.dart';
 import '../auth/account_store.dart';
 import '../auth/auth_manager.dart';
 import '../call/calls_view.dart';
-import '../chat/chat_wallpaper.dart';
-import '../chat/custom_emoji.dart';
-import '../chat/link_handler.dart';
-import '../chat/shared_media_view.dart';
+import '../chat/appearance/chat_wallpaper.dart';
+import '../chat/links_search/link_handler.dart';
+import '../chat/media/shared_media_view.dart';
+import '../chat/stickers/custom_emoji.dart';
 import '../components/app_icons.dart';
 import '../components/confirm_dialog.dart';
 import '../components/desktop_row_actions.dart';

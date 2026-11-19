@@ -7,11 +7,9 @@
 //
 
 import 'dart:math' as math;
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
-
 import '../app/ipad_window_chrome.dart';
 import '../l10n/app_localizations.dart';
 import '../platform/adaptive_platform.dart';

@@ -6,10 +6,8 @@
 //
 
 import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-
 import '../app/primary_chat_launcher.dart';
 import '../auth/account_store.dart';
 import '../components/app_icons.dart';

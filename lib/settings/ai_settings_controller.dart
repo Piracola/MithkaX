@@ -1,10 +1,8 @@
 import 'dart:convert';
 import 'dart:io';
-
 import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-
 import 'ai_endpoint_style.dart';
 import 'apple_pcc_api.dart';
 import 'openai_compatible_models_api.dart';

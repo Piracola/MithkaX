@@ -1,10 +1,8 @@
 import 'dart:async';
 import 'dart:io';
 import 'dart:typed_data';
-
 import 'package:flutter/material.dart';
 import 'package:multi_window_manager/multi_window_manager.dart';
-
 import '../settings/desktop_hotkey_controller.dart';
 import '../settings/hidden_sender_store.dart';
 import '../tdlib/json_helpers.dart';

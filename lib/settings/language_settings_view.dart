@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-
 import '../components/app_icons.dart';
 import '../components/ui_components.dart';
 import '../l10n/app_locale_controller.dart';

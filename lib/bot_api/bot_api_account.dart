@@ -1,9 +1,7 @@
 import 'dart:convert';
-
 import 'package:flutter/services.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-
 import '../tdlib/json_helpers.dart' show jsonInt;
 
 /// Non-secret metadata for one Telegram Bot API account.

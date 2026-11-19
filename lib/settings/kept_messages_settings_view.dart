@@ -12,7 +12,6 @@
 //
 
 import 'package:flutter/material.dart';
-
 import '../components/app_icons.dart';
 import '../components/ui_components.dart';
 import '../config/build_flags.dart';

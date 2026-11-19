@@ -5,12 +5,10 @@
 //
 
 import 'dart:async';
-
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show HapticFeedback;
 import 'package:mithka/l10n/app_localizations.dart';
-
 import '../app/app_navigator.dart';
 import '../app/ipad_window_chrome.dart';
 import '../chat/chat_view.dart';

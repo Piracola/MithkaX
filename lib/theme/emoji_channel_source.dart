@@ -10,9 +10,7 @@
 
 import 'dart:convert';
 import 'dart:io';
-
 import 'package:flutter/foundation.dart';
-
 import '../tdlib/json_helpers.dart';
 import '../tdlib/td_client.dart';
 import 'emoji_font_catalog.dart';

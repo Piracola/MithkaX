@@ -1,7 +1,6 @@
 import 'package:flutter/foundation.dart' show SynchronousFuture;
 import 'package:flutter/widgets.dart';
 import 'package:intl/intl.dart';
-
 import 'locale_catalogue.dart';
 
 class AppLocalizations {
