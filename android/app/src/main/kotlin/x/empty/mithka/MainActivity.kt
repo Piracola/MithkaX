@@ -118,16 +118,25 @@ class MainActivity : FlutterFragmentActivity() {
     /// SystemChrome.setApplicationSwitcherDescription with icon=0
     /// (PlatformPlugin), which wipes the manifest icon; this re-applies the
     /// icon for the alias that is actually live.
+    ///
+    /// The PackageManager reads live off the main thread: currentLauncherIcon()
+    /// can cost up to 40+ serialized binder reads, and doing them on the UI
+    /// thread during onResume blocks the first Flutter render frame
+    /// (cold-start crash-once after an icon switch).
     private fun updateTaskDescription() {
-        val current = currentLauncherIcon()
-        val resName = when (current) {
-            "default" -> "ic_launcher"
-            else -> "ic_launcher_$current"
-        }
-        val iconRes = resources.getIdentifier(resName, "mipmap", packageName)
-        val taskDescription =
-            android.app.ActivityManager.TaskDescription("Mithka X", iconRes, 0)
-        setTaskDescription(taskDescription)
+        Thread {
+            val current = currentLauncherIcon()
+            val resName = when (current) {
+                "default" -> "ic_launcher"
+                else -> "ic_launcher_$current"
+            }
+            val iconRes = resources.getIdentifier(resName, "mipmap", packageName)
+            runOnUiThread {
+                val taskDescription =
+                    android.app.ActivityManager.TaskDescription("Mithka X", iconRes, 0)
+                setTaskDescription(taskDescription)
+            }
+        }.start()
     }
 
     /**
