@@ -311,15 +311,6 @@ class MainActivity : FlutterFragmentActivity() {
             .setMethodCallHandler { call, result ->
                 when (call.method) {
                     "isSupported" -> result.success(true)
-                    // Sends the task behind the launcher after a successful
-                    // icon switch: the new icon only renders on the home
-                    // screen, so the app steps aside for the user to see it.
-                    // moveTaskToBack is cheap (no binder storm) and keeps the
-                    // process and the recents entry alive.
-                    "moveToBack" -> {
-                        runOnUiThread { moveTaskToBack(false) }
-                        result.success(null)
-                    }
                     // Up to 61 serialized PackageManager binder reads; on the
                     // cold start right after the first icon switch these land
                     // while PackageManager is still churning through the 60

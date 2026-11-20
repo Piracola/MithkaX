@@ -113,12 +113,12 @@ void main() {
     });
   });
 
-  group('post-switch return to launcher', () {
-    // The user only ever sees the icon they picked from the launcher: after a
-    // successful switch the app must step aside (moveTaskToBack) so the home
-    // screen — now showing the new icon — is in front. The task only moves to
-    // the back; the process and the recents entry survive.
-    test('a successful Android switch asks the app to step aside', () async {
+  group('post-switch exit on Android', () {
+    // The user restarts into the new icon: after a successful switch the app
+    // exits (SystemNavigator.pop) so the next open is a clean cold start
+    // showing the new icon. The old moveToBack "step aside" behaviour is
+    // gone — the process dies instead of staying alive in the background.
+    test('a successful Android switch no longer steps aside', () async {
       final calls = <String>[];
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
           .setMockMethodCallHandler(const MethodChannel('mithka/app_icon'), (
@@ -129,7 +129,6 @@ void main() {
               'isSupported' => true,
               'currentIcon' => 'letter_m_neutral',
               'setIcon' => null,
-              'moveToBack' => null,
               _ => throw MissingPluginException(),
             };
           });
@@ -150,10 +149,11 @@ void main() {
       await controller.initialize();
 
       expect(await controller.setVariant(AppIconVariant.blue), isTrue);
-      expect(calls, contains('moveToBack'));
+      expect(calls, contains('setIcon'));
+      expect(calls, isNot(contains('moveToBack')));
     });
 
-    test('a failed switch never asks the app to step aside', () async {
+    test('a failed switch never exits', () async {
       final calls = <String>[];
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
           .setMockMethodCallHandler(const MethodChannel('mithka/app_icon'), (
@@ -164,7 +164,6 @@ void main() {
               'isSupported' => true,
               'currentIcon' => 'letter_m_neutral',
               'setIcon' => throw PlatformException(code: 'app_icon_failed'),
-              'moveToBack' => null,
               _ => throw MissingPluginException(),
             };
           });
@@ -185,7 +184,7 @@ void main() {
       await controller.initialize();
 
       expect(await controller.setVariant(AppIconVariant.blue), isFalse);
-      expect(calls, isNot(contains('moveToBack')));
+      expect(calls, contains('setIcon'));
     });
 
     test('non-Android platforms stay put', () async {
@@ -199,7 +198,6 @@ void main() {
               'isSupported' => true,
               'currentIcon' => 'letter_m_neutral',
               'setIcon' => null,
-              'moveToBack' => null,
               _ => throw MissingPluginException(),
             };
           });
@@ -217,7 +215,7 @@ void main() {
       await controller.initialize();
 
       expect(await controller.setVariant(AppIconVariant.blue), isTrue);
-      expect(calls, isNot(contains('moveToBack')));
+      expect(calls, contains('setIcon'));
     });
   });
 
@@ -312,20 +310,16 @@ void main() {
       );
     });
 
-    test('the native side can send the task behind the launcher', () {
+    test('the native side no longer exposes moveToBack', () {
       expect(
         kt.contains('"moveToBack" -> {'),
-        isTrue,
-        reason:
-            'the app_icon channel must expose moveToBack so the Dart '
-            'controller can step aside after a successful switch',
+        isFalse,
+        reason: 'moveToBack was removed from the app_icon channel handler',
       );
       expect(
         kt.contains('runOnUiThread { moveTaskToBack(false) }'),
-        isTrue,
-        reason:
-            'moveTaskToBack must run on the UI thread; the switch flow '
-            'calls it straight from the channel handler',
+        isFalse,
+        reason: 'the moveTaskToBack call was removed with it',
       );
     });
   });
