@@ -774,7 +774,7 @@ class ChatViewModel extends ChangeNotifier {
   /// Subtitle under the title: online/last-seen plus transient chat actions.
   /// Group member count lives in the title, not here.
   String get subtitle {
-    final base = isGroup
+    final base = isGroup || peerIsBot
         ? ''
         : (peerOnline
               ? AppStrings.t(AppStringKeys.presenceOnline)

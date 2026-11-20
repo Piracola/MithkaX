@@ -509,7 +509,9 @@ class _TopicTabStripState extends State<TopicTabStrip> {
     return Container(
       height: tabHeight,
       decoration: BoxDecoration(
-        color: c.listHeaderTint,
+        // Same bar as the chat header so the strip reads as part of the
+        // header, not a separate washed panel.
+        color: c.navBar,
         border: Border(bottom: BorderSide(color: c.divider, width: 0.5)),
       ),
       child: ListView.separated(

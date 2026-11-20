@@ -7482,6 +7482,7 @@ class _ChatViewState extends State<ChatView> {
           badgeOverflowLabel: theme.unreadBadgeOverflowMode.format,
           isLoading: _vm.forumTopicsLoading && _vm.forumTopics.isEmpty,
         ),
+        if (_showsChatTranslationPanel) _chatTranslationPanel(),
         Expanded(child: child),
       ],
     );
@@ -8911,7 +8912,6 @@ class _ChatViewState extends State<ChatView> {
               ),
             ),
           ),
-          if (_showsChatTranslationPanel) _chatTranslationPanel(),
           if (_showsBotApiAccessWarning)
             BotApiAccessWarning(
               showPrivacyWarning: _vm.showBotApiPrivacyWarning,
