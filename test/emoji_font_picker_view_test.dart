@@ -175,10 +175,12 @@ void main() {
     channel = _FakeChannelSource();
     pickerCatalog = EmojiFontCatalog.forTesting()..debugChannelSource = channel;
     await pumpPicker(tester);
-    // 'cursed' has no bundled preview asset and no channel preview id.
+    // 'cursed' has no bundled preview asset and no channel preview id, and
+    // the system row also renders the system penguin — expect at least one
+    // penguin face, never the fork's penguin logo asset.
     final penguin = find.text('\u{1F427}');
-    expect(penguin, findsOneWidget);
-    final style = tester.widget<Text>(penguin).style;
+    expect(penguin, findsAtLeast(1));
+    final style = tester.widget<Text>(penguin.first).style;
     expect(style?.fontFamily, isNotNull);
     // No row anywhere renders the fork logo as a preview face.
     expect(

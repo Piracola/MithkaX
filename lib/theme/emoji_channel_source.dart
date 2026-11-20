@@ -133,8 +133,15 @@ class EmojiChannelSource {
     return entries.isEmpty ? null : entries;
   }
 
-  /// Downloads a channel document to [destPath]. Returns the byte length, or
-  /// null when the message/file can't be fetched through TDLib.
+  /// Downloads a pack's font file (a .ttf document in the channel) to
+  /// [destPath]. Returns the byte length, or null on any failure.
+  ///
+  /// The document's `mime_type` is deliberately not pinned: Telegram serves
+  /// the same .ttf as `font/ttf`, `application/x-font-ttf` or
+  /// `application/octet-stream` depending on the uploader's client, and a
+  /// `font/` prefix check rejected every real-device download. The pack's
+  /// byte size is verified later by [EmojiFontCatalog.ensureFontDownloaded],
+  /// so a wrong-kind file can't register as a broken family here.
   Future<int?> downloadFont({
     required int chatId,
     required int messageId,
@@ -143,7 +150,7 @@ class EmojiChannelSource {
     chatId: chatId,
     messageId: messageId,
     destPath: destPath,
-    expectedMimeType: 'font/',
+    expectedMimeType: '',
   );
 
   /// Downloads a pack's preview image (a PNG document in the channel) to
@@ -163,6 +170,11 @@ class EmojiChannelSource {
   /// Shared message → document → downloadFile pipeline for both font and
   /// preview documents. [expectedMimeType] rejects wrong-kind messages (a
   /// font where a preview should be, and vice versa).
+  ///
+  /// downloadFile is fired with synchronous: false, then getFile is polled
+  /// until is_downloading_completed flips true — mirroring td_image_loader's
+  /// pattern. synchronous: true on real devices can report incomplete even
+  /// when the transfer is in flight, which made every pack download fail.
   Future<int?> _downloadChannelDocument({
     required int chatId,
     required int messageId,
@@ -182,28 +194,50 @@ class EmojiChannelSource {
       }
       if (message == null) return null;
       final document = message.obj('content')?.obj('document');
-      final fileId = document?.int64('id');
+      // TDLib's messageDocument nests the file under document.document:
+      // content.document is the descriptor (mime_type, size…), the download
+      // id lives on content.document.document (the file object). Taking the
+      // descriptor's own id always yielded null and every pack download
+      // failed — the extra .obj('document') layer is required, not optional.
+      final fileId = document?.obj('document')?.int64('id');
       if (fileId == null || fileId == 0) return null;
       final mime = document?.str('mime_type') ?? '';
-      if (!mime.startsWith(expectedMimeType)) return null;
-      final file = await _client.query({
+      if (expectedMimeType.isNotEmpty && !mime.startsWith(expectedMimeType)) return null;
+
+      final downloadResponse = await _client.query({
         '@type': 'downloadFile',
         'file_id': fileId,
         'priority': 32,
         'offset': 0,
         'limit': 0,
-        'synchronous': true,
-      }, timeout: const Duration(minutes: 10));
-      final local = file.obj('local');
-      final path = local?.str('path');
-      final done = local?.boolean('is_downloading_completed') == true;
-      if (!done || path == null || path.isEmpty) return null;
-      final src = File(path);
-      if (!await src.exists()) return null;
-      final dst = File(destPath);
-      await dst.parent.create(recursive: true);
-      await src.copy(destPath);
-      return await dst.length();
+        'synchronous': false,
+      }, timeout: const Duration(seconds: 10));
+      // A failed downloadFile (error response) means the pack can't be
+      // fetched — bail out immediately instead of polling getFile for up to
+      // nine minutes before surfacing a "download failed" error.
+      if (downloadResponse.str('@type') == 'error') return null;
+
+      final stopwatch = Stopwatch()..start();
+      while (stopwatch.elapsed < const Duration(minutes: 9)) {
+        await Future.delayed(const Duration(seconds: 2));
+        final fileInfo = await _client.query({
+          '@type': 'getFile',
+          'file_id': fileId,
+        }, timeout: const Duration(seconds: 10));
+        final local = fileInfo.obj('local');
+        final done = local?.boolean('is_downloading_completed') == true;
+        final path = local?.str('path');
+        if (done && path != null && path.isNotEmpty) {
+          final src = File(path);
+          if (await src.exists()) {
+            final dst = File(destPath);
+            await dst.parent.create(recursive: true);
+            await src.copy(destPath);
+            return await dst.length();
+          }
+        }
+      }
+      return null;
     } catch (error) {
       debugPrint(
         '[emoji_channel_source] document download failed '

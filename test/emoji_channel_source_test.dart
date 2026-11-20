@@ -192,17 +192,29 @@ void main() {
                     },
                   };
                 }
-                if (request['synchronous'] != true) {
+                // Real TDLib: downloadFile with synchronous: false accepts the
+                // transfer and reports completion via getFile, not inline.
+                if (request['synchronous'] == true) {
                   return {
                     '@type': 'file',
                     'id': 7777,
                     'local': {
                       '@type': 'localFile',
-                      'path': '',
-                      'is_downloading_completed': false,
+                      'path': fakeTdPath,
+                      'is_downloading_completed': true,
                     },
                   };
                 }
+                return {
+                  '@type': 'file',
+                  'id': 7777,
+                  'local': {
+                    '@type': 'localFile',
+                    'path': '',
+                    'is_downloading_completed': false,
+                  },
+                };
+              case 'getFile':
                 return {
                   '@type': 'file',
                   'id': 7777,
@@ -262,6 +274,17 @@ void main() {
                   ],
                 };
               case 'downloadFile':
+                // Real TDLib: synchronous: false accepts the transfer and
+                // reports completion via getFile.
+                return {
+                  '@type': 'file',
+                  'local': {
+                    '@type': 'localFile',
+                    'path': '',
+                    'is_downloading_completed': false,
+                  },
+                };
+              case 'getFile':
                 return {
                   '@type': 'file',
                   'local': {
