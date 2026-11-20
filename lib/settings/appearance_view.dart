@@ -4202,10 +4202,12 @@ class _EntryEmojiPreviewState extends State<_EntryEmojiPreview> {
         File(channelPath),
         width: 26,
         height: 26,
-        errorBuilder: (_, _, _) => _EmojiPreviewImage(asset: widget.asset),
+        errorBuilder: (_, _, _) => const _PenguinFallbackIcon(),
       );
     }
-    return _EmojiPreviewImage(asset: widget.asset);
+    // No channel preview: always fall back to the system 🐧 emoji, never a
+    // bundled branded asset (which may render 😂 etc.).
+    return const _PenguinFallbackIcon();
   }
 }
 
