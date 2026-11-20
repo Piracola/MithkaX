@@ -984,15 +984,14 @@ class AppIconController extends ChangeNotifier {
       if (_disposed) return false;
       if (isCurrent(next)) return true;
       await _channel.invokeMethod<void>('setIcon', {'name': next.key});
-      // The switch already landed; the new icon only exists on the launcher.
-      // Step aside so the user sees it — the first switch is already forced
-      // back by Android's component kill, and every later one now matches.
-      // The task keeps its state (process + recents entry survive).
+      // Exit so the user restarts into the new icon. The switch itself
+      // already landed on the launcher; killing the process makes the change
+      // complete instead of leaving the old task covering the new icon.
       if (_platform == TargetPlatform.android) {
         try {
-          await _channel.invokeMethod<void>('moveToBack');
+          await SystemNavigator.pop();
         } catch (_) {
-          // Older native sides lack the method; the switch itself succeeded.
+          // If the pop cannot be delivered, the switch itself still succeeded.
         }
       }
       _variant = next;
