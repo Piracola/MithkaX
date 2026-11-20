@@ -534,6 +534,7 @@ class _LoginViewState extends State<LoginView> {
       width: size,
       height: size,
       fit: BoxFit.contain,
+      filterQuality: FilterQuality.high,
     ),
   );
 

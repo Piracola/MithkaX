@@ -108,6 +108,7 @@ class _AboutViewState extends State<AboutView> {
                   width: 108,
                   height: 108,
                   fit: BoxFit.contain,
+                  filterQuality: FilterQuality.high,
                 ),
                 const SizedBox(height: 14),
                 Text(

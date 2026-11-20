@@ -941,6 +941,7 @@ class SplashView extends StatelessWidget {
               image: ResizeImage(AssetImage('assets/penguin.png'), width: 576),
               width: AppMetric.splashPenguinSize,
               height: AppMetric.splashPenguinSize,
+              filterQuality: FilterQuality.high,
             ),
             SizedBox(height: AppSpacing.lg + AppSpacing.sm),
             SizedBox(
