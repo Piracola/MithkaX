@@ -209,16 +209,18 @@ void main() {
         launchTheme,
         contains(
           '<item name="android:windowSplashScreenAnimatedIcon">'
-          '@drawable/penguin_launch</item>',
+          '@drawable/penguin_splash</item>',
         ),
         reason: 'the Android 12+ system splash must show the penguin mark',
       );
-      // Single high-res source for all densities (no per-density buckets).
-      expect(
-        File('$_androidRes/drawable/penguin_launch.png').existsSync(),
-        isTrue,
-        reason: 'drawable/penguin_launch.png must exist (single high-res source)',
-      );
+      // The drawable exists in every density bucket.
+      for (final bucket in ['mdpi', 'hdpi', 'xhdpi', 'xxhdpi', 'xxxhdpi']) {
+        expect(
+          File('$_androidRes/drawable-$bucket/penguin_splash.png').existsSync(),
+          isTrue,
+          reason: 'drawable-$bucket/penguin_splash.png must exist',
+        );
+      }
       // The source asset is the same penguin the login page shows.
       expect(File('assets/penguin.png').existsSync(), isTrue);
     });
@@ -246,7 +248,7 @@ void main() {
           launchTheme!.group(0)!,
           contains(
             '<item name="android:windowSplashScreenAnimatedIcon">'
-            '@drawable/penguin_launch</item>',
+            '@drawable/penguin_splash</item>',
           ),
           reason:
               'LaunchTheme in $path must pin the penguin splash icon — dark '
@@ -272,7 +274,7 @@ void main() {
 
       const iconItem =
           '<item name="android:windowSplashScreenAnimatedIcon">'
-          '@drawable/penguin_launch</item>';
+          '@drawable/penguin_splash</item>';
       // Light + API>=31: night-v31 would need night; the v31 bucket wins.
       expect(win('$_androidRes/values-v31/styles.xml'), contains(iconItem));
       // Dark + API>=31: night buckets beat version buckets, so the dark

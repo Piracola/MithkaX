@@ -8,7 +8,7 @@
         <!-- Android 12+ builds the system splash screen from this attribute.
              Point it at the same high-density penguin artwork so the system
              splash matches the legacy drawable on every density. -->
-        <item name="android:windowSplashScreenAnimatedIcon">@drawable/penguin_launch</item>
+        <item name="android:windowSplashScreenAnimatedIcon">@drawable/penguin_splash</item>
         <item name="android:windowSplashScreenBackground">@color/launch_background</item>
         <item name="android:statusBarColor">@android:color/transparent</item>
         <item name="android:navigationBarColor">@android:color/transparent</item>
