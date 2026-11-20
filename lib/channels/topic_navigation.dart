@@ -522,12 +522,10 @@ class _TopicTabStripState extends State<TopicTabStrip> {
         separatorBuilder: (_, _) => const SizedBox(width: 28),
         itemBuilder: (context, index) {
           if (isLoading && index == topics.length) {
-            return SizedBox(
-              height: tabHeight,
-              child: Center(
-                child: AppActivityIndicator(size: 16, color: c.textTertiary),
-              ),
-            );
+            // Topic info is still loading: the placeholder tab keeps the same
+            // bar color as the header so the strip reads as one unified
+            // surface instead of a grey block sticking out.
+            return SizedBox(height: tabHeight);
           }
           final all = index == 0;
           final topic = all ? null : topics[index - 1];
