@@ -3680,8 +3680,7 @@ class _EmojiFontPickerViewState extends State<EmojiFontPickerView> {
   static const _appleKey = 'apple';
 
   late final Future<List<EmojiFontManifestEntry>> _fonts =
-      widget.manifestOverride ??
-      EmojiFontCatalog.shared.loadManifest(forceRefresh: true);
+      widget.manifestOverride ?? EmojiFontCatalog.shared.loadManifest();
   String? _loadingKey;
   String? _failedKey;
   // Cache sizes per key, refreshed after every download/delete so the row

@@ -158,12 +158,17 @@ class EmojiFontCatalog {
 
     final entries = await (debugChannelSource ?? _channelSource).fetchCatalog();
     if (entries == null || entries.isEmpty) {
-      // Channel unreachable (no account / offline): serve the last catalog.
+      // Channel unreachable (no account / offline): serve whatever is cached,
+      // or an empty list so the picker still renders the system-default row
+      // instead of a hard "load failed" screen.
       if (await cacheFile.exists()) {
         final cached = await _readManifest(cacheFile);
         if (cached.isNotEmpty) return cached;
       }
-      throw const FileSystemException('emoji font catalog unavailable');
+      debugPrint(
+        '[emoji_font_catalog] catalog unavailable, returning empty list',
+      );
+      return const <EmojiFontManifestEntry>[];
     }
     _channelLastChatId = entries.first.chatId;
     await cacheFile.parent.create(recursive: true);
