@@ -507,6 +507,7 @@ class _TopicTabStripState extends State<TopicTabStrip> {
     final topics = widget.topics;
     final isLoading = widget.isLoading;
     return Container(
+      width: double.infinity,
       height: tabHeight,
       decoration: BoxDecoration(
         // Same bar as the chat header so the strip reads as part of the
