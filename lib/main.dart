@@ -878,7 +878,7 @@ class _MithkaAppState extends State<MithkaApp> with WidgetsBindingObserver {
         builder: (context, theme, accounts, locale, _) {
           return MaterialApp(
             navigatorKey: appNavigatorKey,
-            title: 'Mithka',
+            title: 'Mithka X',
             debugShowCheckedModeBanner: false,
             // Null follows the system language, which is what
             // AppLocaleController stores for "follow system".

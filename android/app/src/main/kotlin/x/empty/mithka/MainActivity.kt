@@ -113,6 +113,23 @@ class MainActivity : FlutterFragmentActivity() {
         )
     }
 
+    /// Refreshes the recents/switcher entry so it always shows the app name
+    /// and the current launcher icon. Flutter sets the task description via
+    /// SystemChrome.setApplicationSwitcherDescription with icon=0
+    /// (PlatformPlugin), which wipes the manifest icon; this re-applies the
+    /// icon for the alias that is actually live.
+    private fun updateTaskDescription() {
+        val current = currentLauncherIcon()
+        val resName = when (current) {
+            "default" -> "ic_launcher"
+            else -> "ic_launcher_$current"
+        }
+        val iconRes = resources.getIdentifier(resName, "mipmap", packageName)
+        val taskDescription =
+            android.app.ActivityManager.TaskDescription("Mithka X", iconRes, 0)
+        setTaskDescription(taskDescription)
+    }
+
     /**
      * Some 90/120 Hz phones hold an app at 60 Hz unless its window asks for
      * more. Prefer the fastest mode at the resolution already in use, so the
@@ -153,6 +170,10 @@ class MainActivity : FlutterFragmentActivity() {
         mithkaPro?.onActivityResumed()
         FVideoPictureInPicturePlugin.onActivityResumed(this)
         if (fullscreenSystemUi) applyFullscreenSystemUi()
+        // Flutter sets the task description via SystemChrome.setApplicationSwitcherDescription
+        // with icon=0 (PlatformPlugin), which wipes the manifest icon from the recents view.
+        // Refresh it here so the app always shows its name and current icon in the switcher.
+        updateTaskDescription()
     }
 
     override fun onWindowFocusChanged(hasFocus: Boolean) {
@@ -388,7 +409,12 @@ class MainActivity : FlutterFragmentActivity() {
                             Thread {
                                 try {
                                     setLauncherIcon(name)
-                                    runOnUiThread { result.success(null) }
+                                    runOnUiThread {
+                                        result.success(null)
+                                        // The alias just went live: refresh the recents
+                                        // entry so it shows the new icon immediately.
+                                        updateTaskDescription()
+                                    }
                                 } catch (e: Exception) {
                                     runOnUiThread {
                                         result.error(
