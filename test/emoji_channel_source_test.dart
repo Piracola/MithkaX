@@ -170,11 +170,8 @@ void main() {
                         'document': {
                           '@type': 'document',
                           'mime_type': 'font/ttf',
-                          'document': {
-                            '@type': 'file',
-                            'id': 7777,
-                            'expected_size': 64,
-                          },
+                          'id': 7777,
+                          'expected_size': 64,
                         },
                       },
                     },
@@ -263,11 +260,8 @@ void main() {
                         'document': {
                           '@type': 'document',
                           'mime_type': mimeFor(id),
-                          'document': {
-                            '@type': 'file',
-                            'id': 5000 + id,
-                            'expected_size': 32,
-                          },
+                          'id': 5000 + id,
+                          'expected_size': 32,
                         },
                       },
                     },

@@ -194,15 +194,26 @@ class EmojiChannelSource {
       }
       if (message == null) return null;
       final document = message.obj('content')?.obj('document');
-      // TDLib's messageDocument nests the file under document.document:
-      // content.document is the descriptor (mime_type, size…), the download
-      // id lives on content.document.document (the file object). Taking the
-      // descriptor's own id always yielded null and every pack download
-      // failed — the extra .obj('document') layer is required, not optional.
-      final fileId = document?.obj('document')?.int64('id');
-      if (fileId == null || fileId == 0) return null;
+      // TDLib's messageDocument carries the file directly on content.document:
+      // content.document.id IS the download file id. There is no extra
+      // .document layer — reading it always yields null and every pack
+      // download fails.
+      final fileId = document?.int64('id');
+      if (fileId == null || fileId == 0) {
+        debugPrint(
+          '[emoji_channel_source] no fileId for chatId=$chatId msgId=$messageId '
+          'document=$document',
+        );
+        return null;
+      }
       final mime = document?.str('mime_type') ?? '';
-      if (expectedMimeType.isNotEmpty && !mime.startsWith(expectedMimeType)) return null;
+      if (expectedMimeType.isNotEmpty && !mime.startsWith(expectedMimeType)) {
+        debugPrint(
+          '[emoji_channel_source] mime mismatch chatId=$chatId msgId=$messageId '
+          'expected=$expectedMimeType actual=$mime',
+        );
+        return null;
+      }
 
       final downloadResponse = await _client.query({
         '@type': 'downloadFile',
@@ -215,7 +226,13 @@ class EmojiChannelSource {
       // A failed downloadFile (error response) means the pack can't be
       // fetched — bail out immediately instead of polling getFile for up to
       // nine minutes before surfacing a "download failed" error.
-      if (downloadResponse.str('@type') == 'error') return null;
+      if (downloadResponse.str('@type') == 'error') {
+        debugPrint(
+          '[emoji_channel_source] downloadFile error chatId=$chatId msgId=$messageId '
+          'fileId=$fileId response=$downloadResponse',
+        );
+        return null;
+      }
 
       final stopwatch = Stopwatch()..start();
       while (stopwatch.elapsed < const Duration(minutes: 9)) {
