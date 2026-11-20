@@ -7470,6 +7470,7 @@ class _ChatViewState extends State<ChatView> {
     }
     final theme = context.watch<ThemeController>();
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         TopicTabStrip(
           chatId: widget.chatId,
