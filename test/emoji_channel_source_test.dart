@@ -178,7 +178,7 @@ void main() {
                   ],
                 };
               case 'downloadFile':
-                if (request['file_id'] != 7777) {
+                if (request['file_id'].toString() != '7777') {
                   return {
                     '@type': 'file',
                     'id': 7777,

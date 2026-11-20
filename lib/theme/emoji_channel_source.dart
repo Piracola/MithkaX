@@ -217,7 +217,11 @@ class EmojiChannelSource {
 
       final downloadResponse = await _client.query({
         '@type': 'downloadFile',
-        'file_id': fileId,
+        // TDLib JSON API transports int64 fields as strings to avoid precision
+        // loss on large file ids (e.g. 6046350849301554328 > 2^53). Sending a
+        // raw Dart int through JSON would round-trip through a double and
+        // corrupt the id, making downloadFile fail silently.
+        'file_id': fileId.toString(),
         'priority': 32,
         'offset': 0,
         'limit': 0,
@@ -239,7 +243,7 @@ class EmojiChannelSource {
         await Future.delayed(const Duration(seconds: 2));
         final fileInfo = await _client.query({
           '@type': 'getFile',
-          'file_id': fileId,
+          'file_id': fileId.toString(),
         }, timeout: const Duration(seconds: 10));
         final local = fileInfo.obj('local');
         final done = local?.boolean('is_downloading_completed') == true;
