@@ -3765,7 +3765,7 @@ class _EmojiFontPickerViewState extends State<EmojiFontPickerView> {
       key: 'system',
       title: EmojiFontChoice.system.label,
       subtitle: AppStrings.t(AppStringKeys.appearanceSystemEmojiFont),
-      preview: const _SystemEmojiPreview(),
+      preview: const _PenguinFallbackIcon(),
       // The selection itself is the render policy — no override switch.
       selected: theme.emojiFontChoice.isSystem,
       loading: false,

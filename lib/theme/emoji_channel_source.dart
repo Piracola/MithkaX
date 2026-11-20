@@ -182,8 +182,7 @@ class EmojiChannelSource {
       }
       if (message == null) return null;
       final document = message.obj('content')?.obj('document');
-      final doc = document?.obj('document');
-      final fileId = doc?.int64('id');
+      final fileId = document?.int64('id');
       if (fileId == null || fileId == 0) return null;
       final mime = document?.str('mime_type') ?? '';
       if (!mime.startsWith(expectedMimeType)) return null;
