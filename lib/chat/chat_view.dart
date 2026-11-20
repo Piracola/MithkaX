@@ -1438,6 +1438,10 @@ class _ChatViewState extends State<ChatView> {
   final Set<int> _autoTranslationFailedMessageIds = <int>{};
   final Set<int> _autoTranslatedMessageIds = <int>{};
   bool _sendFailureDialogVisible = false;
+
+  /// Bot API access warning dismissal, keyed by chat so a topic switch does
+  /// not re-show a warning the user already dismissed in another topic.
+  static final Map<int, int> _dismissedBotApiWarningByChat = {};
   VoidCallback? _detachExitController;
   VoidCallback? _detachRevealLatestController;
   VoidCallback? _detachPaneBackHandler;
@@ -1509,6 +1513,23 @@ class _ChatViewState extends State<ChatView> {
             forumTopicId: _sessionKey.forumTopicId,
           )
         : null;
+    // A topic switch rebuilds this transcript; restore the chat-level
+    // language-detection result so the translation panel does not hide on
+    // the first frame and pop open a beat later.
+    final headerSnapshot = ChatHeaderStateCache.read(
+      _sessionKey.accountSlot,
+      _sessionKey.chatId,
+    );
+    if (headerSnapshot != null &&
+        headerSnapshot.chatLanguageDetectionComplete) {
+      _detectedChatLanguage = headerSnapshot.detectedChatLanguage;
+      _chatLanguageDetectionComplete = true;
+      _chatLanguageDetectedAt = headerSnapshot.chatLanguageDetectedAt;
+      _chatLanguageDetectionNewestMessageId =
+          headerSnapshot.chatLanguageDetectionNewestMessageId;
+    }
+    _dismissedBotApiWarningMask =
+        _dismissedBotApiWarningByChat[widget.chatId];
     _olderHistoryExhaustedHint =
         _sessionRenderState?.olderHistoryExhausted ?? false;
     _sessionScrollSnapshot = widget.initialMessageId == null
@@ -6548,6 +6569,7 @@ class _ChatViewState extends State<ChatView> {
   Future<void> _loadBotApiWarningDismissal() async {
     final prefs = await SharedPreferences.getInstance();
     final mask = prefs.getInt(_botApiWarningDismissalKey);
+    if (mask != null) _dismissedBotApiWarningByChat[widget.chatId] = mask;
     if (!mounted || mask == _dismissedBotApiWarningMask) return;
     setState(() => _dismissedBotApiWarningMask = mask);
   }
@@ -6555,6 +6577,7 @@ class _ChatViewState extends State<ChatView> {
   void _dismissBotApiAccessWarning() {
     final mask = _botApiWarningMask;
     if (mask == 0) return;
+    _dismissedBotApiWarningByChat[widget.chatId] = mask;
     setState(() => _dismissedBotApiWarningMask = mask);
     unawaited(
       SharedPreferences.getInstance().then(
@@ -6652,6 +6675,14 @@ class _ChatViewState extends State<ChatView> {
       _chatLanguageDetectionNewestMessageId = newestId;
       _chatLanguageDetectedAt = DateTime.now();
       _detectedChatLanguage = detected;
+      ChatHeaderStateCache.updateLanguageState(
+        accountSlot: TdClient.shared.activeSlot,
+        chatId: widget.chatId,
+        detectedChatLanguage: detected,
+        complete: true,
+        detectedAt: DateTime.now(),
+        newestMessageId: newestId,
+      );
       _scheduleAutomaticTranslations();
       setState(() {});
     }());

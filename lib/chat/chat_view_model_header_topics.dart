@@ -240,8 +240,40 @@ extension ChatViewModelHeaderTopics on ChatViewModel {
         AppStringKeys.chatRestrictedTelegramTosMessage,
       );
     }
+    _storeHeaderSnapshot();
     notifyListeners();
     unawaited(_loadPinnedMessage());
+  }
+
+  /// Publishes this transcript's topic-independent header facts so the next
+  /// topic transcript of the same chat can paint a full-height header on its
+  /// first frame instead of growing one async query later.
+  void _storeHeaderSnapshot() {
+    if (!isForum) return;
+    final existing = ChatHeaderStateCache.read(_accountSlot, chatId);
+    ChatHeaderStateCache.write(
+      ChatHeaderSnapshot(
+        accountSlot: _accountSlot,
+        chatId: chatId,
+        isGroup: isGroup,
+        isChannel: isChannel,
+        isBotApiAccount: isBotApiAccount,
+        memberCount: memberCount,
+        peerOnline: peerOnline,
+        peerStatusText: peerStatusText,
+        peerIsBot: peerIsBot,
+        botMenu: botMenu,
+        botCommands: botCommands,
+        botApiCanReadAllGroupMessages: botApiCanReadAllGroupMessages,
+        botApiBotToBotAccessObserved: botApiBotToBotAccessObserved,
+        detectedChatLanguage: existing?.detectedChatLanguage,
+        chatLanguageDetectionComplete:
+            existing?.chatLanguageDetectionComplete ?? false,
+        chatLanguageDetectedAt: existing?.chatLanguageDetectedAt,
+        chatLanguageDetectionNewestMessageId:
+            existing?.chatLanguageDetectionNewestMessageId,
+      ),
+    );
   }
 
   Future<void> refreshPeerRestrictionState() => _loadChatHeader();

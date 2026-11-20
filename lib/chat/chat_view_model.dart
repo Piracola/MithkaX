@@ -61,6 +61,7 @@ import 'stickers/gif_item.dart';
 import 'stickers/sticker_item.dart';
 
 part 'chat_view_model_actions.dart';
+part 'chat_header_state_cache.dart';
 part 'chat_view_model_header_topics.dart';
 part 'chat_view_model_history_paging.dart';
 part 'chat_view_model_sending.dart';
@@ -98,6 +99,26 @@ class ChatViewModel extends ChangeNotifier {
     final indexed = ForumTopicIndex.shared.topicsFor(_accountSlot, chatId);
     if (indexed.isNotEmpty) {
       forumTopics = [for (final entry in indexed) _optionFromIndex(entry)];
+    }
+    // Same chat, different topic: inherit the header facts the previous
+    // transcript resolved (presence, member count, bot identity) so the
+    // header paints at full height immediately and the pinned topic strip
+    // does not shift when the async loads land.
+    final inheritedHeader = ChatHeaderStateCache.read(_accountSlot, chatId);
+    if (inheritedHeader != null) {
+      peerOnline = inheritedHeader.peerOnline;
+      peerStatusText = inheritedHeader.peerStatusText;
+      peerIsBot = inheritedHeader.peerIsBot;
+      memberCount = inheritedHeader.memberCount;
+      isGroup = inheritedHeader.isGroup;
+      isChannel = inheritedHeader.isChannel;
+      isBotApiAccount = inheritedHeader.isBotApiAccount;
+      botMenu = inheritedHeader.botMenu;
+      botCommands = inheritedHeader.botCommands;
+      botApiCanReadAllGroupMessages =
+          inheritedHeader.botApiCanReadAllGroupMessages;
+      botApiBotToBotAccessObserved =
+          inheritedHeader.botApiBotToBotAccessObserved;
     }
     _historyAnchorMessageId = initialMessageId ?? sessionAnchorMessageId;
     if (sessionMessages != null && sessionMessages.isNotEmpty) {
