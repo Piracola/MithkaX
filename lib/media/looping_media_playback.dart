@@ -81,6 +81,30 @@ bool loopingSurfaceIsOnScreen({
   return rect.overlaps(visible);
 }
 
+/// Remembers whether a looping surface is inside the viewport, so a scroll
+/// tick only triggers work when the answer actually changed.
+class LoopingSurfaceVisibility {
+  LoopingSurfaceVisibility({this.margin = 0});
+
+  /// Extra room around the viewport that still counts as visible, so a short
+  /// overscroll does not tear a decoder down and build it again.
+  final double margin;
+
+  bool _onScreen = true;
+  bool get isOnScreen => _onScreen;
+
+  /// Feeds a freshly measured [rect] (null while the surface has no render box
+  /// yet) and reports whether visibility flipped.
+  bool update({required Rect? rect, required Size screen}) {
+    final next = rect == null
+        ? _onScreen
+        : loopingSurfaceIsOnScreen(rect: rect, screen: screen, margin: margin);
+    if (next == _onScreen) return false;
+    _onScreen = next;
+    return true;
+  }
+}
+
 /// Pure FIFO lease pool used to cap native looping-media players.
 class LoopingMediaPlayerPool {
   LoopingMediaPlayerPool({required this.maximumPlayers})

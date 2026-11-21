@@ -55,7 +55,9 @@ class _VideoStickerViewState extends State<VideoStickerView>
   bool _fallbackOnly = false;
   bool _tickerEnabled = false;
   bool _appIsActive = true;
-  bool _onScreen = true;
+  final LoopingSurfaceVisibility _visibility = LoopingSurfaceVisibility(
+    margin: _visibilityMargin,
+  );
   bool _visibilityCheckScheduled = false;
   ScrollPosition? _scrollPosition;
   bool _loadPending = false;
@@ -76,7 +78,7 @@ class _VideoStickerViewState extends State<VideoStickerView>
 
   /// Keeps a sticker alive across a short overscroll instead of tearing its
   /// decoder down and rebuilding it on the way back.
-  static const _visibilityMargin = 64.0;
+  static const double _visibilityMargin = 64;
 
   static Future<bool>? _androidNeedsStaticFallback;
 
@@ -91,7 +93,7 @@ class _VideoStickerViewState extends State<VideoStickerView>
   }
 
   bool get _isEligible =>
-      _onScreen &&
+      _visibility.isOnScreen &&
       loopingMediaPlaybackIsEligible(
         tickerEnabled: _tickerEnabled,
         appIsActive: _appIsActive,
@@ -129,24 +131,25 @@ class _VideoStickerViewState extends State<VideoStickerView>
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _visibilityCheckScheduled = false;
       if (!mounted) return;
-      final onScreen = _computeOnScreen();
-      if (onScreen == _onScreen) return;
-      _onScreen = onScreen;
+      final media = MediaQuery.maybeOf(context);
+      final box = context.findRenderObject();
+      if (media == null || box is! RenderBox || !box.attached || !box.hasSize) {
+        return;
+      }
+      final changed = _visibility.update(
+        rect: box.localToGlobal(Offset.zero) & box.size,
+        screen: media.size,
+      );
+      if (!changed) return;
       _reconcilePlayback();
     });
   }
 
-  bool _computeOnScreen() {
-    final box = context.findRenderObject();
-    final media = MediaQuery.maybeOf(context);
-    if (box is! RenderBox || !box.attached || !box.hasSize || media == null) {
-      return _onScreen;
-    }
-    return loopingSurfaceIsOnScreen(
-      rect: box.localToGlobal(Offset.zero) & box.size,
-      screen: media.size,
-      margin: _visibilityMargin,
-    );
+  @override
+  void didChangeMetrics() {
+    // Keyboard insets, rotation, and a sheet sliding over the list all move
+    // every sticker without scrolling it.
+    _scheduleVisibilityCheck();
   }
 
   @override

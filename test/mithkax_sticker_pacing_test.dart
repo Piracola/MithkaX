@@ -141,6 +141,48 @@ void main() {
       );
     });
 
+    test('a sticker hands its player back when it leaves and asks again', () {
+      final visibility = LoopingSurfaceVisibility(margin: 64);
+      expect(visibility.isOnScreen, isTrue);
+      expect(
+        visibility.update(
+          rect: const Rect.fromLTWH(0, 300, 160, 160),
+          screen: screen,
+        ),
+        isFalse,
+      );
+      expect(
+        visibility.update(
+          rect: const Rect.fromLTWH(0, -600, 160, 160),
+          screen: screen,
+        ),
+        isTrue,
+      );
+      expect(visibility.isOnScreen, isFalse);
+      // Still out of view: no repeated reconcile work on every scroll tick.
+      expect(
+        visibility.update(
+          rect: const Rect.fromLTWH(0, -600, 160, 160),
+          screen: screen,
+        ),
+        isFalse,
+      );
+      expect(
+        visibility.update(
+          rect: const Rect.fromLTWH(0, 100, 160, 160),
+          screen: screen,
+        ),
+        isTrue,
+      );
+      expect(visibility.isOnScreen, isTrue);
+    });
+
+    test('a surface without a render box keeps its current state', () {
+      final visibility = LoopingSurfaceVisibility();
+      expect(visibility.update(rect: null, screen: screen), isFalse);
+      expect(visibility.isOnScreen, isTrue);
+    });
+
     test('an unlaid-out surface is not treated as visible', () {
       expect(
         loopingSurfaceIsOnScreen(rect: Rect.zero, screen: screen),
