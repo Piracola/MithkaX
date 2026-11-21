@@ -424,6 +424,10 @@ abstract final class AppStringKeys {
   static const mithkaxPushServiceStatusNoDistributor =
       'mithkaxPushServiceStatusNoDistributor';
   static const mithkaxPushServiceRetry = 'mithkaxPushServiceRetry';
+  static const mithkaxPushDiagnostics = 'mithkaxPushDiagnostics';
+  static const mithkaxPushDiagnosticsCopy = 'mithkaxPushDiagnosticsCopy';
+  static const mithkaxPushDiagnosticsCopied = 'mithkaxPushDiagnosticsCopied';
+  static const mithkaxPushDiagnosticsClose = 'mithkaxPushDiagnosticsClose';
   static const mithkaxPushServiceStatusUnavailable =
       'mithkaxPushServiceStatusUnavailable';
   static const mithkaxPushServiceRestartNote = 'mithkaxPushServiceRestartNote';

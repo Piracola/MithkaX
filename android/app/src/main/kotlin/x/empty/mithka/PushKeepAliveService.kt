@@ -24,8 +24,11 @@ import androidx.core.content.ContextCompat
  * also the fallback so a self-hosted setup still receives messages.
  */
 class PushKeepAliveService : Service() {
+    private var foregroundRequirementSatisfied = false
+
     override fun onCreate() {
         super.onCreate()
+        isRunning = true
         createChannels()
         goForeground()
     }
@@ -42,6 +45,8 @@ class PushKeepAliveService : Service() {
 
     override fun onDestroy() {
         stopForegroundCompat()
+        isRunning = false
+        isForeground = false
         if (PushServiceStore.keepAliveEnabled(this)) {
             scheduleRestart()
         }
@@ -54,6 +59,25 @@ class PushKeepAliveService : Service() {
         val resident = PushServiceStore.resident(this)
         val channelId = if (resident) CHANNEL_VISIBLE else CHANNEL_QUIET
         val notification = buildNotification(channelId, resident)
+        if (!resident) {
+            // A foreground service may not drop its notification while it is
+            // foreground. Enter foreground just long enough to satisfy
+            // startForegroundService(), then leave foreground and remove the
+            // notification: the service keeps running (START_STICKY + alarm),
+            // but the user no longer sees a resident entry. Repeated
+            // onStartCommand calls must not re-post it.
+            if (!foregroundRequirementSatisfied) {
+                foregroundRequirementSatisfied = enterForeground(notification)
+            }
+            stopForegroundCompat()
+            isForeground = false
+            return
+        }
+        if (!enterForeground(notification)) return
+        isForeground = true
+    }
+
+    private fun enterForeground(notification: Notification): Boolean {
         try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
                 startForeground(
@@ -64,8 +88,11 @@ class PushKeepAliveService : Service() {
             } else {
                 startForeground(NOTIFICATION_ID, notification)
             }
+            return true
         } catch (error: Throwable) {
             android.util.Log.w(TAG, "Failed to enter foreground", error)
+            isForeground = false
+            return false
         }
     }
 
@@ -163,6 +190,12 @@ class PushKeepAliveService : Service() {
         private const val CHANNEL_VISIBLE = "mithka_push_keepalive"
         private const val CHANNEL_QUIET = "mithka_push_keepalive_quiet"
         private const val NOTIFICATION_ID = 0x4D58
+
+        @Volatile
+        var isRunning: Boolean = false
+
+        @Volatile
+        var isForeground: Boolean = false
 
         fun start(context: Context) {
             try {

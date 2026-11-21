@@ -4087,4 +4087,8 @@
     <string name="storageDownloadFolderNotSelected">フォルダを選択</string>
     <string name="storageDownloadCurrent">現在の保存先：{value1}</string>
     <string name="mithkaxPushServiceRetry">登録を再試行</string>
+    <string name="mithkaxPushDiagnostics">プッシュ診断</string>
+    <string name="mithkaxPushDiagnosticsCopy">レポートをコピー</string>
+    <string name="mithkaxPushDiagnosticsCopied">コピーしました</string>
+    <string name="mithkaxPushDiagnosticsClose">閉じる</string>
 </resources>

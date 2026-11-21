@@ -10,11 +10,13 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../components/app_icons.dart';
 import '../components/ui_components.dart';
 import '../l10n/app_localizations.dart';
 import '../notifications/push_device_registrar.dart';
+import '../notifications/push_diagnostics.dart';
 import '../notifications/push_service_settings.dart';
 import '../theme/app_motion.dart';
 import '../theme/app_theme.dart';
@@ -84,6 +86,61 @@ class _PushServiceSectionState extends State<PushServiceSection> {
 
   Future<void> _retry() async {
     await PushDeviceRegistrar.shared.retry();
+  }
+
+  Future<void> _showDiagnostics() async {
+    final report = PushDiagnostics.collect();
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => FutureBuilder<String>(
+        future: report,
+        builder: (context, snapshot) {
+          final text = snapshot.data;
+          return AlertDialog(
+            title: Text(AppStrings.t('mithkaxPushDiagnostics')),
+            content: SizedBox(
+              width: double.maxFinite,
+              child: snapshot.connectionState != ConnectionState.done
+                  ? const SizedBox(
+                      height: 120,
+                      child: Center(child: CircularProgressIndicator()),
+                    )
+                  : SingleChildScrollView(
+                      child: SelectableText(
+                        text ?? 'ERROR',
+                        style: const TextStyle(
+                          fontFamily: 'monospace',
+                          fontSize: 11,
+                        ),
+                      ),
+                    ),
+            ),
+            actions: [
+              if (text != null)
+                TextButton(
+                  onPressed: () async {
+                    await Clipboard.setData(ClipboardData(text: text));
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            AppStrings.t('mithkaxPushDiagnosticsCopied'),
+                          ),
+                        ),
+                      );
+                    }
+                  },
+                  child: Text(AppStrings.t('mithkaxPushDiagnosticsCopy')),
+                ),
+              TextButton(
+                onPressed: () => Navigator.of(dialogContext).pop(),
+                child: Text(AppStrings.t('mithkaxPushDiagnosticsClose')),
+              ),
+            ],
+          );
+        },
+      ),
+    );
   }
 
   Future<void> _pickKind() async {
@@ -204,6 +261,13 @@ class _PushServiceSectionState extends State<PushServiceSection> {
                 showChevron: false,
                 onTap: () => unawaited(_retry()),
               ),
+            SettingsRow(
+              key: const ValueKey('mithkax-push-diagnostics'),
+              title: AppStrings.t('mithkaxPushDiagnostics'),
+              leading: const SettingsLeadingIcon(icon: HeroAppIcons.bug),
+              showChevron: false,
+              onTap: () => unawaited(_showDiagnostics()),
+            ),
           ],
         ),
         SettingsNote(text: _description(kind)),

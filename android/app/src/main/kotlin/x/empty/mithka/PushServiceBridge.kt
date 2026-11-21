@@ -1,11 +1,17 @@
 package x.empty.mithka
 
+import android.Manifest
 import android.app.Activity
+import android.app.NotificationManager
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
+import androidx.core.app.NotificationManagerCompat
+import androidx.core.content.ContextCompat
 import io.flutter.plugin.common.BinaryMessenger
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
@@ -64,6 +70,13 @@ class PushServiceBridge(
             }
 
             "getPushStatus" -> result.success(status(context))
+
+            "getPushDiagnostics" -> {
+                Thread {
+                    val data = diagnostics(context)
+                    mainHandler.post { result.success(data) }
+                }.start()
+            }
 
             "consumeNotificationTap" -> {
                 result.success(mapOf("payload" to PushServiceStore.takePendingTap(context)))
@@ -135,6 +148,142 @@ class PushServiceBridge(
             "error" to UnifiedPushManager.error(context),
         )
     }
+
+    /**
+     * One-shot, copyable snapshot for device-side push debugging. It must never
+     * include tokens, endpoints or API keys: the report is pasted into chats.
+     */
+    private fun diagnostics(context: Context): Map<String, Any?> {
+        val notificationManager = context.getSystemService(NotificationManager::class.java)
+        val activeNotifications = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            notificationManager.activeNotifications.map { notification ->
+                mapOf(
+                    "id" to notification.id,
+                    "channel" to if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                        notification.notification.channelId
+                    } else {
+                        null
+                    },
+                    "ongoing" to notification.isOngoing,
+                )
+            }
+        } else {
+            emptyList<Map<String, Any?>>()
+        }
+        val channels = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            listOf("mithka_push_keepalive", "mithka_push_keepalive_quiet")
+                .mapNotNull { id ->
+                    notificationManager.getNotificationChannel(id)?.let { channel ->
+                        id to mapOf(
+                            "name" to channel.name?.toString(),
+                            "importance" to channel.importance,
+                        )
+                    }
+                }
+                .toMap()
+        } else {
+            emptyMap<String, Map<String, Any?>>()
+        }
+        val googleAppId = runCatching {
+            val resId = context.resources.getIdentifier(
+                "google_app_id",
+                "string",
+                context.packageName,
+            )
+            if (resId == 0) null else context.getString(resId)
+        }.getOrNull()
+        return mapOf(
+            "manufacturer" to Build.MANUFACTURER,
+            "model" to Build.MODEL,
+            "sdkInt" to Build.VERSION.SDK_INT,
+            "release" to Build.VERSION.RELEASE,
+            "push" to mapOf(
+                "mode" to PushServiceStore.mode(context),
+                "resident" to PushServiceStore.resident(context),
+                "keepAliveFallback" to PushServiceStore.keepAliveFallback(context),
+                "keepAliveEnabled" to PushServiceStore.keepAliveEnabled(context),
+                "gatewayHost" to runCatching {
+                    java.net.URI(PushServiceStore.gateway(context)).host
+                }.getOrNull(),
+            ),
+            "keepAliveService" to mapOf(
+                "running" to PushKeepAliveService.isRunning,
+                "foreground" to PushKeepAliveService.isForeground,
+            ),
+            "notifications" to mapOf(
+                "enabled" to NotificationManagerCompat.from(context).areNotificationsEnabled(),
+                "permission" to (
+                    Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
+                        ContextCompat.checkSelfPermission(
+                            context,
+                            Manifest.permission.POST_NOTIFICATIONS,
+                        ) == PackageManager.PERMISSION_GRANTED
+                    ),
+                "active" to activeNotifications,
+                "channels" to channels,
+            ),
+            "gms" to packageDetails(context, "com.google.android.gms"),
+            "gmsAvailability" to gmsAvailability(context),
+            "firebase" to firebaseInfo(context),
+            "googleAppIdResource" to googleAppId?.take(12),
+            "unifiedPush" to mapOf(
+                "distributors" to UnifiedPushManager.distributors(context),
+                "error" to UnifiedPushManager.error(context),
+            ),
+        )
+    }
+
+    private fun packageDetails(context: Context, packageName: String): Map<String, Any?> =
+        try {
+            val info = context.packageManager.getPackageInfo(packageName, 0)
+            mapOf(
+                "installed" to true,
+                "versionName" to info.versionName,
+                "versionCode" to if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                    info.longVersionCode
+                } else {
+                    @Suppress("DEPRECATION")
+                    info.versionCode.toLong()
+                },
+                "enabled" to info.applicationInfo?.enabled,
+            )
+        } catch (_: PackageManager.NameNotFoundException) {
+            mapOf("installed" to false)
+        } catch (error: Throwable) {
+            mapOf("installed" to false, "error" to error.javaClass.simpleName)
+        }
+
+    private fun gmsAvailability(context: Context): Any? =
+        try {
+            val clazz = Class.forName("com.google.android.gms.common.GoogleApiAvailability")
+            val instance = clazz.getMethod("getInstance").invoke(null)
+            clazz.getMethod("isGooglePlayServicesAvailable", Context::class.java)
+                .invoke(instance, context)
+        } catch (error: Throwable) {
+            "${error.javaClass.simpleName}: ${error.message}"
+        }
+
+    private fun firebaseInfo(context: Context): Any? =
+        try {
+            val clazz = Class.forName("com.google.firebase.FirebaseApp")
+            val apps = clazz.getMethod("getApps", Context::class.java)
+                .invoke(null, context) as? List<*>
+            apps?.map { app ->
+                val options = clazz.getMethod("getOptions").invoke(app)
+                val optionsClass = options?.javaClass
+                mapOf(
+                    "name" to clazz.getMethod("getName").invoke(app),
+                    "projectId" to runCatching {
+                        optionsClass?.getMethod("getProjectId")?.invoke(options)
+                    }.getOrNull(),
+                    "applicationId" to runCatching {
+                        optionsClass?.getMethod("getApplicationId")?.invoke(options)
+                    }.getOrNull(),
+                )
+            } ?: emptyList<Map<String, Any?>>()
+        } catch (error: Throwable) {
+            mapOf("error" to "${error.javaClass.simpleName}: ${error.message}")
+        }
 
     companion object {
         const val CHANNEL = "mithka/push"

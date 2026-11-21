@@ -1196,6 +1196,7 @@ class MainActivity : FlutterFragmentActivity() {
             add("com.mr.flutter.plugin.filepicker.FilePickerPlugin")
             add("io.flutter.plugins.firebase.analytics.FlutterFirebaseAnalyticsPlugin")
             add("io.flutter.plugins.firebase.core.FlutterFirebaseCorePlugin")
+            add("io.flutter.plugins.firebase.messaging.FlutterFirebaseMessagingPlugin")
             add("com.dexterous.flutterlocalnotifications.FlutterLocalNotificationsPlugin")
             add("io.flutter.plugins.flutter_plugin_android_lifecycle.FlutterAndroidLifecyclePlugin")
             add("com.it_nomads.fluttersecurestorage.FlutterSecureStoragePlugin")

@@ -128,12 +128,34 @@ void main() {
     );
   });
 
+  test('manual Android plugin registry includes firebase_messaging', () {
+    final source = File(
+      'android/app/src/main/kotlin/x/empty/mithka/MainActivity.kt',
+    ).readAsStringSync();
+    // The app registers plugins by hand instead of calling
+    // GeneratedPluginRegistrant. Without this entry FirebaseMessaging's method
+    // channel has no handler, so getToken() fails before it reaches FCM.
+    expect(
+      source,
+      contains(
+        'io.flutter.plugins.firebase.messaging.FlutterFirebaseMessagingPlugin',
+      ),
+    );
+  });
+
+  test('resident notification off removes the foreground notification', () {
+    final source = File(
+      'android/app/src/main/kotlin/x/empty/mithka/PushKeepAliveService.kt',
+    ).readAsStringSync();
+    expect(source, contains('if (!resident)'));
+    expect(source, contains('stopForegroundCompat()'));
+    expect(source, contains('isForeground = false'));
+  });
+
   test(
     'fcm bootstrap does not report unavailable while the token is pending',
     () async {
-      SharedPreferences.setMockInitialValues({
-        'mithka.push.kind.v1': 'fcm',
-      });
+      SharedPreferences.setMockInitialValues({'mithka.push.kind.v1': 'fcm'});
       final prefs = await SharedPreferences.getInstance();
       final supportDir = Directory.systemTemp.createTempSync('mithka_fcm_test');
       addTearDown(() {
@@ -178,10 +200,10 @@ void main() {
       expect(status.error, isNot('fcm_unavailable'));
 
       token.complete(
-        FCMBootstrap(
+        const FCMBootstrap(
           initialToken: 'fcm-token',
-          tokenRefresh: const Stream.empty(),
-          foregroundMessages: const Stream.empty(),
+          tokenRefresh: Stream.empty(),
+          foregroundMessages: Stream.empty(),
         ),
       );
       for (var i = 0; i < 40; i++) {

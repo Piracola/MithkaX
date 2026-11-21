@@ -4104,4 +4104,8 @@
     <string name="storageDownloadFolderNotSelected">Choisir un dossier</string>
     <string name="storageDownloadCurrent">Emplacement actuel : {value1}</string>
     <string name="mithkaxPushServiceRetry">Réessayer l’enregistrement</string>
+    <string name="mithkaxPushDiagnostics">Diagnostic push</string>
+    <string name="mithkaxPushDiagnosticsCopy">Copier le rapport</string>
+    <string name="mithkaxPushDiagnosticsCopied">Copié</string>
+    <string name="mithkaxPushDiagnosticsClose">Fermer</string>
 </resources>

@@ -4087,4 +4087,8 @@
     <string name="storageDownloadFolderNotSelected">選擇資料夾</string>
     <string name="storageDownloadCurrent">目前位置：{value1}</string>
     <string name="mithkaxPushServiceRetry">重試註冊</string>
+    <string name="mithkaxPushDiagnostics">推送診斷</string>
+    <string name="mithkaxPushDiagnosticsCopy">複製報告</string>
+    <string name="mithkaxPushDiagnosticsCopied">已複製</string>
+    <string name="mithkaxPushDiagnosticsClose">關閉</string>
 </resources>
