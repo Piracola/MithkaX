@@ -76,6 +76,25 @@ enum MessageActionSource { normal, video }
 
 enum MessageActionMenuLayout { adaptive, grid, vertical }
 
+/// Where the phone overlay puts its two pieces, in overlay coordinates.
+@immutable
+class MessageActionOverlayPlacement {
+  const MessageActionOverlayPlacement({
+    required this.stripTop,
+    required this.menuTop,
+    required this.menuHeight,
+  });
+
+  /// Top edge of the reaction strip (unused when no strip is drawn).
+  final double stripTop;
+
+  /// Top edge of the action menu.
+  final double menuTop;
+
+  /// Height the menu is given; it scrolls when the height is a shortfall.
+  final double menuHeight;
+}
+
 /// The floating overlay's palette, taken from the app theme: a light card with
 /// dark ink in day mode, the raised dark surface at night.
 ///
@@ -521,21 +540,88 @@ class MessageActionMenu extends StatelessWidget {
     return targetRect;
   }
 
-  /// Where the menu's top edge lands, given the strip it must clear.
-  ///
-  /// [ceiling] is the bottom edge of the reaction strip above the menu (or the
-  /// safe-area top when no strip is drawn): the menu never climbs above it, so
-  /// a menu pushed up by the bottom safe area stops under the strip instead of
-  /// covering it. When the two do not both fit, the ceiling wins and the menu
-  /// scrolls in the height that is left.
-  static double menuTopFor({
-    required double preferredTop,
-    required double ceiling,
+  /// The phone overlay's two positions: the reaction strip above the message,
+  /// and the menu either under the strip or flipped above it.
+  static MessageActionOverlayPlacement placeMobileOverlay({
+    required Rect? anchor,
+    required double preferredMenuHeight,
+    required double stripHeight,
+    required double topSafe,
     required double bottomSafe,
-    required double menuHeight,
+    required double viewportHeight,
+    required bool menuStartsAtAnchorTop,
+    double gap = 8,
   }) {
-    final floor = math.max(ceiling, bottomSafe - menuHeight);
-    return preferredTop.clamp(math.min(ceiling, floor), floor);
+    final stripGap = stripHeight > 0 ? gap : 0.0;
+    if (anchor == null) {
+      final menuHeight = math.min(
+        preferredMenuHeight,
+        math.max(0.0, bottomSafe - topSafe - stripHeight - stripGap),
+      );
+      final stackHeight = stripHeight + stripGap + menuHeight;
+      final stripTop = ((viewportHeight - stackHeight) / 2)
+          .clamp(topSafe, math.max(topSafe, bottomSafe - stripHeight))
+          .toDouble();
+      return MessageActionOverlayPlacement(
+        stripTop: stripTop,
+        menuTop: stripTop + stripHeight + stripGap,
+        menuHeight: menuHeight,
+      );
+    }
+    final stripTop = (anchor.top - stripHeight - gap)
+        .clamp(topSafe, math.max(topSafe, bottomSafe - stripHeight))
+        .toDouble();
+    final stripBottom = stripHeight > 0 ? stripTop + stripHeight : topSafe;
+    final bounds = mobileMenuBounds(
+      preferredTop: menuStartsAtAnchorTop
+          ? math.max(anchor.top, stripBottom + stripGap)
+          : anchor.bottom + stripGap,
+      preferredHeight: preferredMenuHeight,
+      stripTop: stripHeight > 0 ? stripTop : topSafe,
+      stripBottom: stripBottom,
+      topSafe: topSafe,
+      bottomSafe: bottomSafe,
+      gap: gap,
+    );
+    return MessageActionOverlayPlacement(
+      stripTop: stripTop,
+      menuTop: bounds.top,
+      menuHeight: bounds.height,
+    );
+  }
+
+  /// Where the phone's dropdown opens: under the reaction strip when it fits,
+  /// flipped above the strip when the message sits too low, and never across
+  /// the strip itself.
+  ///
+  /// [stripTop]/[stripBottom] are the strip's edges (both the safe-area top
+  /// when no strip is drawn). The menu opens under [stripBottom] or, flipped,
+  /// ends above [stripTop]. Returns the top the menu takes and the height it
+  /// gets; when neither side holds the whole menu, the roomier side wins and
+  /// the list scrolls inside it.
+  static ({double top, double height}) mobileMenuBounds({
+    required double preferredTop,
+    required double preferredHeight,
+    required double stripTop,
+    required double stripBottom,
+    required double topSafe,
+    required double bottomSafe,
+    double gap = 8,
+  }) {
+    final floorTop = math.max(topSafe, stripBottom + gap);
+    final roomBelow = math.max(0.0, bottomSafe - floorTop);
+    if (preferredHeight <= roomBelow) {
+      final top = preferredTop.clamp(floorTop, bottomSafe - preferredHeight);
+      return (top: top, height: preferredHeight);
+    }
+    final roomAbove = math.max(0.0, stripTop - gap - topSafe);
+    if (preferredHeight <= roomAbove) {
+      return (top: stripTop - gap - preferredHeight, height: preferredHeight);
+    }
+    if (roomBelow >= roomAbove) {
+      return (top: floorTop, height: roomBelow);
+    }
+    return (top: topSafe, height: roomAbove);
   }
 
   static Offset verticalOriginForPointer({

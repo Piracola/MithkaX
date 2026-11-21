@@ -11622,8 +11622,6 @@ class _ChatViewState extends State<ChatView> {
         context.watch<ThemeController>().mobileMessageActionMenuStyle ==
             MobileMessageActionMenuStyle.dropdown;
     final verticalMenu = desktopMenu || mobileDropdown;
-    final pointerAnchored =
-        verticalMenu && rect != null && rect.width == 0 && rect.height == 0;
     final reactionAvailability = _actionReactionAvailability;
     final showReactions = messageActionShowsReactionControls(
       isCall: target.isCall,
@@ -11683,59 +11681,41 @@ class _ChatViewState extends State<ChatView> {
         : _reactionExpanded
         ? _expandedPickerSize.height
         : 48.0;
-    const gap = 8.0;
-    final menuH = showActionMenu
-        ? math.min(
-            actionMenu.preferredHeightFor(context),
-            math.max(
-              0.0,
-              bottomSafe -
-                  topSafe -
-                  (desktopMenu
-                      ? desktopStripH
-                      : (showReactions ? reactionH + gap : 0.0)),
-            ),
-          )
-        : 0.0;
-    final menuGap = showActionMenu ? gap : 0.0;
-
-    double reactionTop, menuTop;
-    if (rect != null) {
-      // Reaction picker stays near the pressed message; the action menu is
-      // hidden while the picker is expanded.
-      reactionTop = (rect.top - reactionH - gap).clamp(
-        topSafe,
-        bottomSafe - reactionH,
-      );
-      // The menu clears the reaction strip instead of climbing over it: a menu
-      // clamped up for the bottom safe area used to cover the pill.
-      menuTop = MessageActionMenu.menuTopFor(
-        preferredTop: verticalMenu ? rect.top : rect.bottom + gap,
-        ceiling: showReactions ? reactionTop + reactionH + gap : topSafe,
-        bottomSafe: bottomSafe,
-        menuHeight: menuH,
-      );
+    final preferredMenuH = actionMenu.preferredHeightFor(context);
+    double reactionTop, menuTop, menuH;
+    if (desktopMenu) {
+      // The pair travels as one block, placed by desktopOrigin below: the
+      // strip is the menu's upper storey, so it never covers the menu.
+      menuH = showActionMenu
+          ? math.min(
+              preferredMenuH,
+              math.max(0.0, bottomSafe - topSafe - desktopStripH),
+            )
+          : 0.0;
+      reactionTop = 0;
+      menuTop = 0;
     } else {
-      reactionTop = ((screenH - reactionH - menuH - menuGap) / 2).clamp(
-        topSafe,
-        math.max(topSafe, bottomSafe - reactionH),
+      // Phone overlay: the strip stays above the message and the menu never
+      // crosses it — a message near the bottom flips the menu above the strip
+      // instead of letting it climb over the reactions.
+      final placement = MessageActionMenu.placeMobileOverlay(
+        anchor: rect,
+        preferredMenuHeight: preferredMenuH,
+        stripHeight: reactionH,
+        topSafe: topSafe,
+        bottomSafe: bottomSafe,
+        viewportHeight: screenH,
+        menuStartsAtAnchorTop: verticalMenu,
       );
-      menuTop = reactionTop + reactionH + menuGap;
+      reactionTop = placement.stripTop;
+      menuTop = placement.menuTop;
+      menuH = showActionMenu ? placement.menuHeight : 0.0;
     }
     final align = outgoing ? Alignment.centerRight : Alignment.centerLeft;
     final verticalMenuWidth = math.min(
       actionMenu.preferredWidthFor(context),
       math.max(0.0, screenW - 20),
     );
-    final pointerMenuOrigin = pointerAnchored
-        ? MessageActionMenu.verticalOriginForPointer(
-            pointer: rect.topLeft,
-            viewport: screenSize,
-            menuSize: Size(verticalMenuWidth, menuH),
-            topSafe: topSafe,
-            bottomSafe: bottomSafe,
-          )
-        : const Offset(10, 0);
     final boundedActionMenu = verticalMenu
         ? SizedBox(width: verticalMenuWidth, height: menuH, child: actionMenu)
         : actionMenu;
@@ -11793,18 +11773,10 @@ class _ChatViewState extends State<ChatView> {
           ),
         if (showActionMenu)
           Positioned(
-            top: desktopMenu
-                ? desktopOrigin.dy + desktopStripH
-                : pointerAnchored
-                ? pointerMenuOrigin.dy
-                : menuTop,
-            left: desktopMenu
-                ? desktopOrigin.dx
-                : pointerAnchored
-                ? pointerMenuOrigin.dx
-                : 10,
-            right: desktopMenu || pointerAnchored ? null : 10,
-            child: desktopMenu || pointerAnchored
+            top: desktopMenu ? desktopOrigin.dy + desktopStripH : menuTop,
+            left: desktopMenu ? desktopOrigin.dx : 10,
+            right: desktopMenu ? null : 10,
+            child: desktopMenu
                 ? boundedActionMenu
                 : Align(alignment: align, child: boundedActionMenu),
           ),
