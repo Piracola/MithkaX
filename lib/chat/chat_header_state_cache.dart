@@ -38,7 +38,8 @@ class ChatHeaderStateCache {
     required int? newestMessageId,
   }) {
     final key = (accountSlot: accountSlot, chatId: chatId);
-    final existing = _byChat[key] ??
+    final existing =
+        _byChat[key] ??
         ChatHeaderSnapshot(
           accountSlot: accountSlot,
           chatId: chatId,
@@ -129,11 +130,9 @@ class ChatHeaderSnapshot {
       botCommands: botCommands,
       botApiCanReadAllGroupMessages: botApiCanReadAllGroupMessages,
       botApiBotToBotAccessObserved: botApiBotToBotAccessObserved,
-      detectedChatLanguage:
-          detectedChatLanguage ?? this.detectedChatLanguage,
+      detectedChatLanguage: detectedChatLanguage ?? this.detectedChatLanguage,
       chatLanguageDetectionComplete:
-          chatLanguageDetectionComplete ??
-          this.chatLanguageDetectionComplete,
+          chatLanguageDetectionComplete ?? this.chatLanguageDetectionComplete,
       chatLanguageDetectedAt:
           chatLanguageDetectedAt ?? this.chatLanguageDetectedAt,
       chatLanguageDetectionNewestMessageId:

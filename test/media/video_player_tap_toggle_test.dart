@@ -48,9 +48,7 @@ void main() {
   });
 
   group('the player wires those rules into its gestures', () {
-    final source = File(
-      'lib/chat/video_player_view.dart',
-    ).readAsStringSync();
+    final source = File('lib/chat/video_player_view.dart').readAsStringSync();
 
     String bodyOf(String signature) {
       final start = source.indexOf(signature);
