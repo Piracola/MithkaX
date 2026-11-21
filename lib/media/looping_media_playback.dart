@@ -19,6 +19,15 @@ final LoopingMediaPlayerPool loopingMediaPlayerPool = LoopingMediaPlayerPool(
   maximumPlayers: 4,
 );
 
+/// The sticker panel is a grid of a dozen or more stickers opened over a chat
+/// that may already hold every player in [loopingMediaPlayerPool]; sharing the
+/// budget left only the first cell animating. Panel cells are short-lived and
+/// their textures are capped at 512 px, so they get a small pool of their own
+/// instead of starving the conversation underneath.
+final LoopingMediaPlayerPool stickerPanelPlayerPool = LoopingMediaPlayerPool(
+  maximumPlayers: 6,
+);
+
 final Set<VoidCallback> _playbackContextListeners = <VoidCallback>{};
 StreamSubscription<int>? _activeSlotSubscription;
 
@@ -168,6 +177,61 @@ void disableLoopingMediaAudioTracks(VideoPlayerController controller) {
     controller.setAudioTracks(const <int>[]);
   } catch (_) {
     // The active video_player backend is not FVP.
+  }
+}
+
+/// How far the media clock of a looping video sticker ran ahead of the wall
+/// clock, expressed as the playback-rate multiplier that brings it back to real
+/// time. Null when the clip already runs at its authored pace, or when the
+/// sample cannot be trusted.
+///
+/// MDK advances the clock of a video-only stream with each presented frame
+/// instead of by the frame timestamps on Android, so a sticker runs at
+/// (display refresh / stream fps): 60 fps stickers look right while 24–30 fps
+/// ones finish in a fraction of their duration, which is exactly the
+/// low-frame-rate stickers users report racing. The meter below measures that
+/// drift; the caller holds the decoder at the reciprocal rate.
+double? stickerPacingCorrection({
+  required Duration mediaElapsed,
+  required Duration wallElapsed,
+}) {
+  final wall = wallElapsed.inMicroseconds;
+  final media = mediaElapsed.inMicroseconds;
+  if (wall <= 0 || media <= 0) return null;
+  final rate = media / wall;
+  if (!rate.isFinite || rate < 1.2 || rate > 10) return null;
+  return (1 / rate).clamp(0.1, 1.0);
+}
+
+/// Integrates the container position of a looping clip into elapsed media time.
+///
+/// [tick] credits a position that moved backwards as the end of a loop (the
+/// remainder of [clipDuration] plus the new position), so a fast clip that
+/// wraps several times inside one measurement window still measures correctly.
+/// A real seek looks the same, so callers must only tick during steady
+/// playback.
+class StickerPacingMeter {
+  StickerPacingMeter({required Duration startPosition, Stopwatch? clock})
+    : _position = startPosition,
+      _clock = clock ?? Stopwatch();
+
+  final Stopwatch _clock;
+  Duration _position;
+  Duration _media = Duration.zero;
+
+  Duration get mediaElapsed => _media;
+  Duration get wallElapsed => _clock.elapsed;
+
+  void start() => _clock.start();
+
+  void tick(Duration position, Duration clipDuration) {
+    if (!_clock.isRunning) return;
+    if (position >= _position) {
+      _media += position - _position;
+    } else if (clipDuration > Duration.zero) {
+      _media += (clipDuration - _position) + position;
+    }
+    _position = position;
   }
 }
 

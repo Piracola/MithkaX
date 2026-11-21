@@ -11,6 +11,7 @@ import 'package:flutter/material.dart';
 import 'package:lottie/lottie.dart' show FrameRate;
 import '../../components/app_icons.dart';
 import '../../components/photo_avatar.dart'; // TDImage
+import '../../media/looping_media_playback.dart' show stickerPanelPlayerPool;
 import '../../tdlib/td_models.dart';
 import '../../theme/app_theme.dart';
 import 'animated_sticker_view.dart';
@@ -33,7 +34,14 @@ class StickerPreview extends StatelessWidget {
     if (item.isVideo) {
       final fallback = item.thumb?.id == item.id ? null : item.thumb;
       if (fallback != null) {
-        return VideoStickerView(file: file, fallback: fallback);
+        // Pickers animate from their own budget: the chat they cover already
+        // holds the shared players, and sharing them left only the first cell
+        // of the grid moving.
+        return VideoStickerView(
+          file: file,
+          fallback: fallback,
+          pool: stickerPanelPlayerPool,
+        );
       }
       return Center(
         child: Text(

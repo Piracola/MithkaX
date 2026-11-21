@@ -32,10 +32,15 @@ class VideoStickerView extends StatefulWidget {
     required this.file,
     this.fallback,
     this.onReady,
+    this.pool,
   });
   final TdFileRef file;
   final TdFileRef? fallback;
   final VoidCallback? onReady;
+
+  /// Player budget to draw from. Pickers pass [stickerPanelPlayerPool] so a
+  /// grid can animate while the conversation underneath keeps its own players.
+  final LoopingMediaPlayerPool? pool;
 
   @override
   State<VideoStickerView> createState() => _VideoStickerViewState();
@@ -57,6 +62,14 @@ class _VideoStickerViewState extends State<VideoStickerView>
   VideoPlayerController? _initializingController;
   VideoPlaybackDiagnostics? _playbackDiagnostics;
   Timer? _loopReplayTimer;
+  StickerPacingMeter? _pacing;
+  double _pacingSpeed = 1;
+  int _pacingPasses = 0;
+
+  /// A measurement window long enough to average out video_player's 100 ms
+  /// position polling, short enough that one sped-up loop is all the user sees.
+  static const _pacingWindow = Duration(milliseconds: 1500);
+  static const _maxPacingPasses = 2;
 
   static Future<bool>? _androidNeedsStaticFallback;
 
@@ -118,6 +131,8 @@ class _VideoStickerViewState extends State<VideoStickerView>
       _loadedLocalPath = widget.file.localPath;
       _loadedSlot = slot;
       _fallbackOnly = false;
+      _pacingSpeed = 1;
+      _pacingPasses = 0;
     }
     if (!_fallbackOnly &&
         _controller == null &&
@@ -138,14 +153,15 @@ class _VideoStickerViewState extends State<VideoStickerView>
     final ref = widget.file;
     final slot = TdClient.shared.activeSlot;
     final generation = ++_generation;
-    final lease = loopingMediaPlayerPool.tryAcquire();
+    final pool = widget.pool ?? loopingMediaPlayerPool;
+    final lease = pool.tryAcquire();
     if (lease != null) {
       _startLoad(lease, generation, ref, slot);
       return;
     }
 
     late final LoopingMediaPlayerWaiter waiter;
-    waiter = loopingMediaPlayerPool.waitForLease((grantedLease) {
+    waiter = pool.waitForLease((grantedLease) {
       if (identical(_leaseWaiter, waiter)) _leaseWaiter = null;
       if (!_ownsAttempt(generation, ref, slot)) {
         grantedLease.release();
@@ -257,6 +273,7 @@ class _VideoStickerViewState extends State<VideoStickerView>
       _initializingController = null;
     }
     _loadPending = false;
+    _startPacing(c);
     c.addListener(() {
       if (!_ownsAttempt(generation, ref, slot)) return;
       final value = c.value;
@@ -268,6 +285,7 @@ class _VideoStickerViewState extends State<VideoStickerView>
         diagnostics.reportTerminal();
         return;
       }
+      _measureStickerPacing(c);
       // A backend that ignored setLooping completes the clip once and stops
       // on its last frame; a video sticker must loop forever. Replay it from
       // the start, but only after video_player's own `completed` handler has
@@ -285,6 +303,49 @@ class _VideoStickerViewState extends State<VideoStickerView>
   }
 
   static const _loopReplayDelay = Duration(milliseconds: 50);
+
+  void _startPacing(VideoPlayerController c) {
+    _pacing = StickerPacingMeter(startPosition: c.value.position)..start();
+  }
+
+  /// Holds a video sticker at its authored duration.
+  ///
+  /// MDK advances the clock of a video-only stream with each presented frame
+  /// instead of by the frame timestamps, so a sticker runs at (display refresh
+  /// / stream fps) on Android: 60 fps stickers look right, 24–30 fps ones
+  /// finish in a fraction of their duration. The drift is measured against the
+  /// wall clock and cancelled with the decoder's playback rate; a second
+  /// window refines an estimate the first one got wrong. Bounded to two
+  /// windows so a backend without rate control is left alone.
+  void _measureStickerPacing(VideoPlayerController c) {
+    final pacing = _pacing;
+    if (pacing == null || _pacingPasses >= _maxPacingPasses) return;
+    final value = c.value;
+    if (!value.isPlaying || value.hasError) return;
+    pacing.tick(value.position, value.duration);
+    if (pacing.wallElapsed < _pacingWindow) return;
+    final correction = stickerPacingCorrection(
+      mediaElapsed: pacing.mediaElapsed,
+      wallElapsed: pacing.wallElapsed,
+    );
+    _pacing = StickerPacingMeter(startPosition: value.position)..start();
+    _pacingPasses++;
+    if (correction == null) return;
+    _pacingSpeed = (_pacingSpeed * correction).clamp(0.1, 1.0);
+    unawaited(_applyStickerPacing(c, _pacingSpeed));
+  }
+
+  Future<void> _applyStickerPacing(
+    VideoPlayerController c,
+    double speed,
+  ) async {
+    try {
+      await c.setPlaybackSpeed(speed);
+      debugPrint('video sticker pacing: playback rate $speed');
+    } catch (_) {
+      // Backends without rate control keep their own pacing.
+    }
+  }
 
   Future<void> _replayCompletedSticker(
     VideoPlayerController controller,
@@ -365,6 +426,7 @@ class _VideoStickerViewState extends State<VideoStickerView>
     _loadPending = false;
     _loopReplayTimer?.cancel();
     _loopReplayTimer = null;
+    _pacing = null;
     final controller = _controller;
     final initializingController = _initializingController;
     final lease = _lease;
