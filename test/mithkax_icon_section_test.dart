@@ -66,6 +66,9 @@ void _mockBridge({String current = 'mithkax_default'}) {
   return (header.getUint32(0), header.getUint32(4));
 }
 
+/// PNG colour type (IHDR byte 25): 2 = RGB (opaque), 6 = RGBA (alpha).
+int _pngColorType(String path) => File(path).readAsBytesSync()[25];
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   setUpAll(() => L10nFixtures.load().install());
@@ -137,21 +140,53 @@ void main() {
             ((48 * factor).round(), (48 * factor).round()),
             reason: 'legacy 48dp layer for $name in ${entry.key}',
           );
-          expect(
-            _pngSize(
+          final backgroundPath =
               'android/app/src/main/res/mipmap-${entry.key}/'
-              'ic_launcher_${name}_background.png',
-            ),
+              'ic_launcher_${name}_background.png';
+          expect(
+            _pngSize(backgroundPath),
             ((108 * factor).round(), (108 * factor).round()),
-            reason: 'adaptive 108dp layer for $name in ${entry.key}',
+            reason: 'adaptive 108dp plate for $name in ${entry.key}',
+          );
+          expect(
+            _pngColorType(backgroundPath),
+            2,
+            reason: 'the plate layer must be opaque RGB',
+          );
+          // The mark lives in its OWN layer: Android scales a background layer
+          // to the full 108dp and crops it to the visible 72dp window, which
+          // rendered the mark 1.5x larger than the picker preview when the flat
+          // design sat in the background layer.
+          final foregroundPath =
+              'android/app/src/main/res/mipmap-${entry.key}/'
+              'ic_launcher_${name}_foreground.png';
+          expect(
+            _pngSize(foregroundPath),
+            ((108 * factor).round(), (108 * factor).round()),
+            reason: 'adaptive 108dp foreground for $name in ${entry.key}',
+          );
+          expect(
+            _pngColorType(foregroundPath),
+            6,
+            reason: 'the mark layer must carry alpha',
           );
         }
         final adaptive = File(
           'android/app/src/main/res/mipmap-anydpi-v26/ic_launcher_$name.xml',
         ).readAsStringSync();
         expect(
-          adaptive.contains('@mipmap/ic_launcher_${name}_background'),
+          adaptive.contains(
+            '<background android:drawable="@mipmap/ic_launcher_${name}_background" />',
+          ),
           isTrue,
+          reason: 'the plate is the background layer',
+        );
+        expect(
+          adaptive.contains(
+            '<foreground android:drawable="@mipmap/ic_launcher_${name}_foreground" />',
+          ),
+          isTrue,
+          reason: 'the mark is the foreground layer, inside the 72dp safe zone',
         );
       }
     });

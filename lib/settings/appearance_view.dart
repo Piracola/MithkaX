@@ -584,9 +584,7 @@ class _AppIconSettingsViewState extends State<AppIconSettingsView>
                       const SizedBox(height: 4),
                       _caption(
                         'app-icon-penguin-caption',
-                        controller.activeSupporter
-                            ? AppStringKeys.appIconPenguinSupporterCaption
-                            : AppStringKeys.appIconPenguinCaption,
+                        AppStringKeys.appIconPenguinCaption,
                       ),
                       const SizedBox(height: 12),
                       if (freeToday != null) ...[
@@ -607,9 +605,6 @@ class _AppIconSettingsViewState extends State<AppIconSettingsView>
                         icons.where((icon) => icon.requiresSupporter).toList(),
                         columns,
                         freeToday,
-                      ),
-                      SettingsNote(
-                        text: AppStrings.t(AppStringKeys.supporterIconAccess),
                       ),
                     ],
                   ],
