@@ -2493,9 +2493,15 @@ class ThemeController extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> setEmojiFont(EmojiFontManifestEntry entry) async {
+  Future<void> setEmojiFont(
+    EmojiFontManifestEntry entry, {
+    void Function(double progress)? onProgress,
+  }) async {
     final revision = ++_emojiFontSelectionRevision;
-    final family = await _emojiFontCatalog.downloadAndLoad(entry);
+    final family = await _emojiFontCatalog.downloadAndLoad(
+      entry,
+      onProgress: onProgress,
+    );
     if (revision != _emojiFontSelectionRevision) return;
     _emojiFontChoice = EmojiFontChoice(
       key: entry.key,

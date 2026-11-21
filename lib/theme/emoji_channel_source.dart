@@ -146,11 +146,13 @@ class EmojiChannelSource {
     required int chatId,
     required int messageId,
     required String destPath,
+    void Function(double progress)? onProgress,
   }) => _downloadChannelDocument(
     chatId: chatId,
     messageId: messageId,
     destPath: destPath,
     expectedMimeType: '',
+    onProgress: onProgress,
   );
 
   /// Downloads a pack's preview image (a PNG document in the channel) to
@@ -379,6 +381,7 @@ class EmojiChannelSource {
     required int messageId,
     required String destPath,
     required String expectedMimeType,
+    void Function(double progress)? onProgress,
   }) async {
     final tdMessageId = toTdlibMessageId(messageId);
     try {
@@ -462,10 +465,18 @@ class EmojiChannelSource {
         final local = fileInfo.obj('local');
         final done = local?.boolean('is_downloading_completed') == true;
         final path = local?.str('path');
+        // Same poll doubles as the progress signal: prefix bytes over the
+        // file's total size. 45 MB packs otherwise sit behind a spinner with
+        // no way to tell "downloading" from "stuck".
+        final total = fileInfo.int64('size') ?? file?.int64('size') ?? 0;
+        final downloaded = local?.int64('downloaded_prefix_size') ?? 0;
+        if (onProgress != null && total > 0) {
+          onProgress((downloaded / total).clamp(0.0, 1.0));
+        }
         debugPrint(
           '[emoji_channel_source] getFile poll msgId=$messageId '
           'done=$done path=${path ?? ''} '
-          'downloaded=${local?.int64('downloaded_prefix_size') ?? 0} '
+          'downloaded=$downloaded '
           'size=${local?.int64('downloaded_size') ?? 0}',
         );
         if (done && path != null && path.isNotEmpty) {

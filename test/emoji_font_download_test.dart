@@ -195,6 +195,7 @@ class _FakeChannelSource implements EmojiChannelSource {
     required int chatId,
     required int messageId,
     required String destPath,
+    void Function(double progress)? onProgress,
   }) async {
     final bytes = fonts['$messageId'];
     if (bytes == null) return null;

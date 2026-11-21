@@ -240,10 +240,13 @@ class EmojiFontCatalog {
   }
 
   /// Downloads (if needed) and registers an entry.
-  Future<String> downloadAndLoad(EmojiFontManifestEntry entry) {
+  Future<String> downloadAndLoad(
+    EmojiFontManifestEntry entry, {
+    void Function(double progress)? onProgress,
+  }) {
     final pending = _inFlightFontLoads[entry.key];
     if (pending != null) return pending;
-    final operation = _downloadAndLoad(entry);
+    final operation = _downloadAndLoad(entry, onProgress: onProgress);
     _inFlightFontLoads[entry.key] = operation;
     return operation.whenComplete(() {
       if (identical(_inFlightFontLoads[entry.key], operation)) {
@@ -252,8 +255,11 @@ class EmojiFontCatalog {
     });
   }
 
-  Future<String> _downloadAndLoad(EmojiFontManifestEntry entry) async {
-    await ensureFontDownloaded(entry);
+  Future<String> _downloadAndLoad(
+    EmojiFontManifestEntry entry, {
+    void Function(double progress)? onProgress,
+  }) async {
+    await ensureFontDownloaded(entry, onProgress: onProgress);
     await _loadFontFile(entry.runtimeFamily, await _fontFile(entry));
     return entry.runtimeFamily;
   }
@@ -261,10 +267,13 @@ class EmojiFontCatalog {
   /// Brings the entry's cached file to a verified, complete state: downloads
   /// when missing or size-mismatched (against the catalog's byte size,
   /// falling back to the size recorded at download time).
-  Future<void> ensureFontDownloaded(EmojiFontManifestEntry entry) async {
+  Future<void> ensureFontDownloaded(
+    EmojiFontManifestEntry entry, {
+    void Function(double progress)? onProgress,
+  }) async {
     final file = await _fontFile(entry);
     if (await _verifyFontFile(entry, file)) return;
-    final bytes = await _downloadFontTo(entry, file);
+    final bytes = await _downloadFontTo(entry, file, onProgress: onProgress);
     final sizes = await _readSizeIndex();
     sizes[entry.key] = bytes;
     await _writeSizeIndex(sizes);
@@ -384,7 +393,11 @@ class EmojiFontCatalog {
     return tmp.rename(file.path);
   }
 
-  Future<int> _downloadFontTo(EmojiFontManifestEntry entry, File file) async {
+  Future<int> _downloadFontTo(
+    EmojiFontManifestEntry entry,
+    File file, {
+    void Function(double progress)? onProgress,
+  }) async {
     var chatId = entry.chatId != 0 ? entry.chatId : _channelLastChatId;
     if ((chatId == null || chatId == 0) && entry.isChannelServed) {
       // Cached entries may predate the chat-id stamp — resolve the channel
@@ -411,6 +424,7 @@ class EmojiFontCatalog {
       chatId: chatId,
       messageId: entry.channelMessageId,
       destPath: '${file.path}.tmp',
+      onProgress: onProgress,
     );
     if (bytes == null || bytes <= 0) {
       throw const FileSystemException('channel emoji font unavailable');
