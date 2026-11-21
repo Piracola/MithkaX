@@ -522,7 +522,12 @@ class _TopicTabStripState extends State<TopicTabStrip> {
         itemCount: topics.length + 1 + (isLoading ? 1 : 0),
         separatorBuilder: (_, _) => const SizedBox(width: 28),
         itemBuilder: (context, index) {
-          if (isLoading && index == topics.length) {
+          // Index 0 is the "All" tab; topics occupy 1..topics.length, and the
+          // loading placeholder is the LAST slot. Getting this off by one
+          // reads topics[-1] on an empty page and Flutter swaps in an error
+          // box, which release builds paint as an opaque grey block over the
+          // strip's right side.
+          if (isLoading && index == topics.length + 1) {
             // Topic info is still loading: the placeholder tab keeps the same
             // bar color as the header so the strip reads as one unified
             // surface instead of a grey block sticking out.

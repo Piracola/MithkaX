@@ -25,6 +25,7 @@ void main() {
     required int chatId,
     int? selectedTopicId,
     bool showUnreadBadges = true,
+    bool isLoading = false,
     ValueChanged<int?>? onSelected,
   }) => MaterialApp(
     theme: ThemeData(extensions: [AppColors.light]),
@@ -37,6 +38,7 @@ void main() {
         topics: topics,
         selectedTopicId: selectedTopicId,
         showUnreadBadges: showUnreadBadges,
+        isLoading: isLoading,
         onSelected: onSelected ?? (_) {},
       ),
     ),
@@ -101,6 +103,30 @@ void main() {
       stripHost(chatId: 2, topics: topics, showUnreadBadges: false),
     );
     expect(find.byType(FolderUnreadBadge), findsNothing);
+  });
+
+  // `isLoading` only fires while the topic page is empty, so the placeholder
+  // is the last slot and the strip is ["All", placeholder]. Reading topics[0]
+  // there used to throw, and Flutter swaps a failed list item for an error
+  // box — release builds paint that as an opaque grey block over the right
+  // side of the bar, in both light and dark themes.
+  testWidgets('loading with an empty topic page shows no error box', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(390, 300);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    await tester.pumpWidget(
+      stripHost(chatId: 9, topics: const [], isLoading: true),
+    );
+
+    expect(tester.takeException(), isNull);
+    expect(find.byType(ErrorWidget), findsNothing);
+    // The "All" tab stays put while the page is in flight.
+    expect(find.byKey(_botChatAllTabKey), findsOneWidget);
+    // The bar spans the full width so the header colour covers all of it.
+    expect(tester.getSize(find.byType(TopicTabStrip)).width, 390);
   });
 
   testWidgets('selection follows the open transcript and taps switch', (
