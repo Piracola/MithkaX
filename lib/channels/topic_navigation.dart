@@ -3,6 +3,7 @@ import '../app/adaptive_split_layout.dart';
 import '../chat/stickers/custom_emoji.dart';
 import '../components/app_icons.dart';
 import '../components/chat_folder_icons.dart';
+import '../components/full_page_back_swipe.dart';
 import '../components/ui_components.dart';
 import '../l10n/app_localizations.dart';
 import '../tdlib/td_models.dart';
@@ -506,47 +507,52 @@ class _TopicTabStripState extends State<TopicTabStrip> {
     );
     final topics = widget.topics;
     final isLoading = widget.isLoading;
-    return Container(
-      width: double.infinity,
-      height: tabHeight,
-      decoration: BoxDecoration(
-        // Same bar as the chat header so the strip reads as part of the
-        // header, not a separate washed panel.
-        color: c.navBar,
-        border: Border(bottom: BorderSide(color: c.divider, width: 0.5)),
-      ),
-      child: ListView.separated(
-        controller: _controller,
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
-        itemCount: topics.length + 1 + (isLoading ? 1 : 0),
-        separatorBuilder: (_, _) => const SizedBox(width: 28),
-        itemBuilder: (context, index) {
-          // Index 0 is the "All" tab; topics occupy 1..topics.length, and the
-          // loading placeholder is the LAST slot. Getting this off by one
-          // reads topics[-1] on an empty page and Flutter swaps in an error
-          // box, which release builds paint as an opaque grey block over the
-          // strip's right side.
-          if (isLoading && index == topics.length + 1) {
-            // Topic info is still loading: the placeholder tab keeps the same
-            // bar color as the header so the strip reads as one unified
-            // surface instead of a grey block sticking out.
-            return SizedBox(height: tabHeight);
-          }
-          final all = index == 0;
-          final topic = all ? null : topics[index - 1];
-          final selected = all
-              ? widget.selectedTopicId == null
-              : topic!.id == widget.selectedTopicId;
-          return _TopicTab(
-            key: ValueKey('topic-tab-${topic?.id ?? "all"}'),
-            topic: topic,
-            selected: selected,
-            showUnreadBadge: widget.showUnreadBadges,
-            badgeOverflowLabel: widget.badgeOverflowLabel,
-            onTap: () => widget.onSelected(topic?.id),
-          );
-        },
+    // The strip scrolls horizontally, so a rightward drag on it means "show
+    // earlier tabs" — never the page's back swipe. Keep the whole bar out of
+    // that gesture, including the gaps between tabs.
+    return ExcludeFromBackSwipe(
+      child: Container(
+        width: double.infinity,
+        height: tabHeight,
+        decoration: BoxDecoration(
+          // Same bar as the chat header so the strip reads as part of the
+          // header, not a separate washed panel.
+          color: c.navBar,
+          border: Border(bottom: BorderSide(color: c.divider, width: 0.5)),
+        ),
+        child: ListView.separated(
+          controller: _controller,
+          scrollDirection: Axis.horizontal,
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+          itemCount: topics.length + 1 + (isLoading ? 1 : 0),
+          separatorBuilder: (_, _) => const SizedBox(width: 28),
+          itemBuilder: (context, index) {
+            // Index 0 is the "All" tab; topics occupy 1..topics.length, and the
+            // loading placeholder is the LAST slot. Getting this off by one
+            // reads topics[-1] on an empty page and Flutter swaps in an error
+            // box, which release builds paint as an opaque grey block over the
+            // strip's right side.
+            if (isLoading && index == topics.length + 1) {
+              // Topic info is still loading: the placeholder tab keeps the same
+              // bar color as the header so the strip reads as one unified
+              // surface instead of a grey block sticking out.
+              return SizedBox(height: tabHeight);
+            }
+            final all = index == 0;
+            final topic = all ? null : topics[index - 1];
+            final selected = all
+                ? widget.selectedTopicId == null
+                : topic!.id == widget.selectedTopicId;
+            return _TopicTab(
+              key: ValueKey('topic-tab-${topic?.id ?? "all"}'),
+              topic: topic,
+              selected: selected,
+              showUnreadBadge: widget.showUnreadBadges,
+              badgeOverflowLabel: widget.badgeOverflowLabel,
+              onTap: () => widget.onSelected(topic?.id),
+            );
+          },
+        ),
       ),
     );
   }
