@@ -608,8 +608,44 @@ extension ChatViewModelHeaderTopics on ChatViewModel {
       forumTopics = const [];
     } finally {
       forumTopicsLoading = false;
+      _forumTopicsLoaded = true;
       notifyListeners();
     }
+  }
+
+  /// Learns the identity of a topic the loaded page predates.
+  ///
+  /// TDLib only announces a topic's name and icon once something asks for it
+  /// (`getForumTopic`); traffic alone registers a nameless thread. Without
+  /// this, a topic the bot created after the page loaded stays invisible in
+  /// the tab strip and topic list until a full reload.
+  void _requestForumTopicInfo(int topicId) {
+    if (!supportsTopics || topicId <= 0) return;
+    if (forumTopicsLoading || !_forumTopicsLoaded) return;
+    if (!_pendingForumTopicInfoRequests.add(topicId)) return;
+    final slot = _accountSlot;
+    unawaited(() async {
+      final Map<String, dynamic> topic;
+      try {
+        topic = await _client.query({
+          '@type': 'getForumTopic',
+          'chat_id': chatId,
+          'forum_topic_id': topicId,
+        });
+      } catch (_) {
+        // Deleted before it could be read: let the next traffic retry.
+        _pendingForumTopicInfoRequests.remove(topicId);
+        return;
+      }
+      if (_isDisposed) return;
+      final entry = ForumTopicIndexEntry.fromTopic(topic);
+      // A successful read whose entry the index refused (its page has not
+      // landed here) stays retryable rather than silently dropping the topic.
+      if (entry == null ||
+          !ForumTopicIndex.shared.addTopic(slot, chatId, entry)) {
+        _pendingForumTopicInfoRequests.remove(topicId);
+      }
+    }());
   }
 
   ForumTopicOption _optionFromIndex(ForumTopicIndexEntry entry) =>
@@ -973,7 +1009,7 @@ extension ChatViewModelHeaderTopics on ChatViewModel {
   /// renames move without a full getForumTopics round-trip. Runs for every
   /// update of this chat — including topics other than the open transcript.
   void _foldForumTopicRowUpdate(Map<String, dynamic> update) {
-    if (!supportsTopics || forumTopics.isEmpty) return;
+    if (!supportsTopics) return;
     switch (update.type) {
       case 'updateNewMessage':
         final raw = update.obj('message');
@@ -992,7 +1028,12 @@ extension ChatViewModelHeaderTopics on ChatViewModel {
             : null;
         if (topicId == null) return;
         final index = forumTopics.indexWhere((topic) => topic.id == topicId);
-        if (index < 0) return;
+        if (index < 0) {
+          // Traffic in a topic the page predates: ask TDLib for its identity
+          // so the tab strip and topic list gain it without a reload.
+          _requestForumTopicInfo(topicId);
+          return;
+        }
         final topic = forumTopics[index];
         if (topic.lastMessageId != 0 &&
             (message.date < topic.lastMessageDate ||

@@ -3249,6 +3249,7 @@ class _ChatViewState extends State<ChatView> {
 
   void _onModel() {
     if (!mounted) return;
+    _maybeOpenCreatedBotTopic();
     final nextFullViewRevision = _vm.fullViewRevision;
     final requiresFullViewSync = chatViewRequiresFullSync(
       previousRevision: _fullViewRevision,
@@ -9059,6 +9060,22 @@ class _ChatViewState extends State<ChatView> {
       );
     }
     return content;
+  }
+
+  /// Follows the topic a send just started from this bot topic chat's "All"
+  /// view: exteraless selects the freshly created topic's tab the moment the
+  /// send creates it, and the message must not stay stranded in a mixed list.
+  ///
+  /// The switch is scheduled for after the frame: the notification it rides in
+  /// on can arrive mid-send, and replacing this transcript synchronously would
+  /// tear it down under the caller.
+  void _maybeOpenCreatedBotTopic() {
+    final topicId = _vm.consumePendingBotTopicOpen();
+    if (topicId == null || topicId == widget.forumTopicId) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || _exitStatePrepared) return;
+      _openTopicTranscript(topicId);
+    });
   }
 
   /// Opens a topic, or the whole chat for null, as the ordinary chat

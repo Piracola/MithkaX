@@ -143,6 +143,11 @@ class ForumTopicIndex extends ChangeNotifier {
   final Map<(int, int), Map<int, ForumTopicIndexEntry>> _topics = {};
   final Map<int, Set<int>> _topicChats = {};
 
+  /// Chats whose topic page has landed at least once (an empty page counts).
+  /// A chat outside this set has no known membership yet, so a topic it
+  /// announces must wait for its page instead of being inserted.
+  final Set<(int, int)> _loadedChats = {};
+
   List<ForumTopicIndexEntry> topicsFor(int slot, int chatId) {
     final entries = _topics[(slot, chatId)];
     if (entries == null) return const [];
@@ -155,10 +160,30 @@ class ForumTopicIndex extends ChangeNotifier {
   bool knowsTopics(int slot, int chatId) =>
       (_topics[(slot, chatId)]?.isNotEmpty) ?? false;
 
+  /// Adds a topic the paged list predates — one created by the bot or on
+  /// another device after the page loaded. New topics lead the list: they
+  /// carry the newest activity, so appending one would park it past a long
+  /// tab strip. Returns whether the topic was new to the index.
+  ///
+  /// Ignored for a chat whose page never landed: its membership is unknown,
+  /// and its own page answers first (the page is authoritative).
+  bool addTopic(int slot, int chatId, ForumTopicIndexEntry entry) {
+    final key = (slot, chatId);
+    if (!_loadedChats.contains(key)) return false;
+    final topics = _topics[key];
+    if (topics != null && topics.containsKey(entry.id)) return false;
+    _topics[key] = {entry.id: entry, ...?topics};
+    _topicChats.putIfAbsent(slot, () => {}).add(chatId);
+    _evictStaleChats();
+    notifyListeners();
+    return true;
+  }
+
   /// Stores a complete getForumTopics page. The response is authoritative for
   /// both membership (topics deleted elsewhere drop out) and counters.
   void storeAll(int slot, int chatId, List<ForumTopicIndexEntry> entries) {
     final key = (slot, chatId);
+    _loadedChats.add(key);
     if (entries.isEmpty) {
       final removed = _topics.remove(key) != null;
       _topicChats[slot]?.remove(chatId);
@@ -193,6 +218,11 @@ class ForumTopicIndex extends ChangeNotifier {
     topics.removeWhere((id, _) => !keep.contains(id));
     _topicChats.putIfAbsent(slot, () => {}).add(chatId);
     _evictStaleChats();
+    // Chats whose page was empty never enter _topicChats, so bound their
+    // bookkeeping separately; a dropped chat re-registers on its next page.
+    while (_loadedChats.length > _chatCapacity * 4) {
+      _loadedChats.remove(_loadedChats.first);
+    }
     if (displayChanged) notifyListeners();
   }
 
@@ -211,6 +241,7 @@ class ForumTopicIndex extends ChangeNotifier {
         if (toDrop <= 0) break;
         _topics.remove((slot, chatId));
         _topicChats[slot]?.remove(chatId);
+        _loadedChats.remove((slot, chatId));
         toDrop--;
       }
     }
@@ -317,11 +348,29 @@ class ForumTopicIndex extends ChangeNotifier {
     // guessing from the currently indexed chats.
     final chatId = info.int64('chat_id');
     if (chatId == null) return;
-    final previous = _topics[(slot, chatId)]?[topicId];
-    if (previous == null) return;
     final icon = info.obj('icon');
     final name = info.str('name');
     if (name == null || name.isEmpty) return;
+    final previous = _topics[(slot, chatId)]?[topicId];
+    if (previous == null) {
+      // TDLib announces every topic it learns about; one the paged list does
+      // not carry is new (created by the bot or on another device), not an
+      // edit. Insert it so open tabs and topic lists gain it live.
+      addTopic(
+        slot,
+        chatId,
+        ForumTopicIndexEntry(
+          id: topicId,
+          name: name,
+          iconCustomEmojiId:
+              icon?.int64('custom_emoji_id') ??
+              info.int64('icon_custom_emoji_id') ??
+              0,
+          iconColor: icon?.integer('color') ?? info.integer('icon_color') ?? 0,
+        ),
+      );
+      return;
+    }
     final next = previous.copyWith(
       name: name,
       iconCustomEmojiId:

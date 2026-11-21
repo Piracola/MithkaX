@@ -1555,6 +1555,21 @@ extension ChatViewModelUpdates on ChatViewModel {
     supportsBotTopics = value;
   }
 
+  /// Seeds the topic page as if `getForumTopics` had landed: the shared index
+  /// listener is registered so live additions reach [forumTopics], exactly as
+  /// after a real load.
+  @visibleForTesting
+  void forumTopicsLoadedForTesting(List<ForumTopicIndexEntry> entries) {
+    forumTopicsLoading = false;
+    _forumTopicsLoaded = true;
+    if (!_forumTopicIndexListening) {
+      ForumTopicIndex.shared.addListener(_onForumTopicIndexChanged);
+      _forumTopicIndexListening = true;
+    }
+    ForumTopicIndex.shared.storeAll(_accountSlot, chatId, entries);
+    forumTopics = [for (final entry in entries) _optionFromIndex(entry)];
+  }
+
   @visibleForTesting
   void historyReachesLatestForTesting() {
     _historyReachesLatest = true;

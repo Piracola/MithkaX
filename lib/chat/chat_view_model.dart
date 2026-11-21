@@ -174,6 +174,13 @@ class ChatViewModel extends ChangeNotifier {
       ? {'@type': 'messageTopicForum', 'forum_topic_id': forumTopicId}
       : null;
 
+  /// Whether this transcript is the mixed "All" view of a bot topic chat: a
+  /// private chat with a topics-enabled bot, no General topic, no topic
+  /// selected. Nothing can be posted there as-is — every send has to start or
+  /// join a topic.
+  bool get _inBotTopicAllView =>
+      supportsBotTopics && !isForum && !isForumTopicTranscript;
+
   /// Whether [raw] (a TDLib `message`) belongs to this transcript.
   ///
   /// In a bot topic chat there is no General topic, so an unattributed
@@ -614,6 +621,14 @@ class ChatViewModel extends ChangeNotifier {
 
   bool forumTopicsLoading = false;
 
+  /// Set once a getForumTopics round-trip has landed (success or failure).
+  /// Only then does a topic missing from [forumTopics] mean "new"; before
+  /// that every topic is missing because the page is still in flight.
+  bool _forumTopicsLoaded = false;
+
+  /// Topic info requests in flight for topics discovered through live traffic.
+  final Set<int> _pendingForumTopicInfoRequests = {};
+
   List<ForumTopicOption> forumTopics = const [];
 
   /// Resolved display names for topic-preview senders, kept across reloads so
@@ -864,6 +879,23 @@ class ChatViewModel extends ChangeNotifier {
 
   MessageSendConfiguration? _nextSendConfiguration;
 
+  /// A topic creation a bot-topic "All" send is awaiting, shared by every
+  /// concurrent send so two quick messages land in the same new topic instead
+  /// of opening two (exteraless serialises them the same way).
+  Future<int?>? _botTopicCreation;
+
+  /// The topic a send from a bot topic chat's "All" view just started, until
+  /// the transcript host consumes it and opens that topic.
+  int? _pendingBotTopicOpen;
+
+  /// Hands the topic a send just started to the host exactly once: the
+  /// transcript switches to it after the send settles.
+  int? consumePendingBotTopicOpen() {
+    final topicId = _pendingBotTopicOpen;
+    _pendingBotTopicOpen = null;
+    return topicId;
+  }
+
   String get inputPlaceholder =>
       AppStrings.t(AppStringKeys.chatMessageInputPlaceholder);
 
@@ -1073,6 +1105,7 @@ class ChatViewModel extends ChangeNotifier {
       LinkPreviewFixer.shared.applyTo(request);
 
   Future<bool> _submitMessageRequest(Map<String, dynamic> request) async {
+    final startedBotTopicId = await _scopeSendToNewBotTopic(request);
     try {
       await _client.query(
         _withPaidMessageOptions(_withFixedLinkPreview(request)),
@@ -1086,6 +1119,14 @@ class ChatViewModel extends ChangeNotifier {
         ),
       );
       return false;
+    } finally {
+      // Announce the topic this send started only once its outcome is known:
+      // the host switches afterwards, so a failed message is retried inside
+      // its topic instead of starting yet another one.
+      if (startedBotTopicId != null && !_isDisposed) {
+        _pendingBotTopicOpen = startedBotTopicId;
+        notifyListeners();
+      }
     }
   }
 
@@ -2572,13 +2613,42 @@ class ChatViewModel extends ChangeNotifier {
       notifyListeners();
       return;
     }
+    // A bot topic chat has no General topic, so a forward dropped into its
+    // "All" view must start a topic first — exteraless retargets the pending
+    // forward's top message the same way.
+    final startedTopicId = _forumTopicRef == null && _inBotTopicAllView
+        ? await _createBotTopicForSend(
+            AppStrings.t(AppStringKeys.topicChatTopicTitle),
+          )
+        : null;
+    try {
+      await _sendPendingForwardInto(
+        forward,
+        messageIds,
+        startedTopicId == null
+            ? _forumTopicRef
+            : {'@type': 'messageTopicForum', 'forum_topic_id': startedTopicId},
+      );
+    } finally {
+      if (startedTopicId != null && !_isDisposed) {
+        _pendingBotTopicOpen = startedTopicId;
+        notifyListeners();
+      }
+    }
+  }
+
+  Future<void> _sendPendingForwardInto(
+    PendingForward forward,
+    List<int> messageIds,
+    Map<String, dynamic>? topicRef,
+  ) async {
     if (forward.protectedCopy) {
       final plan = await forwardProtectedAsCopy(
         query: _client.query,
         fromChatId: forward.fromChatId,
         messageIds: messageIds,
         targetChatId: chatId,
-        topicId: _forumTopicRef,
+        topicId: topicRef,
       );
       protectedForwardLastPlan = plan;
       pendingForward = null;
@@ -2621,7 +2691,7 @@ class ChatViewModel extends ChangeNotifier {
         targetChatId: chatId,
         fromChatId: forward.fromChatId,
         messageIds: ids,
-        topicId: _forumTopicRef,
+        topicId: topicRef,
         options: forward.options,
         query: forwardQuery,
       );
@@ -2633,7 +2703,7 @@ class ChatViewModel extends ChangeNotifier {
         targetChatId: chatId,
         fromChatId: forward.fromChatId,
         messageIds: messageIds,
-        topicId: _forumTopicRef,
+        topicId: topicRef,
         options: forward.options,
         query: forwardQuery,
       );
@@ -2651,7 +2721,7 @@ class ChatViewModel extends ChangeNotifier {
           messageId: id,
           targetChatId: chatId,
           text: message.text,
-          topicId: _forumTopicRef,
+          topicId: topicRef,
         );
         if (!sent) pendingIds.add(id);
       }
@@ -3189,6 +3259,7 @@ class ChatViewModel extends ChangeNotifier {
     'updateChatHasProtectedContent',
     'updateChatDraftMessage',
     'updateForumTopic',
+    'updateForumTopicInfo',
     'updateChatMessageAutoDeleteTime',
     'updateChatPaidMessageStarCount',
     'updateDeleteMessages',

@@ -393,6 +393,84 @@ extension ChatViewModelSending on ChatViewModel {
     notifyListeners();
   }
 
+  /// A bot topic chat has no General topic, so its "All" view has nowhere to
+  /// put a new message. Mirror exteraless: the send starts a topic named after
+  /// the message and is retargeted into it. Returns the new topic id, or null
+  /// when the request is not a bot-topic "All" send (or topic creation failed,
+  /// in which case the request is sent unscoped and the server's error stands).
+  Future<int?> _scopeSendToNewBotTopic(Map<String, dynamic> request) async {
+    if (!_startsBotTopicFor(request)) return null;
+    var creation = _botTopicCreation;
+    if (creation == null) {
+      final title = botTopicTitleForMessage(_sendRequestText(request));
+      creation = _createBotTopicForSend(
+        title.isEmpty ? AppStrings.t(AppStringKeys.topicChatTopicTitle) : title,
+      );
+      _botTopicCreation = creation;
+    }
+    final topicId = await creation;
+    if (identical(_botTopicCreation, creation)) _botTopicCreation = null;
+    if (topicId == null) return null;
+    request['topic_id'] = {
+      '@type': 'messageTopicForum',
+      'forum_topic_id': topicId,
+    };
+    return topicId;
+  }
+
+  /// Whether [request] is a new message composed in a bot topic chat's "All"
+  /// view, i.e. one that must start its own topic.
+  ///
+  /// A reply is left alone: its `inputMessageReplyToMessage` already resolves
+  /// the topic of the message it answers, exactly like exteraless's interceptor
+  /// skipping reply sends.
+  bool _startsBotTopicFor(Map<String, dynamic> request) {
+    if (!_inBotTopicAllView || !canSendMessages) return false;
+    final type = request.type;
+    if (type != 'sendMessage' && type != 'sendMessageAlbum') return false;
+    if (request.int64('chat_id') != chatId) return false;
+    if (request.containsKey('topic_id') ||
+        request.containsKey('message_thread_id')) {
+      return false;
+    }
+    return !request.containsKey('reply_to');
+  }
+
+  /// The text a send request carries — the message body, its caption, or the
+  /// first album item's — so the topic it starts is named after it.
+  String _sendRequestText(Map<String, dynamic> request) {
+    final contents = request['input_message_contents'];
+    final rawContent = contents is List && contents.isNotEmpty
+        ? contents.first
+        : request['input_message_content'];
+    if (rawContent is! Map<String, dynamic>) return '';
+    return rawContent.obj('text')?.str('text') ??
+        rawContent.obj('caption')?.str('text') ??
+        '';
+  }
+
+  Future<int?> _createBotTopicForSend(String name) async {
+    try {
+      final created = await _topicAccountQuery(
+        createForumTopicRequest(
+          chatId: chatId,
+          name: name,
+          color: topicIconColors[forumTopics.length % topicIconColors.length],
+          customEmojiId: 0,
+          // The name is a preview of the first message, not a user-picked
+          // title: Telegram keeps deriving it on the server (title_missing).
+          isNameImplicit: true,
+        ),
+      );
+      final topicId = created.integer('forum_topic_id');
+      return topicId == null || topicId == 0 ? null : topicId;
+    } catch (_) {
+      // exteraless sends the message unscoped when the topic cannot be
+      // created; the send then fails on its own terms instead of vanishing.
+      return null;
+    }
+  }
+
   Future<bool> send() async {
     if (!canSendMessages) return false;
     final trimmed = draft.trim();
