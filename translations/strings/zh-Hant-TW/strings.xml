@@ -2477,7 +2477,6 @@
     <string name="mithkaxPushServiceUnifiedDescription">透過已安裝的 UnifiedPush 分發器（如 ntfy）接收通知，無需 Google 服務。</string>
     <string name="mithkaxPushServiceMicroGDescription">透過 microG 的 FCM 實作接收通知，適用於去 Google 化裝置。</string>
     <string name="mithkaxPushServiceResident">顯示常駐通知</string>
-    <string name="mithkaxPushServiceResidentDescription">背景連線執行時顯示常駐通知；關閉後連線仍會靜默維持。</string>
     <string name="mithkaxPushServiceGateway">UnifiedPush 閘道</string>
     <string name="mithkaxPushServiceDistributor">分發器</string>
     <string name="mithkaxPushServiceDistributorUnset">未安裝</string>
@@ -4087,8 +4086,4 @@
     <string name="storageDownloadFolderNotSelected">選擇資料夾</string>
     <string name="storageDownloadCurrent">目前位置：{value1}</string>
     <string name="mithkaxPushServiceRetry">重試註冊</string>
-    <string name="mithkaxPushDiagnostics">推送診斷</string>
-    <string name="mithkaxPushDiagnosticsCopy">複製報告</string>
-    <string name="mithkaxPushDiagnosticsCopied">已複製</string>
-    <string name="mithkaxPushDiagnosticsClose">關閉</string>
 </resources>

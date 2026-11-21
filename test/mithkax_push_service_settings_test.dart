@@ -52,6 +52,13 @@ void main() {
     PushServiceSettings.shared.initialize(prefs);
   });
 
+  test('fresh installs default to FCM', () async {
+    final prefs = await SharedPreferences.getInstance();
+    PushServiceSettings.shared.initialize(prefs);
+    expect(PushServiceSettings.shared.kind, PushServiceKind.fcm);
+    expect(PushServiceSettings.shared.residentNotification, isFalse);
+  });
+
   testWidgets('mode picker persists the transport and reveals its settings', (
     tester,
   ) async {

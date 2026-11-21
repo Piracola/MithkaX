@@ -2485,7 +2485,6 @@
     <string name="mithkaxPushServiceUnifiedDescription">Recibir notificaciones mediante un distribuidor UnifiedPush instalado, como ntfy, sin servicios de Google.</string>
     <string name="mithkaxPushServiceMicroGDescription">Recibir notificaciones mediante la implementación FCM de microG en dispositivos sin servicios de Google.</string>
     <string name="mithkaxPushServiceResident">Mostrar notificación permanente</string>
-    <string name="mithkaxPushServiceResidentDescription">Mostrar una notificación mientras la conexión en segundo plano está activa. Al desactivarla, la conexión sigue en silencio.</string>
     <string name="mithkaxPushServiceGateway">Pasarela UnifiedPush</string>
     <string name="mithkaxPushServiceDistributor">Distribuidor</string>
     <string name="mithkaxPushServiceDistributorUnset">No instalado</string>
@@ -4104,8 +4103,4 @@
     <string name="storageDownloadFolderNotSelected">Elegir una carpeta</string>
     <string name="storageDownloadCurrent">Ubicación actual: {value1}</string>
     <string name="mithkaxPushServiceRetry">Reintentar el registro</string>
-    <string name="mithkaxPushDiagnostics">Diagnóstico de push</string>
-    <string name="mithkaxPushDiagnosticsCopy">Copiar informe</string>
-    <string name="mithkaxPushDiagnosticsCopied">Copiado</string>
-    <string name="mithkaxPushDiagnosticsClose">Cerrar</string>
 </resources>

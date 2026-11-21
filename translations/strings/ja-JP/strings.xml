@@ -2477,7 +2477,6 @@
     <string name="mithkaxPushServiceUnifiedDescription">ntfy などの UnifiedPush ディストリビューター経由で通知を受け取ります。Google サービスは不要です。</string>
     <string name="mithkaxPushServiceMicroGDescription">Google サービスを使わない端末では、microG の FCM 実装経由で通知を受け取ります。</string>
     <string name="mithkaxPushServiceResident">常駐通知を表示</string>
-    <string name="mithkaxPushServiceResidentDescription">バックグラウンド接続の実行中に通知を表示します。オフにしても接続は維持されます。</string>
     <string name="mithkaxPushServiceGateway">UnifiedPush ゲートウェイ</string>
     <string name="mithkaxPushServiceDistributor">ディストリビューター</string>
     <string name="mithkaxPushServiceDistributorUnset">未インストール</string>
@@ -4087,8 +4086,4 @@
     <string name="storageDownloadFolderNotSelected">フォルダを選択</string>
     <string name="storageDownloadCurrent">現在の保存先：{value1}</string>
     <string name="mithkaxPushServiceRetry">登録を再試行</string>
-    <string name="mithkaxPushDiagnostics">プッシュ診断</string>
-    <string name="mithkaxPushDiagnosticsCopy">レポートをコピー</string>
-    <string name="mithkaxPushDiagnosticsCopied">コピーしました</string>
-    <string name="mithkaxPushDiagnosticsClose">閉じる</string>
 </resources>

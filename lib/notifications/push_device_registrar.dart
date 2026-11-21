@@ -123,7 +123,6 @@ class PushDeviceRegistrar {
   Timer? _fcmRetryTimer;
   int _fcmRetryCount = 0;
   bool _fallbackKeepAlive = false;
-  String? _lastRegistrationError;
   UnifiedPushCredentials? _unifiedCredentials;
   Map<String, dynamic>? _lastRegistrationRecord;
   SharedPreferences? _recordPreferences;
@@ -149,9 +148,6 @@ class PushDeviceRegistrar {
     Map<String, dynamic>? arguments,
   ])?
   debugNativeCall;
-
-  /// Last TDLib registration failure, shown in the push diagnostics report.
-  String? get lastRegistrationError => _lastRegistrationError;
 
   Future<void> start() async {
     if (_running) return;
@@ -669,7 +665,6 @@ class PushDeviceRegistrar {
       _lastRegistrationSignature = signature;
       await _saveLastRegistrationRecord({'kind': kind.name, 'tokens': tokens});
       await _setFallbackKeepAlive(false);
-      _lastRegistrationError = null;
       _pushStatus.update(registered: true, keepAlive: false, clearError: true);
       // The service extension stamps the slot onto a delivered push, so it
       // needs the mapping before the next one arrives rather than at tap time.
@@ -677,7 +672,6 @@ class PushDeviceRegistrar {
       debugPrint('Registered $kind push device token with TDLib');
     } catch (error) {
       debugPrint('TDLib push device registration failed: $error');
-      _lastRegistrationError = error.toString();
       _pushStatus.update(error: 'registration_failed');
     }
   }

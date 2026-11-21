@@ -2477,7 +2477,6 @@
     <string name="mithkaxPushServiceUnifiedDescription">ntfy와 같은 UnifiedPush 배포자를 통해 알림을 받습니다. Google 서비스가 필요 없습니다.</string>
     <string name="mithkaxPushServiceMicroGDescription">Google 서비스가 없는 기기에서 microG의 FCM 구현을 통해 알림을 받습니다.</string>
     <string name="mithkaxPushServiceResident">상주 알림 표시</string>
-    <string name="mithkaxPushServiceResidentDescription">백그라운드 연결이 실행되는 동안 알림을 표시합니다. 꺼도 연결은 유지됩니다.</string>
     <string name="mithkaxPushServiceGateway">UnifiedPush 게이트웨이</string>
     <string name="mithkaxPushServiceDistributor">배포자</string>
     <string name="mithkaxPushServiceDistributorUnset">설치되지 않음</string>
@@ -4087,8 +4086,4 @@
     <string name="storageDownloadFolderNotSelected">폴더 선택</string>
     <string name="storageDownloadCurrent">현재 위치: {value1}</string>
     <string name="mithkaxPushServiceRetry">등록 다시 시도</string>
-    <string name="mithkaxPushDiagnostics">푸시 진단</string>
-    <string name="mithkaxPushDiagnosticsCopy">보고서 복사</string>
-    <string name="mithkaxPushDiagnosticsCopied">복사됨</string>
-    <string name="mithkaxPushDiagnosticsClose">닫기</string>
 </resources>

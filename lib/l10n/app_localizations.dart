@@ -408,8 +408,6 @@ abstract final class AppStringKeys {
   static const mithkaxPushServiceMicroGDescription =
       'mithkaxPushServiceMicroGDescription';
   static const mithkaxPushServiceResident = 'mithkaxPushServiceResident';
-  static const mithkaxPushServiceResidentDescription =
-      'mithkaxPushServiceResidentDescription';
   static const mithkaxPushServiceGateway = 'mithkaxPushServiceGateway';
   static const mithkaxPushServiceDistributor = 'mithkaxPushServiceDistributor';
   static const mithkaxPushServiceDistributorUnset =
@@ -424,10 +422,6 @@ abstract final class AppStringKeys {
   static const mithkaxPushServiceStatusNoDistributor =
       'mithkaxPushServiceStatusNoDistributor';
   static const mithkaxPushServiceRetry = 'mithkaxPushServiceRetry';
-  static const mithkaxPushDiagnostics = 'mithkaxPushDiagnostics';
-  static const mithkaxPushDiagnosticsCopy = 'mithkaxPushDiagnosticsCopy';
-  static const mithkaxPushDiagnosticsCopied = 'mithkaxPushDiagnosticsCopied';
-  static const mithkaxPushDiagnosticsClose = 'mithkaxPushDiagnosticsClose';
   static const mithkaxPushServiceStatusUnavailable =
       'mithkaxPushServiceStatusUnavailable';
   static const mithkaxPushServiceRestartNote = 'mithkaxPushServiceRestartNote';

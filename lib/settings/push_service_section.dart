@@ -10,13 +10,11 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 
 import '../components/app_icons.dart';
 import '../components/ui_components.dart';
 import '../l10n/app_localizations.dart';
 import '../notifications/push_device_registrar.dart';
-import '../notifications/push_diagnostics.dart';
 import '../notifications/push_service_settings.dart';
 import '../theme/app_motion.dart';
 import '../theme/app_theme.dart';
@@ -30,6 +28,13 @@ class PushServiceSection extends StatefulWidget {
 }
 
 class _PushServiceSectionState extends State<PushServiceSection> {
+  static const _kindOrder = [
+    PushServiceKind.inApp,
+    PushServiceKind.fcm,
+    PushServiceKind.microG,
+    PushServiceKind.unifiedPush,
+  ];
+
   final PushServiceSettings _settings = PushServiceSettings.shared;
   final PushServiceStatus _status = PushServiceStatus.shared;
 
@@ -88,61 +93,6 @@ class _PushServiceSectionState extends State<PushServiceSection> {
     await PushDeviceRegistrar.shared.retry();
   }
 
-  Future<void> _showDiagnostics() async {
-    final report = PushDiagnostics.collect();
-    await showDialog<void>(
-      context: context,
-      builder: (dialogContext) => FutureBuilder<String>(
-        future: report,
-        builder: (context, snapshot) {
-          final text = snapshot.data;
-          return AlertDialog(
-            title: Text(AppStrings.t('mithkaxPushDiagnostics')),
-            content: SizedBox(
-              width: double.maxFinite,
-              child: snapshot.connectionState != ConnectionState.done
-                  ? const SizedBox(
-                      height: 120,
-                      child: Center(child: CircularProgressIndicator()),
-                    )
-                  : SingleChildScrollView(
-                      child: SelectableText(
-                        text ?? 'ERROR',
-                        style: const TextStyle(
-                          fontFamily: 'monospace',
-                          fontSize: 11,
-                        ),
-                      ),
-                    ),
-            ),
-            actions: [
-              if (text != null)
-                TextButton(
-                  onPressed: () async {
-                    await Clipboard.setData(ClipboardData(text: text));
-                    if (context.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(
-                            AppStrings.t('mithkaxPushDiagnosticsCopied'),
-                          ),
-                        ),
-                      );
-                    }
-                  },
-                  child: Text(AppStrings.t('mithkaxPushDiagnosticsCopy')),
-                ),
-              TextButton(
-                onPressed: () => Navigator.of(dialogContext).pop(),
-                child: Text(AppStrings.t('mithkaxPushDiagnosticsClose')),
-              ),
-            ],
-          );
-        },
-      ),
-    );
-  }
-
   Future<void> _pickKind() async {
     final selected = await showAppModalSheet<PushServiceKind>(
       context: context,
@@ -151,7 +101,7 @@ class _PushServiceSectionState extends State<PushServiceSection> {
         padding: const EdgeInsets.fromLTRB(12, 12, 12, 24),
         child: SettingsCard(
           children: [
-            for (final kind in PushServiceKind.values)
+            for (final kind in _kindOrder)
               SettingsRow(
                 key: ValueKey('mithkax-push-kind-${kind.name}'),
                 title: _label(kind),
@@ -220,7 +170,6 @@ class _PushServiceSectionState extends State<PushServiceSection> {
               SettingsSwitchRow(
                 key: const ValueKey('mithkax-push-resident-notification'),
                 title: AppStrings.t('mithkaxPushServiceResident'),
-                subtitle: AppStrings.t('mithkaxPushServiceResidentDescription'),
                 value: _settings.residentNotification,
                 leading: const SettingsLeadingIcon(icon: HeroAppIcons.bell),
                 onChanged: (value) =>
@@ -261,16 +210,8 @@ class _PushServiceSectionState extends State<PushServiceSection> {
                 showChevron: false,
                 onTap: () => unawaited(_retry()),
               ),
-            SettingsRow(
-              key: const ValueKey('mithkax-push-diagnostics'),
-              title: AppStrings.t('mithkaxPushDiagnostics'),
-              leading: const SettingsLeadingIcon(icon: HeroAppIcons.bug),
-              showChevron: false,
-              onTap: () => unawaited(_showDiagnostics()),
-            ),
           ],
         ),
-        SettingsNote(text: _description(kind)),
         SettingsNote(text: AppStrings.t('mithkaxPushServiceRestartNote')),
       ],
     );
