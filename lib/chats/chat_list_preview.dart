@@ -343,7 +343,10 @@ Future<List<ChatMessage>> _loadOwnedPreviewMessages({
         response.objects('messages') ?? const <Map<String, dynamic>>[];
     if (rawMessages.isEmpty) break;
     for (final raw in rawMessages) {
-      final message = TDParse.message(raw);
+      final message = TDParse.message(
+        raw,
+        isChannel: chat.kind == ChatKind.channel,
+      );
       if (message == null) continue;
       byId.putIfAbsent(message.id, () => message);
     }

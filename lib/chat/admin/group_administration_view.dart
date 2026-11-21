@@ -669,7 +669,10 @@ class _GroupAdvancedAdministrationViewState
                           Expanded(
                             child: Text(
                               AppStrings.t(
-                                AppStringKeys.groupManagementLoadFailed,
+                                _isChannel
+                                    ? AppStringKeys
+                                          .groupManagementLoadFailedChannel
+                                    : AppStringKeys.groupManagementLoadFailed,
                               ),
                               style: AppTextStyle.footnote(
                                 context.colors.textSecondary,

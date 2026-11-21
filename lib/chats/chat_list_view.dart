@@ -4683,7 +4683,9 @@ class _ChatListViewState extends State<ChatListView>
       final message = switch (error) {
         ChatRemovalUnavailable() => AppStringKeys.chatDeleteUnavailable,
         ChatLeaveHistoryCleanupFailed() =>
-          AppStringKeys.chatLeaveHistoryCleanupFailed,
+          chat.kind == ChatKind.channel
+              ? AppStringKeys.chatLeaveHistoryCleanupFailedChannel
+              : AppStringKeys.chatLeaveHistoryCleanupFailed,
         TdError() => error.message,
         _ => error.toString(),
       };

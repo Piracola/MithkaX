@@ -1108,12 +1108,14 @@ class WideGroupChatHeaderActions extends StatelessWidget {
     required this.onOpenFullInfo,
     this.onToggleContext,
     this.showCallActions = true,
+    this.isChannel = false,
   });
 
   final ValueChanged<bool> onStartCall;
   final VoidCallback? onToggleContext;
   final VoidCallback onOpenFullInfo;
   final bool showCallActions;
+  final bool isChannel;
 
   @override
   Widget build(BuildContext context) => Row(
@@ -1136,7 +1138,11 @@ class WideGroupChatHeaderActions extends StatelessWidget {
       if (onToggleContext != null)
         _ChatHeaderAction(
           key: const ValueKey('chatHeaderGroupContextToggle'),
-          label: AppStringKeys.chatInfoGroupAnnouncement.l10n(context),
+          label:
+              (isChannel
+                      ? AppStringKeys.chatInfoChannelAnnouncement
+                      : AppStringKeys.chatInfoGroupAnnouncement)
+                  .l10n(context),
           icon: HeroAppIcons.grip,
           onTap: onToggleContext!,
         ),
@@ -7558,7 +7564,10 @@ class _ChatViewState extends State<ChatView> {
         (isDark ? AppColors.dark.card : AppColors.light.card);
     final textColor = _effectiveIncomingTextColor() ?? c.textPrimary;
     final text = _vm.peerRestrictionText.trim().isEmpty
-        ? AppStringKeys.chatRestrictedTelegramTosMessage.l10n(context)
+        ? (_vm.isChannel
+                  ? AppStringKeys.chatRestrictedTelegramTosMessageChannel
+                  : AppStringKeys.chatRestrictedTelegramTosMessage)
+              .l10n(context)
         : _vm.peerRestrictionText.trim();
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 36),
@@ -8653,7 +8662,9 @@ class _ChatViewState extends State<ChatView> {
         ? AppStringKeys.chatJoinRequestSent
         : (_vm.joinByRequest
               ? AppStringKeys.chatRequestToJoin
-              : AppStringKeys.chatJoinGroup);
+              : (_vm.isChannel
+                    ? AppStringKeys.chatJoinChannel
+                    : AppStringKeys.chatJoinGroup));
     return Container(
       padding: EdgeInsets.fromLTRB(
         16,
@@ -8721,7 +8732,9 @@ class _ChatViewState extends State<ChatView> {
         ? AppStringKeys.chatJoinRequestPending
         : (_vm.joinByRequest
               ? AppStringKeys.chatRequestToJoin
-              : AppStringKeys.chatJoinGroup);
+              : (_vm.isChannel
+                    ? AppStringKeys.chatJoinChannel
+                    : AppStringKeys.chatJoinGroup));
     return ChatHeaderTrailingPaneLayout(
       header: _header(),
       trailingPane: widget.trailingPane,
@@ -8874,6 +8887,7 @@ class _ChatViewState extends State<ChatView> {
                       onStartCall: (isVideo) => unawaited(_startCall(isVideo)),
                       showCallActions:
                           Theme.of(context).platform != TargetPlatform.macOS,
+                      isChannel: _vm.isChannel,
                       onToggleContext: widget.onInfoPressed == null
                           ? null
                           : _handleInfoPressed,

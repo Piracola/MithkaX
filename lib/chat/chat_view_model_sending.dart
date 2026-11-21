@@ -533,7 +533,7 @@ extension ChatViewModelSending on ChatViewModel {
     final response = await _client.query(
       _withPaidMessageOptions(_withFixedLinkPreview(request)),
     );
-    final message = TDParse.message(response);
+    final message = _parseMessage(response);
     if (message != null) {
       _merge([message]);
       _resolveSendersIfNeeded([message]);
@@ -1482,7 +1482,7 @@ extension ChatViewModelSending on ChatViewModel {
         'message_id': messageId,
       });
       if (_isDisposed) return;
-      final refreshed = TDParse.message(raw);
+      final refreshed = _parseMessage(raw);
       if (refreshed == null) return;
       _merge([refreshed]);
       _resolveRichMessagesIfNeeded([refreshed]);

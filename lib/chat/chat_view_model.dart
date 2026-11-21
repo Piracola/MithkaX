@@ -133,6 +133,7 @@ class ChatViewModel extends ChangeNotifier {
       _allMessages = [seedMessage];
       messages = [seedMessage];
     }
+    _relabelChannelServiceMessages();
   }
 
   final int chatId;
@@ -481,6 +482,31 @@ class ChatViewModel extends ChangeNotifier {
 
   // broadcast channel (members can't post)
   bool isMessageBubbleRepository = false;
+
+  /// Parses one TDLib message with this chat's group/channel label context.
+  ChatMessage? _parseMessage(Map<String, dynamic> raw) =>
+      TDParse.message(raw, isChannel: isChannel);
+
+  /// Re-labels service messages that were parsed before [isChannel] resolved.
+  /// A channel opened from a cold cache can hydrate its first history page in
+  /// parallel with getChat/getSupergroup; those banners must not keep group
+  /// wording once the type is known.
+  void _relabelChannelServiceMessages() {
+    if (!isChannel) return;
+    final seen = <ChatMessage>{};
+    for (final message in [..._allMessages, ...messages, ...pinnedMessages]) {
+      if (!seen.add(message)) continue;
+      final text = TDParse.channelServiceText(message);
+      if (text != null) message.text = text;
+    }
+    // Join/leave/boost banners carry an actor name resolved asynchronously.
+    // Re-run that resolution so a banner personalised before the channel type
+    // resolved is rebuilt with channel wording instead of being left as-is.
+    _resolveServiceUsersIfNeeded([
+      for (final message in _allMessages)
+        if (message.isService) message,
+    ]);
+  }
 
   bool hasLinkedDiscussion = false;
 
@@ -2448,7 +2474,7 @@ class ChatViewModel extends ChangeNotifier {
         'message_id': messageId,
       });
       if (_isDisposed) return;
-      final refreshed = TDParse.message(raw);
+      final refreshed = _parseMessage(raw);
       if (refreshed == null) return;
       _merge([refreshed]);
       _resolveRichMessagesIfNeeded([refreshed]);
@@ -3169,7 +3195,7 @@ class ChatViewModel extends ChangeNotifier {
     final rawMessages =
         response.objects('messages') ?? const <Map<String, dynamic>>[];
     for (final raw in rawMessages) {
-      final message = TDParse.message(raw);
+      final message = _parseMessage(raw);
       if (message == null ||
           message.id <= 0 ||
           (message.chatId != null && message.chatId != chatId) ||
@@ -3738,7 +3764,7 @@ class ChatViewModel extends ChangeNotifier {
           final raws =
               response.objects('messages') ?? const <Map<String, dynamic>>[];
           for (final raw in raws) {
-            final quoted = TDParse.message(raw);
+            final quoted = _parseMessage(raw);
             if (quoted == null) continue;
             final waiting = unresolved[quoted.id];
             if (waiting == null) continue;

@@ -382,7 +382,10 @@ class NotificationController with WidgetsBindingObserver, ChangeNotifier {
       return;
     }
 
-    final messageText = _notificationText(content);
+    final messageText = _notificationText(
+      content,
+      isChannel: TDParse.chatKind(chat) == ChatKind.channel,
+    );
     if (KeywordBlocker.shared.matches(messageText)) return;
     // Same id space as ChatMessage.senderId: users positive, chats negative.
     final sender = raw.obj('sender_id');
@@ -1074,8 +1077,14 @@ class NotificationController with WidgetsBindingObserver, ChangeNotifier {
     );
   }
 
-  String _notificationText(Map<String, dynamic> content) {
-    final text = TDParse.messageText(content).replaceAll('\n', ' ').trim();
+  String _notificationText(
+    Map<String, dynamic> content, {
+    bool isChannel = false,
+  }) {
+    final text = TDParse.messageText(
+      content,
+      isChannel: isChannel,
+    ).replaceAll('\n', ' ').trim();
     return text.isEmpty
         ? AppStrings.t(AppStringKeys.chatSearchMessageResultLabel)
         : text;

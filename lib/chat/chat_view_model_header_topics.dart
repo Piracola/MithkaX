@@ -235,9 +235,12 @@ extension ChatViewModelHeaderTopics on ChatViewModel {
     if (isChannel || peerIsBot) {
       unawaited(_retrieveSponsoredMessages());
     }
+    _relabelChannelServiceMessages();
     if (!canSendMessages && sendDisabledReason.isEmpty && isPeerRestricted) {
       sendDisabledReason = AppStrings.t(
-        AppStringKeys.chatRestrictedTelegramTosMessage,
+        isChannel
+            ? AppStringKeys.chatRestrictedTelegramTosMessageChannel
+            : AppStringKeys.chatRestrictedTelegramTosMessage,
       );
     }
     _storeHeaderSnapshot();
@@ -303,7 +306,11 @@ extension ChatViewModelHeaderTopics on ChatViewModel {
         canSendMessages = _chatCanSend;
         sendDisabledReason = canSendMessages
             ? ''
-            : AppStrings.t(AppStringKeys.chatRestrictedTelegramTosMessage);
+            : AppStrings.t(
+                isChannel
+                    ? AppStringKeys.chatRestrictedTelegramTosMessageChannel
+                    : AppStringKeys.chatRestrictedTelegramTosMessage,
+              );
       case SecretChatReadiness.closed:
         canSendMessages = false;
         sendDisabledReason = AppStrings.t(AppStringKeys.secretChatClosed);
@@ -338,7 +345,7 @@ extension ChatViewModelHeaderTopics on ChatViewModel {
     bool preserveNewer = false,
   }) {
     final lastRaw = chat.obj('last_message');
-    final lastMessage = lastRaw == null ? null : TDParse.message(lastRaw);
+    final lastMessage = lastRaw == null ? null : _parseMessage(lastRaw);
     if (lastMessage == null) return;
     final lastMessageId = isPendingChatMessage(lastMessage)
         ? 0
@@ -550,7 +557,7 @@ extension ChatViewModelHeaderTopics on ChatViewModel {
         // a synthetic fallback's text is the topic's own name, so the preview
         // stays hidden exactly the way the chat list hides empty ones.
         final rawLast = topic.obj('last_message');
-        final parsed = rawLast == null ? null : TDParse.message(rawLast);
+        final parsed = rawLast == null ? null : _parseMessage(rawLast);
         if (parsed != null) previewMessages.add(parsed);
         topics.add(
           ForumTopicOption(
@@ -1014,7 +1021,7 @@ extension ChatViewModelHeaderTopics on ChatViewModel {
       case 'updateNewMessage':
         final raw = update.obj('message');
         if (raw?.int64('chat_id') != chatId) return;
-        final message = TDParse.message(raw!);
+        final message = _parseMessage(raw!);
         if (message == null) return;
         final topicRef = raw.obj('topic_id');
         // A message outside any topic belongs to General (id 1) — but only
@@ -1322,7 +1329,9 @@ extension ChatViewModelHeaderTopics on ChatViewModel {
         canSendMessages = false;
         canSendVoiceNotes = false;
         sendDisabledReason = AppStrings.t(
-          AppStringKeys.chatYouWereRemovedFromGroup,
+          isChannel
+              ? AppStringKeys.chatYouWereRemovedFromChannel
+              : AppStringKeys.chatYouWereRemovedFromGroup,
         );
     }
   }
@@ -1396,7 +1405,7 @@ extension ChatViewModelHeaderTopics on ChatViewModel {
       });
       final list = res.objects('messages');
       final parsed = (list ?? const [])
-          .map(TDParse.message)
+          .map(_parseMessage)
           .whereType<ChatMessage>()
           .toList();
       await dismissal;

@@ -23,7 +23,7 @@ extension ChatViewModelUpdates on ChatViewModel {
               rawContent?.boolean('new_has_protected_content') ??
               hasProtectedContent;
         }
-        final message = TDParse.message(raw);
+        final message = _parseMessage(raw);
         if (message == null) return;
         final senderId = message.senderId;
         if (isBotApiAccount &&
@@ -104,7 +104,7 @@ extension ChatViewModelUpdates on ChatViewModel {
           // keep using only user-authored text, otherwise TDLib's live content
           // update for a just-sent attachment turns that preview label into a
           // visible caption until the confirmed message replaces it.
-          TDParse.messageContentText(content),
+          TDParse.messageContentText(content, isChannel: isChannel),
           entities: TDParse.messageTextEntities(content),
           customEmoji: TDParse.customEmojiEntitiesForContent(content),
           linkPreview: TDParse.linkPreview(content.obj('link_preview')),
@@ -196,7 +196,7 @@ extension ChatViewModelUpdates on ChatViewModel {
         _acknowledgedPendingMessageIds.remove(oldMessageId);
         if (_latestHistoryLoadInFlight) {
           _latestHistoryLiveArrivals.remove(oldMessageId);
-          final sentMessage = TDParse.message(rawSentMessage);
+          final sentMessage = _parseMessage(rawSentMessage);
           if (sentMessage != null) {
             _latestHistoryLiveArrivals[sentMessage.id] = sentMessage;
           }
@@ -743,7 +743,7 @@ extension ChatViewModelUpdates on ChatViewModel {
           final raws =
               response.objects('messages') ?? const <Map<String, dynamic>>[];
           for (final raw in raws) {
-            final quoted = TDParse.message(raw);
+            final quoted = _parseMessage(raw);
             if (quoted == null) continue;
             final waiting = unresolved[quoted.id];
             if (waiting == null) continue;
@@ -1148,7 +1148,7 @@ extension ChatViewModelUpdates on ChatViewModel {
           'chat_id': chatId,
           'message_id': pendingId,
         });
-        final current = TDParse.message(raw);
+        final current = _parseMessage(raw);
         if (current == null || current.id != pendingId || !current.isSending) {
           staleIds.add(pendingId);
           if (current != null) replacements.add(current);
@@ -1249,7 +1249,7 @@ extension ChatViewModelUpdates on ChatViewModel {
         .where((message) => message.id != pendingMessageId)
         .toList();
     _messageIndexesDirty = true;
-    final sentMessage = TDParse.message(rawMessage);
+    final sentMessage = _parseMessage(rawMessage);
     if (sentMessage == null) {
       _applyKeywordFilter();
       return;
@@ -1803,6 +1803,7 @@ extension ChatViewModelUpdates on ChatViewModel {
       contentType: message.contentType ?? '',
       actorName: actorName,
       communityName: target.communityPreview?.name ?? '',
+      isChannel: isChannel,
     );
     if (target.text != text) {
       target.text = text;
@@ -1852,10 +1853,15 @@ extension ChatViewModelUpdates on ChatViewModel {
             'value1': message.serviceUserIds.length - names.length,
           })
         : '';
-    final text = AppStrings.t(AppStringKeys.chatUsersJoinedGroup, {
-      'value1': names.join(AppStrings.t(AppStringKeys.listSeparator)),
-      'value2': suffix,
-    });
+    final text = AppStrings.t(
+      isChannel
+          ? AppStringKeys.chatUsersJoinedChannel
+          : AppStringKeys.chatUsersJoinedGroup,
+      {
+        'value1': names.join(AppStrings.t(AppStringKeys.listSeparator)),
+        'value2': suffix,
+      },
+    );
     _ensureMessageIndexes();
     final target = _messagesById[message.id];
     if (target == null || target.text == text) return;
@@ -1872,9 +1878,12 @@ extension ChatViewModelUpdates on ChatViewModel {
           await _client.query({'@type': 'getUser', 'user_id': userId});
       final name = TDParse.userName(user);
       if (name.isEmpty) return;
-      final text = AppStrings.t(AppStringKeys.chatUserBoostedGroup, {
-        'value1': name,
-      });
+      final text = AppStrings.t(
+        isChannel
+            ? AppStringKeys.chatUserBoostedChannel
+            : AppStringKeys.chatUserBoostedGroup,
+        {'value1': name},
+      );
       _ensureMessageIndexes();
       final target = _messagesById[message.id];
       if (target == null || target.text == text) return;
@@ -1892,9 +1901,12 @@ extension ChatViewModelUpdates on ChatViewModel {
       });
       final name = TDParse.userName(user);
       if (name.isEmpty) return;
-      final text = AppStrings.t(AppStringKeys.chatUserLeftGroup, {
-        'value1': name,
-      });
+      final text = AppStrings.t(
+        isChannel
+            ? AppStringKeys.chatUserLeftChannel
+            : AppStringKeys.chatUserLeftGroup,
+        {'value1': name},
+      );
       _ensureMessageIndexes();
       final target = _messagesById[message.id];
       if (target == null || target.text == text) return;

@@ -71,7 +71,7 @@ extension ChatViewModelHistory on ChatViewModel {
     final rawMessages =
         response.objects('messages') ?? const <Map<String, dynamic>>[];
     for (final raw in rawMessages) {
-      final message = TDParse.message(raw);
+      final message = _parseMessage(raw);
       if (message == null ||
           message.id <= 0 ||
           (message.chatId != null && message.chatId != chatId) ||
@@ -311,7 +311,7 @@ extension ChatViewModelHistory on ChatViewModel {
       final rawMessages =
           response.objects('messages') ?? const <Map<String, dynamic>>[];
       final latest = rawMessages
-          .map(TDParse.message)
+          .map(_parseMessage)
           .whereType<ChatMessage>()
           .toList();
       if (rawMessages.isNotEmpty && latest.isEmpty) return false;
@@ -383,7 +383,7 @@ extension ChatViewModelHistory on ChatViewModel {
       }
       final parsed =
           (response.objects('messages') ?? const <Map<String, dynamic>>[])
-              .map(TDParse.message)
+              .map(_parseMessage)
               .whereType<ChatMessage>()
               .where(
                 (message) =>
@@ -530,7 +530,7 @@ extension ChatViewModelHistory on ChatViewModel {
         'message_id': messageId,
       });
       if (cancelled()) return false;
-      final target = TDParse.message(targetRaw);
+      final target = _parseMessage(targetRaw);
       if (target != null) batch.add(target);
     } catch (_) {
       if (cancelled()) return false;
@@ -556,7 +556,7 @@ extension ChatViewModelHistory on ChatViewModel {
       if (cancelled()) return false;
       batch.addAll(
         (response.objects('messages') ?? const <Map<String, dynamic>>[])
-            .map(TDParse.message)
+            .map(_parseMessage)
             .whereType<ChatMessage>(),
       );
     } catch (error) {
@@ -622,7 +622,7 @@ extension ChatViewModelHistory on ChatViewModel {
         return null;
       }
       final mentions = rawMessages
-          .map(TDParse.message)
+          .map(_parseMessage)
           .whereType<ChatMessage>()
           .where((message) => !_locallyViewedMentionIds.contains(message.id))
           .toList();
@@ -655,7 +655,7 @@ extension ChatViewModelHistory on ChatViewModel {
         return null;
       }
       final reactions = rawMessages
-          .map(TDParse.message)
+          .map(_parseMessage)
           .whereType<ChatMessage>()
           .where((message) => !_locallyViewedReactionIds.contains(message.id))
           .toList();
@@ -867,7 +867,7 @@ extension ChatViewModelHistory on ChatViewModel {
     final rawMessages =
         response.objects('messages') ?? const <Map<String, dynamic>>[];
     final parsed = rawMessages
-        .map(TDParse.message)
+        .map(_parseMessage)
         .whereType<ChatMessage>()
         .toList();
     if (parsed.isEmpty) {
@@ -1009,7 +1009,7 @@ extension ChatViewModelHistory on ChatViewModel {
       pagesScanned++;
       final page =
           (response.objects('messages') ?? const <Map<String, dynamic>>[])
-              .map(TDParse.message)
+              .map(_parseMessage)
               .whereType<ChatMessage>()
               .where(
                 (message) => !isPendingChatMessage(message) && message.id > 0,
@@ -1056,7 +1056,7 @@ extension ChatViewModelHistory on ChatViewModel {
                 })
               : await _client.query({'@type': 'getChat', 'chat_id': chatId});
           final latestRaw = raw.obj('last_message');
-          final latest = latestRaw == null ? null : TDParse.message(latestRaw);
+          final latest = latestRaw == null ? null : _parseMessage(latestRaw);
           messageId = math.max(
             messageId,
             latest == null ? 0 : latestServerMessageId([latest]),

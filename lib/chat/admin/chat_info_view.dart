@@ -74,6 +74,7 @@ class ChatInfoGroupDetailsCard extends StatelessWidget {
     required this.canEditRemark,
     required this.onEditRemark,
     required this.onOpenAnnouncement,
+    this.isChannel = false,
   });
 
   final String groupName;
@@ -82,19 +83,24 @@ class ChatInfoGroupDetailsCard extends StatelessWidget {
   final bool canEditRemark;
   final VoidCallback onEditRemark;
   final VoidCallback onOpenAnnouncement;
+  final bool isChannel;
 
   @override
   Widget build(BuildContext context) => SettingsCard(
     children: [
       _GroupDetailRow(
         key: const ValueKey('chatInfoGroupNameRow'),
-        title: AppStringKeys.groupManagementGroupName,
+        title: isChannel
+            ? AppStringKeys.groupManagementChannelName
+            : AppStringKeys.groupManagementGroupName,
         value: groupName,
       ),
       const InsetDivider(leadingInset: AppSpacing.xxl),
       _GroupDetailRow(
         key: const ValueKey('chatInfoGroupRemarkRow'),
-        title: AppStringKeys.chatInfoGroupRemark,
+        title: isChannel
+            ? AppStringKeys.chatInfoChannelRemark
+            : AppStringKeys.chatInfoGroupRemark,
         subtitle: AppStringKeys.chatInfoGroupRemarkLocalOnly,
         value: remark.isEmpty
             ? AppStringKeys.chatInfoGroupRemarkEmpty.l10n(context)
@@ -105,6 +111,7 @@ class ChatInfoGroupDetailsCard extends StatelessWidget {
       _GroupAnnouncementRow(
         announcement: announcement,
         onTap: onOpenAnnouncement,
+        isChannel: isChannel,
       ),
     ],
   );
@@ -197,10 +204,12 @@ class _GroupAnnouncementRow extends StatelessWidget {
   const _GroupAnnouncementRow({
     required this.announcement,
     required this.onTap,
+    this.isChannel = false,
   });
 
   final String announcement;
   final VoidCallback onTap;
+  final bool isChannel;
 
   @override
   Widget build(BuildContext context) {
@@ -228,7 +237,10 @@ class _GroupAnnouncementRow extends StatelessWidget {
                 children: [
                   Expanded(
                     child: Text(
-                      AppStringKeys.chatInfoGroupAnnouncement.l10n(context),
+                      (isChannel
+                              ? AppStringKeys.chatInfoChannelAnnouncement
+                              : AppStringKeys.chatInfoGroupAnnouncement)
+                          .l10n(context),
                       style: AppTextStyle.body(c.textPrimary),
                     ),
                   ),
@@ -243,7 +255,10 @@ class _GroupAnnouncementRow extends StatelessWidget {
               const SizedBox(height: AppSpacing.sm),
               Text(
                 empty
-                    ? AppStringKeys.chatInfoGroupAnnouncementEmpty.l10n(context)
+                    ? (isChannel
+                              ? AppStringKeys.chatInfoChannelAnnouncementEmpty
+                              : AppStringKeys.chatInfoGroupAnnouncementEmpty)
+                          .l10n(context)
                     : announcement,
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
@@ -267,10 +282,12 @@ class GroupAnnouncementView extends StatelessWidget {
     super.key,
     required this.announcement,
     required this.entities,
+    this.isChannel = false,
   });
 
   final String announcement;
   final List<MessageTextEntity> entities;
+  final bool isChannel;
 
   @override
   Widget build(BuildContext context) {
@@ -281,7 +298,9 @@ class GroupAnnouncementView extends StatelessWidget {
       body: Column(
         children: [
           NavHeader(
-            title: AppStringKeys.chatInfoGroupAnnouncement,
+            title: isChannel
+                ? AppStringKeys.chatInfoChannelAnnouncement
+                : AppStringKeys.chatInfoGroupAnnouncement,
             onBack: () => Navigator.of(context).pop(),
           ),
           Expanded(
@@ -297,9 +316,12 @@ class GroupAnnouncementView extends StatelessWidget {
                   ),
                   child: empty
                       ? Text(
-                          AppStringKeys.chatInfoGroupAnnouncementEmpty.l10n(
-                            context,
-                          ),
+                          (isChannel
+                                  ? AppStringKeys
+                                        .chatInfoChannelAnnouncementEmpty
+                                  : AppStringKeys
+                                        .chatInfoGroupAnnouncementEmpty)
+                              .l10n(context),
                           style: AppTextStyle.body(c.textTertiary),
                         )
                       : TelegramRichText(
@@ -460,7 +482,9 @@ class _ChatInfoViewState extends State<ChatInfoView> {
     final value = await Navigator.of(context).push<String>(
       AppPageRoute<String>(
         pageBuilder: (_, _, _) => EditFieldView(
-          title: AppStringKeys.chatInfoGroupRemark,
+          title: _vm.isChannel
+              ? AppStringKeys.chatInfoChannelRemark
+              : AppStringKeys.chatInfoGroupRemark,
           initial: current,
           hint: AppStringKeys.chatInfoGroupRemarkHint,
           maxLength: 128,
@@ -477,6 +501,7 @@ class _ChatInfoViewState extends State<ChatInfoView> {
         pageBuilder: (_, _, _) => GroupAnnouncementView(
           announcement: _vm.description,
           entities: _vm.descriptionEntities,
+          isChannel: _vm.isChannel,
         ),
       ),
     );
@@ -510,6 +535,7 @@ class _ChatInfoViewState extends State<ChatInfoView> {
                     canEditRemark: remarkController?.canPersist ?? false,
                     onEditRemark: () => unawaited(_editGroupRemark()),
                     onOpenAnnouncement: _openGroupAnnouncement,
+                    isChannel: _vm.isChannel,
                   ),
                 ],
                 if (_vm.isChannel && _vm.description.isNotEmpty) ...[
@@ -644,10 +670,17 @@ class _ChatInfoViewState extends State<ChatInfoView> {
       children: [
         Text(
           _vm.groupNumber.isEmpty
-              ? AppStrings.t(AppStringKeys.chatInfoGroupChat)
-              : AppStrings.t(AppStringKeys.chatInfoGroupId, {
-                  'value1': _vm.groupNumber,
-                }),
+              ? AppStrings.t(
+                  _vm.isChannel
+                      ? AppStringKeys.chatInfoChannelChat
+                      : AppStringKeys.chatInfoGroupChat,
+                )
+              : AppStrings.t(
+                  _vm.isChannel
+                      ? AppStringKeys.topicChatChannelNumber
+                      : AppStringKeys.chatInfoGroupId,
+                  {'value1': _vm.groupNumber},
+                ),
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
           style: TextStyle(fontSize: 13, color: c.textSecondary),
@@ -699,7 +732,11 @@ class _ChatInfoViewState extends State<ChatInfoView> {
             child: Row(
               children: [
                 Text(
-                  AppStrings.t(AppStringKeys.chatInfoGroupMembers),
+                  AppStrings.t(
+                    _vm.isChannel
+                        ? AppStringKeys.topicChatChannelMembers
+                        : AppStringKeys.chatInfoGroupMembers,
+                  ),
                   style: TextStyle(
                     fontSize: 15,
                     fontWeight: FontWeight.w500,
@@ -998,7 +1035,11 @@ class _ChatInfoViewState extends State<ChatInfoView> {
             Row(
               children: [
                 Text(
-                  AppStrings.t(AppStringKeys.chatInfoGroupApps),
+                  AppStrings.t(
+                    _vm.isChannel
+                        ? AppStringKeys.chatInfoChannelApps
+                        : AppStringKeys.chatInfoGroupApps,
+                  ),
                   style: TextStyle(fontSize: 15, color: c.textPrimary),
                 ),
                 const Spacer(),
@@ -1024,7 +1065,9 @@ class _ChatInfoViewState extends State<ChatInfoView> {
                           chatId: widget.chatId,
                           title: widget.title,
                           initialTab: 1,
-                          displayTitle: AppStringKeys.chatInfoGroupFiles,
+                          displayTitle: _vm.isChannel
+                              ? AppStringKeys.chatInfoChannelFiles
+                              : AppStringKeys.chatInfoGroupFiles,
                           lockedTab: true,
                         ),
                       ),
@@ -1039,7 +1082,9 @@ class _ChatInfoViewState extends State<ChatInfoView> {
                         builder: (_) => SharedMediaView(
                           chatId: widget.chatId,
                           title: widget.title,
-                          displayTitle: AppStringKeys.chatInfoGroupAlbum,
+                          displayTitle: _vm.isChannel
+                              ? AppStringKeys.chatInfoChannelAlbum
+                              : AppStringKeys.chatInfoGroupAlbum,
                           lockedTab: true,
                         ),
                       ),
@@ -1048,14 +1093,20 @@ class _ChatInfoViewState extends State<ChatInfoView> {
                   _groupAppItem(
                     icon: HeroAppIcons.video.data,
                     color: const Color(0xFF7B61FF),
-                    label: AppStrings.t(AppStringKeys.chatInfoGroupVideos),
+                    label: AppStrings.t(
+                      _vm.isChannel
+                          ? AppStringKeys.chatInfoChannelVideos
+                          : AppStringKeys.chatInfoGroupVideos,
+                    ),
                     onTap: () => Navigator.of(context).push(
                       MaterialPageRoute(
                         builder: (_) => SharedMediaView(
                           chatId: widget.chatId,
                           title: widget.title,
                           initialTab: 4,
-                          displayTitle: AppStringKeys.chatInfoGroupVideos,
+                          displayTitle: _vm.isChannel
+                              ? AppStringKeys.chatInfoChannelVideos
+                              : AppStringKeys.chatInfoGroupVideos,
                           lockedTab: true,
                         ),
                       ),
@@ -2602,7 +2653,11 @@ class ChatInfoViewModel extends ChangeNotifier {
       return AppStrings.t(AppStringKeys.chatDeleteUnavailable);
     }
     if (error is ChatLeaveHistoryCleanupFailed) {
-      return AppStrings.t(AppStringKeys.chatLeaveHistoryCleanupFailed);
+      return AppStrings.t(
+        isChannel
+            ? AppStringKeys.chatLeaveHistoryCleanupFailedChannel
+            : AppStringKeys.chatLeaveHistoryCleanupFailed,
+      );
     }
     final message = error is TdError ? error.message : error.toString();
     final text = message.trim();

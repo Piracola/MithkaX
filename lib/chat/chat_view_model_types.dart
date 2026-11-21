@@ -11,20 +11,26 @@ String resolvedCommunityServiceText({
   required String contentType,
   required String actorName,
   String communityName = '',
+  bool isChannel = false,
 }) {
   if (contentType == 'messageChatAddedToCommunity' &&
       actorName.isNotEmpty &&
       communityName.isNotEmpty) {
-    return AppStrings.t(AppStringKeys.communityChatAddedByService, {
-      'value1': actorName,
-      'value2': communityName,
-    });
+    return AppStrings.t(
+      isChannel
+          ? AppStringKeys.communityChatAddedByChannelService
+          : AppStringKeys.communityChatAddedByService,
+      {'value1': actorName, 'value2': communityName},
+    );
   }
   if (contentType == 'messageChatRemovedFromCommunity' &&
       actorName.isNotEmpty) {
-    return AppStrings.t(AppStringKeys.communityChatRemovedByService, {
-      'value1': actorName,
-    });
+    return AppStrings.t(
+      isChannel
+          ? AppStringKeys.communityChatRemovedByChannelService
+          : AppStringKeys.communityChatRemovedByService,
+      {'value1': actorName},
+    );
   }
   return AppStrings.t(
     contentType == 'messageChatRemovedFromCommunity'

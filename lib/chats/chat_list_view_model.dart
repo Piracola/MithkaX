@@ -2063,13 +2063,14 @@ class ChatListViewModel extends ChangeNotifier {
         _mutate(id, (s) {
           final last = update.obj('last_message');
           if (last != null) {
+            final isChannel = s.kind == ChatKind.channel;
             s.lastMessageId = last.int64('id') ?? s.lastMessageId;
             s.date = last.integer('date') ?? s.date;
-            s.lastChatMessage = TDParse.message(last);
+            s.lastChatMessage = TDParse.message(last, isChannel: isChannel);
             final content = last.obj('content');
             if (content != null) {
               s.lastMessage = _previewText(
-                TDParse.messageText(content),
+                TDParse.messageText(content, isChannel: isChannel),
                 chatId: id,
                 senderId: s.lastChatMessage?.senderId,
               );

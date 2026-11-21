@@ -20,10 +20,12 @@ class GroupManagementLogView extends StatefulWidget {
     super.key,
     required this.chatId,
     required this.title,
+    this.isChannel = false,
   });
 
   final int chatId;
   final String title;
+  final bool isChannel;
 
   @override
   State<GroupManagementLogView> createState() => _GroupManagementLogViewState();
@@ -147,7 +149,11 @@ class _GroupManagementLogViewState extends State<GroupManagementLogView> {
               ),
             ),
             Text(
-              AppStrings.t(AppStringKeys.groupManagementLogTitle),
+              AppStrings.t(
+                widget.isChannel
+                    ? AppStringKeys.groupManagementLogTitleChannel
+                    : AppStringKeys.groupManagementLogTitle,
+              ),
               style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.w600,
@@ -174,7 +180,11 @@ class _GroupManagementLogViewState extends State<GroupManagementLogView> {
     if (_failed) {
       return Center(
         child: Text(
-          AppStrings.t(AppStringKeys.groupManagementLogNoPermission),
+          AppStrings.t(
+            widget.isChannel
+                ? AppStringKeys.groupManagementLogNoPermissionChannel
+                : AppStringKeys.groupManagementLogNoPermission,
+          ),
           style: TextStyle(fontSize: 14, color: c.textSecondary),
         ),
       );
@@ -271,15 +281,25 @@ class _GroupManagementLogViewState extends State<GroupManagementLogView> {
       case 'chatEventMessageUnpinned':
         return AppStrings.t(AppStringKeys.groupManagementLogUnpinnedMessage);
       case 'chatEventMemberJoined':
-        return AppStrings.t(AppStringKeys.groupManagementLogJoinedGroup);
+        return AppStrings.t(
+          widget.isChannel
+              ? AppStringKeys.tdMessageJoinedChannel
+              : AppStringKeys.groupManagementLogJoinedGroup,
+        );
       case 'chatEventMemberJoinedByInviteLink':
         return AppStrings.t(AppStringKeys.groupManagementLogJoinedByInviteLink);
       case 'chatEventMemberJoinedByRequest':
         return AppStrings.t(
-          AppStringKeys.groupManagementLogApprovedJoinRequest,
+          widget.isChannel
+              ? AppStringKeys.groupManagementLogApprovedJoinRequestChannel
+              : AppStringKeys.groupManagementLogApprovedJoinRequest,
         );
       case 'chatEventMemberLeft':
-        return AppStrings.t(AppStringKeys.groupManagementLogLeftGroup);
+        return AppStrings.t(
+          widget.isChannel
+              ? AppStringKeys.groupManagementLogLeftChannel
+              : AppStringKeys.groupManagementLogLeftGroup,
+        );
       case 'chatEventMemberInvited':
         return AppStrings.t(AppStringKeys.groupManagementLogInvitedMember);
       case 'chatEventMemberPromoted':
@@ -289,12 +309,22 @@ class _GroupManagementLogViewState extends State<GroupManagementLogView> {
           AppStringKeys.groupManagementLogChangedMemberPermissions,
         );
       case 'chatEventTitleChanged':
-        return AppStrings.t(AppStringKeys.groupManagementLogChangedGroupName);
+        return AppStrings.t(
+          widget.isChannel
+              ? AppStringKeys.groupManagementLogChangedChannelName
+              : AppStringKeys.groupManagementLogChangedGroupName,
+        );
       case 'chatEventPhotoChanged':
-        return AppStrings.t(AppStringKeys.groupManagementLogChangedGroupPhoto);
+        return AppStrings.t(
+          widget.isChannel
+              ? AppStringKeys.groupManagementLogChangedChannelPhoto
+              : AppStringKeys.groupManagementLogChangedGroupPhoto,
+        );
       case 'chatEventDescriptionChanged':
         return AppStrings.t(
-          AppStringKeys.groupManagementLogChangedGroupDescription,
+          widget.isChannel
+              ? AppStringKeys.groupManagementLogChangedChannelDescription
+              : AppStringKeys.groupManagementLogChangedGroupDescription,
         );
       case 'chatEventUsernameChanged':
         return AppStrings.t(
@@ -315,9 +345,17 @@ class _GroupManagementLogViewState extends State<GroupManagementLogView> {
       case 'chatEventInviteLinkDeleted':
         return AppStrings.t(AppStringKeys.groupManagementLogDeletedInviteLink);
       case 'chatEventVideoChatCreated':
-        return AppStrings.t(AppStringKeys.groupManagementLogStartedVideoChat);
+        return AppStrings.t(
+          widget.isChannel
+              ? AppStringKeys.groupManagementLogStartedLiveStream
+              : AppStringKeys.groupManagementLogStartedVideoChat,
+        );
       case 'chatEventVideoChatEnded':
-        return AppStrings.t(AppStringKeys.groupManagementLogEndedVideoChat);
+        return AppStrings.t(
+          widget.isChannel
+              ? AppStringKeys.groupManagementLogEndedLiveStream
+              : AppStringKeys.groupManagementLogEndedVideoChat,
+        );
       case 'chatEventForumTopicCreated':
         return AppStrings.t(AppStringKeys.groupManagementLogCreatedTopic);
       case 'chatEventForumTopicEdited':
