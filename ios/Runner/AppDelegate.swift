@@ -683,35 +683,11 @@ enum VideoNoteExportError: Error, Sendable {
           result(FlutterError(code: "invalid_icon", message: "Unknown app icon", details: nil))
           return
         }
-        let freeIconNames: Set<String> = [
-          "default", "white", "blue", "purple", "pixel", "aurora", "prism", "signal",
-          "pixel_neutral", "pixel_gradient", "letter_m_neutral", "letter_m_gradient",
-          "mithkax_default", "mithkax_monochrome",
-        ]
-        // The 48 penguins in their fixed catalogue order (01-pilot …
-        // 48-stargazing). Must match AppIconVariant.dailyPenguinOrder in
-        // lib/settings/app_icon_controller.dart and paidIcons in
-        // MainActivity.kt; never sort it.
-        let dailyPenguinOrder: [String] = [
-          "pilot", "headphones", "winter", "astronaut", "crown", "party",
-          "sleepy", "heart", "coffee", "detective", "gamer", "fishing",
-          "skateboard", "surfboard", "basketball", "football", "tennis", "skiing",
-          "painter", "guitar", "drummer", "photographer", "magician", "chef",
-          "reader", "scientist", "gardener", "mail-carrier", "pirate", "dragon",
-          "bubblegum", "raincoat", "noodles", "ice-cream", "sunflower", "ninja",
-          "high-five", "hug", "seesaw", "dance", "pillow-fight", "snowball",
-          "parade", "choir", "stack", "picnic", "paper-planes", "stargazing",
-        ]
+        // nativeIconName is the single source of truth for "an icon that
+        // exists"; "default" hands the system back its own primary icon.
+        // MithkaX ships every icon free, so membership is the whole check —
+        // there is no daily rotation and no entitlement to consult.
         Task { @MainActor in
-          // Today's penguin is free without a subscription. Compute the UTC
-          // day here at apply time, never trusting Dart:
-          // floor(unixSeconds / 86400) mod 48.
-          let utcDay = Int((Date().timeIntervalSince1970 / 86_400).rounded(.down))
-          let count = dailyPenguinOrder.count
-          let dailyPenguin = dailyPenguinOrder[((utcDay % count) + count) % count]
-          // Mithka X: every icon ships free; no supporter entitlement check.
-          _ = dailyPenguin
-          _ = freeIconNames
           UIApplication.shared.setAlternateIconName(nativeName) { error in
             if let error {
               result(
