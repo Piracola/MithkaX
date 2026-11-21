@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'dart:typed_data';
 
@@ -126,6 +127,79 @@ void main() {
       credentials.simpleEndpoint,
     );
   });
+
+  test(
+    'fcm bootstrap does not report unavailable while the token is pending',
+    () async {
+      SharedPreferences.setMockInitialValues({
+        'mithka.push.kind.v1': 'fcm',
+      });
+      final prefs = await SharedPreferences.getInstance();
+      final supportDir = Directory.systemTemp.createTempSync('mithka_fcm_test');
+      addTearDown(() {
+        if (supportDir.existsSync()) supportDir.deleteSync(recursive: true);
+      });
+
+      final requests = <Map<String, dynamic>>[];
+      TdClient.shared.prepareForTesting(
+        prefs: prefs,
+        supportDir: supportDir.path,
+        bindings: _FakeBindings(),
+        queryOverride: (request, clientId) async {
+          requests.add(request);
+          return _answerFor(request);
+        },
+      );
+      final slot = TdClient.shared.addSlot();
+      TdClient.shared.setActive(slot);
+
+      final settings = PushServiceSettings.shared;
+      settings.initialize(prefs);
+      final status = PushServiceStatus.shared;
+      status.update(
+        clearError: true,
+        clearEndpoint: true,
+        registered: false,
+        keepAlive: false,
+      );
+      final registrar = PushDeviceRegistrar.shared;
+      registrar.debugPlatformName = () => 'android';
+      registrar.debugNativeCall = (method, [arguments]) async => null;
+      final token = Completer<FCMBootstrap?>();
+      registrar.debugFCMBootstrap = () => token.future;
+      addTearDown(() async {
+        await registrar.stop();
+        registrar.debugFCMBootstrap = null;
+        registrar.debugNativeCall = null;
+      });
+
+      await registrar.start();
+      await Future<void>.delayed(const Duration(milliseconds: 200));
+      expect(status.error, isNot('fcm_unavailable'));
+
+      token.complete(
+        FCMBootstrap(
+          initialToken: 'fcm-token',
+          tokenRefresh: const Stream.empty(),
+          foregroundMessages: const Stream.empty(),
+        ),
+      );
+      for (var i = 0; i < 40; i++) {
+        await Future<void>.delayed(const Duration(milliseconds: 50));
+        if (status.registered) break;
+      }
+      expect(status.registered, isTrue);
+      expect(
+        requests.where(
+          (request) =>
+              request['@type'] == 'registerDevice' &&
+              request['device_token']['@type'] ==
+                  'deviceTokenFirebaseCloudMessaging',
+        ),
+        isNotEmpty,
+      );
+    },
+  );
 
   test(
     'unified push registers both tokens and in-app mode revokes them',
