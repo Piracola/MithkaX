@@ -484,6 +484,10 @@
     <string name="appearanceFontDownloadFailedName">{value1} · 다운로드 실패</string>
     <string name="appearanceFontInUse">사용 중</string>
     <string name="appearanceFontLoadFailed">불러오기 실패</string>
+    <string name="emojiDiagnosticsTitle">이모지 글꼴 진단</string>
+    <string name="emojiDiagnosticsRun">진단 실행</string>
+    <string name="emojiDiagnosticsCopy">보고서 복사</string>
+    <string name="emojiDiagnosticsClose">닫기</string>
     <string name="appearanceFontSize">글꼴 크기</string>
     <string name="appearanceFontUnused">미사용</string>
     <string name="appearanceGestures">제스처</string>

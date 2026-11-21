@@ -637,6 +637,10 @@ abstract final class AppStringKeys {
   static const appearanceFontSize = 'appearanceFontSize';
   static const appearanceFontUnused = 'appearanceFontUnused';
   static const appearanceGoogleDownloaded = 'appearanceGoogleDownloaded';
+  static const emojiDiagnosticsTitle = 'emojiDiagnosticsTitle';
+  static const emojiDiagnosticsRun = 'emojiDiagnosticsRun';
+  static const emojiDiagnosticsCopy = 'emojiDiagnosticsCopy';
+  static const emojiDiagnosticsClose = 'emojiDiagnosticsClose';
   static const gesturesChatActions = 'gesturesChatActions';
   static const gesturesChatActionsModeDescription =
       'gesturesChatActionsModeDescription';

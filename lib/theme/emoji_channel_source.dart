@@ -175,6 +175,190 @@ class EmojiChannelSource {
   /// until is_downloading_completed flips true — mirroring td_image_loader's
   /// pattern. synchronous: true on real devices can report incomplete even
   /// when the transfer is in flight, which made every pack download fail.
+  /// Runs the real download pipeline step by step and returns a human-readable
+  /// report. Used by the in-app diagnostics dialog when a tester cannot attach
+  /// adb — every failure point is reported with the concrete TDLib error.
+  Future<String> diagnose() async {
+    final out = <String>[];
+    void log(String s) => out.add(s);
+    String err(Object e) =>
+        e is TdError ? 'TdError ${e.code}: ${e.message}' : '$e';
+
+    log('=== emoji channel diagnostics ${DateTime.now().toIso8601String()} ===');
+    log(
+      'client: hasActiveClient=${_client.hasActiveClient} '
+      'activeClientId=${_client.activeClientId} slot=${_client.activeSlot}',
+    );
+    if (!_client.hasActiveClient) {
+      log('RESULT: no active TDLib client — downloads cannot start');
+      return out.join('\n');
+    }
+
+    int? chatId;
+    try {
+      final chat = await _client.query({
+        '@type': 'searchPublicChat',
+        'username': channelUsername,
+      }, timeout: const Duration(seconds: 10));
+      chatId = chat.int64('id');
+      log(
+        'searchPublicChat: OK id=$chatId title=${chat.str('title')} '
+        'type=${chat.obj('type')?.str('@type')}',
+      );
+    } catch (e) {
+      log('searchPublicChat: FAILED ${err(e)}');
+      return out.join('\n');
+    }
+    if (chatId == null || chatId == 0) {
+      log('RESULT: channel id is zero');
+      return out.join('\n');
+    }
+
+    List<EmojiFontManifestEntry>? entries;
+    try {
+      final response = await _client.query({
+        '@type': 'searchChatMessages',
+        'chat_id': chatId,
+        'query': catalogTag,
+        'from_message_id': 0,
+        'offset': 0,
+        'limit': 4,
+        'filter': {'@type': 'searchMessagesFilterEmpty'},
+      }, timeout: const Duration(seconds: 15));
+      final messages = response.objects('messages') ?? const [];
+      log('searchChatMessages: OK messages=${messages.length}');
+      for (final m in messages) {
+        final text = m.obj('content')?.obj('text')?.str('text');
+        if (text == null || !text.startsWith(catalogTag)) continue;
+        entries = parseCatalog(text);
+        log(
+          'catalog: messageId=${m.int64('id')} textLen=${text.length} '
+          'entries=${entries?.length ?? 0}',
+        );
+        break;
+      }
+      if (entries == null || entries.isEmpty) {
+        log('RESULT: no parseable #emojiv2 catalog message');
+        return out.join('\n');
+      }
+      final first = entries.first;
+      log(
+        'first entry: key=${first.key} fontMsgId=${first.channelMessageId} '
+        'previewMsgId=${first.channelPreviewMessageId} '
+        'size=${first.sizeBytes}',
+      );
+    } catch (e) {
+      log('searchChatMessages: FAILED ${err(e)}');
+      return out.join('\n');
+    }
+
+    final entry = entries.first;
+    Future<int?> inspect(String label, int messageId, String wantMime) async {
+      try {
+        final response = await _client.query({
+          '@type': 'getMessages',
+          'chat_id': chatId,
+          'message_ids': [messageId],
+        }, timeout: const Duration(seconds: 15));
+        final list = response.objects('messages') ?? const [];
+        log('$label getMessages($messageId): OK messages=${list.length}');
+        Map<String, dynamic>? message;
+        for (final m in list) {
+          if (m.int64('id') == messageId) message = m;
+        }
+        if (message == null) {
+          log('$label: message id not present in response');
+          return null;
+        }
+        final content = message.obj('content');
+        final document = content?.obj('document');
+        log(
+          '$label content type=${content?.str('@type')} '
+          'doc=${document == null ? 'null' : 'present'} '
+          'mime=${document?.str('mime_type')} '
+          'size=${document?.int64('size')}',
+        );
+        if (document == null) {
+          log('$label: content has no document');
+          return null;
+        }
+        final fileId = document.int64('id');
+        log('$label document.id=$fileId');
+        if (fileId == null || fileId == 0) return null;
+        return fileId;
+      } catch (e) {
+        log('$label getMessages FAILED ${err(e)}');
+        return null;
+      }
+    }
+
+    final fontFileId = await inspect('FONT', entry.channelMessageId, 'font/');
+    final previewMessageId = entry.channelPreviewMessageId;
+    final previewFileId = previewMessageId == null
+        ? null
+        : await inspect('PREVIEW', previewMessageId, 'image/');
+
+    Future<void> downloadProbe(String label, int? fileId, int limit) async {
+      if (fileId == null) {
+        log('$label: no file id, skipping download probe');
+        return;
+      }
+      try {
+        final response = await _client.query({
+          '@type': 'downloadFile',
+          'file_id': fileId.toString(),
+          'priority': 32,
+          'offset': 0,
+          'limit': limit,
+          'synchronous': false,
+        }, timeout: const Duration(seconds: 10));
+        if (response.str('@type') == 'error') {
+          log('$label downloadFile FAILED ${err(TdError(response))}');
+          return;
+        }
+        log(
+          '$label downloadFile OK type=${response.str('@type')} '
+          'local=${response.obj('local') == null ? 'null' : 'present'}',
+        );
+      } catch (e) {
+        log('$label downloadFile FAILED ${err(e)}');
+        return;
+      }
+      for (var i = 0; i < 5; i++) {
+        await Future<void>.delayed(const Duration(seconds: 2));
+        try {
+          final info = await _client.query({
+            '@type': 'getFile',
+            'file_id': fileId.toString(),
+          }, timeout: const Duration(seconds: 10));
+          final local = info.obj('local');
+          log(
+            '$label getFile[$i]: done=${local?.boolean('is_downloading_completed')} '
+            'active=${local?.boolean('is_downloading_active')} '
+            'size=${local?.int64('downloaded_size')} '
+            'prefix=${local?.int64('downloaded_prefix_size')} '
+            'path=${local?.str('path') ?? ''}',
+          );
+          if (local?.boolean('is_downloading_completed') == true) return;
+        } catch (e) {
+          log('$label getFile[$i] FAILED ${err(e)}');
+          return;
+        }
+      }
+    }
+
+    // 1 byte proves the file id without pulling the whole pack; the preview is
+    // small enough to download for real.
+    await downloadProbe('FONT', fontFileId, 1);
+    await downloadProbe('PREVIEW', previewFileId, 0);
+
+    log('RESULT: report complete');
+    return out.join('\n');
+  }
+
+  /// Shared message → document → downloadFile pipeline for both font and
+  /// preview documents. [expectedMimeType] rejects wrong-kind messages (a
+  /// font where a preview should be, and vice versa).
   Future<int?> _downloadChannelDocument({
     required int chatId,
     required int messageId,
