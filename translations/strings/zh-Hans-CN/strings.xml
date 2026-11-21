@@ -308,7 +308,6 @@
     <string name="appIconDrummer">鼓手</string>
     <string name="appIconFishing">钓鱼</string>
     <string name="appIconFootball">足球</string>
-    <string name="appIconFreeCaption">随时免费选择。</string>
     <string name="appIconFirstChangeNote">首次更换应用图标时，应用会关闭一次并重新启动。</string>
     <string name="appIconFreeHeading">标准图标</string>
     <string name="appIconGamer">玩家</string>
@@ -2429,7 +2428,6 @@
     <string name="mithkaProTitle">支持我们</string>
     <string name="mithkaProYearly">年度</string>
     <string name="mithkaxIconHeading">Mithka X 图标</string>
-    <string name="mithkaxIconMonochrome">单色</string>
     <string name="mithkaxIconAurora">极光</string>
     <string name="mithkaxIconShadowLight">光影（白天）</string>
     <string name="mithkaxIconShadowDark">光影（夜晚）</string>

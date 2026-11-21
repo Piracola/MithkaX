@@ -132,7 +132,6 @@ abstract final class AppStringKeys {
   static const appIconBackgroundNeutral = 'appIconBackgroundNeutral';
   static const appIconBackgroundPinkPurple = 'appIconBackgroundPinkPurple';
   static const appIconBackgroundTelegramBlue = 'appIconBackgroundTelegramBlue';
-  static const appIconFreeCaption = 'appIconFreeCaption';
   static const appIconFirstChangeNote = 'appIconFirstChangeNote';
   static const appIconFreeHeading = 'appIconFreeHeading';
   static const appIconLetterMNeutral = 'appIconLetterMNeutral';
@@ -394,7 +393,6 @@ abstract final class AppStringKeys {
   static const mithkaxIconGoogleLight = 'mithkaxIconGoogleLight';
   static const mithkaxIconGoogleDark = 'mithkaxIconGoogleDark';
   static const mithkaxIconGlitch = 'mithkaxIconGlitch';
-  static const mithkaxIconMonochrome = 'mithkaxIconMonochrome';
   static const addMembersDone = 'addMembersDone';
   static const addMembersDoneWithCount = 'addMembersDoneWithCount';
   static const addMembersInviteMembersTitle = 'addMembersInviteMembersTitle';

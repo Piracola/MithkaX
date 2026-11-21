@@ -380,16 +380,6 @@ class _AppIconSettingsViewState extends State<AppIconSettingsView> {
     ),
   );
 
-  Widget _caption(String key, String textKey) => Text(
-    AppStrings.t(textKey),
-    key: ValueKey(key),
-    style: TextStyle(
-      fontSize: 13,
-      height: 18 / 13,
-      color: context.colors.textSecondary,
-    ),
-  );
-
   // Rows hug their tallest actual label; no nested scrollable, implicit
   // MediaQuery padding, fixed two-line reservation, or catalogue-size math.
   Widget _choices(
@@ -489,11 +479,6 @@ class _AppIconSettingsViewState extends State<AppIconSettingsView> {
                     _heading(
                       'app-icon-standard-heading',
                       AppStringKeys.appIconFreeHeading,
-                    ),
-                    const SizedBox(height: 4),
-                    _caption(
-                      'app-icon-standard-caption',
-                      AppStringKeys.appIconFreeCaption,
                     ),
                     const SizedBox(height: 12),
                     _choices(
@@ -3419,6 +3404,10 @@ class _EmojiFontPickerViewState extends State<EmojiFontPickerView> {
       widget.manifestOverride ?? EmojiFontCatalog.shared.loadManifest();
   String? _loadingKey;
   String? _failedKey;
+
+  /// 0..1 while the current download reports progress; null renders the
+  /// indeterminate spinner (pre-flight steps, unknown total size).
+  double? _loadingProgress;
   // Cache sizes per key, refreshed after every download/delete so the row
   // captions flip between 未下载 / 已下载 · size live.
   Map<String, int>? _downloadedSizes;
@@ -3544,6 +3533,7 @@ class _EmojiFontPickerViewState extends State<EmojiFontPickerView> {
       // The selection itself is the render policy — no override switch.
       selected: theme.emojiFontChoice.isSystem,
       loading: false,
+      loadingProgress: null,
       failed: false,
       downloadedBytes: null,
       deletable: false,
@@ -3573,6 +3563,7 @@ class _EmojiFontPickerViewState extends State<EmojiFontPickerView> {
       ),
       selected: theme.emojiFontChoice.key == entry.key,
       loading: _loadingKey == entry.key,
+      loadingProgress: _loadingKey == entry.key ? _loadingProgress : null,
       failed: _failedKey == entry.key,
       // Every pack except the system row downloads on demand: the caption
       // carries 未下载 / 已下载 · size so the storage cost is visible before
@@ -3583,15 +3574,27 @@ class _EmojiFontPickerViewState extends State<EmojiFontPickerView> {
         if (_loadingKey != null) return;
         setState(() {
           _loadingKey = entry.key;
+          _loadingProgress = null;
           _failedKey = null;
         });
         try {
-          await context.read<ThemeController>().setEmojiFont(entry);
+          await context.read<ThemeController>().setEmojiFont(
+            entry,
+            onProgress: (progress) {
+              if (!mounted || _loadingKey != entry.key) return;
+              setState(() => _loadingProgress = progress);
+            },
+          );
           await _refreshDownloadedSizes();
         } catch (_) {
           if (mounted) setState(() => _failedKey = entry.key);
         } finally {
-          if (mounted) setState(() => _loadingKey = null);
+          if (mounted) {
+            setState(() {
+              _loadingKey = null;
+              _loadingProgress = null;
+            });
+          }
         }
       },
       onSwipeDelete: downloadedBytes == null
@@ -3611,6 +3614,7 @@ class _EmojiFontPickerViewState extends State<EmojiFontPickerView> {
     required Widget preview,
     required bool selected,
     required bool loading,
+    required double? loadingProgress,
     required bool failed,
     required int? downloadedBytes,
     required bool deletable,
@@ -3685,10 +3689,16 @@ class _EmojiFontPickerViewState extends State<EmojiFontPickerView> {
                   ),
                 ),
                 if (loading)
-                  const SizedBox(
+                  SizedBox(
                     width: AppIconSize.lg,
                     height: AppIconSize.lg,
-                    child: CircularProgressIndicator(strokeWidth: 2),
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      // A determinate ring once the first poll reports
+                      // bytes; null keeps the indeterminate spin for the
+                      // message/metadata phase.
+                      value: loadingProgress,
+                    ),
                   )
                 else if (selected)
                   AppIcon(
@@ -3805,35 +3815,6 @@ class _EmojiFontSwipeRowState extends State<_EmojiFontSwipeRow>
     return ClipRect(
       child: Stack(
         children: [
-          Positioned.fill(
-            child: actionsRevealed
-                ? Align(
-                    alignment: Alignment.centerRight,
-                    child: SizedBox(
-                      width: _buttonWidth,
-                      child: GestureDetector(
-                        onTap: () {
-                          widget.onDelete?.call();
-                          _animateTo(0);
-                        },
-                        child: Container(
-                          width: _buttonWidth,
-                          color: const Color(0xFFFA5151),
-                          alignment: Alignment.center,
-                          child: Text(
-                            AppStrings.t(AppStringKeys.chatDelete),
-                            textAlign: TextAlign.center,
-                            style: const TextStyle(
-                              fontSize: AppTextSize.body,
-                              color: Colors.white,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  )
-                : const SizedBox.shrink(),
-          ),
           GestureDetector(
             behavior: HitTestBehavior.opaque,
             onHorizontalDragStart: (_) {},
@@ -3852,6 +3833,36 @@ class _EmojiFontSwipeRowState extends State<_EmojiFontSwipeRow>
               child: widget.child,
             ),
           ),
+          // Must sit ABOVE the row's opaque gesture detector: below it, the
+          // row swallowed every tap and the revealed 删除 block never fired.
+          if (actionsRevealed)
+            Positioned.fill(
+              child: Align(
+                alignment: Alignment.centerRight,
+                child: SizedBox(
+                  width: _buttonWidth,
+                  child: GestureDetector(
+                    onTap: () {
+                      widget.onDelete?.call();
+                      _animateTo(0);
+                    },
+                    child: Container(
+                      width: _buttonWidth,
+                      color: const Color(0xFFFA5151),
+                      alignment: Alignment.center,
+                      child: Text(
+                        AppStrings.t(AppStringKeys.chatDelete),
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          fontSize: AppTextSize.body,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
         ],
       ),
     );

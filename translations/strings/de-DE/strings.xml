@@ -308,7 +308,6 @@
     <string name="appIconDrummer">Schlagzeuger</string>
     <string name="appIconFishing">Angeln</string>
     <string name="appIconFootball">Fußball</string>
-    <string name="appIconFreeCaption">Jederzeit kostenlos wählbar.</string>
     <string name="appIconFirstChangeNote">Beim ersten Wechsel des App-Symbols schließt sich die App einmal kurz und startet danach neu.</string>
     <string name="appIconFreeHeading">Standard-App-Symbole</string>
     <string name="appIconGamer">Gamer</string>
@@ -2437,7 +2436,6 @@
     <string name="mithkaProTitle">Unterstütze uns</string>
     <string name="mithkaProYearly">Jährlich</string>
     <string name="mithkaxIconHeading">Mithka X Symbole</string>
-    <string name="mithkaxIconMonochrome">Einfarbig</string>
     <string name="mithkaxIconAurora">Polarlicht</string>
     <string name="mithkaxIconShadowLight">Licht und Schatten (Tag)</string>
     <string name="mithkaxIconShadowDark">Licht und Schatten (Nacht)</string>

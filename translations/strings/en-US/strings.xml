@@ -308,7 +308,6 @@
     <string name="appIconDrummer">Drummer</string>
     <string name="appIconFishing">Fishing</string>
     <string name="appIconFootball">Soccer</string>
-    <string name="appIconFreeCaption">Always free to choose.</string>
     <string name="appIconFirstChangeNote">The first time you change the app icon, the app closes once and restarts.</string>
     <string name="appIconFreeHeading">Standard icons</string>
     <string name="appIconGamer">Gamer</string>
@@ -2437,7 +2436,6 @@
     <string name="mithkaProTitle">Support us</string>
     <string name="mithkaProYearly">Yearly</string>
     <string name="mithkaxIconHeading">Mithka X icons</string>
-    <string name="mithkaxIconMonochrome">Monochrome</string>
     <string name="mithkaxIconAurora">Aurora</string>
     <string name="mithkaxIconShadowLight">Light and shadow (day)</string>
     <string name="mithkaxIconShadowDark">Light and shadow (night)</string>

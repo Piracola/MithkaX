@@ -935,18 +935,6 @@
             </intent-filter>
         </activity-alias>
         <activity-alias
-            android:name=".MainActivityMithkaXMonochrome"
-            android:enabled="false"
-            android:exported="true"
-            android:icon="@mipmap/ic_launcher_mithkax_monochrome"
-            android:label="Mithka X"
-            android:targetActivity=".MainActivity">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN"/>
-                <category android:name="android.intent.category.LAUNCHER"/>
-            </intent-filter>
-        </activity-alias>
-        <activity-alias
             android:name=".MainActivityMithkaXShadowLight"
             android:enabled="false"
             android:exported="true"

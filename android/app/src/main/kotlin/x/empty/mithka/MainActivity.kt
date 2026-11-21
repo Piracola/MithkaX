@@ -972,7 +972,6 @@ class MainActivity : FlutterFragmentActivity() {
         "letter_m_neutral" to "$packageName.MainActivityLetterMNeutralAlt",
         "letter_m_gradient" to "$packageName.MainActivityLetterMGradient",
         "mithkax_default" to "$packageName.MainActivityMithkaXDefaultAlt",
-        "mithkax_monochrome" to "$packageName.MainActivityMithkaXMonochrome",
         "mithkax_shadow_light" to "$packageName.MainActivityMithkaXShadowLight",
         "mithkax_shadow_dark" to "$packageName.MainActivityMithkaXShadowDark",
         "mithkax_jade" to "$packageName.MainActivityMithkaXJade",

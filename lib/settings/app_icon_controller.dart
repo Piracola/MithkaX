@@ -586,16 +586,6 @@ enum AppIconVariant {
     penguinCount: 0,
     colors: [Color(0xFF0598FF), Color(0xFF006BFF)],
   ),
-  mithkaxMonochrome(
-    key: 'mithkax_monochrome',
-    labelKey: AppStringKeys.mithkaxIconMonochrome,
-    asset: 'assets/app_icons/mithkax_monochrome.png',
-    darkAsset: 'assets/app_icons/mithkax_monochrome_dark.png',
-    pickerAsset: 'assets/app_icons/picker/standard-mithkax_monochrome.webp',
-    mithkaX: true,
-    penguinCount: 0,
-    colors: [Color(0xFF111111), Color(0xFFFFFFFF)],
-  ),
   mithkaxShadowLight(
     key: 'mithkax_shadow_light',
     labelKey: AppStringKeys.mithkaxIconShadowLight,
@@ -707,7 +697,6 @@ enum AppIconVariant {
     AppIconVariant.aurora => AppStringKeys.appIconLetterMTelegramBlue,
     AppIconVariant.letterMGradient => AppStringKeys.appIconLetterMPinkPurple,
     AppIconVariant.mithkaxDefault => AppStringKeys.mithkaxIconAurora,
-    AppIconVariant.mithkaxMonochrome => AppStringKeys.mithkaxIconMonochrome,
     AppIconVariant.mithkaxShadowLight => AppStringKeys.mithkaxIconShadowLight,
     AppIconVariant.mithkaxShadowDark => AppStringKeys.mithkaxIconShadowDark,
     AppIconVariant.mithkaxJade => AppStringKeys.mithkaxIconJade,
@@ -778,7 +767,6 @@ enum AppIconVariant {
   /// identity a fresh install ships with.
   static const mithkaXSection = <AppIconVariant>[
     mithkaxDefault,
-    mithkaxMonochrome,
     mithkaxShadowLight,
     mithkaxShadowDark,
     mithkaxJade,
@@ -797,7 +785,16 @@ enum AppIconVariant {
   ].toList(growable: false);
 
   /// Recognized-only lookup: initialization must not lose an unknown raw ID.
+  /// Keys this catalogue shipped once and no longer offers. An install that
+  /// still holds one resolves to the mark that replaced it instead of rearing
+  /// up as an unknown identity: a stale preference is history, not a choice.
+  static const _retiredKeys = <String, AppIconVariant>{
+    'mithkax_monochrome': mithkaxDefault,
+  };
+
   static AppIconVariant? recognizedFromKey(String? key) {
+    final retired = _retiredKeys[key];
+    if (retired != null) return retired;
     for (final variant in knownValues) {
       if (variant.key == key) return variant;
     }

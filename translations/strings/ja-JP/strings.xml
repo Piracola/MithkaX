@@ -308,7 +308,6 @@
     <string name="appIconDrummer">ドラマー</string>
     <string name="appIconFishing">釣り</string>
     <string name="appIconFootball">サッカー</string>
-    <string name="appIconFreeCaption">いつでも無料で選べます。</string>
     <string name="appIconFirstChangeNote">アイコンを初めて変更すると、アプリが一度終了して再起動します。</string>
     <string name="appIconFreeHeading">標準アイコン</string>
     <string name="appIconGamer">ゲーマー</string>
@@ -2429,7 +2428,6 @@
     <string name="mithkaProTitle">開発を支援</string>
     <string name="mithkaProYearly">年額</string>
     <string name="mithkaxIconHeading">Mithka X アイコン</string>
-    <string name="mithkaxIconMonochrome">モノクロ</string>
     <string name="mithkaxIconAurora">オーロラ</string>
     <string name="mithkaxIconShadowLight">光と影（昼）</string>
     <string name="mithkaxIconShadowDark">光と影（夜）</string>

@@ -2,7 +2,7 @@ name: mithka
 description: "Mithka — a cross-platform Telegram client (Flutter), built on TDLib."
 publish_to: 'none'
 
-version: 1.13.0+327
+version: 1.13.0+328
 
 environment:
   sdk: ^3.12.2
@@ -250,10 +250,6 @@ flutter:
     - path: assets/app_icons/letter_m_gradient.png
       platforms: [macos]
     - path: assets/app_icons/mithkax_default.png
-      platforms: [macos]
-    - path: assets/app_icons/mithkax_monochrome.png
-      platforms: [macos]
-    - path: assets/app_icons/mithkax_monochrome_dark.png
       platforms: [macos]
     - path: assets/app_icons/mithkax_shadow_light.png
       platforms: [macos]
