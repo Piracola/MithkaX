@@ -61,6 +61,7 @@ import 'location_detail_view.dart';
 import 'media_preview_geometry.dart';
 import 'media_spoiler.dart';
 import 'message_action_menu.dart';
+import 'message_channel_stats.dart';
 import 'message_direction.dart';
 import 'message_gift_card.dart';
 import 'message_gram_envelope.dart';
@@ -144,6 +145,7 @@ class MessageBubble extends StatelessWidget {
     this.onOpenComments,
     this.showCommentAttachment = false,
     this.channelHasLinkedDiscussion = false,
+    this.showChannelPostStats = false,
     this.onToggleReaction,
     this.onShowReactionUsers,
     this.onRedial,
@@ -217,6 +219,11 @@ class MessageBubble extends StatelessWidget {
   final ValueChanged<ChatMessage>? onOpenComments;
   final bool showCommentAttachment;
   final bool channelHasLinkedDiscussion;
+
+  /// Whether a channel post carries its view / forward counts in the band
+  /// under the bubble. Passed by the transcript: a broadcast channel sets it
+  /// for every non-service post, other chats never do.
+  final bool showChannelPostStats;
   final ValueChanged<MessageReaction>? onToggleReaction;
   final void Function(ChatMessage message, MessageReaction reaction)?
   onShowReactionUsers;
@@ -1755,7 +1762,44 @@ class _MessageBubbleState extends State<_ScopedMessageBubble>
             background: chipBackground,
           );
     final showEditedChip = meta && message.isEdited;
-    final showBand = showReplies || ghostMarker != null || showEditedChip;
+    // Channel posts carry their views and forwards in this same band; a
+    // post that was never read or forwarded reserves nothing.
+    final stats =
+        meta &&
+        widget.bubble.showChannelPostStats &&
+        !message.isService &&
+        !message.isContentRestricted;
+    final viewsChip = stats && message.viewCount > 0
+        ? MessageChannelStatChip(
+            key: ValueKey('messageViews-${message.id}'),
+            icon: HeroAppIcons.eye,
+            count: message.viewCount,
+            foreground: chipForeground,
+            background: chipBackground,
+            semanticLabel: AppStrings.t(AppStringKeys.mithkaxChannelPostViews, {
+              'value1': formatChannelStatCount(message.viewCount),
+            }),
+          )
+        : null;
+    final forwardsChip = stats && message.forwardCount > 0
+        ? MessageChannelStatChip(
+            key: ValueKey('messageForwards-${message.id}'),
+            icon: HeroAppIcons.forward,
+            count: message.forwardCount,
+            foreground: chipForeground,
+            background: chipBackground,
+            semanticLabel: AppStrings.t(
+              AppStringKeys.mithkaxChannelPostForwards,
+              {'value1': formatChannelStatCount(message.forwardCount)},
+            ),
+          )
+        : null;
+    final showBand =
+        showReplies ||
+        ghostMarker != null ||
+        showEditedChip ||
+        viewsChip != null ||
+        forwardsChip != null;
     // The delivery tick is ink on the bubble's inside corner — it never
     // rides the band and never reserves a strip below the bubble. The
     // edited mark replaces it, as it always has.
@@ -1779,6 +1823,23 @@ class _MessageBubbleState extends State<_ScopedMessageBubble>
             ),
           )
         : null;
+    // One 4px gap between neighbours, whichever marks a bubble carries.
+    final bandChips = <Widget>[
+      ?viewsChip,
+      ?forwardsChip,
+      if (showReplies)
+        MessageReplyCountBadge(
+          key: ValueKey('messageCompactReplies-${message.id}'),
+          count: message.commentCount,
+          foreground: chipForeground,
+          background: chipBackground,
+          onTap: widget.bubble.onOpenComments == null
+              ? null
+              : () => widget.bubble.onOpenComments?.call(message),
+        ),
+      ?editedChip,
+      ?ghostMarker,
+    ];
     final usesMediaOverlayColor =
         message.animatedSticker != null ||
         message.videoSticker != null ||
@@ -1822,22 +1883,10 @@ class _MessageBubbleState extends State<_ScopedMessageBubble>
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    if (showReplies)
-                      MessageReplyCountBadge(
-                        key: ValueKey('messageCompactReplies-${message.id}'),
-                        count: message.commentCount,
-                        foreground: chipForeground,
-                        background: chipBackground,
-                        onTap: widget.bubble.onOpenComments == null
-                            ? null
-                            : () => widget.bubble.onOpenComments?.call(message),
-                      ),
-                    if (showReplies && editedChip != null)
-                      const SizedBox(width: 4),
-                    ?editedChip,
-                    if (editedChip != null && ghostMarker != null)
-                      const SizedBox(width: 4),
-                    ?ghostMarker,
+                    for (var i = 0; i < bandChips.length; i++) ...[
+                      if (i > 0) const SizedBox(width: 4),
+                      bandChips[i],
+                    ],
                   ],
                 ),
               ),

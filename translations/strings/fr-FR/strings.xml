@@ -4103,4 +4103,14 @@
     <string name="storageDownloadFolderNotSelected">Choisir un dossier</string>
     <string name="storageDownloadCurrent">Emplacement actuel : {value1}</string>
     <string name="mithkaxPushServiceRetry">Réessayer l’enregistrement</string>
+    <string name="mithkaxChannelBottomBar">Barre inférieure du canal</string>
+    <string name="mithkaxChannelBottomBarMute">Par défaut (muet / rétablir)</string>
+    <string name="mithkaxChannelBottomBarActions">Discussion et messages directs</string>
+    <string name="mithkaxChannelBottomBarHidden">Masquer complètement</string>
+    <string name="mithkaxChannelBottomBarNote">Ne concerne que les canaux auxquels tu es abonné sans pouvoir publier. Avec « Discussion et messages directs », un canal qui n'a ni l'un ni l'autre masque entièrement la barre.</string>
+    <string name="mithkaxChannelPanelDiscussion">Discuter</string>
+    <string name="mithkaxChannelPanelDirect">Messages directs</string>
+    <string name="mithkaxChannelPostStats">Afficher les vues et les transferts sur les publications de canal</string>
+    <string name="mithkaxChannelPostViews">{value1} vues</string>
+    <string name="mithkaxChannelPostForwards">{value1} transferts</string>
 </resources>

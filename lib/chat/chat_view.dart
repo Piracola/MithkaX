@@ -98,6 +98,7 @@ import 'ai_translation/unread_chat_summary_service.dart';
 import 'ai_translation/unread_chat_summary_view.dart';
 import 'appearance/chat_appearance_message_preview.dart';
 import 'appearance/chat_wallpaper.dart';
+import 'channel_bottom_panel.dart';
 import 'chat_auto_scroll_policy.dart';
 import 'chat_first_contact_card.dart';
 import 'chat_first_contact_info.dart';
@@ -4952,6 +4953,8 @@ class _ChatViewState extends State<ChatView> {
         isChannel: _vm.isChannel,
       ),
       channelHasLinkedDiscussion: _vm.hasLinkedDiscussion,
+      showChannelPostStats:
+          _vm.isChannel && context.read<ThemeController>().showChannelPostStats,
       onOpenImage: _openImage,
       onOpenImageGallery: _openImageGallery,
       onApplyMessageBubble: offersMessageBubbleApplyAction(message)
@@ -8452,8 +8455,21 @@ class _ChatViewState extends State<ChatView> {
       );
     }
     if (!_vm.isMember && _vm.canJoin) return _joinBar();
-    // Subscribed to a channel you can't post in → mute/unmute (like official).
-    if (_vm.isChannel && _vm.isMember) return _channelMuteBar();
+    // Subscribed to a channel you can't post in → the channel bottom panel:
+    // stock mute/unmute, the discussion / direct-message actions, or nothing.
+    if (_vm.isChannel && _vm.isMember) {
+      return ChannelBottomPanel(
+        mode: context.watch<ThemeController>().channelBottomBarMode,
+        muted: _vm.isMuted,
+        hasDiscussion: _vm.hasLinkedDiscussion,
+        hasDirectMessages: _vm.hasDirectMessagesGroup,
+        onToggleMute: () => _vm.toggleMute(),
+        onOpenDiscussion: () =>
+            unawaited(_openChannelLinkedChat(_vm.linkedDiscussionChatId)),
+        onOpenDirectMessages: () =>
+            unawaited(_openChannelLinkedChat(_vm.directMessagesChatId)),
+      );
+    }
     return _disabledComposer(_vm.sendDisabledReason);
   }
 
@@ -8618,40 +8634,22 @@ class _ChatViewState extends State<ChatView> {
     );
   }
 
-  Widget _channelMuteBar() {
-    final c = context.colors;
-    final muted = _vm.isMuted;
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTap: () => _vm.toggleMute(),
-      child: Container(
-        width: double.infinity,
-        padding: EdgeInsets.fromLTRB(
-          16,
-          14,
-          16,
-          14 + MediaQuery.paddingOf(context).bottom,
-        ),
-        decoration: BoxDecoration(
-          color: c.navBar,
-          border: Border(top: BorderSide(color: c.divider, width: 0.5)),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            AppIcon(HeroAppIcons.solidBell, size: 18, color: AppTheme.brand),
-            const SizedBox(width: 8),
-            Text(
-              (muted ? AppStringKeys.chatUnmute : AppStringKeys.callMute).l10n(
-                context,
-              ),
-              style: TextStyle(fontSize: 16, color: AppTheme.brand),
-            ),
-          ],
-        ),
-      ),
-    );
+  /// Opens the channel's linked chat (discussion group or direct messages)
+  /// from the bottom panel. The title paints the header until TDLib answers
+  /// with the real one, so the cached chat is read first.
+  Future<void> _openChannelLinkedChat(int chatId) async {
+    if (chatId == 0) return;
+    var title = '';
+    try {
+      final chat = await TdClient.shared.query({
+        '@type': 'getChat',
+        'chat_id': chatId,
+      });
+      title = chat.str('title') ?? '';
+    } catch (_) {}
+    if (title.isEmpty) title = _vm.peerTitle;
+    if (!mounted) return;
+    await openChatFromCurrentWindow(context, chatId: chatId, title: title);
   }
 
   /// Bottom bar with a 加入 / 申请加入 button for a joinable chat you can preview.
@@ -11274,6 +11272,9 @@ class _ChatViewState extends State<ChatView> {
           isChannel: _vm.isChannel,
         ),
         channelHasLinkedDiscussion: _vm.hasLinkedDiscussion,
+        showChannelPostStats:
+            _vm.isChannel &&
+            context.read<ThemeController>().showChannelPostStats,
         selecting: _isSelecting,
         selectedMessageIds: _selectedMessageIds,
         outgoingBubbleColor: _effectiveOutgoingColor(),

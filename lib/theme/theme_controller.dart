@@ -190,6 +190,20 @@ enum MobileMessageActionMenuStyle {
   final AppIconData icon;
 }
 
+/// What the bottom panel of a channel you subscribe to but cannot post in
+/// shows. Mirrors exteraless's channel-bottom trio: the stock mute bar, the
+/// discussion / direct-message actions, or nothing at all.
+enum ChannelBottomBarMode {
+  mute(AppStringKeys.mithkaxChannelBottomBarMute, HeroAppIcons.bell),
+  actions(AppStringKeys.mithkaxChannelBottomBarActions, HeroAppIcons.message),
+  hidden(AppStringKeys.mithkaxChannelBottomBarHidden, HeroAppIcons.eyeSlash);
+
+  const ChannelBottomBarMode(this.label, this.icon);
+
+  final String label;
+  final AppIconData icon;
+}
+
 enum NameColorAudience {
   premium(AppStringKeys.appearanceNameColorPremium, HeroAppIcons.star),
   allUsers(AppStringKeys.appearanceNameColorAllUsers, HeroAppIcons.users),
@@ -1154,6 +1168,11 @@ class ThemeController extends ChangeNotifier {
               style.name == _prefs.getString(_mobileMessageActionMenuStyleKey),
           orElse: () => MobileMessageActionMenuStyle.grid,
         );
+    _channelBottomBarMode = ChannelBottomBarMode.values.firstWhere(
+      (mode) => mode.name == _prefs.getString(_channelBottomBarModeKey),
+      orElse: () => ChannelBottomBarMode.mute,
+    );
+    _showChannelPostStats = _prefs.getBool(_showChannelPostStatsKey) ?? true;
     _enterToSend = _prefs.getBool(_enterToSendKey) ?? false;
     _openChatsAtLatest = _prefs.getBool(_openChatsAtLatestKey) ?? false;
     // Wide chats show the group context pane on arrival; this opts out.
@@ -1289,6 +1308,8 @@ class ThemeController extends ChangeNotifier {
   static const _alwaysShowMessageTimeKey = 'alwaysShowMessageTime';
   static const _mobileMessageActionMenuStyleKey =
       'mobileMessageActionMenuStyle.v1';
+  static const _channelBottomBarModeKey = 'channelBottomBarMode.v1';
+  static const _showChannelPostStatsKey = 'showChannelPostStats.v1';
   static const _enterToSendKey = 'enterToSend';
   static const _openChatsAtLatestKey = 'openChatsAtLatest';
   static const _hideChatContextPaneKey = 'hideChatContextPane';
@@ -1388,6 +1409,8 @@ class ThemeController extends ChangeNotifier {
   bool _showMessageMetaIndicators = false;
   bool _alwaysShowMessageTime = false;
   late MobileMessageActionMenuStyle _mobileMessageActionMenuStyle;
+  late ChannelBottomBarMode _channelBottomBarMode;
+  bool _showChannelPostStats = true;
   bool _enterToSend = false;
   bool _openChatsAtLatest = false;
   bool _hideChatContextPane = false;
@@ -1859,6 +1882,11 @@ class ThemeController extends ChangeNotifier {
   bool get alwaysShowMessageTime => _alwaysShowMessageTime;
   MobileMessageActionMenuStyle get mobileMessageActionMenuStyle =>
       _mobileMessageActionMenuStyle;
+  ChannelBottomBarMode get channelBottomBarMode => _channelBottomBarMode;
+
+  /// Whether channel posts carry their view and forward counts in the band
+  /// under the bubble.
+  bool get showChannelPostStats => _showChannelPostStats;
   bool get enterToSend => _enterToSend;
   bool get openChatsAtLatest => _openChatsAtLatest;
 
@@ -2904,6 +2932,20 @@ class ThemeController extends ChangeNotifier {
     if (_mobileMessageActionMenuStyle == value) return;
     _mobileMessageActionMenuStyle = value;
     _prefs.setString(_mobileMessageActionMenuStyleKey, value.name);
+    notifyListeners();
+  }
+
+  set channelBottomBarMode(ChannelBottomBarMode value) {
+    if (_channelBottomBarMode == value) return;
+    _channelBottomBarMode = value;
+    _prefs.setString(_channelBottomBarModeKey, value.name);
+    notifyListeners();
+  }
+
+  set showChannelPostStats(bool value) {
+    if (_showChannelPostStats == value) return;
+    _showChannelPostStats = value;
+    _prefs.setBool(_showChannelPostStatsKey, value);
     notifyListeners();
   }
 

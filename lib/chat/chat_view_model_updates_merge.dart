@@ -527,8 +527,13 @@ extension ChatViewModelUpdates on ChatViewModel {
       case 'updateSupergroupFullInfo':
         if (update.int64('supergroup_id') != peerSupergroupId) return;
         final fullInfo = update.obj('supergroup_full_info') ?? update;
-        hasLinkedDiscussion =
-            isChannel && (fullInfo.int64('linked_chat_id') ?? 0) != 0;
+        linkedDiscussionChatId = isChannel
+            ? (fullInfo.int64('linked_chat_id') ?? 0)
+            : 0;
+        hasLinkedDiscussion = linkedDiscussionChatId != 0;
+        directMessagesChatId = isChannel
+            ? (fullInfo.int64('direct_messages_chat_id') ?? 0)
+            : 0;
         _setPaidMessageStarCount(_paidMessageStars(fullInfo));
         if (isChannel) {
           _clearGroupBotCommands();

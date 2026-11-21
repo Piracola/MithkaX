@@ -22,6 +22,7 @@ import 'media_album_layout.dart';
 import 'media_preview_geometry.dart';
 import 'media_spoiler.dart';
 import 'message_action_menu.dart';
+import 'message_channel_stats.dart';
 import 'message_direction.dart';
 import 'message_reaction_chips.dart';
 import 'message_reply_count_badge.dart';
@@ -52,6 +53,7 @@ class ImageMediaAlbumBubble extends StatelessWidget {
     this.hasCustomChatTheme = false,
     this.showCommentAttachment = false,
     this.channelHasLinkedDiscussion = false,
+    this.showChannelPostStats = false,
     this.selecting = false,
     this.selectedMessageIds = const <int>{},
     this.outgoingBubbleColor,
@@ -95,6 +97,10 @@ class ImageMediaAlbumBubble extends StatelessWidget {
   final bool hasCustomChatTheme;
   final bool showCommentAttachment;
   final bool channelHasLinkedDiscussion;
+
+  /// Whether this channel album carries its interaction owner's view and
+  /// forward counts in the band under the card.
+  final bool showChannelPostStats;
   final bool selecting;
   final Set<int> selectedMessageIds;
   final Color? outgoingBubbleColor;
@@ -584,15 +590,54 @@ class ImageMediaAlbumBubble extends StatelessWidget {
         ],
       ),
     );
-    if (!showCompactReplies) return card;
-    // The band's chip language, shared with MessageBubble's corner row:
-    // the reply count hugs the card's own right edge.
+    // The band's chip language, shared with MessageBubble's corner row: the
+    // counters hug the card's own right edge.
     final bandForeground = outgoing
         ? outgoingText.withValues(alpha: 0.78)
         : colors.textSecondary;
     final bandBackground = outgoing
         ? outgoingColor.withValues(alpha: 0.82)
         : colors.card.withValues(alpha: 0.82);
+    final stats =
+        showChannelPostStats &&
+        !interactionOwner.isService &&
+        !interactionOwner.isContentRestricted;
+    final bandChips = <Widget>[
+      if (stats && interactionOwner.viewCount > 0)
+        MessageChannelStatChip(
+          key: ValueKey('messageViews-${interactionOwner.id}'),
+          icon: HeroAppIcons.eye,
+          count: interactionOwner.viewCount,
+          foreground: bandForeground,
+          background: bandBackground,
+          semanticLabel: AppStrings.t(AppStringKeys.mithkaxChannelPostViews, {
+            'value1': formatChannelStatCount(interactionOwner.viewCount),
+          }),
+        ),
+      if (stats && interactionOwner.forwardCount > 0)
+        MessageChannelStatChip(
+          key: ValueKey('messageForwards-${interactionOwner.id}'),
+          icon: HeroAppIcons.forward,
+          count: interactionOwner.forwardCount,
+          foreground: bandForeground,
+          background: bandBackground,
+          semanticLabel: AppStrings.t(
+            AppStringKeys.mithkaxChannelPostForwards,
+            {'value1': formatChannelStatCount(interactionOwner.forwardCount)},
+          ),
+        ),
+      if (showCompactReplies)
+        MessageReplyCountBadge(
+          key: ValueKey('messageCompactReplies-${interactionOwner.id}'),
+          count: interactionOwner.commentCount,
+          foreground: bandForeground,
+          background: bandBackground,
+          onTap: onOpenComments == null
+              ? null
+              : () => onOpenComments?.call(interactionOwner),
+        ),
+    ];
+    if (bandChips.isEmpty) return card;
     return Stack(
       clipBehavior: Clip.none,
       children: [
@@ -602,14 +647,14 @@ class ImageMediaAlbumBubble extends StatelessWidget {
           bottom: 0,
           child: FittedBox(
             fit: BoxFit.scaleDown,
-            child: MessageReplyCountBadge(
-              key: ValueKey('messageCompactReplies-${interactionOwner.id}'),
-              count: interactionOwner.commentCount,
-              foreground: bandForeground,
-              background: bandBackground,
-              onTap: onOpenComments == null
-                  ? null
-                  : () => onOpenComments?.call(interactionOwner),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                for (var i = 0; i < bandChips.length; i++) ...[
+                  if (i > 0) const SizedBox(width: 4),
+                  bandChips[i],
+                ],
+              ],
             ),
           ),
         ),

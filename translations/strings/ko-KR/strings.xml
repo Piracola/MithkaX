@@ -4086,4 +4086,14 @@
     <string name="storageDownloadFolderNotSelected">폴더 선택</string>
     <string name="storageDownloadCurrent">현재 위치: {value1}</string>
     <string name="mithkaxPushServiceRetry">등록 다시 시도</string>
+    <string name="mithkaxChannelBottomBar">채널 하단 표시줄</string>
+    <string name="mithkaxChannelBottomBarMute">기본 (음소거 / 해제)</string>
+    <string name="mithkaxChannelBottomBarActions">토론 및 다이렉트 메시지</string>
+    <string name="mithkaxChannelBottomBarHidden">완전히 숨기기</string>
+    <string name="mithkaxChannelBottomBarNote">게시할 수 없는 구독 중인 채널에만 적용됩니다. '토론 및 다이렉트 메시지'를 선택하면 둘 다 없는 채널은 하단 표시줄을 완전히 숨깁니다.</string>
+    <string name="mithkaxChannelPanelDiscussion">토론</string>
+    <string name="mithkaxChannelPanelDirect">다이렉트 메시지</string>
+    <string name="mithkaxChannelPostStats">채널 게시물에 조회수와 전달 수 표시</string>
+    <string name="mithkaxChannelPostViews">{value1}회 조회</string>
+    <string name="mithkaxChannelPostForwards">{value1}회 전달</string>
 </resources>

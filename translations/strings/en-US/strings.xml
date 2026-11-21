@@ -4103,4 +4103,14 @@
     <string name="storageDownloadFolderNotSelected">Choose a folder</string>
     <string name="storageDownloadCurrent">Current location: {value1}</string>
     <string name="mithkaxPushServiceRetry">Retry registration</string>
+    <string name="mithkaxChannelBottomBar">Channel bottom bar</string>
+    <string name="mithkaxChannelBottomBarMute">Default (mute / unmute)</string>
+    <string name="mithkaxChannelBottomBarActions">Discussion and direct messages</string>
+    <string name="mithkaxChannelBottomBarHidden">Hide completely</string>
+    <string name="mithkaxChannelBottomBarNote">Only affects channels you subscribe to but cannot post in. With Discussion and direct messages, a channel that has neither hides the bar entirely.</string>
+    <string name="mithkaxChannelPanelDiscussion">Discuss</string>
+    <string name="mithkaxChannelPanelDirect">Direct messages</string>
+    <string name="mithkaxChannelPostStats">Show views and forwards on channel posts</string>
+    <string name="mithkaxChannelPostViews">{value1} views</string>
+    <string name="mithkaxChannelPostForwards">{value1} forwards</string>
 </resources>

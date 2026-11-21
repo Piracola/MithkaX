@@ -95,6 +95,8 @@ extension ChatViewModelHeaderTopics on ChatViewModel {
     isChannel = false;
     isMessageBubbleRepository = false;
     hasLinkedDiscussion = false;
+    linkedDiscussionChatId = 0;
+    directMessagesChatId = 0;
     isDirectMessagesGroup = false;
     isAdministeredDirectMessagesGroup = false;
     canDeleteMessagesBySender = false;
@@ -381,8 +383,13 @@ extension ChatViewModelHeaderTopics on ChatViewModel {
       });
       if (_isDisposed || peerSupergroupId != supergroupId) return;
       memberCount = full.integer('member_count') ?? memberCount;
-      hasLinkedDiscussion =
-          isChannel && (full.int64('linked_chat_id') ?? 0) != 0;
+      linkedDiscussionChatId = isChannel
+          ? (full.int64('linked_chat_id') ?? 0)
+          : 0;
+      hasLinkedDiscussion = linkedDiscussionChatId != 0;
+      directMessagesChatId = isChannel
+          ? (full.int64('direct_messages_chat_id') ?? 0)
+          : 0;
       _setPaidMessageStarCount(_paidMessageStars(full), notify: false);
       notifyListeners();
       if (isChannel) {

@@ -425,6 +425,17 @@ abstract final class AppStringKeys {
   static const mithkaxPushServiceStatusUnavailable =
       'mithkaxPushServiceStatusUnavailable';
   static const mithkaxPushServiceRestartNote = 'mithkaxPushServiceRestartNote';
+  static const mithkaxChannelBottomBar = 'mithkaxChannelBottomBar';
+  static const mithkaxChannelBottomBarMute = 'mithkaxChannelBottomBarMute';
+  static const mithkaxChannelBottomBarActions =
+      'mithkaxChannelBottomBarActions';
+  static const mithkaxChannelBottomBarHidden = 'mithkaxChannelBottomBarHidden';
+  static const mithkaxChannelBottomBarNote = 'mithkaxChannelBottomBarNote';
+  static const mithkaxChannelPanelDiscussion = 'mithkaxChannelPanelDiscussion';
+  static const mithkaxChannelPanelDirect = 'mithkaxChannelPanelDirect';
+  static const mithkaxChannelPostStats = 'mithkaxChannelPostStats';
+  static const mithkaxChannelPostViews = 'mithkaxChannelPostViews';
+  static const mithkaxChannelPostForwards = 'mithkaxChannelPostForwards';
   static const addMembersDone = 'addMembersDone';
   static const addMembersDoneWithCount = 'addMembersDoneWithCount';
   static const addMembersInviteMembersTitle = 'addMembersInviteMembersTitle';

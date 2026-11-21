@@ -1290,6 +1290,41 @@ class MobileMessageActionMenuSettingsView extends StatelessWidget {
   }
 }
 
+class ChannelBottomBarSettingsView extends StatelessWidget {
+  const ChannelBottomBarSettingsView({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = context.watch<ThemeController>();
+    const appearance = AppearanceView();
+    return SettingsPageScaffold(
+      key: const ValueKey('channel-bottom-bar-settings-page'),
+      title: AppStrings.t(AppStringKeys.mithkaxChannelBottomBar),
+      onBack: () => Navigator.of(context).pop(),
+      child: SettingsListView(
+        children: [
+          appearance._card(context, [
+            for (final mode in ChannelBottomBarMode.values)
+              KeyedSubtree(
+                key: ValueKey('channel-bottom-bar-${mode.name}'),
+                child: appearance._choiceRow(
+                  context,
+                  mode.icon.data,
+                  AppStrings.t(mode.label),
+                  theme.channelBottomBarMode == mode,
+                  () => theme.channelBottomBarMode = mode,
+                ),
+              ),
+          ]),
+          SettingsNote(
+            text: AppStrings.t(AppStringKeys.mithkaxChannelBottomBarNote),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class ChatViewAppearanceSettingsView extends StatelessWidget {
   const ChatViewAppearanceSettingsView({super.key});
 
@@ -1364,6 +1399,24 @@ class ChatViewAppearanceSettingsView extends StatelessWidget {
           AppStrings.t(AppStringKeys.appearanceAlwaysShowMessageTime),
           theme.alwaysShowMessageTime,
           (value) => theme.alwaysShowMessageTime = value,
+        ),
+        appearance._navigationRow(
+          context,
+          AppStrings.t(AppStringKeys.mithkaxChannelBottomBar),
+          AppStrings.t(theme.channelBottomBarMode.label),
+          () => Navigator.of(context).push(
+            AppPageRoute<void>(
+              pageBuilder: (_, _, _) => const ChannelBottomBarSettingsView(),
+            ),
+          ),
+          icon: HeroAppIcons.bell.data,
+        ),
+        appearance._toggleRow(
+          context,
+          HeroAppIcons.eye.data,
+          AppStrings.t(AppStringKeys.mithkaxChannelPostStats),
+          theme.showChannelPostStats,
+          (value) => theme.showChannelPostStats = value,
         ),
         if (!desktop)
           KeyedSubtree(

@@ -510,6 +510,17 @@ class ChatViewModel extends ChangeNotifier {
 
   bool hasLinkedDiscussion = false;
 
+  /// Chat id of the channel's linked discussion group, 0 when the channel has
+  /// none. [hasLinkedDiscussion] stays the boolean the transcript reads; this
+  /// id is what the channel bottom panel opens.
+  int linkedDiscussionChatId = 0;
+
+  /// Chat id of the channel's direct-messages group (`market`-style 私聊),
+  /// 0 when the channel does not offer one.
+  int directMessagesChatId = 0;
+
+  bool get hasDirectMessagesGroup => directMessagesChatId != 0;
+
   bool isDirectMessagesGroup = false;
 
   bool isAdministeredDirectMessagesGroup = false;
