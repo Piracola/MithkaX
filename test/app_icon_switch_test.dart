@@ -237,9 +237,17 @@ void main() {
             'there is the crash-once signature on the first post-switch cold '
             'start',
       );
+      // Shape-independent: what matters is that the 61 component writes run
+      // inside the worker thread of the setIcon branch, not that they hang off
+      // a particular local helper name (an earlier pin on `fun applyIcon()`
+      // broke the moment the branch was restructured).
+      final branch = kt.substring(kt.indexOf('"setIcon" -> {'));
+      final worker = branch.indexOf('Thread {');
+      final write = branch.indexOf('setLauncherIcon(name)');
+      expect(worker, isNonNegative);
       expect(
-        kt.contains('fun applyIcon() {\n                            // All 61'),
-        isTrue,
+        write,
+        greaterThan(worker),
         reason: 'the 61 component writes must run on the worker thread',
       );
     });

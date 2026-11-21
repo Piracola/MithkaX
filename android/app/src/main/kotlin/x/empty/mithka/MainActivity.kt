@@ -345,100 +345,45 @@ class MainActivity : FlutterFragmentActivity() {
                     "setIcon" -> {
                         val args = call.arguments as? Map<*, *>
                         val name = args?.get("name") as? String ?: "default"
-                        val freeIcons = setOf(
-                            "default", "white", "blue", "purple",
-                            "pixel", "aurora", "prism", "signal",
-                            "pixel_neutral",
-                            "pixel_gradient",
-                            "letter_m_neutral",
-                            "letter_m_gradient",
-                        )
-                        // The 48 penguins in their fixed catalogue order (01-pilot …
-                        // 48-stargazing). Must match AppIconVariant.dailyPenguinOrder in
-                        // lib/settings/app_icon_controller.dart and dailyPenguinOrder in
-                        // AppDelegate.swift; never sort it.
-                        val paidIcons = listOf(
-                            "pilot", "headphones", "winter", "astronaut",
-                            "crown", "party", "sleepy", "heart",
-                            "coffee", "detective", "gamer", "fishing",
-                            "skateboard",
-                            "surfboard",
-                            "basketball",
-                            "football",
-                            "tennis",
-                            "skiing",
-                            "painter",
-                            "guitar",
-                            "drummer",
-                            "photographer",
-                            "magician",
-                            "chef",
-                            "reader",
-                            "scientist",
-                            "gardener",
-                            "mail-carrier",
-                            "pirate",
-                            "dragon",
-                            "bubblegum",
-                            "raincoat",
-                            "noodles",
-                            "ice-cream",
-                            "sunflower",
-                            "ninja",
-                            "high-five",
-                            "hug",
-                            "seesaw",
-                            "dance",
-                            "pillow-fight",
-                            "snowball",
-                            "parade",
-                            "choir",
-                            "stack",
-                            "picnic",
-                            "paper-planes",
-                            "stargazing",
-                        )
-                        fun applyIcon() {
-                            // All 61 component writes go through the package
-                            // manager's serialized write lock. Doing them on the
-                            // platform main thread freezes every frame while the
-                            // writes land — and, right after the first switch,
-                            // while PACKAGE_CHANGED broadcasts storm every
-                            // launcher. A background thread keeps the switch UI
-                            // (and its result callback) off that lock.
-                            Thread {
-                                try {
-                                    setLauncherIcon(name)
-                                    runOnUiThread {
-                                        result.success(null)
-                                        // The alias just went live: refresh the recents
-                                        // entry so it shows the new icon immediately.
-                                        updateTaskDescription()
-                                    }
-                                } catch (e: Exception) {
-                                    runOnUiThread {
-                                        result.error(
-                                            "app_icon_failed",
-                                            e.localizedMessage,
-                                            null,
-                                        )
-                                    }
+                        // launcherAliases() is the single source of truth
+                        // for "an icon that exists": keying this gate off it
+                        // keeps a newly catalogued icon switchable. A second,
+                        // hand-maintained key list once held the twelve
+                        // standard marks and the 48 penguins but not the
+                        // fork's own two marks, so every tap on those
+                        // answered "cannot change the app icon"
+                        // (invalid_icon) instead of switching. Nothing is
+                        // gated here: every icon ships free in MithkaX.
+                        if (!launcherAliases().containsKey(name)) {
+                            result.error("invalid_icon", "Unknown app icon", null)
+                            return@setMethodCallHandler
+                        }
+                        // All 61 component writes go through the package
+                        // manager's serialized write lock. Doing them on the
+                        // platform main thread freezes every frame while the
+                        // writes land — and, right after the first switch,
+                        // while PACKAGE_CHANGED broadcasts storm every
+                        // launcher. A background thread keeps the switch UI
+                        // (and its result callback) off that lock.
+                        Thread {
+                            try {
+                                setLauncherIcon(name)
+                                runOnUiThread {
+                                    result.success(null)
+                                    // The alias just went live: refresh the recents
+                                    // entry so it shows the new icon immediately.
+                                    updateTaskDescription()
                                 }
-                            }.start()
-                        }
-                        // Today's penguin is free without Play billing evidence and on
-                        // every distribution. Compute the UTC day here at apply time,
-                        // never trusting Dart: floor(unixSeconds / 86400) mod 48.
-                        val utcDay = Math.floorDiv(System.currentTimeMillis(), 86_400_000L)
-                        val dailyPenguin =
-                            paidIcons[Math.floorMod(utcDay, paidIcons.size.toLong()).toInt()]
-                        when (name) {
-                            in freeIcons -> applyIcon()
-                            dailyPenguin -> applyIcon()
-                            // MithkaX: every icon ships free; no supporter check.
-                            in paidIcons -> applyIcon()
-                            else -> result.error("invalid_icon", "Unknown app icon", null)
-                        }
+                            } catch (e: Exception) {
+                                runOnUiThread {
+                                    result.error(
+                                        "app_icon_failed",
+                                        e.localizedMessage,
+                                        null,
+                                    )
+                                }
+                            }
+                        }.start()
                     }
                     else -> result.notImplemented()
                 }

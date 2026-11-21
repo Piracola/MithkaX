@@ -319,6 +319,42 @@ void main() {
         );
       }
     });
+
+    test('the native switch accepts every catalogued key', () {
+      // The alias table is the single source of truth for "an icon that
+      // exists". A second, hand-maintained key list once held the twelve
+      // standard marks and the 48 penguins but not the fork's own two marks,
+      // so tapping either answered "cannot change the app icon"
+      // (invalid_icon) without ever reaching the launcher.
+      expect(
+        kt.contains('val freeIcons = setOf('),
+        isFalse,
+        reason: 'the setIcon gate must consult launcherAliases(), not a copy',
+      );
+      expect(
+        kt.contains('if (!launcherAliases().containsKey(name))'),
+        isTrue,
+        reason: 'an unknown key is the only thing setIcon may reject',
+      );
+      for (final variant in AppIconVariant.values) {
+        expect(
+          kt.contains('"${variant.key}" to "\$packageName.'),
+          isTrue,
+          reason: '${variant.key} has no launcher alias to switch to',
+        );
+      }
+    });
+
+    test('the iOS bridge maps the same keys', () {
+      final swift = File('ios/Runner/AppDelegate.swift').readAsStringSync();
+      for (final variant in AppIconVariant.values) {
+        expect(
+          swift.contains('case "${variant.key}": return '),
+          isTrue,
+          reason: '${variant.key} has no alternate icon on iOS',
+        );
+      }
+    });
   });
 
   group('picker section', () {
