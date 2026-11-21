@@ -30,6 +30,7 @@ import '../bot_api/bot_api_client.dart';
 import '../bot_api/bot_api_endpoint_config.dart';
 import '../bot_api/bot_api_td_backend.dart';
 import '../config/secrets.dart';
+import '../platform/process_engine.dart';
 import '../settings/api_credentials_config.dart';
 import '../settings/download_storage.dart';
 import '../settings/proxy_config.dart';
@@ -379,6 +380,11 @@ class TdClient {
 
   static const _slotsKey = 'drachma.accountSlots';
   static const _activeKey = 'drachma.activeSlot';
+
+  /// Native client ids this Dart VM created, persisted so the NEXT engine in
+  /// the same process can close them. The key string predates release builds
+  /// writing it (it was a hot-restart aid) and is kept so debug installs'
+  /// leftovers are reclaimed too.
   static const _liveClientIdsKey = 'drachma.debugLiveClientIds';
 
   int get activeSlot => _activeSlot;
@@ -604,7 +610,27 @@ class TdClient {
         availableRoots: await DownloadStorage.locations(),
       );
     }
-    if (kDebugMode) await _closeStaleDebugClients();
+    // Start receiving before anything that can need an acknowledgement: the
+    // stale-engine reclaim below waits for authorizationStateClosed, and a
+    // Quit landing in this window must still see every native close.
+    if (kDebugMode) {
+      _startDebugReceivePump();
+    } else {
+      _spawnReceiveIsolate();
+    }
+
+    // Android can attach a SECOND FlutterEngine to a process whose previous
+    // engine is gone: finishing the last activity (Back, or the exit after an
+    // icon switch) leaves the process cached, and the next launch re-enters it.
+    // The previous engine's TDLib clients are still alive inside libtdjson —
+    // a Dart VM death never closes them — and each one holds its account's
+    // binlog write lock, so the new client can never leave
+    // authorizationStateWaitTdlibParameters: the app dies on the loading page
+    // and the next launch (fresh process) looks fine. Close them first; debug
+    // builds have always done this after a hot restart.
+    if (kDebugMode || await processEngineOrdinal() > 1) {
+      await _reclaimStaleEngineClients();
+    }
 
     final storedBotApiAccounts = BotApiAccountRegistry.load(_prefs);
     _botApiEndpoint = BotApiEndpointConfig.load(
@@ -703,16 +729,7 @@ class TdClient {
       }
     }
     _activeClientId = _clientForSlot[active] ?? 0;
-    if (kDebugMode) unawaited(_persistDebugLiveClientIds());
-
-    // Start receiving before the first asynchronous backend startup. If Quit
-    // lands in that window, shutdown must still receive every native
-    // authorizationStateClosed acknowledgement before AppKit exits.
-    if (kDebugMode) {
-      _startDebugReceivePump();
-    } else {
-      _spawnReceiveIsolate();
-    }
+    unawaited(_persistLiveClientIds());
 
     // The first request "activates" each client; TDLib then emits its
     // updateAuthorizationState(authorizationStateWaitTdlibParameters).
@@ -900,6 +917,9 @@ class TdClient {
       if (!waiter.isCompleted) waiter.complete();
     }
     _clientClosedWaiters.clear();
+    // Nothing is left to reclaim, so a later engine in this process must not
+    // try to close these ids again.
+    await _prefs.remove(_liveClientIdsKey);
     _clientForSlot.clear();
     _slotForClient.clear();
     _botApiBackendForClient.clear();
@@ -983,7 +1003,7 @@ class TdClient {
     _clientForSlot[newSlot] = cid;
     _slotForClient[cid] = newSlot;
     _persist();
-    if (kDebugMode) unawaited(_persistDebugLiveClientIds());
+    unawaited(_persistLiveClientIds());
     _bindings.send(cid, _tdActivateRequest);
     return newSlot;
   }
@@ -1246,7 +1266,7 @@ class TdClient {
     _activeSlot = slot;
     _activeClientId = newClientId;
     _persist();
-    if (kDebugMode) unawaited(_persistDebugLiveClientIds());
+    unawaited(_persistLiveClientIds());
 
     final waitForPhoneNumber = _updates.stream
         .where((update) => update.type == 'updateAuthorizationState')
@@ -1303,7 +1323,7 @@ class TdClient {
       final cid = _bindings.createClientId();
       _clientForSlot[newSlot] = cid;
       _slotForClient[cid] = newSlot;
-      if (kDebugMode) unawaited(_persistDebugLiveClientIds());
+      unawaited(_persistLiveClientIds());
       _bindings.send(
         cid,
         jsonEncode({'@type': 'getOption', 'name': 'version'}),
@@ -1375,7 +1395,7 @@ class TdClient {
     await _deleteDirectoryIfPresent(dbDir);
     await Future<void>.delayed(const Duration(milliseconds: 300));
     await _deleteDirectoryIfPresent(dbDir);
-    if (kDebugMode) unawaited(_persistDebugLiveClientIds());
+    unawaited(_persistLiveClientIds());
   }
 
   /// Tears down a session slot whose setup failed with [error], then rethrows
@@ -1413,7 +1433,7 @@ class TdClient {
       final cid = _bindings.createClientId();
       _clientForSlot[newSlot] = cid;
       _slotForClient[cid] = newSlot;
-      if (kDebugMode) unawaited(_persistDebugLiveClientIds());
+      unawaited(_persistLiveClientIds());
       _bindings.send(
         cid,
         jsonEncode({'@type': 'getOption', 'name': 'version'}),
@@ -1799,7 +1819,7 @@ class TdClient {
     if (slot == _activeSlot || !_slots.contains(slot)) return;
     unawaited(_closeAndForgetSlot(slot));
     _persist();
-    if (kDebugMode) unawaited(_persistDebugLiveClientIds());
+    unawaited(_persistLiveClientIds());
   }
 
   /// Deletes the local TDLib data for a forgotten slot without contacting
@@ -1860,7 +1880,7 @@ class TdClient {
     if (_slots.contains(oldSlot)) {
       unawaited(_closeAndForgetSlot(oldSlot));
       _persist();
-      if (kDebugMode) unawaited(_persistDebugLiveClientIds());
+      unawaited(_persistLiveClientIds());
     }
     return newSlot;
   }
@@ -1976,7 +1996,7 @@ class TdClient {
       _latestTextCompositionStylesByClient.remove(cid);
       _latestCommunitiesByClient.remove(cid);
       _proxyAppliedClients.remove(cid);
-      if (kDebugMode) unawaited(_persistDebugLiveClientIds());
+      unawaited(_persistLiveClientIds());
     }
     if (didClose) _unconfirmedSlotForClient.remove(cid);
     return didClose;
@@ -2135,28 +2155,70 @@ class TdClient {
     });
   }
 
-  Future<void> _closeStaleDebugClients() async {
+  /// Closes the native TDLib clients a PREVIOUS FlutterEngine left behind in
+  /// this process, and waits until they confirm the close.
+  ///
+  /// A Dart VM death destroys nothing inside libtdjson: the clients keep their
+  /// threads, their SQLite handles and the write lock on each account's binlog.
+  /// A replacement client opening the same directory can then never finish
+  /// `setTdlibParameters` — the launch sits on the loading page until it dies.
+  /// `authorizationStateClosed` is the only acknowledgement that the native
+  /// client released the directory, so the replacements wait for it.
+  Future<void> _reclaimStaleEngineClients() async {
     final ids = _prefs
         .getStringList(_liveClientIdsKey)
         ?.map(int.tryParse)
         .whereType<int>()
+        .where((id) => id > 0)
         .toList();
     if (ids == null || ids.isEmpty) return;
-    final closedIds = closeStaleDebugTdlibClients(ids, _bindings.send);
-    if (closedIds.isNotEmpty) {
+    final waiters = <Future<void>>[
+      for (final id in ids)
+        (_clientClosedWaiters[id] ??= Completer<void>()).future,
+    ];
+    for (final id in ids) {
+      _bindings.send(id, _tdCloseRequest);
+    }
+    debugPrint(
+      '🔑 [Mithka] closing TDLib clients left by the previous engine: '
+      '${ids.join(', ')}',
+    );
+    try {
+      // A COLD process has no client with these ids — nothing will ever answer.
+      // Give TDLib a short grace and move on instead of stalling the launch;
+      // a live previous engine answers well inside it.
+      await Future.any<void>(
+        waiters,
+      ).timeout(const Duration(milliseconds: 600));
+      await Future.wait<void>(waiters).timeout(const Duration(seconds: 4));
+    } on TimeoutException {
+      // The replacements are still worth creating: TDLib finishes the close on
+      // its own workers, and a client that loses the race reports the lock
+      // instead of leaving the process without a session.
       debugPrint(
-        '🔑 [Mithka] closing stale TDLib clients after hot restart: '
-        '${closedIds.join(', ')}',
+        '🔑 [Mithka] stale TDLib clients did not confirm close in time',
       );
-      // `close` is asynchronous inside TDLib. Give the native clients time to
-      // release their database handles before creating replacements that use
-      // the same account directories.
-      await Future<void>.delayed(const Duration(milliseconds: 200));
+    }
+    for (final id in ids) {
+      _clientClosedWaiters.remove(id);
     }
     await _prefs.remove(_liveClientIdsKey);
   }
 
-  Future<void> _persistDebugLiveClientIds() {
+  /// Fire-and-forget `close` for every native client, for the instant the host
+  /// engine is being torn down (`AppLifecycleState.detached`).
+  ///
+  /// The Dart VM dies right after this returns, but TDLib processes the close
+  /// requests on its own worker threads, so the account directories are
+  /// released instead of leaking into the next engine in the same process.
+  void closeClientsForNativeEngineDetach() {
+    if (_proxyTransport != null || _isShuttingDown || _shutdownComplete) return;
+    for (final clientId in _clientForSlot.values) {
+      if (clientId > 0) _bindings.send(clientId, _tdCloseRequest);
+    }
+  }
+
+  Future<void> _persistLiveClientIds() {
     return _prefs.setStringList(
       _liveClientIdsKey,
       _clientForSlot.values

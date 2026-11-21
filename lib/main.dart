@@ -775,6 +775,15 @@ class _MithkaAppState extends State<MithkaApp> with WidgetsBindingObserver {
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.detached &&
+        defaultTargetPlatform == TargetPlatform.android) {
+      // Android keeps the process after the last activity finishes, so a later
+      // launch can attach a second engine to it. This VM cannot await anything
+      // — it dies as soon as this returns — but TDLib processes a synchronous
+      // `close` on its own workers, so the account directories are released
+      // instead of being inherited by that engine.
+      TdClient.shared.closeClientsForNativeEngineDetach();
+    }
     _appLock.handleLifecycleState(state);
     if (state != AppLifecycleState.resumed) {
       // `inactive` on its own is a Control Center glance, the notification

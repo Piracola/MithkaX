@@ -303,15 +303,37 @@ void main() {
             'is the same launch freeze this round removed',
       );
       // The repair must re-root at the shipped default, which resolves live
-      // from its manifest state.
+      // from its manifest state. Shape-independent: what matters is that the
+      // enabled-state write inside the repair targets `primordialDefaultAlias`
+      // (an earlier pin spelled out the indentation and broke on a wrap).
+      final repair = kt.substring(
+        kt.indexOf('private fun ensureLauncherAliasEnabled()'),
+        kt.indexOf('/// Refreshes the recents/switcher entry'),
+      );
+      final enableCall = repair.indexOf(
+        'packageManager.setComponentEnabledSetting(',
+      );
+      final target = repair.indexOf('primordialDefaultAlias,', enableCall);
+      final nextCall = repair.indexOf(
+        'packageManager.setComponentEnabledSetting(',
+        enableCall + 1,
+      );
       expect(
-        kt.contains(
-          'packageManager.setComponentEnabledSetting(\n'
-          '            primordialDefaultAlias,\n'
-          '            PackageManager.COMPONENT_ENABLED_STATE_ENABLED,',
+        enableCall,
+        isNonNegative,
+        reason: 'the repair must write a state',
+      );
+      expect(
+        target,
+        allOf(
+          greaterThan(enableCall),
+          lessThan(nextCall == -1 ? repair.length : nextCall),
         ),
-        isTrue,
         reason: 'repair targets the primordial alias',
+      );
+      expect(
+        repair,
+        contains('PackageManager.COMPONENT_ENABLED_STATE_ENABLED'),
       );
     });
 
@@ -339,6 +361,62 @@ void main() {
         isFalse,
         reason: 'the moveTaskToBack call was removed with it',
       );
+    });
+
+    test('no launch worker thread can kill the process', () {
+      // Android's default uncaught-exception handler kills the app on ANY
+      // thread. These two run plain `Thread`s out of onCreate/onResume, on the
+      // loading page: one RuntimeException out of PackageManager used to take
+      // the whole launch down.
+      String body(String signature, String next) {
+        final from = kt.indexOf(signature);
+        expect(from, isNonNegative, reason: 'missing $signature');
+        final to = kt.indexOf(next, from);
+        expect(to, greaterThan(from), reason: 'missing $next after $signature');
+        return kt.substring(from, to);
+      }
+
+      final repair = body(
+        'private fun ensureLauncherAliasEnabled()',
+        '/// Refreshes the recents/switcher entry',
+      );
+      expect(repair, contains('try {'));
+      expect(repair, contains('} catch (error: Exception) {'));
+
+      final taskDescription = body(
+        'private fun updateTaskDescription()',
+        'private fun requestHighestRefreshRate()',
+      );
+      expect(taskDescription, contains('try {'));
+      expect(taskDescription, contains('} catch (error: Exception) {'));
+    });
+
+    test('the recents icon resolves hyphenated catalogue keys', () {
+      // `ice-cream`, `high-five`, ... ship as ic_launcher_ice_cream: resource
+      // names cannot carry '-'. A raw interpolation answers 0 and hands
+      // TaskDescription an icon resource id of 0.
+      final taskDescription = kt.substring(
+        kt.indexOf('private fun updateTaskDescription()'),
+      );
+      expect(taskDescription, contains("current.replace('-', '_')"));
+      expect(
+        taskDescription.contains('ic_launcher_\$current'),
+        isFalse,
+        reason: 'the key is not the resource name',
+      );
+    });
+
+    test('the host reports which engine of this process it is', () {
+      // Finishing the last activity leaves the process cached, so a re-entry
+      // attaches a SECOND engine while the first engine's native TDLib
+      // clients still hold every account's binlog lock.
+      expect(kt.contains('flutterEngineOrdinal += 1'), isTrue);
+      expect(
+        kt.contains('"engineOrdinal" -> result.success(flutterEngineOrdinal)'),
+        isTrue,
+        reason: 'Dart needs the ordinal on the app_info channel',
+      );
+      expect(kt.contains('private var flutterEngineOrdinal = 0'), isTrue);
     });
   });
 }

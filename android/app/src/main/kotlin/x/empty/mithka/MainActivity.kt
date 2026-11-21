@@ -92,27 +92,37 @@ class MainActivity : FlutterFragmentActivity() {
         // manifest-enabled alias still in (or explicitly) its DEFAULT state
         // resolves as live — either the user never chose an icon, or the
         // choice was made through this build's own switcher.
-        val primordialState = packageManager.getComponentEnabledSetting(
-            primordialDefaultAlias,
-        )
-        if (primordialState == PackageManager.COMPONENT_ENABLED_STATE_DEFAULT ||
-            primordialState == PackageManager.COMPONENT_ENABLED_STATE_ENABLED
-        ) {
-            return
-        }
-        for ((_, className) in launcherAliases()) {
-            val state = packageManager.getComponentEnabledSetting(
-                ComponentName(packageName, className),
+        //
+        // This runs on a bare `Thread`, and Android installs its
+        // KillApplicationHandler as the DEFAULT uncaught-exception handler for
+        // every thread: one RuntimeException out of the PackageManager while
+        // the launcher's PACKAGE_CHANGED storm is still settling kills the
+        // process on the loading page. Repair is best-effort — never fatal.
+        try {
+            val primordialState = packageManager.getComponentEnabledSetting(
+                primordialDefaultAlias,
             )
-            if (state == PackageManager.COMPONENT_ENABLED_STATE_ENABLED) return
+            if (primordialState == PackageManager.COMPONENT_ENABLED_STATE_DEFAULT ||
+                primordialState == PackageManager.COMPONENT_ENABLED_STATE_ENABLED
+            ) {
+                return
+            }
+            for ((_, className) in launcherAliases()) {
+                val state = packageManager.getComponentEnabledSetting(
+                    ComponentName(packageName, className),
+                )
+                if (state == PackageManager.COMPONENT_ENABLED_STATE_ENABLED) return
+            }
+            // Nothing is live: re-root the launcher at the shipped default so this
+            // launch already resolves, and the home screen gets its icon back.
+            packageManager.setComponentEnabledSetting(
+                primordialDefaultAlias,
+                PackageManager.COMPONENT_ENABLED_STATE_ENABLED,
+                PackageManager.DONT_KILL_APP,
+            )
+        } catch (error: Exception) {
+            Log.w("MainActivity", "Could not repair the launcher alias", error)
         }
-        // Nothing is live: re-root the launcher at the shipped default so this
-        // launch already resolves, and the home screen gets its icon back.
-        packageManager.setComponentEnabledSetting(
-            primordialDefaultAlias,
-            PackageManager.COMPONENT_ENABLED_STATE_ENABLED,
-            PackageManager.DONT_KILL_APP,
-        )
     }
 
     /// Refreshes the recents/switcher entry so it always shows the app name
@@ -127,16 +137,28 @@ class MainActivity : FlutterFragmentActivity() {
     /// (cold-start crash-once after an icon switch).
     private fun updateTaskDescription() {
         Thread {
-            val current = currentLauncherIcon()
-            val resName = when (current) {
-                "default" -> "ic_launcher"
-                else -> "ic_launcher_$current"
-            }
-            val iconRes = resources.getIdentifier(resName, "mipmap", packageName)
-            runOnUiThread {
-                val taskDescription =
-                    android.app.ActivityManager.TaskDescription("Mithka X", iconRes, 0)
-                setTaskDescription(taskDescription)
+            // Like ensureLauncherAliasEnabled: this thread's failures must not
+            // reach the default handler — a TaskDescription built while
+            // PackageManager is busy is not worth a process death.
+            try {
+                val current = currentLauncherIcon()
+                // Resource names cannot carry '-'; catalogued keys such as
+                // `ice-cream` ship as `ic_launcher_ice_cream`, so a raw
+                // interpolation answers 0 and the recents entry gets an icon
+                // resource of id 0 instead of the mark.
+                val resName = if (current == "default") {
+                    "ic_launcher"
+                } else {
+                    "ic_launcher_" + current.replace('-', '_')
+                }
+                val iconRes = resources.getIdentifier(resName, "mipmap", packageName)
+                runOnUiThread {
+                    val taskDescription =
+                        android.app.ActivityManager.TaskDescription("Mithka X", iconRes, 0)
+                    setTaskDescription(taskDescription)
+                }
+            } catch (error: Exception) {
+                Log.w("MainActivity", "Could not refresh the task description", error)
             }
         }.start()
     }
@@ -237,6 +259,13 @@ class MainActivity : FlutterFragmentActivity() {
     }
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
+        // This process can host more than one FlutterEngine: Android keeps a
+        // finished activity's process around, so re-entering the app (or
+        // launching it again right after SystemNavigator.pop()) attaches a NEW
+        // engine to a process whose previous engine already created native
+        // TDLib clients. Dart reads this counter to tell that re-entry from a
+        // cold start and to reclaim the previous engine's clients.
+        flutterEngineOrdinal += 1
         webProxyBridge = WebProxyBridge(this, flutterEngine.dartExecutor.binaryMessenger)
         registerPlugins(flutterEngine)
         pushBridge = PushServiceBridge(
@@ -292,20 +321,25 @@ class MainActivity : FlutterFragmentActivity() {
         // and the installed version name (the semver compared to the latest tag).
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "mithka/app_info")
             .setMethodCallHandler { call, result ->
-                if (call.method == "info") {
-                    val pkg = packageManager.getPackageInfo(packageName, 0)
-                    result.success(
-                        mapOf(
-                            "abis" to Build.SUPPORTED_ABIS.toList(),
-                            "version" to (pkg.versionName ?: ""),
-                            "sdkInt" to Build.VERSION.SDK_INT,
-                            "manufacturer" to Build.MANUFACTURER,
-                            "model" to Build.MODEL,
-                            "hardware" to Build.HARDWARE,
-                        ),
-                    )
-                } else {
-                    result.notImplemented()
+                when (call.method) {
+                    "info" -> {
+                        val pkg = packageManager.getPackageInfo(packageName, 0)
+                        result.success(
+                            mapOf(
+                                "abis" to Build.SUPPORTED_ABIS.toList(),
+                                "version" to (pkg.versionName ?: ""),
+                                "sdkInt" to Build.VERSION.SDK_INT,
+                                "manufacturer" to Build.MANUFACTURER,
+                                "model" to Build.MODEL,
+                                "hardware" to Build.HARDWARE,
+                            ),
+                        )
+                    }
+                    // 1 = this process has never hosted a FlutterEngine before.
+                    // Dart reclaims a previous engine's native TDLib clients
+                    // only when this answers 2 or more.
+                    "engineOrdinal" -> result.success(flutterEngineOrdinal)
+                    else -> result.notImplemented()
                 }
             }
 
@@ -872,6 +906,13 @@ class MainActivity : FlutterFragmentActivity() {
     companion object {
         private const val MAX_SHARED_FILES = 10
         private const val MAX_SHARED_FILE_BYTES = 512L * 1024L * 1024L
+
+        /// FlutterEngines this process has attached so far. Android reuses a
+        /// finished activity's process, so the app can be entered again with a
+        /// second engine while the first engine's native TDLib clients are
+        /// still alive; Dart keys its stale-client reclaim off this counter.
+        @Volatile
+        private var flutterEngineOrdinal = 0
     }
 
     private fun handleMediaDragEvent(event: DragEvent): Boolean {
