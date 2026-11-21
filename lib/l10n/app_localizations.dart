@@ -423,6 +423,7 @@ abstract final class AppStringKeys {
       'mithkaxPushServiceStatusFallback';
   static const mithkaxPushServiceStatusNoDistributor =
       'mithkaxPushServiceStatusNoDistributor';
+  static const mithkaxPushServiceRetry = 'mithkaxPushServiceRetry';
   static const mithkaxPushServiceStatusUnavailable =
       'mithkaxPushServiceStatusUnavailable';
   static const mithkaxPushServiceRestartNote = 'mithkaxPushServiceRestartNote';

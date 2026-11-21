@@ -14,6 +14,7 @@ import 'package:flutter/material.dart';
 import '../components/app_icons.dart';
 import '../components/ui_components.dart';
 import '../l10n/app_localizations.dart';
+import '../notifications/push_device_registrar.dart';
 import '../notifications/push_service_settings.dart';
 import '../theme/app_motion.dart';
 import '../theme/app_theme.dart';
@@ -77,6 +78,12 @@ class _PushServiceSectionState extends State<PushServiceSection> {
       return AppStrings.t('mithkaxPushServiceStatusFallback');
     }
     return AppStrings.t('mithkaxPushServiceStatusRegistering');
+  }
+
+  bool get _hasError => _status.error != null;
+
+  Future<void> _retry() async {
+    await PushDeviceRegistrar.shared.retry();
   }
 
   Future<void> _pickKind() async {
@@ -187,6 +194,16 @@ class _PushServiceSectionState extends State<PushServiceSection> {
               leading: const SettingsLeadingIcon(icon: HeroAppIcons.circleInfo),
               showChevron: false,
             ),
+            if (_hasError)
+              SettingsRow(
+                key: const ValueKey('mithkax-push-service-retry'),
+                title: AppStrings.t('mithkaxPushServiceRetry'),
+                leading: const SettingsLeadingIcon(
+                  icon: HeroAppIcons.arrowsRotate,
+                ),
+                showChevron: false,
+                onTap: () => unawaited(_retry()),
+              ),
           ],
         ),
         SettingsNote(text: _description(kind)),

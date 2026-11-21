@@ -4040,4 +4040,5 @@
     <string name="storageDownloadLocationFailed">无法访问下载位置</string>
     <string name="storageDownloadFolderNotSelected">选择文件夹</string>
     <string name="storageDownloadCurrent">当前位置：{value1}</string>
+    <string name="mithkaxPushServiceRetry">重试注册</string>
 </resources>

@@ -4040,4 +4040,5 @@
     <string name="storageDownloadLocationFailed">ダウンロード先にアクセスできませんでした</string>
     <string name="storageDownloadFolderNotSelected">フォルダを選択</string>
     <string name="storageDownloadCurrent">現在の保存先：{value1}</string>
+    <string name="mithkaxPushServiceRetry">登録を再試行</string>
 </resources>

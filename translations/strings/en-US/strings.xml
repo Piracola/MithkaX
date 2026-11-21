@@ -4057,4 +4057,5 @@
     <string name="storageDownloadLocationFailed">Could not access the download location</string>
     <string name="storageDownloadFolderNotSelected">Choose a folder</string>
     <string name="storageDownloadCurrent">Current location: {value1}</string>
+    <string name="mithkaxPushServiceRetry">Retry registration</string>
 </resources>

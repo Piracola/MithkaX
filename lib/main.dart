@@ -59,7 +59,6 @@ import 'chats/chat_folder_tag_controller.dart';
 import 'chats/local_pin_store.dart';
 import 'components/drawer_controller.dart' as dc;
 import 'config/build_flags.dart';
-import 'firebase_options.dart';
 import 'history/message_history_settings.dart';
 import 'history/message_history_store.dart';
 import 'l10n/app_locale_controller.dart';
@@ -367,9 +366,14 @@ Future<void> _initTelemetry() async {
       AppVersion.load(),
     ).wait;
     if (hasFirebaseConfiguration) {
-      await Firebase.initializeApp(
-        options: DefaultFirebaseOptions.currentPlatform,
-      );
+      // Do not pass DefaultFirebaseOptions here. On Android the build's
+      // google-services.json has already created the [DEFAULT] FirebaseApp
+      // through FirebaseInitProvider; initializing again with the hardcoded
+      // FlutterFire options throws "FirebaseApp name [DEFAULT] already
+      // exists", which used to abort this whole telemetry block. Omitting the
+      // options makes FlutterFire adopt the native app (and its project) and
+      // keeps push registration on the same project as the FCM receiver.
+      await Firebase.initializeApp();
       await FirebaseAnalytics.instance.setAnalyticsCollectionEnabled(true);
       await FirebaseAnalytics.instance.setDefaultEventParameters(
         appVersion.analyticsParameters,

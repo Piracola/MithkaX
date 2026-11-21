@@ -119,6 +119,9 @@ class PushDeviceRegistrar {
   String? _lastRegistrationSignature;
   bool _running = false;
   bool _fcmStarted = false;
+  bool _fcmBootstrapPending = false;
+  Timer? _fcmRetryTimer;
+  int _fcmRetryCount = 0;
   bool _fallbackKeepAlive = false;
   UnifiedPushCredentials? _unifiedCredentials;
   Map<String, dynamic>? _lastRegistrationRecord;
@@ -263,11 +266,27 @@ class PushDeviceRegistrar {
       unawaited(_foregroundMessageSub?.cancel());
       _foregroundMessageSub = null;
       _fcmStarted = false;
+      _fcmRetryTimer?.cancel();
+      _fcmRetryTimer = null;
+      _fcmRetryCount = 0;
     }
     if (kind != PushServiceKind.unifiedPush) {
       _unifiedCredentials = null;
     }
     unawaited(_registerIfPossible());
+  }
+
+  Future<void> retry() async {
+    _lastRegistrationSignature = null;
+    _fcmRetryCount = 0;
+    _fcmStarted = false;
+    _pushStatus.update(clearError: true);
+    await _applyNativePushMode();
+    final kind = _pushSettings.kind;
+    if (kind == PushServiceKind.fcm || kind == PushServiceKind.microG) {
+      await _bootstrapFCM();
+    }
+    await _registerIfPossible();
   }
 
   Future<void> _bootstrapFCM() async {
@@ -276,16 +295,25 @@ class PushDeviceRegistrar {
         _pushSettings.kind != PushServiceKind.microG) {
       return;
     }
+    _fcmRetryTimer?.cancel();
     _fcmStarted = true;
-    final bootstrap = await (debugFCMBootstrap?.call() ?? _liveFCMBootstrap());
+    _fcmBootstrapPending = true;
+    FCMBootstrap? bootstrap;
+    try {
+      bootstrap = await (debugFCMBootstrap?.call() ?? _liveFCMBootstrap());
+    } finally {
+      _fcmBootstrapPending = false;
+    }
     if (bootstrap == null) {
       _fcmStarted = false;
-      debugPrint('FCM registration skipped: Firebase not configured');
+      debugPrint('FCM registration skipped: no usable token');
       _pushStatus.update(error: 'fcm_unavailable');
       await _setFallbackKeepAlive(true);
       unawaited(_registerIfPossible());
+      _scheduleFCMRetry();
       return;
     }
+    _fcmRetryCount = 0;
     _setDeviceToken(bootstrap.initialToken);
     unawaited(_registerIfPossible());
     await _tokenRefreshSub?.cancel();
@@ -299,22 +327,59 @@ class PushDeviceRegistrar {
     );
   }
 
+  /// Retries a failed token fetch while the user still has FCM/microG
+  /// selected. microG can take a few seconds after boot to bind its GMS
+  /// service; a single early getToken() failure must not pin the settings
+  /// screen to "unavailable" for the rest of the process.
+  void _scheduleFCMRetry() {
+    if (_fcmRetryCount >= 5) return;
+    if (_pushSettings.kind != PushServiceKind.fcm &&
+        _pushSettings.kind != PushServiceKind.microG) {
+      return;
+    }
+    _fcmRetryCount++;
+    _fcmRetryTimer?.cancel();
+    _fcmRetryTimer = Timer(const Duration(seconds: 20), () {
+      if (_pushSettings.kind != PushServiceKind.fcm &&
+          _pushSettings.kind != PushServiceKind.microG) {
+        return;
+      }
+      unawaited(_bootstrapFCM());
+    });
+  }
+
   Future<FCMBootstrap?> _liveFCMBootstrap() async {
     try {
-      // Firebase.initializeApp runs in main's telemetry task; wait for its
-      // side effect rather than racing a second initialize call.
-      final deadline = DateTime.now().add(const Duration(seconds: 20));
-      while (Firebase.apps.isEmpty) {
-        if (DateTime.now().isAfter(deadline)) return null;
-        await Future<void>.delayed(const Duration(milliseconds: 250));
+      // Do not wait for main's idle telemetry task: it can be delayed for
+      // longer than any sensible registration timeout on a cold start. When
+      // the native google-services config exists, initialize without explicit
+      // options so FlutterFire adopts FirebaseInitProvider's [DEFAULT] app
+      // (passing the hardcoded options here throws "already exists").
+      if (Firebase.apps.isEmpty) {
+        await Firebase.initializeApp().timeout(const Duration(seconds: 15));
       }
-      await FirebaseMessaging.instance.requestPermission();
-      final token = await FirebaseMessaging.instance.getToken();
+      if (Firebase.apps.isEmpty) {
+        debugPrint('FCM registration skipped: Firebase has no default app');
+        return null;
+      }
+      // Token retrieval is independent of the POST_NOTIFICATIONS dialog; the
+      // notification controller owns the permission prompt and this bootstrap
+      // must not block behind it.
+      final token = await FirebaseMessaging.instance.getToken().timeout(
+        const Duration(seconds: 15),
+      );
+      if (token == null || token.trim().isEmpty) {
+        debugPrint('FCM registration skipped: empty device token');
+        return null;
+      }
       return FCMBootstrap(
         initialToken: token,
         tokenRefresh: FirebaseMessaging.instance.onTokenRefresh,
         foregroundMessages: FirebaseMessaging.onMessage,
       );
+    } on TimeoutException catch (error) {
+      debugPrint('FCM registration timed out: $error');
+      return null;
     } catch (error) {
       debugPrint('FCM registration failed: $error');
       return null;
@@ -531,6 +596,14 @@ class PushDeviceRegistrar {
       };
       if (tokens == null) {
         if (debugPlatformName() == 'android') {
+          // The FCM token request has not finished yet. Marking the transport
+          // unavailable here would flash (or pin) an error before getToken()
+          // has had a chance to return; wait for the bootstrap result instead.
+          if ((kind == PushServiceKind.fcm || kind == PushServiceKind.microG) &&
+              _fcmBootstrapPending) {
+            _pushStatus.update(clearError: true);
+            return;
+          }
           // The chosen transport has nothing to register yet. Do not leave a
           // previous transport's subscription alive next to it; a stale FCM
           // token plus a UnifiedPush endpoint double-posts every message.
