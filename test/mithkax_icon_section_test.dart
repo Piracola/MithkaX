@@ -252,8 +252,15 @@ void main() {
       );
       for (final variant in AppIconVariant.mithkaXSection) {
         expect(controller.isLocked(variant), isFalse);
+        // Selecting the mark that is already applied short-circuits without
+        // an explicit write (native state is already right); only a real
+        // switch persists the choice. Aurora ships as the default, so the
+        // first pass over the section hits exactly that path.
+        final alreadyCurrent = controller.isCurrent(variant);
         expect(await controller.setVariant(variant), isTrue);
-        expect(prefs.getString('selected_app_icon'), variant.key);
+        if (!alreadyCurrent) {
+          expect(prefs.getString('selected_app_icon'), variant.key);
+        }
       }
     });
 
