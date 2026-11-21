@@ -28,6 +28,7 @@ Widget _harness(
   ThemeController theme,
   ChatMessage message, {
   required bool stats,
+  bool commentRow = false,
 }) => ChangeNotifierProvider<ThemeController>.value(
   value: theme,
   child: MaterialApp(
@@ -48,25 +49,33 @@ Widget _harness(
           peerTitle: 'Channel',
           isGroup: false,
           showChannelPostStats: stats,
+          showCommentAttachment: commentRow,
+          channelHasLinkedDiscussion: commentRow,
         ),
       ),
     ),
   ),
 );
 
-ChatMessage _post({int views = 0, int forwards = 0, bool edited = false}) =>
-    ChatMessage(
-      id: 1,
-      isOutgoing: false,
-      text: 'channel post',
-      date: 1700000000,
-      chatId: -100,
-      senderId: -100,
-      senderName: 'Channel',
-      isEdited: edited,
-      viewCount: views,
-      forwardCount: forwards,
-    );
+ChatMessage _post({
+  int views = 0,
+  int forwards = 0,
+  bool edited = false,
+  int commentCount = 0,
+}) => ChatMessage(
+  id: 1,
+  isOutgoing: false,
+  text: 'channel post',
+  date: 1700000000,
+  chatId: -100,
+  senderId: -100,
+  senderName: 'Channel',
+  isEdited: edited,
+  viewCount: views,
+  forwardCount: forwards,
+  hasCommentThread: commentCount > 0,
+  commentCount: commentCount,
+);
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -116,6 +125,40 @@ void main() {
       tester.getRect(forwards).left,
       greaterThan(viewsRect.right),
       reason: 'views read before forwards',
+    );
+  });
+
+  testWidgets('the band hangs below the comment row, never above it', (
+    tester,
+  ) async {
+    final theme = await _theme();
+    await tester.pumpWidget(
+      _harness(
+        theme,
+        _post(views: 1234, forwards: 56, commentCount: 3),
+        stats: true,
+        commentRow: true,
+      ),
+    );
+
+    final views = find.byKey(const ValueKey('messageViews-1'));
+    final forwards = find.byKey(const ValueKey('messageForwards-1'));
+    expect(views, findsOneWidget);
+    expect(forwards, findsOneWidget);
+    final comments = tester.getRect(
+      find.byKey(const ValueKey('messageCommentsAttachment-1')),
+    );
+    final viewsRect = tester.getRect(views);
+    expect(
+      viewsRect.top,
+      greaterThanOrEqualTo(comments.bottom),
+      reason:
+          'the band hangs below the comment row, not between it and the post',
+    );
+    expect(
+      (tester.getRect(forwards).right - comments.right).abs(),
+      lessThanOrEqualTo(1),
+      reason: 'the band stays flush with the bubble right edge',
     );
   });
 

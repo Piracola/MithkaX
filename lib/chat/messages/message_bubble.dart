@@ -1353,11 +1353,11 @@ class _MessageBubbleState extends State<_ScopedMessageBubble>
     late final Widget body;
     if (message.isContentRestricted && !_revealsRestrictedContent) {
       body = _textBubble(message.text, outgoing);
-      return _withCommentsOnly(_withFloatingMeta(body, outgoing), outgoing);
+      return _withFloatingMeta(body, outgoing);
     }
     if (message.isCall) {
       body = _callBubble(outgoing);
-      return _withCommentsOnly(_withFloatingMeta(body, outgoing), outgoing);
+      return _withFloatingMeta(body, outgoing);
     }
     // Only the card-shaped contents below read these; text, media, sticker and
     // voice messages would otherwise resolve three colour chains and drop them.
@@ -1377,7 +1377,7 @@ class _MessageBubbleState extends State<_ScopedMessageBubble>
         borderRadius: _messageBorderRadius(9),
         onOpen: () => widget.bubble.onOpenContact?.call(message),
       );
-      return _withCommentsOnly(_withFloatingMeta(body, outgoing), outgoing);
+      return _withFloatingMeta(body, outgoing);
     }
     if (message.poll != null) {
       body = MessagePollContent(
@@ -1399,7 +1399,7 @@ class _MessageBubbleState extends State<_ScopedMessageBubble>
             ? () => widget.bubble.onShowPollResults?.call(message)
             : null,
       );
-      return _withCommentsOnly(_withFloatingMeta(body, outgoing), outgoing);
+      return _withFloatingMeta(body, outgoing);
     }
     if (message.checklist != null) {
       body = MessageChecklistContent(
@@ -1415,7 +1415,7 @@ class _MessageBubbleState extends State<_ScopedMessageBubble>
             ? () => widget.bubble.onAddChecklistTask?.call(message)
             : null,
       );
-      return _withCommentsOnly(_withFloatingMeta(body, outgoing), outgoing);
+      return _withFloatingMeta(body, outgoing);
     }
     if (message.story != null) {
       body = MessageStoryContent(
@@ -1426,7 +1426,7 @@ class _MessageBubbleState extends State<_ScopedMessageBubble>
         borderRadius: _messageBorderRadius(9),
         onOpen: () => widget.bubble.onOpenStory?.call(message),
       );
-      return _withCommentsOnly(_withFloatingMeta(body, outgoing), outgoing);
+      return _withFloatingMeta(body, outgoing);
     }
     if (message.gift case final gift?) {
       final incomingToMe = gift.isIncomingToMe(
@@ -1442,10 +1442,7 @@ class _MessageBubbleState extends State<_ScopedMessageBubble>
         meta: _giftFooterMeta(outgoing),
         onTap: () => _openGift(gift, incomingToMe),
       );
-      return _withCommentsOnly(
-        _withFloatingMeta(body, outgoing, meta: false),
-        outgoing,
-      );
+      return _withFloatingMeta(body, outgoing, meta: false);
     }
     if (message.gramTransfer case final transfer?) {
       final state = transfer.state(
@@ -1463,10 +1460,7 @@ class _MessageBubbleState extends State<_ScopedMessageBubble>
         meta: _gramFooterMeta(outgoing, state),
         onTap: () => _openGramTransfer(transfer, state, outgoing, sender),
       );
-      return _withCommentsOnly(
-        _withFloatingMeta(body, outgoing, meta: false),
-        outgoing,
-      );
+      return _withFloatingMeta(body, outgoing, meta: false);
     }
     if (message.summaryCard != null) {
       body = MessageSummaryCardContent(
@@ -1476,7 +1470,7 @@ class _MessageBubbleState extends State<_ScopedMessageBubble>
         secondary: specialSecondary,
         borderRadius: _messageBorderRadius(9),
       );
-      return _withCommentsOnly(_withFloatingMeta(body, outgoing), outgoing);
+      return _withFloatingMeta(body, outgoing);
     }
     if (message.animatedSticker != null) {
       final s = _stickerSize();
@@ -1499,10 +1493,7 @@ class _MessageBubbleState extends State<_ScopedMessageBubble>
           ],
         ),
       );
-      return _withCommentsOnly(
-        _withFloatingMeta(_stickerTap(body), outgoing),
-        outgoing,
-      );
+      return _withFloatingMeta(_stickerTap(body), outgoing);
     }
     if (message.videoSticker != null) {
       final s = _stickerSize();
@@ -1527,10 +1518,7 @@ class _MessageBubbleState extends State<_ScopedMessageBubble>
           ],
         ),
       );
-      return _withCommentsOnly(
-        _withFloatingMeta(_stickerTap(body), outgoing),
-        outgoing,
-      );
+      return _withFloatingMeta(_stickerTap(body), outgoing);
     }
     if (message.isDice) {
       body = _diceBubble(outgoing);
@@ -1560,7 +1548,7 @@ class _MessageBubbleState extends State<_ScopedMessageBubble>
     } else {
       body = _textBubble(_activeMessageText, outgoing);
     }
-    return _withCommentsOnly(_withFloatingMeta(body, outgoing), outgoing);
+    return _withFloatingMeta(body, outgoing);
   }
 
   List<ChatMessage>? get _groupedDocumentMessages {
@@ -1742,7 +1730,52 @@ class _MessageBubbleState extends State<_ScopedMessageBubble>
   /// bubble's own right edge. The delivery tick and the forward attribution
   /// never ride it: the tick stays ink on the bubble's inside corner, the
   /// forward header stays in the bubble where it always was.
-  Widget _withFloatingMeta(Widget child, bool outgoing, {bool meta = true}) {
+  ///
+  /// A channel post's comment row is part of the bubble, so the band wraps
+  /// the composed bubble - comment row included - and therefore always hangs
+  /// BELOW that row, never between the post body and it.
+  Widget _withFloatingMeta(Widget body, bool outgoing, {bool meta = true}) {
+    final withTick = _withDeliveryTick(body, outgoing, meta: meta);
+    return _withFloatingBand(
+      _withCommentsOnly(withTick, outgoing),
+      outgoing,
+      meta: meta,
+    );
+  }
+
+  /// The delivery tick is ink on the bubble's inside corner - it never
+  /// reserves a strip below the bubble. The edited mark replaces it, as it
+  /// always has.
+  Widget _withDeliveryTick(Widget child, bool outgoing, {bool meta = true}) {
+    if (!(meta && outgoing && !message.isEdited)) return child;
+    final usesMediaOverlayColor =
+        message.animatedSticker != null ||
+        message.videoSticker != null ||
+        message.isDice ||
+        (message.stickerFileId != null && message.image != null) ||
+        ((message.video != null || message.image != null) &&
+            (_caption()?.trim().isEmpty ?? true));
+    final tickColor = _messageColors != null && !usesMediaOverlayColor
+        ? _messageTimeColor(outgoing)
+        : outgoing
+        ? _outgoingTextColor.withValues(alpha: 0.72)
+        : _colors.textTertiary;
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        child,
+        Positioned(
+          right: 5,
+          bottom: 3,
+          child: IgnorePointer(child: _deliveryTick(color: tickColor)),
+        ),
+      ],
+    );
+  }
+
+  /// The band under the bubble's outside edge: one chip language for the
+  /// whole band, and its right edge is the bubble's own right edge.
+  Widget _withFloatingBand(Widget child, bool outgoing, {bool meta = true}) {
     final showReplies = _showsCompactReplyCount;
     // One chip language for the whole band: reply count, edited mark and
     // the ghost's deleted chip share colors, so they read as one family
@@ -1800,11 +1833,7 @@ class _MessageBubbleState extends State<_ScopedMessageBubble>
         showEditedChip ||
         viewsChip != null ||
         forwardsChip != null;
-    // The delivery tick is ink on the bubble's inside corner — it never
-    // rides the band and never reserves a strip below the bubble. The
-    // edited mark replaces it, as it always has.
-    final showTick = meta && outgoing && !message.isEdited;
-    if (!showBand && !showTick) return child;
+    if (!showBand) return child;
     // The edited mark rides the band's chip language like its siblings.
     final editedChip = showEditedChip
         ? IgnorePointer(
@@ -1840,58 +1869,36 @@ class _MessageBubbleState extends State<_ScopedMessageBubble>
       ?editedChip,
       ?ghostMarker,
     ];
-    final usesMediaOverlayColor =
-        message.animatedSticker != null ||
-        message.videoSticker != null ||
-        message.isDice ||
-        (message.stickerFileId != null && message.image != null) ||
-        ((message.video != null || message.image != null) &&
-            (_caption()?.trim().isEmpty ?? true));
-    final tickColor = _messageColors != null && !usesMediaOverlayColor
-        ? _messageTimeColor(outgoing)
-        : outgoing
-        ? _outgoingTextColor.withValues(alpha: 0.72)
-        : _colors.textTertiary;
     return Stack(
       clipBehavior: Clip.none,
       children: [
-        Padding(
-          padding: EdgeInsets.only(bottom: showBand ? 19 : 0),
-          child: child,
-        ),
-        if (showTick)
-          Positioned(
-            right: 5,
-            bottom: 3,
-            child: IgnorePointer(child: _deliveryTick(color: tickColor)),
-          ),
+        Padding(padding: const EdgeInsets.only(bottom: 19), child: child),
         // The band, when any outside mark shows: its right edge is the
         // bubble's own right edge. The tight left+right constraints keep
         // the cluster inside the bubble's width — the FittedBox shrinks it
         // only when the bubble is genuinely too narrow — and the alignment
         // flushes it with the border, never reserving space for a mark
         // that is not showing.
-        if (showBand)
-          Positioned(
-            left: 0,
-            right: 0,
-            bottom: 0,
-            child: Align(
-              alignment: Alignment.centerRight,
-              child: FittedBox(
-                fit: BoxFit.scaleDown,
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    for (var i = 0; i < bandChips.length; i++) ...[
-                      if (i > 0) const SizedBox(width: 4),
-                      bandChips[i],
-                    ],
+        Positioned(
+          left: 0,
+          right: 0,
+          bottom: 0,
+          child: Align(
+            alignment: Alignment.centerRight,
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  for (var i = 0; i < bandChips.length; i++) ...[
+                    if (i > 0) const SizedBox(width: 4),
+                    bandChips[i],
                   ],
-                ),
+                ],
               ),
             ),
           ),
+        ),
       ],
     );
   }
