@@ -2437,8 +2437,14 @@
     <string name="mithkaProTitle">Support us</string>
     <string name="mithkaProYearly">Yearly</string>
     <string name="mithkaxIconHeading">Mithka X icons</string>
-    <string name="mithkaxIconDefault">Default</string>
     <string name="mithkaxIconMonochrome">Monochrome</string>
+    <string name="mithkaxIconAurora">Aurora</string>
+    <string name="mithkaxIconShadowLight">Light and shadow (day)</string>
+    <string name="mithkaxIconShadowDark">Light and shadow (night)</string>
+    <string name="mithkaxIconJade">Jade</string>
+    <string name="mithkaxIconGoogleLight">Google (day)</string>
+    <string name="mithkaxIconGoogleDark">Google (night)</string>
+    <string name="mithkaxIconGlitch">Glitch</string>
     <plurals name="momentsCommentCount">
         <item quantity="one">{count} comment</item>
         <item quantity="other">{count} comments</item>

@@ -387,7 +387,13 @@ abstract final class AppStringKeys {
   static const mithkaProYearly = 'mithkaProYearly';
 
   static const mithkaxIconHeading = 'mithkaxIconHeading';
-  static const mithkaxIconDefault = 'mithkaxIconDefault';
+  static const mithkaxIconAurora = 'mithkaxIconAurora';
+  static const mithkaxIconShadowLight = 'mithkaxIconShadowLight';
+  static const mithkaxIconShadowDark = 'mithkaxIconShadowDark';
+  static const mithkaxIconJade = 'mithkaxIconJade';
+  static const mithkaxIconGoogleLight = 'mithkaxIconGoogleLight';
+  static const mithkaxIconGoogleDark = 'mithkaxIconGoogleDark';
+  static const mithkaxIconGlitch = 'mithkaxIconGlitch';
   static const mithkaxIconMonochrome = 'mithkaxIconMonochrome';
   static const addMembersDone = 'addMembersDone';
   static const addMembersDoneWithCount = 'addMembersDoneWithCount';

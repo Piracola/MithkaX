@@ -2429,8 +2429,14 @@
     <string name="mithkaProTitle">開発を支援</string>
     <string name="mithkaProYearly">年額</string>
     <string name="mithkaxIconHeading">Mithka X アイコン</string>
-    <string name="mithkaxIconDefault">デフォルト</string>
     <string name="mithkaxIconMonochrome">モノクロ</string>
+    <string name="mithkaxIconAurora">オーロラ</string>
+    <string name="mithkaxIconShadowLight">光と影（昼）</string>
+    <string name="mithkaxIconShadowDark">光と影（夜）</string>
+    <string name="mithkaxIconJade">青緑</string>
+    <string name="mithkaxIconGoogleLight">Google（昼）</string>
+    <string name="mithkaxIconGoogleDark">Google（夜）</string>
+    <string name="mithkaxIconGlitch">グリッチ</string>
     <plurals name="momentsCommentCount">
         <item quantity="other">{count} 件のコメント</item>
     </plurals>

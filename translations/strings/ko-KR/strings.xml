@@ -2429,8 +2429,14 @@
     <string name="mithkaProTitle">개발 지원</string>
     <string name="mithkaProYearly">연간</string>
     <string name="mithkaxIconHeading">Mithka X 아이콘</string>
-    <string name="mithkaxIconDefault">기본</string>
     <string name="mithkaxIconMonochrome">단색</string>
+    <string name="mithkaxIconAurora">오로라</string>
+    <string name="mithkaxIconShadowLight">빛과 그림자 (낮)</string>
+    <string name="mithkaxIconShadowDark">빛과 그림자 (밤)</string>
+    <string name="mithkaxIconJade">청록</string>
+    <string name="mithkaxIconGoogleLight">Google (낮)</string>
+    <string name="mithkaxIconGoogleDark">Google (밤)</string>
+    <string name="mithkaxIconGlitch">글리치</string>
     <plurals name="momentsCommentCount">
         <item quantity="other">댓글 {count}개</item>
     </plurals>

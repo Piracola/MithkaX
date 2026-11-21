@@ -573,13 +573,13 @@ enum AppIconVariant {
     colors: [Color(0xFFFFFFFF), Color(0xFF0B0B0D)],
   ),
 
-  // MithkaX's own identity. These two live in their own section of the picker
+  // MithkaX's own identity. These live in their own section of the picker
   // (AppIconVariant.mithkaXSection), never in the standard motif grid, and
   // [mithkaxDefault] is what a fresh install ships: the manifest-enabled
   // launcher alias carries its artwork.
   mithkaxDefault(
     key: 'mithkax_default',
-    labelKey: AppStringKeys.mithkaxIconDefault,
+    labelKey: AppStringKeys.mithkaxIconAurora,
     asset: 'assets/app_icons/mithkax_default.png',
     pickerAsset: 'assets/app_icons/picker/standard-mithkax_default.webp',
     mithkaX: true,
@@ -595,6 +595,62 @@ enum AppIconVariant {
     mithkaX: true,
     penguinCount: 0,
     colors: [Color(0xFF111111), Color(0xFFFFFFFF)],
+  ),
+  mithkaxShadowLight(
+    key: 'mithkax_shadow_light',
+    labelKey: AppStringKeys.mithkaxIconShadowLight,
+    asset: 'assets/app_icons/mithkax_shadow_light.png',
+    darkAsset: 'assets/app_icons/mithkax_shadow_dark.png',
+    pickerAsset: 'assets/app_icons/picker/standard-mithkax_shadow_light.webp',
+    mithkaX: true,
+    penguinCount: 0,
+    colors: [Color(0xFFF2F4F8), Color(0xFF111318)],
+  ),
+  mithkaxShadowDark(
+    key: 'mithkax_shadow_dark',
+    labelKey: AppStringKeys.mithkaxIconShadowDark,
+    asset: 'assets/app_icons/mithkax_shadow_dark.png',
+    pickerAsset: 'assets/app_icons/picker/standard-mithkax_shadow_dark.webp',
+    mithkaX: true,
+    penguinCount: 0,
+    colors: [Color(0xFF20242E), Color(0xFFA6B0C0)],
+  ),
+  mithkaxJade(
+    key: 'mithkax_jade',
+    labelKey: AppStringKeys.mithkaxIconJade,
+    asset: 'assets/app_icons/mithkax_jade.png',
+    pickerAsset: 'assets/app_icons/picker/standard-mithkax_jade.webp',
+    mithkaX: true,
+    penguinCount: 0,
+    colors: [Color(0xFF09DC6B), Color(0xFF07C160)],
+  ),
+  mithkaxGoogleLight(
+    key: 'mithkax_google_light',
+    labelKey: AppStringKeys.mithkaxIconGoogleLight,
+    asset: 'assets/app_icons/mithkax_google_light.png',
+    darkAsset: 'assets/app_icons/mithkax_google_dark.png',
+    pickerAsset: 'assets/app_icons/picker/standard-mithkax_google_light.webp',
+    mithkaX: true,
+    penguinCount: 0,
+    colors: [Color(0xFFFF3B30), Color(0xFF1A7BFF)],
+  ),
+  mithkaxGoogleDark(
+    key: 'mithkax_google_dark',
+    labelKey: AppStringKeys.mithkaxIconGoogleDark,
+    asset: 'assets/app_icons/mithkax_google_dark.png',
+    pickerAsset: 'assets/app_icons/picker/standard-mithkax_google_dark.webp',
+    mithkaX: true,
+    penguinCount: 0,
+    colors: [Color(0xFF171A21), Color(0xFF0A84FF)],
+  ),
+  mithkaxGlitch(
+    key: 'mithkax_glitch',
+    labelKey: AppStringKeys.mithkaxIconGlitch,
+    asset: 'assets/app_icons/mithkax_glitch.png',
+    pickerAsset: 'assets/app_icons/picker/standard-mithkax_glitch.webp',
+    mithkaX: true,
+    penguinCount: 0,
+    colors: [Color(0xFF000000), Color(0xFF25F4EE)],
   );
 
   const AppIconVariant({
@@ -650,8 +706,14 @@ enum AppIconVariant {
     AppIconVariant.letterMNeutral => AppStringKeys.appIconLetterMNeutral,
     AppIconVariant.aurora => AppStringKeys.appIconLetterMTelegramBlue,
     AppIconVariant.letterMGradient => AppStringKeys.appIconLetterMPinkPurple,
-    AppIconVariant.mithkaxDefault => AppStringKeys.mithkaxIconDefault,
+    AppIconVariant.mithkaxDefault => AppStringKeys.mithkaxIconAurora,
     AppIconVariant.mithkaxMonochrome => AppStringKeys.mithkaxIconMonochrome,
+    AppIconVariant.mithkaxShadowLight => AppStringKeys.mithkaxIconShadowLight,
+    AppIconVariant.mithkaxShadowDark => AppStringKeys.mithkaxIconShadowDark,
+    AppIconVariant.mithkaxJade => AppStringKeys.mithkaxIconJade,
+    AppIconVariant.mithkaxGoogleLight => AppStringKeys.mithkaxIconGoogleLight,
+    AppIconVariant.mithkaxGoogleDark => AppStringKeys.mithkaxIconGoogleDark,
+    AppIconVariant.mithkaxGlitch => AppStringKeys.mithkaxIconGlitch,
     _ => labelKey,
   };
   String? get pickerLabelKey =>
@@ -717,6 +779,12 @@ enum AppIconVariant {
   static const mithkaXSection = <AppIconVariant>[
     mithkaxDefault,
     mithkaxMonochrome,
+    mithkaxShadowLight,
+    mithkaxShadowDark,
+    mithkaxJade,
+    mithkaxGoogleLight,
+    mithkaxGoogleDark,
+    mithkaxGlitch,
   ];
 
   static List<AppIconVariant> get supporterVariants => values

@@ -2429,8 +2429,14 @@
     <string name="mithkaProTitle">支持我們</string>
     <string name="mithkaProYearly">每年</string>
     <string name="mithkaxIconHeading">Mithka X 圖示</string>
-    <string name="mithkaxIconDefault">預設</string>
     <string name="mithkaxIconMonochrome">單色</string>
+    <string name="mithkaxIconAurora">極光</string>
+    <string name="mithkaxIconShadowLight">光影（白天）</string>
+    <string name="mithkaxIconShadowDark">光影（夜晚）</string>
+    <string name="mithkaxIconJade">青綠</string>
+    <string name="mithkaxIconGoogleLight">Google（白天）</string>
+    <string name="mithkaxIconGoogleDark">Google（夜晚）</string>
+    <string name="mithkaxIconGlitch">故障</string>
     <plurals name="momentsCommentCount">
         <item quantity="other">{count} 則留言</item>
     </plurals>

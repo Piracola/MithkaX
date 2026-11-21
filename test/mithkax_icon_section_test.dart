@@ -78,6 +78,12 @@ void main() {
       expect(AppIconVariant.mithkaXSection, [
         AppIconVariant.mithkaxDefault,
         AppIconVariant.mithkaxMonochrome,
+        AppIconVariant.mithkaxShadowLight,
+        AppIconVariant.mithkaxShadowDark,
+        AppIconVariant.mithkaxJade,
+        AppIconVariant.mithkaxGoogleLight,
+        AppIconVariant.mithkaxGoogleDark,
+        AppIconVariant.mithkaxGlitch,
       ]);
       for (final variant in AppIconVariant.mithkaXSection) {
         expect(
@@ -121,7 +127,7 @@ void main() {
       }
     });
 
-    test('the Android launcher carries both marks at every density', () {
+    test('the Android launcher carries every fork mark at every density', () {
       const densities = {
         'mdpi': 1,
         'hdpi': 1.5,
@@ -129,7 +135,10 @@ void main() {
         'xxhdpi': 3,
         'xxxhdpi': 4,
       };
-      for (final name in ['mithkax_default', 'mithkax_monochrome']) {
+      // Derived from the catalogue, not a second list: a mark added to the
+      // picker without its launcher resources fails right here.
+      for (final variant in AppIconVariant.mithkaXSection) {
+        final name = variant.key;
         for (final entry in densities.entries) {
           final factor = entry.value;
           expect(
