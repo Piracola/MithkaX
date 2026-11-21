@@ -34,6 +34,7 @@ import '../channels/topic_list_actions.dart';
 import '../channels/topic_list_host.dart';
 import '../channels/topic_list_row.dart';
 import '../channels/topic_navigation.dart';
+import '../chats/chat_list_view.dart';
 import '../chats/search_token_views.dart';
 import '../communities/community_models.dart';
 import '../communities/community_view.dart';
@@ -9373,8 +9374,7 @@ class _ChatViewState extends State<ChatView> {
       await _vm.loadForumTopics();
     }
     if (!mounted) return;
-    final topics = _vm.forumTopics;
-    if (topics.isEmpty) {
+    if (_vm.forumTopics.isEmpty) {
       showToast(
         context,
         _vm.forumTopicsLoading
@@ -9384,51 +9384,66 @@ class _ChatViewState extends State<ChatView> {
       return;
     }
     final c = context.colors;
+    // Desktop/wide-tablet layouts present the sheet centered with every
+    // corner rounded; only the phone bottom-sheet form rounds the top edge.
+    final centered = appModalUsesCenteredPresentation(
+      MediaQuery.sizeOf(context),
+    );
+    final currentTopicId = widget.forumTopicId;
     await showAppModalSheet<void>(
       context: context,
       backgroundColor: c.background,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
+      shape: RoundedRectangleBorder(
+        borderRadius: centered
+            ? BorderRadius.circular(AppRadius.xl)
+            : const BorderRadius.vertical(top: Radius.circular(18)),
       ),
       builder: (sheetContext) => SafeArea(
-        child: ListView.separated(
-          shrinkWrap: true,
-          padding: const EdgeInsets.symmetric(vertical: 8),
-          itemCount: topics.length + 1,
-          separatorBuilder: (_, _) =>
-              Divider(height: 1, indent: 56, color: c.divider),
-          itemBuilder: (_, index) {
-            final all = index == 0;
-            final topic = all ? null : topics[index - 1];
-            return ListTile(
-              leading: _forumTopicIcon(topic, all, c),
-              title: Text(
-                (all ? AppStringKeys.topicChatAllTopics : topic!.name).l10n(
-                  context,
-                ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(color: c.textPrimary, fontSize: 16),
-              ),
-              // The centered sheet variant lays tiles out at a narrow width;
-              // an unsized badge can exceed the whole row, so wrap it in a
-              // bounded box rather than handing the pill to ListTile directly.
-              trailing: topic == null || topic.unreadCount <= 0
-                  ? null
-                  : SizedBox(
-                      width: 64,
-                      child: Align(
-                        alignment: Alignment.centerRight,
-                        child: UnreadBadge(
-                          key: ValueKey('topic-selector-unread-${topic.id}'),
-                          count: topic.unreadCount,
-                          muted: topic.isMuted,
-                        ),
+        // Live, like the strip above the transcript: a message that lands
+        // while the list is open reorders its rows and bumps counters, and
+        // the transcript the user is in stays marked.
+        child: ListenableBuilder(
+          listenable: _vm,
+          builder: (_, _) {
+            final topics = _vm.forumTopics;
+            if (topics.isEmpty) return const SizedBox.shrink();
+            return ListView.separated(
+              key: const ValueKey('topic-selector-list'),
+              shrinkWrap: true,
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              itemCount: topics.length + 1,
+              separatorBuilder: (_, _) =>
+                  Divider(height: 1, indent: 56, color: c.divider),
+              itemBuilder: (_, index) {
+                final all = index == 0;
+                final topic = all ? null : topics[index - 1];
+                final current = topic?.id == currentTopicId;
+                return ChatListSelectionHighlight(
+                  key: ValueKey('topic-selector-row-${topic?.id ?? "all"}'),
+                  selected: current,
+                  child: ListTile(
+                    leading: _forumTopicIcon(topic, all, c, current: current),
+                    title: Text(
+                      (all ? AppStringKeys.topicChatAllTopics : topic!.name)
+                          .l10n(context),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: current ? AppTheme.brand : c.textPrimary,
+                        fontSize: 16,
+                        fontWeight: current ? FontWeight.w600 : null,
                       ),
                     ),
-              onTap: () {
-                Navigator.of(sheetContext).pop();
-                _openTopicTranscript(topic?.id);
+                    // The centered sheet variant lays tiles out at a narrow
+                    // width; an unsized badge can exceed the whole row, so
+                    // wrap the trailing slot in a bounded box.
+                    trailing: _topicSelectorTrailing(topic, all, current),
+                    onTap: () {
+                      Navigator.of(sheetContext).pop();
+                      _openTopicTranscript(topic?.id);
+                    },
+                  ),
+                );
               },
             );
           },
@@ -9437,14 +9452,51 @@ class _ChatViewState extends State<ChatView> {
     );
   }
 
-  Widget _forumTopicIcon(ForumTopicOption? topic, bool all, AppColors c) {
+  /// The selector row's trailing slot: a brand check for the transcript the
+  /// user is already in, the unread pill for the others (both when the open
+  /// topic was manually marked unread).
+  Widget? _topicSelectorTrailing(
+    ForumTopicOption? topic,
+    bool all,
+    bool current,
+  ) {
+    final unread = !all && topic != null && topic.unreadCount > 0;
+    if (!current && !unread) return null;
+    return SizedBox(
+      width: 64,
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.end,
+        children: [
+          if (current)
+            AppIcon(HeroAppIcons.check, size: 18, color: AppTheme.brand),
+          if (unread) ...[
+            if (current) const SizedBox(width: AppSpacing.xs + 2),
+            UnreadBadge(
+              key: ValueKey('topic-selector-unread-${topic.id}'),
+              count: topic.unreadCount,
+              muted: topic.isMuted,
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _forumTopicIcon(
+    ForumTopicOption? topic,
+    bool all,
+    AppColors c, {
+    bool current = false,
+  }) {
     if (all) {
       return AppIcon(HeroAppIcons.hashtag, color: AppTheme.brand, size: 24);
     }
     final iconId = topic?.iconCustomEmojiId ?? 0;
     if (iconId != 0) return CustomEmojiView(id: iconId, size: 24);
     final rawColor = topic?.iconColor ?? 0;
-    final color = rawColor == 0
+    final color = current
+        ? AppTheme.brand
+        : rawColor == 0
         ? c.textSecondary
         : Color(0xFF000000 | (rawColor & 0xFFFFFF));
     return AppIcon(HeroAppIcons.solidMessage, color: color, size: 24);
