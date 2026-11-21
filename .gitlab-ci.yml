@@ -2,8 +2,8 @@
 #
 # The GitHub workflows under .github/workflows/ stay in the tree and remain the
 # release pipeline (quality.yml, mithkax-android.yml, mithkax-desktop.yml).
-# This file is the interim source gate while the GitHub account is suspended and
-# only mirrors the checks that do not need GitHub-only services or secrets.
+# This file mirrors only the checks that do not need GitHub-only services or
+# secrets; the store and release jobs stay on GitHub.
 
 workflow:
   auto_cancel:
