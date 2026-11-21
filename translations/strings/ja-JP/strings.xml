@@ -477,10 +477,6 @@
     <string name="appearanceFontDownloadFailedName">{value1} · ダウンロード失敗</string>
     <string name="appearanceFontInUse">使用中</string>
     <string name="appearanceFontLoadFailed">読み込みに失敗しました</string>
-    <string name="emojiDiagnosticsTitle">絵文字フォント診断</string>
-    <string name="emojiDiagnosticsRun">診断を実行</string>
-    <string name="emojiDiagnosticsCopy">レポートをコピー</string>
-    <string name="emojiDiagnosticsClose">閉じる</string>
     <string name="appearanceFontSize">フォントサイズ</string>
     <string name="appearanceFontUnused">未使用</string>
     <string name="appearanceGestures">ジェスチャー</string>

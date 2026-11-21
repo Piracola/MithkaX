@@ -37,7 +37,6 @@ import '../platform/system_ui.dart';
 import '../tdlib/td_models.dart';
 import '../theme/app_motion.dart';
 import '../theme/app_theme.dart';
-import '../theme/emoji_channel_source.dart';
 import '../theme/emoji_font_catalog.dart';
 import '../theme/global_theme_view.dart';
 import '../theme/message_bubble_background.dart';
@@ -3476,49 +3475,9 @@ class _EmojiFontPickerViewState extends State<EmojiFontPickerView> {
                   for (final entry in entries) _entryRow(context, entry, theme),
                 ],
               ),
-              const SizedBox(height: AppSpacing.lg),
-              SettingsCard.rows(
-                dividerInset: AppMetric.settingsTextDividerInset,
-                rows: [_diagnosticsRow(context)],
-              ),
             ],
           );
         },
-      ),
-    );
-  }
-
-  /// Temporary in-app diagnostic entry: runs the real channel download
-  /// pipeline and shows a copyable report, so a tester without adb can send
-  /// back exactly where the download fails.
-  Widget _diagnosticsRow(BuildContext context) {
-    final c = context.colors;
-    return InkWell(
-      onTap: () => showDialog<void>(
-        context: context,
-        builder: (_) => const _EmojiDiagnosticsDialog(),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.xxl,
-          vertical: AppSpacing.lg,
-        ),
-        child: Row(
-          children: [
-            Icon(Icons.bug_report_outlined, size: 20, color: c.textSecondary),
-            const SizedBox(width: AppSpacing.lg),
-            Expanded(
-              child: Text(
-                AppStrings.t(AppStringKeys.emojiDiagnosticsTitle),
-                style: TextStyle(
-                  fontSize: AppTextSize.body,
-                  color: c.textPrimary,
-                ),
-              ),
-            ),
-            Icon(Icons.chevron_right, size: 20, color: c.textSecondary),
-          ],
-        ),
       ),
     );
   }
@@ -4728,83 +4687,4 @@ class _MonospaceFontPickerViewState extends State<MonospaceFontPickerView> {
   }
 }
 
-/// Temporary diagnostics dialog: runs the real emoji-channel download
-/// pipeline and shows a copyable report. Exists so a tester can report exactly
-/// where the download fails without attaching adb.
-class _EmojiDiagnosticsDialog extends StatefulWidget {
-  const _EmojiDiagnosticsDialog();
 
-  @override
-  State<_EmojiDiagnosticsDialog> createState() =>
-      _EmojiDiagnosticsDialogState();
-}
-
-class _EmojiDiagnosticsDialogState extends State<_EmojiDiagnosticsDialog> {
-  String? _report;
-  bool _running = false;
-  bool _copied = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _run();
-  }
-
-  Future<void> _run() async {
-    setState(() {
-      _running = true;
-      _copied = false;
-      _report = null;
-    });
-    final report = await EmojiChannelSource().diagnose();
-    if (!mounted) return;
-    setState(() {
-      _report = report;
-      _running = false;
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final report = _report;
-    return AlertDialog(
-      title: Text(AppStrings.t(AppStringKeys.emojiDiagnosticsTitle)),
-      content: SizedBox(
-        width: double.maxFinite,
-        child: _running || report == null
-            ? const SizedBox(
-                height: 80,
-                child: Center(child: AppActivityIndicator(size: 24)),
-              )
-            : SingleChildScrollView(
-                child: SelectableText(
-                  report,
-                  style: const TextStyle(fontFamily: 'monospace', fontSize: 11),
-                ),
-              ),
-      ),
-      actions: [
-        TextButton(
-          onPressed: _running ? null : _run,
-          child: Text(AppStrings.t(AppStringKeys.emojiDiagnosticsRun)),
-        ),
-        TextButton(
-          onPressed: report == null || _running
-              ? null
-              : () async {
-                  await Clipboard.setData(ClipboardData(text: report));
-                  if (!mounted) return;
-                  setState(() => _copied = true);
-                },
-          child: Text(
-            _copied ? '✓' : AppStrings.t(AppStringKeys.emojiDiagnosticsCopy),
-          ),
-        ),
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(),
-          child: Text(AppStrings.t(AppStringKeys.emojiDiagnosticsClose)),
-        ),
-      ],
-    );
-  }
-}

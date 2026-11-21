@@ -477,10 +477,6 @@
     <string name="appearanceFontDownloadFailedName">{value1} · 下載失敗</string>
     <string name="appearanceFontInUse">使用中</string>
     <string name="appearanceFontLoadFailed">載入失敗</string>
-    <string name="emojiDiagnosticsTitle">表情字型診斷</string>
-    <string name="emojiDiagnosticsRun">執行診斷</string>
-    <string name="emojiDiagnosticsCopy">複製報告</string>
-    <string name="emojiDiagnosticsClose">關閉</string>
     <string name="appearanceFontSize">字型大小</string>
     <string name="appearanceFontUnused">未使用</string>
     <string name="appearanceGestures">手勢</string>

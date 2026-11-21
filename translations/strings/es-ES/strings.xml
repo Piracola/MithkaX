@@ -477,10 +477,6 @@
     <string name="appearanceFontDownloadFailedName">{value1} · Error al descargar</string>
     <string name="appearanceFontInUse">En uso</string>
     <string name="appearanceFontLoadFailed">Error al cargar</string>
-    <string name="emojiDiagnosticsTitle">Diagnóstico de fuentes emoji</string>
-    <string name="emojiDiagnosticsRun">Ejecutar diagnóstico</string>
-    <string name="emojiDiagnosticsCopy">Copiar informe</string>
-    <string name="emojiDiagnosticsClose">Cerrar</string>
     <string name="appearanceFontSize">Tamaño de fuente</string>
     <string name="appearanceFontUnused">Sin usar</string>
     <string name="appearanceGestures">Gestos</string>

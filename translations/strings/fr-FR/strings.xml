@@ -477,10 +477,6 @@
     <string name="appearanceFontDownloadFailedName">{value1} · téléchargement échoué</string>
     <string name="appearanceFontInUse">Utilisée</string>
     <string name="appearanceFontLoadFailed">Chargement échoué</string>
-    <string name="emojiDiagnosticsTitle">Diagnostics de police emoji</string>
-    <string name="emojiDiagnosticsRun">Lancer les diagnostics</string>
-    <string name="emojiDiagnosticsCopy">Copier le rapport</string>
-    <string name="emojiDiagnosticsClose">Fermer</string>
     <string name="appearanceFontSize">Taille de police</string>
     <string name="appearanceFontUnused">Inutilisée</string>
     <string name="appearanceGestures">Gestes</string>
