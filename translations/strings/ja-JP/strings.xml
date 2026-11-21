@@ -1965,7 +1965,10 @@
     <string name="historyClearAction">消去</string>
     <string name="historyClearAllConfirmTitle">保存したメッセージをすべて消去しますか？</string>
     <string name="historyClearChatConfirmTitle">{value1} の保存されたメッセージを消去しますか？</string>
+    <string name="historyClearDatabase">メッセージデータベースを消去</string>
+    <string name="historyClearDatabaseMessage">すべてのアカウントで保存された削除済み・編集済みメッセージ（メディアを含む）を削除します。この操作は元に戻せません。</string>
     <string name="historyClearedToast">保存されたメッセージを消去しました</string>
+    <string name="historyDatabaseClearedToast">メッセージデータベースを消去しました</string>
     <string name="historyDeletedLabel">削除済み</string>
     <string name="historyEditEvent">{value1} に編集: {value2}</string>
     <string name="historyEditedLabel">編集済み</string>

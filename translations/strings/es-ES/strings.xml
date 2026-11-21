@@ -1972,7 +1972,10 @@
     <string name="historyClearAction">Borrar</string>
     <string name="historyClearAllConfirmTitle">¿Borrar todos los mensajes guardados?</string>
     <string name="historyClearChatConfirmTitle">¿Borrar los mensajes guardados de {value1}?</string>
+    <string name="historyClearDatabase">Borrar base de datos de mensajes</string>
+    <string name="historyClearDatabaseMessage">Borra los mensajes eliminados y editados guardados de todas las cuentas, incluidos sus archivos multimedia. Esta acción no se puede deshacer.</string>
     <string name="historyClearedToast">Mensajes guardados borrados</string>
+    <string name="historyDatabaseClearedToast">Base de datos de mensajes borrada</string>
     <string name="historyDeletedLabel">Eliminado</string>
     <string name="historyEditEvent">Editado a las {value1}: {value2}</string>
     <string name="historyEditedLabel">Editado</string>

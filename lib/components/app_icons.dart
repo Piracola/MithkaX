@@ -397,6 +397,7 @@ class HeroAppIcons {
   static const comment = AppIconData(HeroiconsOutline.chatBubbleOvalLeft);
   static const comments = AppIconData(HeroiconsOutline.chatBubbleLeftRight);
   static const compactDisc = AppIconData(HeroiconsOutline.circleStack);
+  static const database = AppIconData(HeroiconsOutline.circleStack);
   static const crop = AppIconData(HeroiconsOutline.viewfinderCircle);
   static const cpuChip = AppIconData(HeroiconsOutline.cpuChip);
 

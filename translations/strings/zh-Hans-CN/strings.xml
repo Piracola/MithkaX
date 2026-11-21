@@ -1965,7 +1965,10 @@
     <string name="historyClearAction">清除</string>
     <string name="historyClearAllConfirmTitle">清除所有保留的消息？</string>
     <string name="historyClearChatConfirmTitle">清除来自 {value1} 的保留消息？</string>
+    <string name="historyClearDatabase">清除消息数据库</string>
+    <string name="historyClearDatabaseMessage">删除所有账号已保存的已删除与已编辑消息（含媒体），此操作无法撤销。</string>
     <string name="historyClearedToast">已清除保留的消息</string>
+    <string name="historyDatabaseClearedToast">消息数据库已清除</string>
     <string name="historyDeletedLabel">已删除</string>
     <string name="historyEditEvent">{value1} 编辑为：{value2}</string>
     <string name="historyEditedLabel">已编辑</string>

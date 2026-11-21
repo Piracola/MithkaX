@@ -1972,7 +1972,10 @@
     <string name="historyClearAction">Effacer</string>
     <string name="historyClearAllConfirmTitle">Effacer tous les messages conservés ?</string>
     <string name="historyClearChatConfirmTitle">Effacer les messages conservés de {value1} ?</string>
+    <string name="historyClearDatabase">Effacer la base de données des messages</string>
+    <string name="historyClearDatabaseMessage">Supprime les messages supprimés et modifiés conservés pour tous les comptes, y compris leurs médias. Cette action est irréversible.</string>
     <string name="historyClearedToast">Messages conservés effacés</string>
+    <string name="historyDatabaseClearedToast">Base de données des messages effacée</string>
     <string name="historyDeletedLabel">Supprimé</string>
     <string name="historyEditEvent">Modifié à {value1} : {value2}</string>
     <string name="historyEditedLabel">Modifié</string>

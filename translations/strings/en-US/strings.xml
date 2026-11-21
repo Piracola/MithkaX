@@ -1972,7 +1972,10 @@
     <string name="historyClearAction">Clear</string>
     <string name="historyClearAllConfirmTitle">Clear all kept messages?</string>
     <string name="historyClearChatConfirmTitle">Clear kept messages from {value1}?</string>
+    <string name="historyClearDatabase">Clear Message Database</string>
+    <string name="historyClearDatabaseMessage">Deletes the deleted and edited messages saved for every account, including their media. This cannot be undone.</string>
     <string name="historyClearedToast">Kept messages cleared</string>
+    <string name="historyDatabaseClearedToast">Message database cleared</string>
     <string name="historyDeletedLabel">Deleted</string>
     <string name="historyEditEvent">Edited at {value1}: {value2}</string>
     <string name="historyEditedLabel">Edited</string>

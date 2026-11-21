@@ -1965,7 +1965,10 @@
     <string name="historyClearAction">지우기</string>
     <string name="historyClearAllConfirmTitle">보관된 모든 메시지를 지울까요?</string>
     <string name="historyClearChatConfirmTitle">{value1}에서 보관한 메시지를 지울까요?</string>
+    <string name="historyClearDatabase">메시지 데이터베이스 지우기</string>
+    <string name="historyClearDatabaseMessage">모든 계정에 저장된 삭제·편집된 메시지와 미디어를 삭제합니다. 이 작업은 되돌릴 수 없습니다.</string>
     <string name="historyClearedToast">보관된 메시지를 지웠습니다</string>
+    <string name="historyDatabaseClearedToast">메시지 데이터베이스를 지웠습니다</string>
     <string name="historyDeletedLabel">삭제됨</string>
     <string name="historyEditEvent">{value1}에 수정: {value2}</string>
     <string name="historyEditedLabel">수정됨</string>

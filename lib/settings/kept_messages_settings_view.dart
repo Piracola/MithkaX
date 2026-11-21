@@ -11,11 +11,16 @@
 //  SettingsSection，卡片之间的间距由节标题自带，不再出现贴缝的分隔。
 //
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import '../components/app_confirm_dialog.dart';
 import '../components/app_icons.dart';
+import '../components/toast.dart';
 import '../components/ui_components.dart';
 import '../config/build_flags.dart';
 import '../history/message_history_settings.dart';
+import '../history/message_history_store.dart';
 import '../l10n/app_localizations.dart';
 import '../theme/app_motion.dart';
 import '../theme/app_theme.dart';
@@ -264,7 +269,82 @@ class _TransferSection extends StatelessWidget {
           ),
         ),
         _BadgeStyleRow(),
+        const _ClearDatabaseRow(),
       ],
+    );
+  }
+}
+
+/// The destructive tail of the data-management block (exteraless
+/// ClearMessageDatabase parity): wipes the kept-message mirror — every
+/// account's deleted/edited copies plus their media snapshots — behind a
+/// confirm card. The row's value is the database's on-disk size, refreshed
+/// after the wipe.
+class _ClearDatabaseRow extends StatefulWidget {
+  const _ClearDatabaseRow();
+
+  @override
+  State<_ClearDatabaseRow> createState() => _ClearDatabaseRowState();
+}
+
+class _ClearDatabaseRowState extends State<_ClearDatabaseRow> {
+  String _sizeLabel = '';
+  bool _clearing = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _refreshSize();
+  }
+
+  Future<void> _refreshSize() async {
+    final bytes = await MessageHistoryStore.shared.databaseBytes();
+    if (!mounted) return;
+    setState(() => _sizeLabel = _formatBytes(bytes));
+  }
+
+  Future<void> _clear() async {
+    if (_clearing) return;
+    final confirmed = await showAppConfirmDialog(
+      context,
+      title: AppStringKeys.historyClearDatabase.l10n(context),
+      message: AppStringKeys.historyClearDatabaseMessage.l10n(context),
+      confirmText: AppStringKeys.historyClearAction.l10n(context),
+      destructive: true,
+    );
+    if (!confirmed || !mounted) return;
+    setState(() => _clearing = true);
+    MessageHistoryStore.shared.clearAll();
+    if (!mounted) return;
+    setState(() => _clearing = false);
+    showToast(context, AppStringKeys.historyDatabaseClearedToast.l10n(context));
+    // The rescan is pure accounting for the value column: the wipe has
+    // already happened, so the toast must not wait behind file I/O.
+    unawaited(_refreshSize());
+  }
+
+  /// Same unit family as the storage screens' size values.
+  static String _formatBytes(int bytes) {
+    const units = ['B', 'KB', 'MB', 'GB'];
+    var value = bytes.toDouble();
+    var unit = 0;
+    while (value >= 1024 && unit < units.length - 1) {
+      value /= 1024;
+      unit++;
+    }
+    if (unit == 0) return '$bytes ${units[unit]}';
+    return '${value.toStringAsFixed(value >= 10 ? 1 : 2)} ${units[unit]}';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SettingsRow(
+      key: const ValueKey('kept-clear-database'),
+      title: AppStringKeys.historyClearDatabase.l10n(context),
+      value: _sizeLabel,
+      leading: const SettingsLeadingIcon(icon: HeroAppIcons.database),
+      enabled: !_clearing,
+      onTap: _clear,
     );
   }
 }

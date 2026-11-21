@@ -14,6 +14,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mithka/components/ui_components.dart';
 import 'package:mithka/config/build_flags.dart';
 import 'package:mithka/history/message_history_settings.dart';
+import 'package:mithka/history/message_history_store.dart';
 import 'package:mithka/l10n/app_localizations.dart';
 import 'package:mithka/settings/ghost_mode_controller.dart';
 import 'package:mithka/settings/ghost_mode_settings_view.dart';
@@ -162,6 +163,66 @@ void main() {
     final badge = find.byKey(const ValueKey('kept-badge-style'));
     await tester.scrollUntilVisible(badge, 300);
     expect(badge, findsOneWidget);
+  });
+
+  testWidgets('clear database wipes the kept mirror behind a confirm', (
+    tester,
+  ) async {
+    await _pump(tester, const KeptMessagesSettingsView());
+    if (!_enabled) {
+      expect(find.byKey(const ValueKey('kept-clear-database')), findsNothing);
+      return;
+    }
+    final store = MessageHistoryStore.shared;
+    store.debugSetActiveAccount(42);
+    store.debugSeed(const [
+      MessageHistoryEntry(
+        accountUserId: 42,
+        chatId: 7,
+        messageId: 1,
+        senderId: 7,
+        date: 1700000000,
+        text: 'kept copy',
+        kindKey: '',
+        state: MessageHistoryState.deleted,
+        deletedAt: 1700000001,
+        events: [],
+      ),
+    ]);
+    expect(store.entries, isNotEmpty);
+
+    final row = find.byKey(const ValueKey('kept-clear-database'));
+    await tester.scrollUntilVisible(row, 300);
+    // The size value comes from real file I/O behind path_provider, whose
+    // first platform answer only lands on the real event loop inside the
+    // test's fake clock. One real turn settles the row's own scan.
+    await tester.runAsync(MessageHistoryStore.shared.databaseBytes);
+    await tester.pumpAndSettle();
+    expect(row, findsOneWidget);
+    // The row carries the database's on-disk size, like exteraless's row.
+    expect(
+      find.descendant(of: row, matching: find.textContaining(' B')),
+      findsOneWidget,
+    );
+
+    // Cancelling the confirm keeps the mirror untouched.
+    await tester.tap(row);
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('app-confirm-cancel')));
+    await tester.pumpAndSettle();
+    expect(store.entries, isNotEmpty);
+
+    await tester.tap(row);
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('app-confirm-accept')));
+    await tester.pumpAndSettle();
+    expect(store.entries, isEmpty);
+    expect(find.text('Message database cleared'), findsOneWidget);
+
+    // Flush the toast's hold/fade and the debounced persist inside the test's
+    // fake clock, or the run ends with timers still pending.
+    await tester.pump(const Duration(seconds: 2));
+    await tester.pumpAndSettle();
   });
 
   testWidgets('badge style picker updates the settings store', (tester) async {

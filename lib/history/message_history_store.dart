@@ -1202,6 +1202,25 @@ class MessageHistoryStore extends ChangeNotifier {
     return removed;
   }
 
+  /// Bytes the kept-message database occupies on disk: the mirror file plus
+  /// every media snapshot. Nothing recorded yet reads as 0 — the settings
+  /// row shows the number before the first message is kept.
+  Future<int> databaseBytes() async {
+    if (!allowTelegramTosViolations) return 0;
+    var total = 0;
+    try {
+      final dir = fileDir ?? await getApplicationSupportDirectory();
+      final file = File('${dir.path}/$_fileName');
+      if (await file.exists()) total += await file.length();
+    } catch (_) {
+      // An unresolvable support directory counts as an empty mirror.
+    }
+    final snapshotter = _media();
+    await snapshotter.ensureDirResolved();
+    total += snapshotter.usedBytes;
+    return total;
+  }
+
   /// Forgets an account entirely: its kept copies, its pending edit dates
   /// and its exclusion preference. Called when a slot is logged out or
   /// removed; account identity is known there, so nothing is guessed.

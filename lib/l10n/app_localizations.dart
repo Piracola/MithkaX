@@ -5340,6 +5340,9 @@ abstract final class AppStringKeys {
   static const historyBadgeStyleIcon = 'historyBadgeStyleIcon';
   static const historyBadgeStyleText = 'historyBadgeStyleText';
   static const historyBadgeStyleTitle = 'historyBadgeStyleTitle';
+  static const historyClearDatabase = 'historyClearDatabase';
+  static const historyClearDatabaseMessage = 'historyClearDatabaseMessage';
+  static const historyDatabaseClearedToast = 'historyDatabaseClearedToast';
   static const historyEnableAll = 'historyEnableAll';
   static const historyExportAction = 'historyExportAction';
   static const historyExportSubtitle = 'historyExportSubtitle';

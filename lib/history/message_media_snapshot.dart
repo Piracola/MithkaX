@@ -74,6 +74,7 @@ class MessageMediaSnapshotter {
   int get usedBytes {
     final directory = dir;
     if (directory == null) return 0;
+    if (!directory.existsSync()) return 0;
     var total = 0;
     for (final entity in directory.listSync(followLinks: false)) {
       if (entity is File) total += entity.lengthSync();

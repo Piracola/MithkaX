@@ -1972,7 +1972,10 @@
     <string name="historyClearAction">Löschen</string>
     <string name="historyClearAllConfirmTitle">Alle gespeicherten Nachrichten löschen?</string>
     <string name="historyClearChatConfirmTitle">Gespeicherte Nachrichten aus {value1} löschen?</string>
+    <string name="historyClearDatabase">Nachrichtendatenbank löschen</string>
+    <string name="historyClearDatabaseMessage">Löscht die für alle Konten gespeicherten gelöschten und bearbeiteten Nachrichten samt Medien. Dies kann nicht rückgängig gemacht werden.</string>
     <string name="historyClearedToast">Gespeicherte Nachrichten gelöscht</string>
+    <string name="historyDatabaseClearedToast">Nachrichtendatenbank gelöscht</string>
     <string name="historyDeletedLabel">Gelöscht</string>
     <string name="historyEditEvent">Bearbeitet um {value1}: {value2}</string>
     <string name="historyEditedLabel">Bearbeitet</string>
