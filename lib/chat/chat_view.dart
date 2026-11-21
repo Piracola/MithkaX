@@ -1528,8 +1528,7 @@ class _ChatViewState extends State<ChatView> {
       _chatLanguageDetectionNewestMessageId =
           headerSnapshot.chatLanguageDetectionNewestMessageId;
     }
-    _dismissedBotApiWarningMask =
-        _dismissedBotApiWarningByChat[widget.chatId];
+    _dismissedBotApiWarningMask = _dismissedBotApiWarningByChat[widget.chatId];
     _olderHistoryExhaustedHint =
         _sessionRenderState?.olderHistoryExhausted ?? false;
     _sessionScrollSnapshot = widget.initialMessageId == null
@@ -11711,7 +11710,7 @@ class _ChatViewState extends State<ChatView> {
     }
     final align = outgoing ? Alignment.centerRight : Alignment.centerLeft;
     final verticalMenuWidth = math.min(
-      MessageActionMenu.desktopPreferredWidth,
+      actionMenu.preferredWidthFor(context),
       math.max(0.0, screenW - 20),
     );
     final pointerMenuOrigin = pointerAnchored

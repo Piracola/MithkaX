@@ -12,6 +12,7 @@ import 'package:flutter/material.dart';
 import 'package:mithka/l10n/app_localizations.dart';
 import 'package:provider/provider.dart';
 import '../../components/app_icons.dart';
+import '../../components/app_press_ripple.dart';
 import '../../platform/adaptive_platform.dart';
 import '../../settings/translation_controller.dart';
 import '../../tdlib/td_models.dart';
@@ -374,6 +375,19 @@ class MessageActionMenu extends StatelessWidget {
   static const preferredHeight = 152.0;
   static const desktopPreferredWidth = 220.0;
   static const _desktopActionHeight = 36.0;
+
+  /// Touch dropdown geometry, at exteraless's popup scale: a full-height row
+  /// per option, the menu's own text size, and a column that hugs its widest
+  /// label between a comfortable minimum and a cap — instead of the desktop's
+  /// pointer-sized rows squeezed into a fixed 220px column.
+  static const mobileDropdownRowHeight = 44.0;
+  static const mobileDropdownMinWidth = 196.0;
+  static const mobileDropdownMaxWidth = 300.0;
+  static const mobileDropdownVerticalInset = AppSpacing.md;
+  static const mobileDropdownHorizontalPadding = AppSpacing.xxl;
+  static const mobileDropdownIconSize = AppIconSize.xl;
+  static const mobileDropdownIconGap = AppSpacing.lg;
+  static const mobileDropdownTextSize = AppTextSize.bodyLarge;
   static const maxGridLabelCharacters = 8;
 
   @visibleForTesting
@@ -404,6 +418,40 @@ class MessageActionMenu extends StatelessWidget {
     required double availableHeight,
   }) =>
       math.min(math.max(0, count) * _desktopActionHeight + 12, availableHeight);
+
+  /// Height of the touch dropdown: one full row per option between its insets.
+  @visibleForTesting
+  static double mobileDropdownHeightForActionCount(
+    int count, {
+    required double availableHeight,
+  }) => math.min(
+    math.max(0, count) * mobileDropdownRowHeight +
+        mobileDropdownVerticalInset * 2,
+    availableHeight,
+  );
+
+  /// Width of the touch dropdown: its widest label plus the glyph column and
+  /// the row insets, between [mobileDropdownMinWidth] and
+  /// [mobileDropdownMaxWidth], never wider than [availableWidth].
+  @visibleForTesting
+  static double mobileDropdownWidthFor({
+    required double longestLabelWidth,
+    double availableWidth = double.infinity,
+  }) {
+    final fitted =
+        longestLabelWidth +
+        mobileDropdownIconSize +
+        mobileDropdownIconGap +
+        mobileDropdownHorizontalPadding * 2 +
+        _labelFitSlop;
+    return math.min(
+      fitted.clamp(mobileDropdownMinWidth, mobileDropdownMaxWidth),
+      availableWidth,
+    );
+  }
+
+  /// Rounding headroom so the widest label's own glyph raster never ellipsizes.
+  static const _labelFitSlop = 2.0;
 
   static Rect rectInOverlay(
     Rect globalRect, {
@@ -590,14 +638,62 @@ class MessageActionMenu extends StatelessWidget {
     if (!_usesVerticalLayout(context)) {
       return preferredHeight;
     }
-    return desktopHeightForActionCount(
-      _actions(
-        context.read<TranslationController>(),
-        isDesktop: isDesktopTargetPlatform(Theme.of(context).platform),
-        isMacOS: Theme.of(context).platform == TargetPlatform.macOS,
-      ).length,
-      availableHeight: MediaQuery.sizeOf(context).height - 24,
+    final actions = _actions(
+      context.read<TranslationController>(),
+      isDesktop: isDesktopTargetPlatform(Theme.of(context).platform),
+      isMacOS: Theme.of(context).platform == TargetPlatform.macOS,
     );
+    final availableHeight = MediaQuery.sizeOf(context).height - 24;
+    return isDesktopTargetPlatform(Theme.of(context).platform)
+        ? desktopHeightForActionCount(
+            actions.length,
+            availableHeight: availableHeight,
+          )
+        : mobileDropdownHeightForActionCount(
+            actions.length,
+            availableHeight: availableHeight,
+          );
+  }
+
+  /// The column's width: fixed and compact on a pointer, hugging its widest
+  /// label on the touch dropdown. Used by the host, which sizes the menu it
+  /// places so the placement math and the drawn surface agree.
+  double preferredWidthFor(BuildContext context) {
+    if (!_usesVerticalLayout(context)) return preferredWidth;
+    final platform = Theme.of(context).platform;
+    if (isDesktopTargetPlatform(platform)) return desktopPreferredWidth;
+    final actions = _actions(
+      context.read<TranslationController>(),
+      isDesktop: false,
+      isMacOS: platform == TargetPlatform.macOS,
+    );
+    return mobileDropdownWidthFor(
+      longestLabelWidth: _widestLabelWidth(context, actions),
+      availableWidth: math.max(0.0, MediaQuery.sizeOf(context).width - 20),
+    );
+  }
+
+  /// How wide the touch dropdown's widest option label draws.
+  static double _widestLabelWidth(
+    BuildContext context,
+    List<MessageAction> actions,
+  ) {
+    final painter = TextPainter(
+      textDirection: Directionality.of(context),
+      textScaler: MediaQuery.textScalerOf(context),
+      maxLines: 1,
+    );
+    var widest = 0.0;
+    for (final action in actions) {
+      painter.text = TextSpan(
+        text: AppStrings.t(action.label),
+        style: const TextStyle(fontSize: mobileDropdownTextSize),
+      );
+      painter.layout();
+      widest = math.max(widest, painter.width);
+    }
+    painter.dispose();
+    return widest;
   }
 
   @override
@@ -608,7 +704,11 @@ class MessageActionMenu extends StatelessWidget {
       isMacOS: Theme.of(context).platform == TargetPlatform.macOS,
     );
     if (_usesVerticalLayout(context)) {
-      return _VerticalActionList(actions: actions, onSelect: onSelect);
+      return _VerticalActionList(
+        actions: actions,
+        onSelect: onSelect,
+        compact: isDesktopTargetPlatform(Theme.of(context).platform),
+      );
     }
     final rowCounts = rowCountsForActionCount(actions.length);
     final firstRowCount = rowCounts.first;
@@ -684,28 +784,49 @@ class MessageActionMenu extends StatelessWidget {
 }
 
 class _VerticalActionList extends StatelessWidget {
-  const _VerticalActionList({required this.actions, required this.onSelect});
+  const _VerticalActionList({
+    required this.actions,
+    required this.onSelect,
+    required this.compact,
+  });
 
   final List<MessageAction> actions;
   final ValueChanged<MessageAction> onSelect;
+
+  /// Draw the pointer-sized column (the desktop context menu) instead of the
+  /// touch dropdown's full-size rows.
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {
     final availableWidth = MediaQuery.sizeOf(context).width - 20;
     final availableHeight = MediaQuery.sizeOf(context).height - 24;
-    final width = math.min(
-      MessageActionMenu.desktopPreferredWidth,
-      availableWidth,
-    );
-    final height = MessageActionMenu.desktopHeightForActionCount(
-      actions.length,
-      availableHeight: availableHeight,
-    );
+    final width = compact
+        ? math.min(MessageActionMenu.desktopPreferredWidth, availableWidth)
+        : MessageActionMenu.mobileDropdownWidthFor(
+            longestLabelWidth: MessageActionMenu._widestLabelWidth(
+              context,
+              actions,
+            ),
+            availableWidth: availableWidth,
+          );
+    final height = compact
+        ? MessageActionMenu.desktopHeightForActionCount(
+            actions.length,
+            availableHeight: availableHeight,
+          )
+        : MessageActionMenu.mobileDropdownHeightForActionCount(
+            actions.length,
+            availableHeight: availableHeight,
+          );
+    final dividerInset = compact ? 10.0 : AppSpacing.lg;
     return Container(
       key: const ValueKey('message-action-menu-surface'),
       width: width,
       height: height,
-      padding: const EdgeInsets.symmetric(vertical: 6),
+      padding: EdgeInsets.symmetric(
+        vertical: compact ? 6 : MessageActionMenu.mobileDropdownVerticalInset,
+      ),
       clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
         color: MessageActionMenu.surface,
@@ -739,49 +860,88 @@ class _VerticalActionList extends StatelessWidget {
                 Container(
                   key: const ValueKey('message-action-destructive-divider'),
                   height: 1,
-                  margin: const EdgeInsets.symmetric(horizontal: 10),
+                  margin: EdgeInsets.symmetric(horizontal: dividerInset),
                   color: Colors.white.withValues(alpha: 0.10),
                 ),
-              GestureDetector(
-                key: ValueKey('message-action-${action.name}'),
-                behavior: HitTestBehavior.opaque,
+              _VerticalActionRow(
+                action: action,
+                compact: compact,
                 onTap: () => onSelect(action),
-                child: SizedBox(
-                  height: MessageActionMenu._desktopActionHeight,
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                    child: Row(
-                      children: [
-                        AppIcon(
-                          action.glyph,
-                          size: 17,
-                          color: action.isDestructive
-                              ? MessageActionMenu._destructive
-                              : Colors.white,
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Text(
-                            AppStrings.t(action.label),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              fontSize: 14,
-                              color: action.isDestructive
-                                  ? MessageActionMenu._destructive
-                                  : Colors.white,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
               ),
             ],
           );
         },
       ),
+    );
+  }
+}
+
+/// One option of the vertical column: glyph in its slot, label, and — on
+/// touch — a full-height row with a press highlight, so the whole row answers
+/// a fingertip instead of only the line of type.
+class _VerticalActionRow extends StatelessWidget {
+  const _VerticalActionRow({
+    required this.action,
+    required this.compact,
+    required this.onTap,
+  });
+
+  final MessageAction action;
+  final bool compact;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = action.isDestructive
+        ? MessageActionMenu._destructive
+        : Colors.white;
+    final row = SizedBox(
+      height: compact
+          ? MessageActionMenu._desktopActionHeight
+          : MessageActionMenu.mobileDropdownRowHeight,
+      child: Padding(
+        padding: EdgeInsets.symmetric(
+          horizontal: compact
+              ? AppSpacing.lg
+              : MessageActionMenu.mobileDropdownHorizontalPadding,
+        ),
+        child: Row(
+          children: [
+            AppIcon(
+              action.glyph,
+              size: compact ? 17 : MessageActionMenu.mobileDropdownIconSize,
+              color: color,
+            ),
+            SizedBox(
+              width: compact ? 10 : MessageActionMenu.mobileDropdownIconGap,
+            ),
+            Expanded(
+              child: Text(
+                AppStrings.t(action.label),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: compact
+                      ? AppTextSize.callout
+                      : MessageActionMenu.mobileDropdownTextSize,
+                  color: color,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+    return GestureDetector(
+      key: ValueKey('message-action-${action.name}'),
+      behavior: HitTestBehavior.opaque,
+      onTap: onTap,
+      child: compact
+          ? row
+          : AppPressRipple(
+              color: Colors.white.withValues(alpha: 0.14),
+              child: row,
+            ),
     );
   }
 }

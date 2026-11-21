@@ -72,8 +72,7 @@ ALLOWED_VISIBLE_VALUES = {
     "github.com/iebb/mithka",
     "github.com/TiaraBasori/MithkaX",
     "ieb",
-    "mithka.ieb.app",
-    "t.me/mithka",
+    "t.me/MithkaX",
     "telegram.org/tos",
 }
 SUSPICIOUS_RENDER_FIELDS = {

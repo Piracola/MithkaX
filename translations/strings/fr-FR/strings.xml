@@ -12,7 +12,6 @@
     <string name="aboutUpdateAvailable">La version {value1} est disponible</string>
     <string name="aboutUpdateCheckFailed">Impossible de rechercher des mises à jour</string>
     <string name="aboutVersion">Version {value1}</string>
-    <string name="aboutWebsite">Site officiel</string>
     <string name="accentColorPickerSave">Enregistrer</string>
     <string name="accountBackupCopied">Session copiée</string>
     <string name="accountBackupCopyGramJsMessage">Cette action copie la session d’autorisation Telegram active dans le presse-papiers au format GramJS. Toute personne possédant cette chaîne peut se connecter à ce compte.</string>
@@ -2153,7 +2152,7 @@
     <string name="linkHandlerTelegramStarsCount">{value1} Étoiles du télégramme</string>
     <string name="linkHandlerUnsupportedTelegramLink">L’ouverture de ce lien Telegram n’est pas encore prise en charge</string>
     <string name="linkHandlerWritingStyle">Style d'écriture</string>
-    <string name="keptSettingsTitle">Fonctions Ayu</string>
+    <string name="keptSettingsTitle">Fonctionnalités expérimentales</string>
     <string name="keptHistorySection">Historique des messages</string>
     <string name="keptForwardSection">Transfert</string>
     <string name="keptGhostSection">Mode fantôme</string>
@@ -3846,7 +3845,6 @@
     <string name="updateAction">Mettre à jour</string>
     <string name="updateDownloadingTitle">Mise à jour de Mithka X</string>
     <string name="updateInstallAction">Installer et redémarrer</string>
-    <string name="updateInstallPrompt">Version actuelle : {value1}, dernière version : {value2}. Installer la mise à jour maintenant ?</string>
     <string name="updateLater">Plus tard</string>
     <string name="updateManagedInstall">Cette copie de Mithka X est gérée par votre système. Mettez-la à jour comme vous l’avez installée.</string>
     <string name="updateNewVersionFound">Nouvelle version disponible</string>
@@ -3856,7 +3854,6 @@
     <string name="updateStageExtracting">Décompression…</string>
     <string name="updateStageStaging">Préparation du redémarrage…</string>
     <string name="updateStageVerifying">Vérification…</string>
-    <string name="updateVersionPrompt">Version actuelle : {value1}, dernière version : {value2}. Aller la télécharger ?</string>
     <string name="videoDebuggerBufferHealth">État du tampon</string>
     <string name="videoDebuggerCache">Cache</string>
     <string name="videoDebuggerChunkDescription">Bloc {value1}, {value2}, {value3}</string>

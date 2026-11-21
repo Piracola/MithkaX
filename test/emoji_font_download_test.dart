@@ -120,12 +120,10 @@ void main() {
     expect(cached, hasLength(2));
     expect(cached.map((e) => e.key), containsAll(['apple', 'twemoji']));
 
-    // A cold offline start (no cache) throws.
+    // A cold offline start (no cache) answers with an empty catalog: the
+    // picker still draws its system-default row instead of a load failure.
     await File('${cacheDir.path}/manifest.json').delete();
-    await expectLater(
-      catalog.loadManifest(),
-      throwsA(isA<FileSystemException>()),
-    );
+    expect(await catalog.loadManifest(), isEmpty);
   });
 
   test('fluent rows are dropped from any catalog', () async {

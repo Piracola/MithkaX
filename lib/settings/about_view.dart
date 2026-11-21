@@ -1,7 +1,7 @@
 //
 //  about_view.dart
 //
-//  关于 — app identity (penguin icon, name, version) plus tappable links
+//  关于 — app identity (penguin mark, name, version) plus tappable links
 //  that resolve through the shared link handler.
 //
 
@@ -30,8 +30,7 @@ class AboutView extends StatefulWidget {
 }
 
 class _AboutViewState extends State<AboutView> {
-  static const _websiteUrl = 'https://mithka.ieb.app';
-  static const _channelUrl = 'https://t.me/mithka';
+  static const _channelUrl = 'https://t.me/MithkaX';
   static const _githubUrl = 'https://github.com/TiaraBasori/MithkaX';
   late final Future<AppVersion> _versionFuture = AppVersion.load();
   int _versionTapCount = 0;
@@ -99,34 +98,36 @@ class _AboutViewState extends State<AboutView> {
             child: Column(
               children: [
                 // No tile behind the penguin: the mark is the identity, drawn
-                // large on its own instead of framed in a rounded box.
+                // large on its own instead of framed in a rounded box. The
+                // asset is the artwork with its transparent canvas cropped
+                // away, so the name sits a token's gap below the ink rather
+                // than below the canvas' empty margin.
                 const Image(
                   image: ResizeImage(
-                    AssetImage('assets/penguin.png'),
-                    width: 288,
+                    AssetImage('assets/penguin_mark.png'),
+                    width: 300,
                   ),
-                  width: 108,
-                  height: 108,
+                  height: 84,
                   fit: BoxFit.contain,
                   filterQuality: FilterQuality.high,
                 ),
-                const SizedBox(height: 14),
+                const SizedBox(height: AppSpacing.md),
                 Text(
                   'Mithka X',
                   style: TextStyle(
-                    fontSize: 22,
+                    fontSize: AppTextSize.display,
                     fontWeight: FontWeight.w600,
                     color: c.textPrimary,
                   ),
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: AppSpacing.xs),
                 GestureDetector(
                   behavior: HitTestBehavior.opaque,
                   onTap: () => unawaited(_handleVersionTap()),
                   child: Padding(
                     padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 6,
+                      horizontal: AppSpacing.lg,
+                      vertical: AppSpacing.sm,
                     ),
                     child: FutureBuilder<AppVersion>(
                       future: _versionFuture,
@@ -137,7 +138,7 @@ class _AboutViewState extends State<AboutView> {
                             'value1': version,
                           }),
                           style: TextStyle(
-                            fontSize: 13,
+                            fontSize: AppTextSize.footnote,
                             color: c.textSecondary,
                           ),
                         );
@@ -177,17 +178,11 @@ class _AboutViewState extends State<AboutView> {
                 ),
               ],
               SettingsRow(
-                leading: const SettingsLeadingIcon(icon: HeroAppIcons.globe),
-                title: AppStrings.t(AppStringKeys.aboutWebsite),
-                value: 'mithka.ieb.app',
-                onTap: () => openLink(context, _websiteUrl),
-              ),
-              SettingsRow(
                 leading: const SettingsLeadingIcon(
                   icon: HeroAppIcons.solidPaperPlane,
                 ),
                 title: AppStrings.t(AppStringKeys.aboutTelegramChannel),
-                value: 't.me/mithka',
+                value: 't.me/MithkaX',
                 onTap: () => openLink(context, _channelUrl),
               ),
               SettingsRow(

@@ -1,5 +1,5 @@
 //
-//  r14: compile-time hygiene of the §1.4 (Ayu) surfaces.
+//  r14: compile-time hygiene of the §1.4 (experimental features) surfaces.
 //
 //  Source-scan audit: with `allowTelegramTosViolations` false, none of the
 //  fork's ToS-gated features may leave a UI trace, a subscription, or a

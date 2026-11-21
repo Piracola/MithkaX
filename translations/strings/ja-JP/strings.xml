@@ -12,7 +12,6 @@
     <string name="aboutUpdateAvailable">バージョン {value1} が利用できます</string>
     <string name="aboutUpdateCheckFailed">アップデートを確認できませんでした</string>
     <string name="aboutVersion">バージョン {value1}</string>
-    <string name="aboutWebsite">公式サイト</string>
     <string name="accentColorPickerSave">保存</string>
     <string name="accountBackupCopied">セッションをコピーしました</string>
     <string name="accountBackupCopyGramJsMessage">現在の Telegram 認証セッションを GramJS 形式でクリップボードにコピーします。この文字列を持つ人は、このアカウントとしてログインできます。</string>
@@ -2151,7 +2150,7 @@
     <string name="linkOpenTmeInMithka">t.me リンクを Mithka で開く</string>
     <string name="linkOpenTmeInMithkaHint">Android の設定で、Mithka で開くリンクに t.me を追加します。Telegram が入っている場合は、先に Telegram のリンクを開く設定をオフにしてください。</string>
     <string name="listSeparator">、</string>
-    <string name="keptSettingsTitle">Ayu機能</string>
+    <string name="keptSettingsTitle">実験的機能</string>
     <string name="keptHistorySection">メッセージ履歴</string>
     <string name="keptForwardSection">転送</string>
     <string name="keptGhostSection">ゴーストモード</string>
@@ -3834,7 +3833,6 @@
     <string name="updateAction">更新</string>
     <string name="updateDownloadingTitle">Mithka X を更新中</string>
     <string name="updateInstallAction">インストールして再起動</string>
-    <string name="updateInstallPrompt">現在のバージョンは {value1}、最新は {value2} です。今すぐ更新をインストールしますか？</string>
     <string name="updateLater">後で</string>
     <string name="updateManagedInstall">この Mithka X はシステムによって管理されています。インストールしたときと同じ方法で更新してください。</string>
     <string name="updateNewVersionFound">新しいバージョンがあります</string>
@@ -3844,7 +3842,6 @@
     <string name="updateStageExtracting">展開中…</string>
     <string name="updateStageStaging">再起動の準備中…</string>
     <string name="updateStageVerifying">検証中…</string>
-    <string name="updateVersionPrompt">現在のバージョンは {value1}、最新は {value2} です。ダウンロードして更新しますか？</string>
     <string name="videoDebuggerBufferHealth">バッファ状態</string>
     <string name="videoDebuggerCache">キャッシュ</string>
     <string name="videoDebuggerChunkDescription">チャンク {value1}、{value2}、{value3}</string>

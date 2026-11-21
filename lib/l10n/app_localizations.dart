@@ -254,7 +254,6 @@ abstract final class AppStringKeys {
   static const aboutTelegramChannel = 'aboutTelegramChannel';
   static const aboutTitle = 'aboutTitle';
   static const aboutVersion = 'aboutVersion';
-  static const aboutWebsite = 'aboutWebsite';
   static const feedbackReportDescription = 'feedbackReportDescription';
   static const feedbackReportFailed = 'feedbackReportFailed';
   static const feedbackReportPlaceholder = 'feedbackReportPlaceholder';
@@ -3486,7 +3485,6 @@ abstract final class AppStringKeys {
   static const updateAction = 'updateAction';
   static const updateDownloadingTitle = 'updateDownloadingTitle';
   static const updateInstallAction = 'updateInstallAction';
-  static const updateInstallPrompt = 'updateInstallPrompt';
   static const updateLater = 'updateLater';
   static const updateManagedInstall = 'updateManagedInstall';
   static const updateNewVersionFound = 'updateNewVersionFound';
@@ -3496,7 +3494,6 @@ abstract final class AppStringKeys {
   static const updateStageExtracting = 'updateStageExtracting';
   static const updateStageStaging = 'updateStageStaging';
   static const updateStageVerifying = 'updateStageVerifying';
-  static const updateVersionPrompt = 'updateVersionPrompt';
   static const videoPlaybackFinishedAsk = 'videoPlaybackFinishedAsk';
   static const videoPlaybackFinishedAutoplayNext =
       'videoPlaybackFinishedAutoplayNext';

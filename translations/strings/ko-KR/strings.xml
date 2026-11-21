@@ -12,7 +12,6 @@
     <string name="aboutUpdateAvailable">버전 {value1}을(를) 사용할 수 있습니다</string>
     <string name="aboutUpdateCheckFailed">업데이트를 확인할 수 없습니다</string>
     <string name="aboutVersion">버전 {value1}</string>
-    <string name="aboutWebsite">공식 웹사이트</string>
     <string name="accentColorPickerSave">저장</string>
     <string name="accountBackupCopied">세션이 복사되었습니다</string>
     <string name="accountBackupCopyGramJsMessage">현재 Telegram 인증 세션을 GramJS 형식으로 클립보드에 복사합니다. 이 문자열을 가진 사람은 이 계정으로 로그인할 수 있습니다.</string>
@@ -2146,7 +2145,7 @@
     <string name="linkHandlerTelegramStarsCount">{value1} 텔레그램 스타</string>
     <string name="linkHandlerUnsupportedTelegramLink">이 Telegram 링크 열기는 아직 지원되지 않습니다</string>
     <string name="linkHandlerWritingStyle">글쓰기 스타일</string>
-    <string name="keptSettingsTitle">Ayu 기능</string>
+    <string name="keptSettingsTitle">실험적 기능</string>
     <string name="keptHistorySection">메시지 기록</string>
     <string name="keptForwardSection">전달</string>
     <string name="keptGhostSection">고스트 모드</string>
@@ -3834,7 +3833,6 @@
     <string name="updateAction">업데이트</string>
     <string name="updateDownloadingTitle">Mithka X 업데이트 중</string>
     <string name="updateInstallAction">설치 후 재시작</string>
-    <string name="updateInstallPrompt">현재 버전 {value1}, 최신 버전 {value2}. 지금 업데이트를 설치할까요?</string>
     <string name="updateLater">나중에</string>
     <string name="updateManagedInstall">이 Mithka X는 시스템에서 관리합니다. 설치한 방법과 같은 방법으로 업데이트하세요.</string>
     <string name="updateNewVersionFound">새 버전 발견</string>
@@ -3844,7 +3842,6 @@
     <string name="updateStageExtracting">압축 푸는 중…</string>
     <string name="updateStageStaging">재시작 준비 중…</string>
     <string name="updateStageVerifying">확인 중…</string>
-    <string name="updateVersionPrompt">현재 버전은 {value1}, 최신 버전은 {value2}입니다. 다운로드하여 업데이트할까요?</string>
     <string name="videoDebuggerBufferHealth">버퍼 상태</string>
     <string name="videoDebuggerCache">캐시</string>
     <string name="videoDebuggerChunkDescription">청크 {value1}, {value2}, {value3}</string>

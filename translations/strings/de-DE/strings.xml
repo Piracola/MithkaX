@@ -12,7 +12,6 @@
     <string name="aboutUpdateAvailable">Version {value1} ist verfügbar</string>
     <string name="aboutUpdateCheckFailed">Suche nach Updates fehlgeschlagen</string>
     <string name="aboutVersion">Version {value1}</string>
-    <string name="aboutWebsite">Website</string>
     <string name="accentColorPickerSave">Speichern</string>
     <string name="accountBackupCopied">Sitzung kopiert</string>
     <string name="accountBackupCopyGramJsMessage">Dadurch wird die aktive Telegram-Autorisierungssitzung im GramJS-Format in die Zwischenablage kopiert. Jede Person mit dieser Zeichenfolge kann sich als dieses Konto anmelden.</string>
@@ -2153,7 +2152,7 @@
     <string name="linkHandlerTelegramStarsCount">{value1} Telegram Stars</string>
     <string name="linkHandlerUnsupportedTelegramLink">Dieser Telegram-Link wird derzeit nicht unterstützt</string>
     <string name="linkHandlerWritingStyle">Schreibstil</string>
-    <string name="keptSettingsTitle">Ayu-Funktionen</string>
+    <string name="keptSettingsTitle">Experimentelle Funktionen</string>
     <string name="keptHistorySection">Nachrichtenverlauf</string>
     <string name="keptForwardSection">Weiterleiten</string>
     <string name="keptGhostSection">Geistermodus</string>
@@ -3846,7 +3845,6 @@
     <string name="updateAction">Aktualisieren</string>
     <string name="updateDownloadingTitle">Mithka X wird aktualisiert</string>
     <string name="updateInstallAction">Installieren und neu starten</string>
-    <string name="updateInstallPrompt">Aktuelle Version: {value1}, neueste: {value2}. Update jetzt installieren?</string>
     <string name="updateLater">Später</string>
     <string name="updateManagedInstall">Diese Mithka X-Installation wird von deinem System verwaltet. Aktualisiere sie so, wie du sie installiert hast.</string>
     <string name="updateNewVersionFound">Neue Version gefunden</string>
@@ -3856,7 +3854,6 @@
     <string name="updateStageExtracting">Wird entpackt…</string>
     <string name="updateStageStaging">Neustart wird vorbereitet…</string>
     <string name="updateStageVerifying">Wird geprüft…</string>
-    <string name="updateVersionPrompt">Aktuelle Version: {value1}, neueste: {value2}. Zum Herunterladen des Updates wechseln?</string>
     <string name="videoDebuggerBufferHealth">Pufferstatus</string>
     <string name="videoDebuggerCache">Cache</string>
     <string name="videoDebuggerChunkDescription">Datenblock {value1}, {value2}, {value3}</string>

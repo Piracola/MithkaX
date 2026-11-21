@@ -12,7 +12,6 @@
     <string name="aboutUpdateAvailable">{value1} 版本可用</string>
     <string name="aboutUpdateCheckFailed">无法检查更新</string>
     <string name="aboutVersion">版本 {value1}</string>
-    <string name="aboutWebsite">官网</string>
     <string name="accentColorPickerSave">保存</string>
     <string name="accountBackupCopied">已复制会话</string>
     <string name="accountBackupCopyGramJsMessage">这会把当前 Telegram 授权会话以 GramJS 格式复制到剪贴板。任何拿到这段字符串的人都可以登录这个账号。</string>
@@ -2151,7 +2150,7 @@
     <string name="linkOpenTmeInMithka">在 Mithka 中打开 t.me 链接</string>
     <string name="linkOpenTmeInMithkaHint">在 Android 设置中把 t.me 添加为由 Mithka 打开的链接。如果装了 Telegram，请先关闭它的链接打开功能。</string>
     <string name="listSeparator">、</string>
-    <string name="keptSettingsTitle">Ayu 功能</string>
+    <string name="keptSettingsTitle">实验性功能</string>
     <string name="keptHistorySection">消息历史</string>
     <string name="keptForwardSection">转发</string>
     <string name="keptGhostSection">隐身模式</string>
@@ -3834,7 +3833,6 @@
     <string name="updateAction">更新</string>
     <string name="updateDownloadingTitle">正在更新 Mithka X</string>
     <string name="updateInstallAction">安装并重启</string>
-    <string name="updateInstallPrompt">当前版本 {value1}，最新 {value2}。是否立即安装更新？</string>
     <string name="updateLater">稍后</string>
     <string name="updateManagedInstall">此 Mithka X 由系统管理，请使用原来的安装方式更新。</string>
     <string name="updateNewVersionFound">发现新版本</string>
@@ -3844,7 +3842,6 @@
     <string name="updateStageExtracting">正在解压…</string>
     <string name="updateStageStaging">准备重启…</string>
     <string name="updateStageVerifying">正在校验…</string>
-    <string name="updateVersionPrompt">当前版本 {value1}，最新 {value2}。是否前往下载更新？</string>
     <string name="videoDebuggerBufferHealth">缓冲状态</string>
     <string name="videoDebuggerCache">缓存</string>
     <string name="videoDebuggerChunkDescription">区块 {value1}，{value2}，{value3}</string>

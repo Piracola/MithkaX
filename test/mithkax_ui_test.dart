@@ -217,25 +217,26 @@ void main() {
   });
 
   group('advanced entry', () {
-    testWidgets('Advanced hosts the Ayu entry and it opens the hub', (
-      tester,
-    ) async {
-      await _pump(tester, const AdvancedSettingsView());
-      final entry = find.byKey(const ValueKey('kept-features'));
-      if (!_enabled) {
-        expect(entry, findsNothing);
-        return;
-      }
-      await tester.scrollUntilVisible(entry, 300);
-      expect(entry, findsOneWidget);
-      expect(
-        find.text(AppStrings.t(AppStringKeys.keptSettingsTitle)),
-        findsWidgets,
-      );
-      await tester.tap(entry);
-      await tester.pumpAndSettle();
-      expect(find.byType(KeptMessagesSettingsView), findsOneWidget);
-    });
+    testWidgets(
+      'Advanced hosts the experimental-features entry and it opens the hub',
+      (tester) async {
+        await _pump(tester, const AdvancedSettingsView());
+        final entry = find.byKey(const ValueKey('kept-features'));
+        if (!_enabled) {
+          expect(entry, findsNothing);
+          return;
+        }
+        await tester.scrollUntilVisible(entry, 300);
+        expect(entry, findsOneWidget);
+        expect(
+          find.text(AppStrings.t(AppStringKeys.keptSettingsTitle)),
+          findsWidgets,
+        );
+        await tester.tap(entry);
+        await tester.pumpAndSettle();
+        expect(find.byType(KeptMessagesSettingsView), findsOneWidget);
+      },
+    );
   });
 
   group('sidebar shortcut', () {

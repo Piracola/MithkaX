@@ -12,7 +12,6 @@
     <string name="aboutUpdateAvailable">Version {value1} is available</string>
     <string name="aboutUpdateCheckFailed">Couldn’t check for updates</string>
     <string name="aboutVersion">Version {value1}</string>
-    <string name="aboutWebsite">Website</string>
     <string name="accentColorPickerSave">Save</string>
     <string name="accountBackupCopied">Session copied</string>
     <string name="accountBackupCopyGramJsMessage">This copies the active Telegram authorization session to the clipboard in GramJS format. Anyone with this string can sign in as this account.</string>
@@ -2153,7 +2152,7 @@
     <string name="linkHandlerTelegramStarsCount">{value1} Telegram Stars</string>
     <string name="linkHandlerUnsupportedTelegramLink">Opening this Telegram link is not supported yet</string>
     <string name="linkHandlerWritingStyle">Writing style</string>
-    <string name="keptSettingsTitle">Ayu Features</string>
+    <string name="keptSettingsTitle">Experimental Features</string>
     <string name="keptHistorySection">Message history</string>
     <string name="keptForwardSection">Forwarding</string>
     <string name="keptGhostSection">Ghost mode</string>
@@ -3846,7 +3845,6 @@
     <string name="updateAction">Update</string>
     <string name="updateDownloadingTitle">Updating Mithka X</string>
     <string name="updateInstallAction">Install &amp; Restart</string>
-    <string name="updateInstallPrompt">Current version: {value1}. Latest: {value2}. Install the update now?</string>
     <string name="updateLater">Later</string>
     <string name="updateManagedInstall">This copy of Mithka X is managed by your system. Update it the same way you installed it.</string>
     <string name="updateNewVersionFound">New Version Available</string>
@@ -3856,7 +3854,6 @@
     <string name="updateStageExtracting">Unpacking…</string>
     <string name="updateStageStaging">Preparing to restart…</string>
     <string name="updateStageVerifying">Verifying…</string>
-    <string name="updateVersionPrompt">Current version: {value1}. Latest: {value2}. Go download the update?</string>
     <string name="videoDebuggerBufferHealth">Buffer health</string>
     <string name="videoDebuggerCache">Cache</string>
     <string name="videoDebuggerChunkDescription">Chunk {value1}, {value2}, {value3}</string>
