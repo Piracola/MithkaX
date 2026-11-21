@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:collection';
+import 'dart:ui' show Rect, Size;
 import 'package:flutter/foundation.dart';
 import 'package:fvp/fvp.dart';
 import 'package:video_player/video_player.dart';
@@ -19,13 +20,17 @@ final LoopingMediaPlayerPool loopingMediaPlayerPool = LoopingMediaPlayerPool(
   maximumPlayers: 4,
 );
 
-/// The sticker panel is a grid of a dozen or more stickers opened over a chat
-/// that may already hold every player in [loopingMediaPlayerPool]; sharing the
-/// budget left only the first cell animating. Panel cells are short-lived and
-/// their textures are capped at 512 px, so they get a small pool of their own
-/// instead of starving the conversation underneath.
-final LoopingMediaPlayerPool stickerPanelPlayerPool = LoopingMediaPlayerPool(
-  maximumPlayers: 6,
+/// Native players for video stickers (`.webm`), in the conversation and in
+/// every picker.
+///
+/// The budget has to fit a viewport, not a fixed few: a sticker picker page
+/// shows a dozen or more cells at once, and a sticker only competes for a
+/// player while it is actually on screen ([loopingSurfaceIsOnScreen]), so the
+/// cap is a safety valve for pathological layouts rather than the ordinary
+/// case. A sticker that is scrolled out (or cached by the list) drops its
+/// player and gets a fresh one when it comes back.
+final LoopingMediaPlayerPool stickerPlayerPool = LoopingMediaPlayerPool(
+  maximumPlayers: 24,
 );
 
 final Set<VoidCallback> _playbackContextListeners = <VoidCallback>{};
@@ -53,6 +58,27 @@ void addLoopingMediaPlaybackContextListener(VoidCallback listener) {
 
 void removeLoopingMediaPlaybackContextListener(VoidCallback listener) {
   _playbackContextListeners.remove(listener);
+}
+
+/// Whether a looping media surface is worth a native player right now.
+///
+/// Scroll views keep a cache extent of children laid out above and below the
+/// viewport; those are mounted and would otherwise hold players for content
+/// nobody can see. A small [margin] keeps a sticker alive across a short
+/// overscroll instead of tearing its decoder down and building it again.
+bool loopingSurfaceIsOnScreen({
+  required Rect rect,
+  required Size screen,
+  double margin = 0,
+}) {
+  if (screen.isEmpty || rect.isEmpty) return false;
+  final visible = Rect.fromLTWH(
+    -margin,
+    -margin,
+    screen.width + margin * 2,
+    screen.height + margin * 2,
+  );
+  return rect.overlaps(visible);
 }
 
 /// Pure FIFO lease pool used to cap native looping-media players.

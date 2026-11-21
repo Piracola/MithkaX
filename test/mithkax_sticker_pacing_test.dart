@@ -2,9 +2,14 @@
 //  Mithka X video-sticker pacing: a looping sticker must take its authored
 //  time. MDK's video-only clock runs with the presented frames on Android, so
 //  the media clock outpaces wall time by (display refresh / stream fps); the
-//  meter measures that drift and the correction cancels it. Pickers also draw
-//  from their own player budget so a grid animates over a busy chat.
+//  meter measures that drift and the correction cancels it.
 //
+//  Animation is gated by what is on screen, not by a fixed few: every sticker
+//  a viewport can show gets a player, and cached children scrolled out of the
+//  viewport give theirs back.
+//
+
+import 'dart:ui' show Rect, Size;
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mithka/media/looping_media_playback.dart';
@@ -90,18 +95,57 @@ void main() {
     });
   });
 
-  test('pickers draw from a pool the chat cannot exhaust', () {
-    final chat = LoopingMediaPlayerPool(maximumPlayers: 4);
-    final chatLeases = [for (var i = 0; i < 4; i++) chat.tryAcquire()!];
-    expect(chat.tryAcquire(), isNull);
-
-    final panelLease = stickerPanelPlayerPool.tryAcquire();
-    expect(panelLease, isNotNull);
-    expect(stickerPanelPlayerPool.maximumPlayers, greaterThanOrEqualTo(4));
-
-    panelLease!.release();
-    for (final lease in chatLeases) {
-      lease.release();
+  test('the sticker budget covers a full viewport of stickers', () {
+    // A sticker picker page shows a dozen or more cells at once; anything
+    // smaller is what left only the first cell of the grid animating.
+    expect(stickerPlayerPool.maximumPlayers, greaterThanOrEqualTo(20));
+    final leases = [
+      for (var i = 0; i < 12; i++) stickerPlayerPool.tryAcquire(),
+    ];
+    expect(leases, everyElement(isNotNull));
+    for (final lease in leases) {
+      lease!.release();
     }
+  });
+
+  group('loopingSurfaceIsOnScreen', () {
+    const screen = Size(400, 800);
+
+    test('a sticker inside the viewport plays', () {
+      expect(
+        loopingSurfaceIsOnScreen(
+          rect: const Rect.fromLTWH(20, 300, 160, 160),
+          screen: screen,
+        ),
+        isTrue,
+      );
+    });
+
+    test('a cached child above the viewport does not hold a player', () {
+      expect(
+        loopingSurfaceIsOnScreen(
+          rect: const Rect.fromLTWH(20, -400, 160, 160),
+          screen: screen,
+        ),
+        isFalse,
+      );
+    });
+
+    test('the margin keeps a sticker alive across a short overscroll', () {
+      // Ends 60 px above the viewport: gone, but still inside the margin.
+      const rect = Rect.fromLTWH(20, -220, 160, 160);
+      expect(loopingSurfaceIsOnScreen(rect: rect, screen: screen), isFalse);
+      expect(
+        loopingSurfaceIsOnScreen(rect: rect, screen: screen, margin: 96),
+        isTrue,
+      );
+    });
+
+    test('an unlaid-out surface is not treated as visible', () {
+      expect(
+        loopingSurfaceIsOnScreen(rect: Rect.zero, screen: screen),
+        isFalse,
+      );
+    });
   });
 }

@@ -38,8 +38,8 @@ class VideoStickerView extends StatefulWidget {
   final TdFileRef? fallback;
   final VoidCallback? onReady;
 
-  /// Player budget to draw from. Pickers pass [stickerPanelPlayerPool] so a
-  /// grid can animate while the conversation underneath keeps its own players.
+  /// Native-player budget to draw from. Stickers and their pickers share
+  /// [stickerPlayerPool]; other looping surfaces keep their own budget.
   final LoopingMediaPlayerPool? pool;
 
   @override
@@ -55,6 +55,9 @@ class _VideoStickerViewState extends State<VideoStickerView>
   bool _fallbackOnly = false;
   bool _tickerEnabled = false;
   bool _appIsActive = true;
+  bool _onScreen = true;
+  bool _visibilityCheckScheduled = false;
+  ScrollPosition? _scrollPosition;
   bool _loadPending = false;
   int _generation = 0;
   LoopingMediaPlayerLease? _lease;
@@ -71,6 +74,10 @@ class _VideoStickerViewState extends State<VideoStickerView>
   static const _pacingWindow = Duration(milliseconds: 1500);
   static const _maxPacingPasses = 2;
 
+  /// Keeps a sticker alive across a short overscroll instead of tearing its
+  /// decoder down and rebuilding it on the way back.
+  static const _visibilityMargin = 64.0;
+
   static Future<bool>? _androidNeedsStaticFallback;
 
   @override
@@ -83,22 +90,63 @@ class _VideoStickerViewState extends State<VideoStickerView>
     addLoopingMediaPlaybackContextListener(_handlePlaybackContextChanged);
   }
 
-  bool get _isEligible => loopingMediaPlaybackIsEligible(
-    tickerEnabled: _tickerEnabled,
-    appIsActive: _appIsActive,
-  );
+  bool get _isEligible =>
+      _onScreen &&
+      loopingMediaPlaybackIsEligible(
+        tickerEnabled: _tickerEnabled,
+        appIsActive: _appIsActive,
+      );
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
     _tickerEnabled = TickerMode.valuesOf(context).enabled;
+    _attachScrollListener();
+    _scheduleVisibilityCheck();
     _reconcilePlayback(rebuildOnRelease: false);
   }
 
   @override
   void didUpdateWidget(VideoStickerView old) {
     super.didUpdateWidget(old);
+    _scheduleVisibilityCheck();
     _reconcilePlayback(rebuildOnRelease: false);
+  }
+
+  /// Every sticker in a chat or a picker page lives in a scrollable, and only
+  /// the ones inside the viewport should own a native player.
+  void _attachScrollListener() {
+    final position = Scrollable.maybeOf(context)?.position;
+    if (identical(position, _scrollPosition)) return;
+    _scrollPosition?.removeListener(_scheduleVisibilityCheck);
+    _scrollPosition = position;
+    _scrollPosition?.addListener(_scheduleVisibilityCheck);
+  }
+
+  void _scheduleVisibilityCheck() {
+    if (_visibilityCheckScheduled || !mounted) return;
+    _visibilityCheckScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _visibilityCheckScheduled = false;
+      if (!mounted) return;
+      final onScreen = _computeOnScreen();
+      if (onScreen == _onScreen) return;
+      _onScreen = onScreen;
+      _reconcilePlayback();
+    });
+  }
+
+  bool _computeOnScreen() {
+    final box = context.findRenderObject();
+    final media = MediaQuery.maybeOf(context);
+    if (box is! RenderBox || !box.attached || !box.hasSize || media == null) {
+      return _onScreen;
+    }
+    return loopingSurfaceIsOnScreen(
+      rect: box.localToGlobal(Offset.zero) & box.size,
+      screen: media.size,
+      margin: _visibilityMargin,
+    );
   }
 
   @override
@@ -153,7 +201,7 @@ class _VideoStickerViewState extends State<VideoStickerView>
     final ref = widget.file;
     final slot = TdClient.shared.activeSlot;
     final generation = ++_generation;
-    final pool = widget.pool ?? loopingMediaPlayerPool;
+    final pool = widget.pool ?? stickerPlayerPool;
     final lease = pool.tryAcquire();
     if (lease != null) {
       _startLoad(lease, generation, ref, slot);
@@ -487,6 +535,8 @@ class _VideoStickerViewState extends State<VideoStickerView>
 
   @override
   void dispose() {
+    _scrollPosition?.removeListener(_scheduleVisibilityCheck);
+    _scrollPosition = null;
     WidgetsBinding.instance.removeObserver(this);
     removeLoopingMediaPlaybackContextListener(_handlePlaybackContextChanged);
     _releasePlayback(rebuild: false);
