@@ -276,18 +276,19 @@ class EmojiChannelSource {
         }
         final content = message.obj('content');
         final document = content?.obj('document');
+        final file = document?.obj('document');
         log(
           '$label content type=${content?.str('@type')} '
           'doc=${document == null ? 'null' : 'present'} '
           'mime=${document?.str('mime_type')} '
-          'size=${document?.int64('size')}',
+          'size=${file?.int64('size')}',
         );
         if (document == null) {
           log('$label: content has no document');
           return null;
         }
-        final fileId = document.int64('id');
-        log('$label document.id=$fileId');
+        final fileId = file?.int64('id');
+        log('$label document.document.id=$fileId');
         if (fileId == null || fileId == 0) return null;
         return fileId;
       } catch (e) {
@@ -400,11 +401,13 @@ class EmojiChannelSource {
         return null;
       }
       final document = message.obj('content')?.obj('document');
-      // TDLib's messageDocument carries the file directly on content.document:
-      // content.document.id IS the download file id. There is no extra
-      // .document layer — reading it always yields null and every pack
-      // download fails.
-      final fileId = document?.int64('id');
+      // TDLib's document object keeps the download file one level deeper:
+      // content.document is the `document`, and content.document.document is
+      // the `file` carrying id/size. Reading document.id yields null (the
+      // teleproto probe that suggested a flat shape was a different JSON
+      // schema), so every download skipped with "no file id".
+      final file = document?.obj('document');
+      final fileId = file?.int64('id');
       if (fileId == null || fileId == 0) {
         debugPrint(
           '[emoji_channel_source] no fileId for chatId=$chatId msgId=$messageId '

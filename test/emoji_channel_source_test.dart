@@ -170,8 +170,13 @@ void main() {
                         'document': {
                           '@type': 'document',
                           'mime_type': 'font/ttf',
-                          'id': 7777,
-                          'expected_size': 64,
+                          // TDLib keeps the download file one level deeper:
+                          // document.document is the `file` with id/size.
+                          'document': {
+                            '@type': 'file',
+                            'id': 7777,
+                            'expected_size': 64,
+                          },
                         },
                       },
                     },
@@ -260,8 +265,11 @@ void main() {
                         'document': {
                           '@type': 'document',
                           'mime_type': mimeFor(id),
-                          'id': 5000 + id,
-                          'expected_size': 32,
+                          'document': {
+                            '@type': 'file',
+                            'id': 5000 + id,
+                            'expected_size': 32,
+                          },
                         },
                       },
                     },
