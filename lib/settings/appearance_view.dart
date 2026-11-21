@@ -12,7 +12,6 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:mithka/l10n/app_localizations.dart';
 import 'package:mithka/l10n/preview_texts.dart';
@@ -3862,35 +3861,6 @@ class _SystemEmojiPreview extends StatelessWidget {
   }
 }
 
-class _EmojiPreviewImage extends StatelessWidget {
-  const _EmojiPreviewImage({required this.asset});
-
-  /// Null when the pack key has no bundled picture — render the system 🐧
-  /// instead of pretending a branded asset exists.
-  final String? asset;
-
-  @override
-  Widget build(BuildContext context) {
-    final asset = this.asset;
-    if (asset == null) return const _PenguinFallbackIcon();
-    if (asset.endsWith('.svg')) {
-      return SvgPicture.asset(
-        asset,
-        width: 26,
-        height: 26,
-        placeholderBuilder: (_) => const _PenguinFallbackIcon(),
-        errorBuilder: (_, _, _) => const _PenguinFallbackIcon(),
-      );
-    }
-    return Image.asset(
-      asset,
-      width: 26,
-      height: 26,
-      errorBuilder: (_, _, _) => const _PenguinFallbackIcon(),
-    );
-  }
-}
-
 /// The last-resort preview face: the system's own 🐧 emoji glyph — a
 /// penguin, but drawn by the platform emoji font, never the fork logo.
 class _PenguinFallbackIcon extends StatelessWidget {
@@ -4686,5 +4656,3 @@ class _MonospaceFontPickerViewState extends State<MonospaceFontPickerView> {
     );
   }
 }
-
-
