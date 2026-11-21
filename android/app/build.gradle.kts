@@ -143,7 +143,14 @@ dependencies {
     implementation("io.github.pytgcalls:ntgcalls:2.2.5")
     // UnifiedPush distributor connector. The app talks to whichever
     // distributor (ntfy, etc.) is installed; no Google dependency.
-    implementation("org.unifiedpush.android:connector:3.3.4")
+    // The connector pulls the JVM `tink` artifact while flutter_secure_storage
+    // already brings `tink-android`; both ship the same classes, so dexing
+    // fails on duplicates. Keep one artifact — the Android build — and pin it
+    // to the connector's release so its API expectations still hold.
+    implementation("org.unifiedpush.android:connector:3.3.4") {
+        exclude(group = "com.google.crypto.tink", module = "tink")
+    }
+    implementation("com.google.crypto.tink:tink-android:1.23.0")
     implementation("com.google.mlkit:language-id:17.0.6")
     implementation("com.google.mlkit:translate:17.0.3")
 }
