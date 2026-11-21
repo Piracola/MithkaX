@@ -2,14 +2,13 @@
 #
 # The GitHub workflows under .github/workflows/ stay in the tree and remain the
 # release pipeline (quality.yml, mithkax-android.yml, mithkax-desktop.yml).
-# This file mirrors only the checks that do not need GitHub-only services or
-# secrets; the store and release jobs stay on GitHub.
+# This file runs the source checks on the self-hosted `instabox` runner, which
+# already carries the pinned Flutter SDK; store and release jobs stay on GitHub.
 
 workflow:
   auto_cancel:
     on_new_commit: interruptible
   rules:
-    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
     - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
     - if: '$CI_PIPELINE_SOURCE == "web"'
 
@@ -17,35 +16,17 @@ stages:
   - quality
 
 variables:
-  FLUTTER_VERSION: "3.44.2"
-  FLUTTER_TARBALL: "https://storage.googleapis.com/flutter_infra_release/releases/stable/linux/flutter_linux_3.44.2-stable.tar.xz"
-  PUB_CACHE: "$CI_PROJECT_DIR/.pub-cache"
-  DEBIAN_FRONTEND: "noninteractive"
+  PUB_CACHE: "/data/home/.pub-cache"
   FLUTTER_SUPPRESS_ANALYTICS: "true"
 
 quality:
   stage: quality
-  image: ubuntu:24.04
+  tags:
+    - instabox
   timeout: 60m
   interruptible: true
-  cache:
-    key:
-      files:
-        - pubspec.lock
-    paths:
-      - .pub-cache/
   before_script:
-    - apt-get update -qq
-    - apt-get install -y -qq --no-install-recommends ca-certificates curl git libglu1-mesa libsecret-1-0 libsqlite3-0 python3 unzip xz-utils zip
-    - git config --global --add safe.directory "$CI_PROJECT_DIR"
-    - git config --global --add safe.directory /opt/flutter
-    - |
-      if [ ! -x /opt/flutter/bin/flutter ]; then
-        curl -fsSL "$FLUTTER_TARBALL" -o /tmp/flutter.tar.xz
-        tar xJf /tmp/flutter.tar.xz -C /opt
-        rm /tmp/flutter.tar.xz
-      fi
-    - export PATH="/opt/flutter/bin:$PATH"
+    - export PATH="/data/flutter/bin:$PATH"
     - flutter --version
   script:
     - cp lib/config/secrets_example.dart lib/config/secrets.dart
