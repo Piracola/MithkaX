@@ -800,6 +800,10 @@ class PushDeviceRegistrar {
     _tokenRefreshSub = null;
     await _foregroundMessageSub?.cancel();
     _foregroundMessageSub = null;
+    _fcmRetryTimer?.cancel();
+    _fcmRetryTimer = null;
+    _fcmRetryCount = 0;
+    _fcmBootstrapPending = false;
     _running = false;
     _fcmStarted = false;
   }
