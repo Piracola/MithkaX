@@ -2431,6 +2431,9 @@
     <string name="mithkaProTerms">使用條款</string>
     <string name="mithkaProTitle">支持我們</string>
     <string name="mithkaProYearly">每年</string>
+    <string name="mithkaxIconHeading">Mithka X 圖示</string>
+    <string name="mithkaxIconDefault">預設</string>
+    <string name="mithkaxIconMonochrome">單色</string>
     <plurals name="momentsCommentCount">
         <item quantity="other">{count} 則留言</item>
     </plurals>

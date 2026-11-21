@@ -2431,6 +2431,9 @@
     <string name="mithkaProTerms">利用規約</string>
     <string name="mithkaProTitle">開発を支援</string>
     <string name="mithkaProYearly">年額</string>
+    <string name="mithkaxIconHeading">Mithka X アイコン</string>
+    <string name="mithkaxIconDefault">デフォルト</string>
+    <string name="mithkaxIconMonochrome">モノクロ</string>
     <plurals name="momentsCommentCount">
         <item quantity="other">{count} 件のコメント</item>
     </plurals>

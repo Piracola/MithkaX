@@ -2439,6 +2439,9 @@
     <string name="mithkaProTerms">Nutzungsbedingungen</string>
     <string name="mithkaProTitle">Unterstütze uns</string>
     <string name="mithkaProYearly">Jährlich</string>
+    <string name="mithkaxIconHeading">Mithka X Symbole</string>
+    <string name="mithkaxIconDefault">Standard</string>
+    <string name="mithkaxIconMonochrome">Einfarbig</string>
     <plurals name="momentsCommentCount">
         <item quantity="one">{count} Kommentar</item>
         <item quantity="other">{count} Kommentare</item>

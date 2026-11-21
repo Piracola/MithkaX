@@ -2431,6 +2431,9 @@
     <string name="mithkaProTerms">이용 약관</string>
     <string name="mithkaProTitle">개발 지원</string>
     <string name="mithkaProYearly">연간</string>
+    <string name="mithkaxIconHeading">Mithka X 아이콘</string>
+    <string name="mithkaxIconDefault">기본</string>
+    <string name="mithkaxIconMonochrome">단색</string>
     <plurals name="momentsCommentCount">
         <item quantity="other">댓글 {count}개</item>
     </plurals>

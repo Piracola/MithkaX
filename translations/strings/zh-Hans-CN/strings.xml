@@ -2431,6 +2431,9 @@
     <string name="mithkaProTerms">使用条款</string>
     <string name="mithkaProTitle">支持我们</string>
     <string name="mithkaProYearly">年度</string>
+    <string name="mithkaxIconHeading">Mithka X 图标</string>
+    <string name="mithkaxIconDefault">默认</string>
+    <string name="mithkaxIconMonochrome">单色</string>
     <plurals name="momentsCommentCount">
         <item quantity="other">{count} 条评论</item>
     </plurals>

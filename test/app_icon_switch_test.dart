@@ -9,9 +9,10 @@
 //    binder calls on the loading page's UI thread, right after 60 component
 //    writes and their PACKAGE_CHANGED broadcast storm);
 //  - re-selecting the shipped default routes through the manifest-disabled
-//    LetterMNeutralAlt clone, so only the first explicit choice ever
-//    transitions the manifest-enabled alias ENABLED -> DISABLED (the one
-//    transition Android answers by closing the task);
+//    clone of the primordial alias (MithkaXDefaultAlt, like LetterMNeutralAlt
+//    before it), so only the first explicit choice ever transitions the
+//    manifest-enabled alias ENABLED -> DISABLED (the one transition Android
+//    answers by closing the task);
 //  - non-target aliases return to STATE_DEFAULT, not DISABLED — off the kill
 //    path for manifest-disabled aliases;
 //  - the controller's firstChangePending follows real choice state, so the
@@ -37,7 +38,7 @@ void main() {
           ) async {
             return switch (call.method) {
               'isSupported' => true,
-              'currentIcon' => 'letter_m_neutral',
+              'currentIcon' => 'mithkax_default',
               'setIcon' => null,
               _ => throw MissingPluginException(),
             };
@@ -127,7 +128,7 @@ void main() {
             calls.add(call.method);
             return switch (call.method) {
               'isSupported' => true,
-              'currentIcon' => 'letter_m_neutral',
+              'currentIcon' => 'mithkax_default',
               'setIcon' => null,
               _ => throw MissingPluginException(),
             };
@@ -162,7 +163,7 @@ void main() {
             calls.add(call.method);
             return switch (call.method) {
               'isSupported' => true,
-              'currentIcon' => 'letter_m_neutral',
+              'currentIcon' => 'mithkax_default',
               'setIcon' => throw PlatformException(code: 'app_icon_failed'),
               _ => throw MissingPluginException(),
             };
@@ -196,7 +197,7 @@ void main() {
             calls.add(call.method);
             return switch (call.method) {
               'isSupported' => true,
-              'currentIcon' => 'letter_m_neutral',
+              'currentIcon' => 'mithkax_default',
               'setIcon' => null,
               _ => throw MissingPluginException(),
             };
@@ -246,6 +247,15 @@ void main() {
     test('re-selecting the shipped default uses the Alt clone', () {
       expect(
         kt.contains(
+          '"mithkax_default" to "\$packageName.MainActivityMithkaXDefaultAlt"',
+        ),
+        isTrue,
+        reason:
+            'the Mithka X default must route through its manifest-disabled '
+            'clone, never the manifest-enabled primordial alias',
+      );
+      expect(
+        kt.contains(
           '"letter_m_neutral" to "\$packageName.MainActivityLetterMNeutralAlt"',
         ),
         isTrue,
@@ -289,7 +299,7 @@ void main() {
       expect(
         kt.contains(
           'packageManager.setComponentEnabledSetting(\n'
-          '            primordialNeutralAlias,\n'
+          '            primordialDefaultAlias,\n'
           '            PackageManager.COMPONENT_ENABLED_STATE_ENABLED,',
         ),
         isTrue,

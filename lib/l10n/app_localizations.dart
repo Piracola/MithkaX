@@ -394,6 +394,10 @@ abstract final class AppStringKeys {
   static const mithkaProTerms = 'mithkaProTerms';
   static const mithkaProTitle = 'mithkaProTitle';
   static const mithkaProYearly = 'mithkaProYearly';
+
+  static const mithkaxIconHeading = 'mithkaxIconHeading';
+  static const mithkaxIconDefault = 'mithkaxIconDefault';
+  static const mithkaxIconMonochrome = 'mithkaxIconMonochrome';
   static const addMembersDone = 'addMembersDone';
   static const addMembersDoneWithCount = 'addMembersDoneWithCount';
   static const addMembersInviteMembersTitle = 'addMembersInviteMembersTitle';

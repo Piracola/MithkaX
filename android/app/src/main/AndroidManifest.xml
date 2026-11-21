@@ -44,7 +44,7 @@
     <application
         android:label="Mithka X"
         android:name="${applicationName}"
-        android:icon="@mipmap/ic_launcher_letter_m_neutral"
+        android:icon="@mipmap/ic_launcher_mithkax_default"
         android:theme="@style/LaunchTheme"
         android:allowBackup="true"
         android:fullBackupContent="@xml/backup_rules"
@@ -866,11 +866,18 @@
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
         </activity-alias>
+        <!-- The manifest-enabled primordial alias. Its COMPONENT NAME is
+             historical (it shipped the neutral letter mark first) and must not
+             be renamed: an update that swaps an enabled component's name for a
+             new enabled one drops a second home-screen icon beside every user
+             whose explicit choice lives in package restrictions. The artwork
+             it carries is the Mithka X default mark; the neutral letter mark
+             is now a regular alternative (MainActivityLetterMNeutralAlt). -->
         <activity-alias
             android:name=".MainActivityLetterMNeutral"
             android:enabled="true"
             android:exported="true"
-            android:icon="@mipmap/ic_launcher_letter_m_neutral"
+            android:icon="@mipmap/ic_launcher_mithkax_default"
             android:label="Mithka X"
             android:targetActivity=".MainActivity">
             <intent-filter>
@@ -904,6 +911,34 @@
             android:enabled="false"
             android:exported="true"
             android:icon="@mipmap/ic_launcher_letter_m_gradient"
+            android:label="Mithka X"
+            android:targetActivity=".MainActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN"/>
+                <category android:name="android.intent.category.LAUNCHER"/>
+            </intent-filter>
+        </activity-alias>
+        <!-- Mithka X default mark. Re-selecting it routes through this clone so
+             leaving it again is a STATE_DEFAULT transition (see the letter-m
+             clone above); the manifest-enabled primordial alias above carries
+             the same artwork. -->
+        <activity-alias
+            android:name=".MainActivityMithkaXDefaultAlt"
+            android:enabled="false"
+            android:exported="true"
+            android:icon="@mipmap/ic_launcher_mithkax_default"
+            android:label="Mithka X"
+            android:targetActivity=".MainActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN"/>
+                <category android:name="android.intent.category.LAUNCHER"/>
+            </intent-filter>
+        </activity-alias>
+        <activity-alias
+            android:name=".MainActivityMithkaXMonochrome"
+            android:enabled="false"
+            android:exported="true"
+            android:icon="@mipmap/ic_launcher_mithkax_monochrome"
             android:label="Mithka X"
             android:targetActivity=".MainActivity">
             <intent-filter>

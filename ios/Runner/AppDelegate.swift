@@ -225,6 +225,8 @@ enum VideoNoteExportError: Error, Sendable {
     case "pixel_gradient": return "MithkaPixelGradient"
     case "letter_m_neutral": return "MithkaLetterMNeutral"
     case "letter_m_gradient": return "MithkaLetterMGradient"
+    case "mithkax_default": return "MithkaDefault"
+    case "mithkax_monochrome": return "MithkaMonochrome"
     case "skateboard": return "MithkaSkateboard"
     case "surfboard": return "MithkaSurfboard"
     case "basketball": return "MithkaBasketball"
@@ -291,6 +293,8 @@ enum VideoNoteExportError: Error, Sendable {
     case "MithkaPixelGradient": return "pixel_gradient"
     case "MithkaLetterMNeutral": return "letter_m_neutral"
     case "MithkaLetterMGradient": return "letter_m_gradient"
+    case "MithkaDefault": return "mithkax_default"
+    case "MithkaMonochrome": return "mithkax_monochrome"
     case "MithkaSkateboard": return "skateboard"
     case "MithkaSurfboard": return "surfboard"
     case "MithkaBasketball": return "basketball"
@@ -682,6 +686,7 @@ enum VideoNoteExportError: Error, Sendable {
         let freeIconNames: Set<String> = [
           "default", "white", "blue", "purple", "pixel", "aurora", "prism", "signal",
           "pixel_neutral", "pixel_gradient", "letter_m_neutral", "letter_m_gradient",
+          "mithkax_default", "mithkax_monochrome",
         ]
         // The 48 penguins in their fixed catalogue order (01-pilot …
         // 48-stargazing). Must match AppIconVariant.dailyPenguinOrder in

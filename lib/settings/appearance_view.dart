@@ -87,10 +87,11 @@ class AppearanceView extends StatelessWidget {
                 ),
                 preview: currentIcon == null
                     ? null
-                    // Standard icons preview their real background, as in
-                    // the picker; penguins keep their background-free art.
-                    : currentIcon.isStandard
-                    ? _StandardAppIconImage(
+                    // Plated icons (motifs and the fork's own marks) preview
+                    // their real background, as in the picker; sticker icons
+                    // keep their background-free art.
+                    : currentIcon.hasPlate
+                    ? _PlatedAppIconImage(
                         key: const ValueKey('appearance-app-icon-preview'),
                         variant: currentIcon,
                         size: AppIconSize.nav,
@@ -504,6 +505,9 @@ class _AppIconSettingsViewState extends State<AppIconSettingsView>
                     controller.supported &&
                     !controller.loading &&
                     _switchingKey == null;
+                final mithkaXIcons = icons
+                    .where((icon) => icon.mithkaX)
+                    .toList(growable: false);
                 return ListView(
                   key: const ValueKey('app-icon-scroll'),
                   primary: false,
@@ -525,6 +529,15 @@ class _AppIconSettingsViewState extends State<AppIconSettingsView>
                       ),
                       const SizedBox(height: 8),
                     ],
+                    if (mithkaXIcons.isNotEmpty) ...[
+                      _heading(
+                        'app-icon-mithkax-heading',
+                        AppStringKeys.mithkaxIconHeading,
+                      ),
+                      const SizedBox(height: 12),
+                      _choices(controller, mithkaXIcons, columns, null),
+                      const SizedBox(height: 20),
+                    ],
                     _heading(
                       'app-icon-standard-heading',
                       AppStringKeys.appIconFreeHeading,
@@ -537,7 +550,11 @@ class _AppIconSettingsViewState extends State<AppIconSettingsView>
                     const SizedBox(height: 12),
                     _choices(
                       controller,
-                      icons.where((icon) => !icon.requiresSupporter).toList(),
+                      icons
+                          .where(
+                            (icon) => !icon.requiresSupporter && !icon.mithkaX,
+                          )
+                          .toList(),
                       columns,
                       null,
                     ),
@@ -822,10 +839,11 @@ class _AppIconChoiceState extends State<_AppIconChoice> {
   }
 }
 
-// A standard icon's opaque Home Screen image, clipped to the icon shape with
-// a faint inner edge so Neutral stays visible on a page of its own colour.
-class _StandardAppIconImage extends StatelessWidget {
-  const _StandardAppIconImage({
+// A plated icon's opaque Home Screen image (motif or the fork's own mark),
+// clipped to the icon shape with a faint inner edge so Neutral stays visible on
+// a page of its own colour.
+class _PlatedAppIconImage extends StatelessWidget {
+  const _PlatedAppIconImage({
     super.key,
     required this.variant,
     required this.size,
@@ -846,7 +864,7 @@ class _StandardAppIconImage extends StatelessWidget {
             child: ClipRRect(
               borderRadius: radius,
               child: Image.asset(
-                variant.standardPickerAsset(Theme.of(context).brightness),
+                variant.platedPickerAsset(Theme.of(context).brightness),
                 width: size,
                 height: size,
                 fit: BoxFit.cover,
@@ -876,9 +894,10 @@ class _StandardAppIconImage extends StatelessWidget {
   }
 }
 
-// The 88pt art shared by grid tiles and the Free today card. Standard icons
-// draw their real background at 80pt, inset so the selected ring (radius 22)
-// keeps a 2pt gap of page colour; penguins keep their background-free art.
+// The 88pt art shared by grid tiles and the Free today card. Plated icons
+// (motif plates and the fork's own Mithka X marks) draw their real background
+// at 80pt, inset so the selected ring (radius 22) keeps a 2pt gap of page
+// colour; sticker icons keep their background-free art.
 class _AppIconArt extends StatelessWidget {
   const _AppIconArt({
     required this.variant,
@@ -902,18 +921,18 @@ class _AppIconArt extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = context.colors;
     final dark = Theme.of(context).brightness == Brightness.dark;
-    final standard = variant.isStandard;
+    final plated = variant.hasPlate;
     return SizedBox(
       key: ValueKey('$keyPrefix-art-${variant.key}'),
       width: 88,
       height: 88,
       child: Stack(
         children: [
-          if (standard)
+          if (plated)
             Positioned.fill(
               child: Padding(
                 padding: const EdgeInsets.all(4),
-                child: _StandardAppIconImage(variant: variant, size: 80),
+                child: _PlatedAppIconImage(variant: variant, size: 80),
               ),
             )
           else
@@ -934,7 +953,7 @@ class _AppIconArt extends StatelessWidget {
             child: DecoratedBox(
               key: ValueKey('$keyPrefix-outline-${variant.key}'),
               decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(standard ? 22 : 16),
+                borderRadius: BorderRadius.circular(plated ? 22 : 16),
                 border: selected
                     ? Border.all(color: AppTheme.brand, width: 2)
                     : null,

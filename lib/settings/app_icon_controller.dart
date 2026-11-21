@@ -572,6 +572,30 @@ enum AppIconVariant {
     requiresSupporter: true,
     penguinCount: 3,
     colors: [Color(0xFFFFFFFF), Color(0xFF0B0B0D)],
+  ),
+
+  // MithkaX's own identity. These two live in their own section of the picker
+  // (AppIconVariant.mithkaXSection), never in the standard motif grid, and
+  // [mithkaxDefault] is what a fresh install ships: the manifest-enabled
+  // launcher alias carries its artwork.
+  mithkaxDefault(
+    key: 'mithkax_default',
+    labelKey: AppStringKeys.mithkaxIconDefault,
+    asset: 'assets/app_icons/mithkax_default.png',
+    pickerAsset: 'assets/app_icons/picker/standard-mithkax_default.webp',
+    mithkaX: true,
+    penguinCount: 0,
+    colors: [Color(0xFF0598FF), Color(0xFF006BFF)],
+  ),
+  mithkaxMonochrome(
+    key: 'mithkax_monochrome',
+    labelKey: AppStringKeys.mithkaxIconMonochrome,
+    asset: 'assets/app_icons/mithkax_monochrome.png',
+    darkAsset: 'assets/app_icons/mithkax_monochrome_dark.png',
+    pickerAsset: 'assets/app_icons/picker/standard-mithkax_monochrome.webp',
+    mithkaX: true,
+    penguinCount: 0,
+    colors: [Color(0xFF111111), Color(0xFFFFFFFF)],
   );
 
   const AppIconVariant({
@@ -586,6 +610,7 @@ enum AppIconVariant {
     this.freeMotif,
     this.background,
     this.penguinCount = 1,
+    this.mithkaX = false,
   });
 
   final String key;
@@ -626,6 +651,8 @@ enum AppIconVariant {
     AppIconVariant.letterMNeutral => AppStringKeys.appIconLetterMNeutral,
     AppIconVariant.aurora => AppStringKeys.appIconLetterMTelegramBlue,
     AppIconVariant.letterMGradient => AppStringKeys.appIconLetterMPinkPurple,
+    AppIconVariant.mithkaxDefault => AppStringKeys.mithkaxIconDefault,
+    AppIconVariant.mithkaxMonochrome => AppStringKeys.mithkaxIconMonochrome,
     _ => labelKey,
   };
   String? get pickerLabelKey =>
@@ -639,18 +666,33 @@ enum AppIconVariant {
   final bool requiresSupporter;
   final String? darkAsset;
 
+  /// Belongs to the picker's dedicated "Mithka X icons" section instead of the
+  /// motif grid: the fork's own marks, not a penguin/letter motif on a
+  /// background.
+  final bool mithkaX;
+
   String previewAsset(Brightness brightness) =>
       brightness == Brightness.dark ? darkAsset ?? asset : asset;
 
+  /// Picker art is an opaque plate carrying its real background: the nine
+  /// standard motif icons and the fork's own Mithka X icons. Nothing else has
+  /// one; every other variant previews its transparent sticker art.
+  bool get hasPlate => isStandard || mithkaX;
+
   /// Opaque 256px picker preview of [previewAsset] (with its real background):
-  /// `standard-<launcher file>.webp` in `assets/app_icons/picker/`. Only the
-  /// nine standard icons ([isStandard]) have one.
-  String standardPickerAsset(Brightness brightness) {
-    assert(isStandard, '$key has no standard picker preview');
+  /// `standard-<launcher file>.webp` in `assets/app_icons/picker/`.
+  String platedPickerAsset(Brightness brightness) {
+    assert(hasPlate, '$key has no plated picker preview');
     final name = previewAsset(
       brightness,
     ).split('/').last.replaceAll('.png', '');
     return 'assets/app_icons/picker/standard-$name.webp';
+  }
+
+  /// Only the nine standard icons call this; kept as the motif-grid name.
+  String standardPickerAsset(Brightness brightness) {
+    assert(isStandard, '$key has no standard picker preview');
+    return platedPickerAsset(brightness);
   }
 
   /// Complete compatibility catalogue; first 20 positions remain unchanged.
@@ -669,6 +711,13 @@ enum AppIconVariant {
     letterMNeutral,
     aurora,
     letterMGradient,
+  ];
+
+  /// The "Mithka X icons" section, in display order. [mithkaxDefault] is the
+  /// identity a fresh install ships with.
+  static const mithkaXSection = <AppIconVariant>[
+    mithkaxDefault,
+    mithkaxMonochrome,
   ];
 
   static List<AppIconVariant> get supporterVariants => values
@@ -816,8 +865,10 @@ class AppIconController extends ChangeNotifier {
   bool get supporterAvailable => supporterIconsAvailableForPlatform(_platform);
   bool get activeSupporter => _pro.isPro;
   MithkaProService get proService => _pro;
-  List<AppIconVariant> get availableVariants =>
-      AppIconVariant.forPlatform(_platform);
+  List<AppIconVariant> get availableVariants => [
+    ...AppIconVariant.forPlatform(_platform),
+    ...AppIconVariant.mithkaXSection,
+  ];
   // MithkaX: all supporter icons are free in this fork.
   bool isLocked(AppIconVariant icon) => false;
 
@@ -887,8 +938,8 @@ class AppIconController extends ChangeNotifier {
     return changed;
   }
 
-  // MithkaX ships the neutral letter mark as its default identity.
-  AppIconVariant _variant = AppIconVariant.letterMNeutral;
+  // MithkaX ships its own gradient mark as the default identity.
+  AppIconVariant _variant = AppIconVariant.mithkaxDefault;
   bool _supported = false;
   bool _loading = false;
   bool _everChoseExplicitly = false;
@@ -937,10 +988,10 @@ class AppIconController extends ChangeNotifier {
 
   Future<void> initialize() async {
     final saved = _prefs.getString(_selectedKey);
-    // MithkaX ships the neutral letter mark as its default identity; the
-    // original pink-purple penguin remains one tap away in the picker.
+    // MithkaX ships its own gradient mark as the default identity; every other
+    // icon, the neutral letter mark included, stays one tap away in the picker.
     _retainKey(
-      saved ?? 'letter_m_neutral',
+      saved ?? 'mithkax_default',
       RetainedUnknownIconSource.savedPreference,
     );
     try {
@@ -959,7 +1010,7 @@ class AppIconController extends ChangeNotifier {
           saved != null ||
           (current != null &&
               current.isNotEmpty &&
-              current != 'letter_m_neutral');
+              current != 'mithkax_default');
     } catch (_) {
       _supported = false;
     }

@@ -2,7 +2,7 @@
 <resources>
     <!-- Android 12+ builds the system splash screen from the launcher icon
          when windowSplashScreenAnimatedIcon is unset — the manifest default
-         (letter_m_neutral) put a small monochrome letter on the launch
+         (the Mithka X mark) would paint the launcher art on the launch
          colour. Naming the penguin mark keeps the platform splash consistent
          with the in-app cold-start page (assets/penguin.png). The drawable
          carries the penguin at 2/3 of the 240dp icon circle so the system's

@@ -249,6 +249,12 @@ flutter:
       platforms: [macos]
     - path: assets/app_icons/letter_m_gradient.png
       platforms: [macos]
+    - path: assets/app_icons/mithkax_default.png
+      platforms: [macos]
+    - path: assets/app_icons/mithkax_monochrome.png
+      platforms: [macos]
+    - path: assets/app_icons/mithkax_monochrome_dark.png
+      platforms: [macos]
     - assets/app_icons/picker/
     - assets/emoji_preview/
     - assets/message_bubbles/

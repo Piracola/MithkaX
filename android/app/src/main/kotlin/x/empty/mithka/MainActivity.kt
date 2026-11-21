@@ -91,7 +91,7 @@ class MainActivity : FlutterFragmentActivity() {
         // resolves as live — either the user never chose an icon, or the
         // choice was made through this build's own switcher.
         val primordialState = packageManager.getComponentEnabledSetting(
-            primordialNeutralAlias,
+            primordialDefaultAlias,
         )
         if (primordialState == PackageManager.COMPONENT_ENABLED_STATE_DEFAULT ||
             primordialState == PackageManager.COMPONENT_ENABLED_STATE_ENABLED
@@ -107,7 +107,7 @@ class MainActivity : FlutterFragmentActivity() {
         // Nothing is live: re-root the launcher at the shipped default so this
         // launch already resolves, and the home screen gets its icon back.
         packageManager.setComponentEnabledSetting(
-            primordialNeutralAlias,
+            primordialDefaultAlias,
             PackageManager.COMPONENT_ENABLED_STATE_ENABLED,
             PackageManager.DONT_KILL_APP,
         )
@@ -1026,6 +1026,8 @@ class MainActivity : FlutterFragmentActivity() {
         "pixel_gradient" to "$packageName.MainActivityPixelGradient",
         "letter_m_neutral" to "$packageName.MainActivityLetterMNeutralAlt",
         "letter_m_gradient" to "$packageName.MainActivityLetterMGradient",
+        "mithkax_default" to "$packageName.MainActivityMithkaXDefaultAlt",
+        "mithkax_monochrome" to "$packageName.MainActivityMithkaXMonochrome",
         "skateboard" to "$packageName.MainActivitySkateboard",
         "surfboard" to "$packageName.MainActivitySurfboard",
         "basketball" to "$packageName.MainActivityBasketball",
@@ -1064,12 +1066,17 @@ class MainActivity : FlutterFragmentActivity() {
         "stargazing" to "$packageName.MainActivityStargazing",
     )
 
-    // The manifest-enabled alias MithkaX ships with (the neutral letter mark).
-    // It lives OUTSIDE launcherAliases(): after the first explicit choice it is
-    // always DISABLED, and re-selecting the neutral icon routes through the
-    // LetterMNeutralAlt clone instead (manifest-disabled, so leaving it again
-    // is a STATE_DEFAULT transition that does not force-close the task).
-    private val primordialNeutralAlias: ComponentName
+    // The manifest-enabled alias MithkaX ships with: the Mithka X default mark.
+    // The COMPONENT NAME is historical (it shipped the neutral letter mark
+    // first) and must never be renamed — an update that replaces an enabled
+    // component with a differently named enabled one adds a second home-screen
+    // icon beside every user whose explicit choice lives in package
+    // restrictions. It lives OUTSIDE launcherAliases(): after the first
+    // explicit choice it is always DISABLED, and re-selecting the default icon
+    // routes through the MithkaXDefaultAlt clone instead (manifest-disabled, so
+    // leaving it again is a STATE_DEFAULT transition that does not force-close
+    // the task).
+    private val primordialDefaultAlias: ComponentName
         get() = ComponentName(packageName, "$packageName.MainActivityLetterMNeutral")
 
     private fun currentLauncherIcon(): String {
@@ -1080,12 +1087,12 @@ class MainActivity : FlutterFragmentActivity() {
         // costs one binder call per alias during launch before falling
         // through.
         val primordialState = packageManager.getComponentEnabledSetting(
-            primordialNeutralAlias,
+            primordialDefaultAlias,
         )
         if (primordialState == PackageManager.COMPONENT_ENABLED_STATE_DEFAULT ||
             primordialState == PackageManager.COMPONENT_ENABLED_STATE_ENABLED
         ) {
-            return "letter_m_neutral"
+            return "mithkax_default"
         }
         for ((key, className) in aliases) {
             val component = ComponentName(packageName, className)
@@ -1094,14 +1101,14 @@ class MainActivity : FlutterFragmentActivity() {
                 return key
             }
         }
-        // MithkaX ships the neutral letter mark as the default identity.
-        return "letter_m_neutral"
+        // MithkaX ships the Mithka X mark as the default identity.
+        return "mithkax_default"
     }
 
     private fun setLauncherIcon(name: String) {
         val aliases = launcherAliases()
-        // MithkaX ships the neutral letter mark as the default identity.
-        val target = if (aliases.containsKey(name)) name else "letter_m_neutral"
+        // MithkaX ships the Mithka X mark as the default identity.
+        val target = if (aliases.containsKey(name)) name else "mithkax_default"
 
         // Enable the target alias first so there's never a window where no
         // launcher icon alias is active — that can cause a crash when the
@@ -1113,15 +1120,15 @@ class MainActivity : FlutterFragmentActivity() {
             PackageManager.DONT_KILL_APP,
         )
 
-        // The manifest-enabled primordial neutral alias must be explicitly
-        // disabled whenever another alias (including the neutral clone) is
+        // The manifest-enabled primordial alias must be explicitly
+        // disabled whenever another alias (including the default clone) is
         // the target — STATE_DEFAULT would resolve it back to ENABLED and
         // put a second launcher icon on the home screen. This transition
         // (ENABLED -> DISABLED at runtime) is the one and only switch that
         // Android answers by closing the app: it happens exactly once, on
         // the user's first icon choice away from the shipped default.
         packageManager.setComponentEnabledSetting(
-            primordialNeutralAlias,
+            primordialDefaultAlias,
             PackageManager.COMPONENT_ENABLED_STATE_DISABLED,
             PackageManager.DONT_KILL_APP,
         )

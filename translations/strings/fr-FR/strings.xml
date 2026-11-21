@@ -2439,6 +2439,9 @@
     <string name="mithkaProTerms">Conditions d’utilisation</string>
     <string name="mithkaProTitle">Nous soutenir</string>
     <string name="mithkaProYearly">Annuel</string>
+    <string name="mithkaxIconHeading">Icônes Mithka X</string>
+    <string name="mithkaxIconDefault">Par défaut</string>
+    <string name="mithkaxIconMonochrome">Monochrome</string>
     <plurals name="momentsCommentCount">
         <item quantity="one">{count} commentaire</item>
         <item quantity="other">{count} commentaires</item>
