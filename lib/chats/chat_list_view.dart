@@ -804,12 +804,19 @@ class ChatListConnectionStatusView extends StatelessWidget {
                 ),
               ),
             const SizedBox(width: AppSpacing.xs),
-            Text(
-              label,
-              key: labelKey,
-              style: TextStyle(
-                fontSize: AppTextSize.tiny,
-                color: muted ? c.textTertiary : c.textSecondary,
+            // The status word is the only flexible part of the row: a scaled
+            // up label (or a long locale) shrinks it to an ellipsis instead of
+            // overflowing the header beside the dot.
+            Flexible(
+              child: Text(
+                label,
+                key: labelKey,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: AppTextSize.tiny,
+                  color: muted ? c.textTertiary : c.textSecondary,
+                ),
               ),
             ),
           ],

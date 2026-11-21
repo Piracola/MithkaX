@@ -704,6 +704,33 @@ void main() {
     });
   });
 
+  // The icon-only row reserves no label height at any text scale, and the
+  // sidebar header beside it survives 200% text without overflowing.
+  testWidgets('sidebar glass row never reserves label height', (tester) async {
+    await onIOS(() async {
+      installMockGlassSurface(tester);
+      tester.binding.platformDispatcher.textScaleFactorTestValue = 2;
+      addTearDown(
+        tester.binding.platformDispatcher.clearTextScaleFactorTestValue,
+      );
+      await _pumpShell(tester, _tabletSize);
+      final bar = find.byKey(_barKey);
+      expect(bar, findsOneWidget);
+      expect(tester.getRect(bar).height, _surfaceHeight);
+      for (final tab in _tabs) {
+        expect(
+          find.descendant(
+            of: find.byKey(ValueKey('bottom-tab-${tab.index}')),
+            matching: find.text(tab.label),
+          ),
+          findsNothing,
+        );
+      }
+      expect(tester.takeException(), isNull);
+      await _dispose(tester);
+    });
+  });
+
   // Icon-only is deliberate for the glass bar only: the classic bar (the
   // setting off) keeps its icon + label column at the same row height.
   testWidgets('classic bar keeps its tab labels when the setting is off', (
