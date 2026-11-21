@@ -36,7 +36,7 @@ quality:
       - .pub-cache/
   before_script:
     - apt-get update -qq
-    - apt-get install -y -qq --no-install-recommends ca-certificates curl git libglu1-mesa python3 unzip xz-utils zip
+    - apt-get install -y -qq --no-install-recommends ca-certificates curl git libglu1-mesa libsecret-1-0 libsqlite3-0 python3 unzip xz-utils zip
     - git config --global --add safe.directory "$CI_PROJECT_DIR"
     - git config --global --add safe.directory /opt/flutter
     - |
