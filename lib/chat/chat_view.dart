@@ -4754,6 +4754,12 @@ class _ChatViewState extends State<ChatView> {
   /// messages below belong to, so the list stays attributable without opening
   /// each topic. Tapping it opens that topic's own transcript, matching the
   /// topic list's navigation.
+  ///
+  /// The row keeps a [AppSpacing.sm] top inset like the transcript's other
+  /// separator plates. A message hangs its detail timestamp 5px below its own
+  /// row (`MessageBubble`'s floating timestamp, shown on tap, hover and with
+  /// 「始终显示消息时间」), so a row that started flush with the message above
+  /// would have its badge plate painted over that timestamp.
   Widget _topicSectionHeader(int topicId) {
     final c = context.colors;
     final display = _topicSectionDisplay(topicId);
@@ -4761,7 +4767,7 @@ class _ChatViewState extends State<ChatView> {
     final foreground = servicePlateForeground(plate);
     return Padding(
       key: ValueKey('forum-topic-section-$topicId'),
-      padding: const EdgeInsets.only(bottom: AppSpacing.xs),
+      padding: const EdgeInsets.only(top: AppSpacing.sm, bottom: AppSpacing.xs),
       child: Center(
         child: GestureDetector(
           key: ValueKey('forum-topic-section-tap-$topicId'),
