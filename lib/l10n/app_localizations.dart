@@ -393,6 +393,39 @@ abstract final class AppStringKeys {
   static const mithkaxIconGoogleLight = 'mithkaxIconGoogleLight';
   static const mithkaxIconGoogleDark = 'mithkaxIconGoogleDark';
   static const mithkaxIconGlitch = 'mithkaxIconGlitch';
+  static const mithkaxPushServiceTitle = 'mithkaxPushServiceTitle';
+  static const mithkaxPushServiceMode = 'mithkaxPushServiceMode';
+  static const mithkaxPushServiceInApp = 'mithkaxPushServiceInApp';
+  static const mithkaxPushServiceFcm = 'mithkaxPushServiceFcm';
+  static const mithkaxPushServiceUnified = 'mithkaxPushServiceUnified';
+  static const mithkaxPushServiceMicroG = 'mithkaxPushServiceMicroG';
+  static const mithkaxPushServiceInAppDescription =
+      'mithkaxPushServiceInAppDescription';
+  static const mithkaxPushServiceFcmDescription =
+      'mithkaxPushServiceFcmDescription';
+  static const mithkaxPushServiceUnifiedDescription =
+      'mithkaxPushServiceUnifiedDescription';
+  static const mithkaxPushServiceMicroGDescription =
+      'mithkaxPushServiceMicroGDescription';
+  static const mithkaxPushServiceResident = 'mithkaxPushServiceResident';
+  static const mithkaxPushServiceResidentDescription =
+      'mithkaxPushServiceResidentDescription';
+  static const mithkaxPushServiceGateway = 'mithkaxPushServiceGateway';
+  static const mithkaxPushServiceDistributor = 'mithkaxPushServiceDistributor';
+  static const mithkaxPushServiceDistributorUnset =
+      'mithkaxPushServiceDistributorUnset';
+  static const mithkaxPushServiceStatus = 'mithkaxPushServiceStatus';
+  static const mithkaxPushServiceStatusRegistering =
+      'mithkaxPushServiceStatusRegistering';
+  static const mithkaxPushServiceStatusActive =
+      'mithkaxPushServiceStatusActive';
+  static const mithkaxPushServiceStatusFallback =
+      'mithkaxPushServiceStatusFallback';
+  static const mithkaxPushServiceStatusNoDistributor =
+      'mithkaxPushServiceStatusNoDistributor';
+  static const mithkaxPushServiceStatusUnavailable =
+      'mithkaxPushServiceStatusUnavailable';
+  static const mithkaxPushServiceRestartNote = 'mithkaxPushServiceRestartNote';
   static const addMembersDone = 'addMembersDone';
   static const addMembersDoneWithCount = 'addMembersDoneWithCount';
   static const addMembersInviteMembersTitle = 'addMembersInviteMembersTitle';

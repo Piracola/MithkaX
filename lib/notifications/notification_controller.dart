@@ -1169,6 +1169,15 @@ class NotificationController with WidgetsBindingObserver, ChangeNotifier {
     if (target != null) _openTarget(target);
   }
 
+  /// Opens the chat named by a notification payload that reached the app
+  /// through a native surface (the UnifiedPush fallback notification). The
+  /// payload is the same JSON form [NotificationTarget.fromLocalPayload]
+  /// already understands.
+  void openPayload(String payload) {
+    final target = NotificationTarget.fromLocalPayload(payload);
+    if (target != null) _openTarget(target);
+  }
+
   Future<dynamic> _handleNativeTap(MethodCall call) async {
     if (call.method != 'notificationTap') return;
     await _openRemoteNotification(call.arguments);

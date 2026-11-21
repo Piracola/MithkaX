@@ -40,6 +40,10 @@
     <!-- Keeps music playback alive while the app is backgrounded. -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
+    <!-- In-app push mode and the UnifiedPush fallback hold a Telegram socket
+         from a foreground service, and restart it after a reboot. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_REMOTE_MESSAGING" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
 
     <application
         android:label="Mithka X"
@@ -74,6 +78,28 @@
             android:name=".MediaPlaybackService"
             android:exported="false"
             android:foregroundServiceType="mediaPlayback" />
+        <!-- Keeps the TDLib connection alive for the in-app push mode and as
+             the UnifiedPush fallback. -->
+        <service
+            android:name=".PushKeepAliveService"
+            android:exported="false"
+            android:foregroundServiceType="remoteMessaging" />
+        <!-- UnifiedPush distributor callbacks. The connector starts this
+             service by explicit intent, including from a cold process. -->
+        <service
+            android:name=".MithkaUnifiedPushService"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="org.unifiedpush.android.connector.PUSH_EVENT" />
+            </intent-filter>
+        </service>
+        <receiver
+            android:name=".PushBootReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+            </intent-filter>
+        </receiver>
         <meta-data
             android:name="io.sentry.dsn"
             android:value="${sentryDsn}" />

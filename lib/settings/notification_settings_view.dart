@@ -23,6 +23,7 @@ import '../tdlib/td_client.dart';
 import '../theme/app_motion.dart';
 import '../theme/app_theme.dart';
 import 'notification_exceptions_sheet.dart';
+import 'push_service_section.dart';
 
 class NotificationSettingsView extends StatefulWidget {
   const NotificationSettingsView({super.key, this.showBackButton = true});
@@ -478,6 +479,8 @@ class _NotificationSettingsViewState extends State<NotificationSettingsView> {
               AppStringKeys.notificationNamesOnLockScreenDescription,
             ),
           ),
+          if (Theme.of(context).platform == TargetPlatform.android)
+            const PushServiceSection(),
         ],
       ),
     );

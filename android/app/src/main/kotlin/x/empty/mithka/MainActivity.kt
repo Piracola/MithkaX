@@ -58,6 +58,7 @@ class MainActivity : FlutterFragmentActivity() {
     private var mithkaPro: MithkaProPlugin? = null
     private var nowPlaying: NowPlayingPlugin? = null
     private var externalLinks: ExternalLinksPlugin? = null
+    private var pushBridge: PushServiceBridge? = null
     private var mediaDropChannel: MethodChannel? = null
     private var shareIntentChannel: MethodChannel? = null
     private var pendingSharePayload: Map<String, Any?>? = null
@@ -75,6 +76,7 @@ class MainActivity : FlutterFragmentActivity() {
         super.onCreate(savedInstanceState)
         requestHighestRefreshRate()
         pendingSharePayload = parseIncomingShareIntent(intent)
+        PushServiceBridge.captureTap(this, intent)
         // Telegram-family self-heal (exteraless LauncherIconController
         // .tryFixLauncherIconIfNeeded): an app update that removes the alias
         // the user had chosen can leave EVERY alias disabled — the launcher
@@ -237,6 +239,10 @@ class MainActivity : FlutterFragmentActivity() {
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         webProxyBridge = WebProxyBridge(this, flutterEngine.dartExecutor.binaryMessenger)
         registerPlugins(flutterEngine)
+        pushBridge = PushServiceBridge(
+            this,
+            flutterEngine.dartExecutor.binaryMessenger,
+        )
         downloadStorage = DownloadStoragePlugin(
             this,
             flutterEngine.dartExecutor.binaryMessenger,
@@ -744,6 +750,7 @@ class MainActivity : FlutterFragmentActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
+        PushServiceBridge.captureTap(this, intent)
         val payload = parseIncomingShareIntent(intent) ?: return
         // Keep a copy for the initial() handshake as well. The payload id lets
         // Dart de-duplicate it if both paths race during a warm start.
@@ -1431,6 +1438,8 @@ class MainActivity : FlutterFragmentActivity() {
     }
 
     override fun cleanUpFlutterEngine(flutterEngine: FlutterEngine) {
+        pushBridge?.dispose()
+        pushBridge = null
         downloadStorage?.dispose()
         downloadStorage = null
         webProxyBridge?.dispose()

@@ -141,6 +141,9 @@ dependencies {
     // the real media transport behind the CallMediaEngine seam; CallMediaPlugin
     // drives its 1:1 P2P API from the TDLib callStateReady payload.
     implementation("io.github.pytgcalls:ntgcalls:2.2.5")
+    // UnifiedPush distributor connector. The app talks to whichever
+    // distributor (ntfy, etc.) is installed; no Google dependency.
+    implementation("org.unifiedpush.android:connector:3.3.4")
     implementation("com.google.mlkit:language-id:17.0.6")
     implementation("com.google.mlkit:translate:17.0.3")
 }
