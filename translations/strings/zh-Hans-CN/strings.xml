@@ -311,7 +311,6 @@
     <string name="appIconFreeCaption">随时免费选择。</string>
     <string name="appIconFirstChangeNote">首次更换应用图标时，应用会关闭一次并重新启动。</string>
     <string name="appIconFreeHeading">标准图标</string>
-    <string name="appIconFreeToday">今日免费</string>
     <string name="appIconGamer">玩家</string>
     <string name="appIconGardener">园丁</string>
     <string name="appIconGuitar">吉他</string>
@@ -328,18 +327,15 @@
     <string name="appIconMotifLetterM">Letter M</string>
     <string name="appIconMotifPenguin">Penguin</string>
     <string name="appIconMotifPixelPenguin">Pixel penguin</string>
-    <string name="appIconNextPenguin">下一款企鹅：{value1}</string>
     <string name="appIconNinja">忍者</string>
     <string name="appIconNoodles">吃面</string>
     <string name="appIconPainter">画家</string>
     <string name="appIconPaperPlanes">纸飞机</string>
     <string name="appIconParade">游行</string>
     <string name="appIconParty">派对</string>
-    <string name="appIconPenguinCaption">每天都有一款不同的企鹅图标可免费选择。已选图标会保持不变，直到你更换。</string>
     <string name="appIconPenguinHeading">企鹅图标</string>
     <string name="appIconPenguinNeutral">企鹅，黑白</string>
     <string name="appIconPenguinPinkPurple">企鹅，粉紫渐变</string>
-    <string name="appIconPenguinSupporterCaption">成为 Supporter，即可自由选择全部 48 款企鹅图标。</string>
     <string name="appIconPenguinTelegramBlue">企鹅，Telegram 蓝</string>
     <string name="appIconPhotographer">摄影师</string>
     <string name="appIconPicnic">野餐</string>
@@ -356,7 +352,6 @@
     <string name="appIconReader">阅读</string>
     <string name="appIconScientist">科学家</string>
     <string name="appIconSeesaw">跷跷板</string>
-    <string name="appIconSelectedFreeToday">已选中，今日免费</string>
     <string name="appIconSignal">粗体 M</string>
     <string name="appIconSkateboard">滑板</string>
     <string name="appIconSkiing">滑雪</string>
@@ -370,7 +365,6 @@
     <string name="appIconTitle">应用图标</string>
     <string name="appIconUnsupported">当前平台或启动器可能不支持更换应用图标。</string>
     <string name="appIconUse">使用图标</string>
-    <string name="appIconUseHint">使用图标。</string>
     <string name="appIconWhite">纯白</string>
     <string name="appIconWinter">冬日</string>
     <string name="appLocaleArabic">العربية</string>
@@ -3525,7 +3519,6 @@
     <string name="supporterBillingNoticeGoogle">确认后将向你的 Google Play 账户收取费用。除非取消，否则订阅会自动续订。你可以在 Google Play 账户设置中管理或取消订阅。</string>
     <string name="supporterCancellation">取消订阅后，Supporter 在已付费的订阅期结束前仍然有效。</string>
     <string name="supporterFunctionalAccess">Supporter 提供额外的外观选项，其他所有功能均相同。</string>
-    <string name="supporterIconAccess">无需订阅 Supporter，即可选择今日免费企鹅或任意标准图标。订阅 Supporter 后，可自由选择所有企鹅图标。已选图标会保持不变，直到你更换。</string>
     <string name="supporterIconAccessibility">{value1}，应用图标，{value2}</string>
     <string name="supporterIconAvailable">可用</string>
     <string name="supporterIconLockedHint">打开“支持我们”以解锁并使用此图标。</string>

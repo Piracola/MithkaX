@@ -14,7 +14,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:intl/intl.dart' show DateFormat;
 import 'package:mithka/l10n/app_localizations.dart';
 import 'package:mithka/l10n/preview_texts.dart';
 import 'package:path_provider/path_provider.dart';
@@ -340,34 +339,12 @@ class AppIconSettingsView extends StatefulWidget {
   State<AppIconSettingsView> createState() => _AppIconSettingsViewState();
 }
 
-class _AppIconSettingsViewState extends State<AppIconSettingsView>
-    with WidgetsBindingObserver {
+class _AppIconSettingsViewState extends State<AppIconSettingsView> {
   // The key of the tile whose switch is in flight; null when idle. Null means
   // every tile is enabled; a key disables all tiles (one switch at a time) and
   // paints the spinner on exactly that tile.
   String? _switchingKey;
   bool _changeFailed = false;
-
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addObserver(this);
-  }
-
-  @override
-  void dispose() {
-    WidgetsBinding.instance.removeObserver(this);
-    super.dispose();
-  }
-
-  @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state != AppLifecycleState.resumed || !mounted) return;
-    // A suspended day timer may be late, and the time zone may have changed:
-    // recheck today's penguin and reformat the next-change time.
-    context.read<AppIconController>().refreshDailyPenguin();
-    setState(() {});
-  }
 
   Future<void> _select(AppIconVariant icon) async {
     if (_switchingKey != null) return;
@@ -391,29 +368,6 @@ class _AppIconSettingsViewState extends State<AppIconSettingsView>
     } finally {
       if (mounted) setState(() => _switchingKey = null);
     }
-  }
-
-  // Next 00:00 UTC in the device's time zone, with a localized date and a
-  // time that honours the 12/24-hour preference.
-  String _nextPenguinText(DateTime next) {
-    final local = next.toLocal();
-    final use24 = MediaQuery.alwaysUse24HourFormatOf(context);
-    String value;
-    try {
-      final date = DateFormat.MMMd(
-        Localizations.maybeLocaleOf(context)?.toLanguageTag(),
-      );
-      value = (use24 ? date.add_Hm() : date.add_jm()).format(local);
-    } catch (_) {
-      // An unknown locale must not cost the card its date and time.
-      final material = MaterialLocalizations.of(context);
-      final time = material.formatTimeOfDay(
-        TimeOfDay.fromDateTime(local),
-        alwaysUse24HourFormat: use24,
-      );
-      value = '${material.formatShortMonthDay(local)} $time';
-    }
-    return AppStrings.t(AppStringKeys.appIconNextPenguin, {'value1': value});
   }
 
   Widget _heading(String key, String textKey) => Text(
@@ -442,7 +396,6 @@ class _AppIconSettingsViewState extends State<AppIconSettingsView>
     AppIconController controller,
     List<AppIconVariant> icons,
     int columns,
-    AppIconVariant? freeToday,
   ) => Column(
     mainAxisSize: MainAxisSize.min,
     children: [
@@ -461,7 +414,6 @@ class _AppIconSettingsViewState extends State<AppIconSettingsView>
                         variant: icons[start + column],
                         selected: controller.isCurrent(icons[start + column]),
                         locked: controller.isLocked(icons[start + column]),
-                        freeToday: icons[start + column] == freeToday,
                         enabled:
                             controller.supported &&
                             !controller.loading &&
@@ -484,7 +436,6 @@ class _AppIconSettingsViewState extends State<AppIconSettingsView>
     final icons = controller.availableVariants;
     final retained = controller.unlistedCurrent;
     // Null for active Supporters and where the 48 are not offered.
-    final freeToday = controller.dailyPenguin;
     final c = context.colors;
     final textScale = MediaQuery.textScalerOf(context).scale(13) / 13;
     return SettingsPageScaffold(
@@ -502,10 +453,6 @@ class _AppIconSettingsViewState extends State<AppIconSettingsView>
                     : constraints.maxWidth < 360 || textScale >= 1.6
                     ? 2
                     : 3;
-                final enabled =
-                    controller.supported &&
-                    !controller.loading &&
-                    _switchingKey == null;
                 final mithkaXIcons = icons
                     .where((icon) => icon.mithkaX)
                     .toList(growable: false);
@@ -536,7 +483,7 @@ class _AppIconSettingsViewState extends State<AppIconSettingsView>
                         AppStringKeys.mithkaxIconHeading,
                       ),
                       const SizedBox(height: 12),
-                      _choices(controller, mithkaXIcons, columns, null),
+                      _choices(controller, mithkaXIcons, columns),
                       const SizedBox(height: 20),
                     ],
                     _heading(
@@ -557,7 +504,6 @@ class _AppIconSettingsViewState extends State<AppIconSettingsView>
                           )
                           .toList(),
                       columns,
-                      null,
                     ),
                     // Android closes the app exactly once — when the shipped
                     // (manifest-enabled) launcher alias is disabled by the
@@ -582,30 +528,11 @@ class _AppIconSettingsViewState extends State<AppIconSettingsView>
                         'app-icon-penguin-heading',
                         AppStringKeys.appIconPenguinHeading,
                       ),
-                      const SizedBox(height: 4),
-                      _caption(
-                        'app-icon-penguin-caption',
-                        AppStringKeys.appIconPenguinCaption,
-                      ),
                       const SizedBox(height: 12),
-                      if (freeToday != null) ...[
-                        _FreeTodayCard(
-                          key: ValueKey('app-icon-free-today-${freeToday.key}'),
-                          variant: freeToday,
-                          selected: controller.isCurrent(freeToday),
-                          enabled: enabled,
-                          nextChange: _nextPenguinText(
-                            controller.nextDailyPenguinChange,
-                          ),
-                          onTap: () => unawaited(_select(freeToday)),
-                        ),
-                        const SizedBox(height: 16),
-                      ],
                       _choices(
                         controller,
                         icons.where((icon) => icon.requiresSupporter).toList(),
                         columns,
-                        freeToday,
                       ),
                     ],
                   ],
@@ -900,8 +827,6 @@ class _AppIconArt extends StatelessWidget {
     required this.selected,
     required this.locked,
     this.switching = false,
-    this.badgeBorder,
-    this.keyPrefix = 'icon',
   });
 
   final AppIconVariant variant;
@@ -910,8 +835,6 @@ class _AppIconArt extends StatelessWidget {
   // The switch on this tile is in flight: its badge slot shows a spinner
   // instead of the check/lock glyph, same pattern as the emoji-font rows.
   final bool switching;
-  final Color? badgeBorder;
-  final String keyPrefix;
 
   @override
   Widget build(BuildContext context) {
@@ -919,7 +842,7 @@ class _AppIconArt extends StatelessWidget {
     final dark = Theme.of(context).brightness == Brightness.dark;
     final plated = variant.hasPlate;
     return SizedBox(
-      key: ValueKey('$keyPrefix-art-${variant.key}'),
+      key: ValueKey('icon-art-${variant.key}'),
       width: 88,
       height: 88,
       child: Stack(
@@ -947,7 +870,7 @@ class _AppIconArt extends StatelessWidget {
           // Overlay the outline so it never pads, clips, or shrinks the art.
           Positioned.fill(
             child: DecoratedBox(
-              key: ValueKey('$keyPrefix-outline-${variant.key}'),
+              key: ValueKey('icon-outline-${variant.key}'),
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(plated ? 22 : 16),
                 border: selected
@@ -963,10 +886,10 @@ class _AppIconArt extends StatelessWidget {
               child: Container(
                 key: ValueKey(
                   switching
-                      ? '$keyPrefix-switching-${variant.key}'
+                      ? 'icon-switching-${variant.key}'
                       : selected
-                      ? '$keyPrefix-selected-${variant.key}'
-                      : '$keyPrefix-locked-${variant.key}',
+                      ? 'icon-selected-${variant.key}'
+                      : 'icon-locked-${variant.key}',
                 ),
                 width: 24,
                 height: 24,
@@ -977,10 +900,7 @@ class _AppIconArt extends StatelessWidget {
                       ? const Color(0xFFEDEDED)
                       : const Color(0xFF1A1A1A),
                   shape: BoxShape.circle,
-                  border: Border.all(
-                    color: badgeBorder ?? c.groupedBackground,
-                    width: 2,
-                  ),
+                  border: Border.all(color: c.groupedBackground, width: 2),
                 ),
                 alignment: Alignment.center,
                 child: switching
@@ -1005,185 +925,12 @@ class _AppIconArt extends StatelessWidget {
 }
 
 // Marks today's free penguin for non-Supporters. Brand tint, never brand text.
-class _FreeTodayPill extends StatelessWidget {
-  const _FreeTodayPill({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    final dark = Theme.of(context).brightness == Brightness.dark;
-    return Container(
-      constraints: const BoxConstraints(minHeight: 20),
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-      decoration: BoxDecoration(
-        color: AppTheme.brand.withValues(alpha: dark ? 0.28 : 0.14),
-        borderRadius: BorderRadius.circular(10),
-      ),
-      child: Text(
-        AppStrings.t(AppStringKeys.appIconFreeToday),
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-        style: TextStyle(
-          fontSize: 12,
-          height: 16 / 12,
-          fontWeight: FontWeight.w600,
-          color: context.colors.textPrimary,
-        ),
-      ),
-    );
-  }
-}
-
-// Today's free penguin for non-Supporters: one tap target on the same
-// selection path as its grid tile. It is never locked.
-class _FreeTodayCard extends StatelessWidget {
-  const _FreeTodayCard({
-    super.key,
-    required this.variant,
-    required this.selected,
-    required this.enabled,
-    required this.nextChange,
-    required this.onTap,
-  });
-
-  final AppIconVariant variant;
-  final bool selected;
-  final bool enabled;
-  final String nextChange;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final c = context.colors;
-    final name = AppStrings.t(variant.labelKey);
-    final description = AppStrings.t(AppStringKeys.supporterIconAccessibility, {
-      'value1': AppStrings.t(variant.fullSemanticNameKey),
-      'value2': AppStrings.t(
-        selected
-            ? AppStringKeys.appIconSelectedFreeToday
-            : AppStringKeys.appIconFreeToday,
-      ),
-    });
-    return _AppIconChoice(
-      semanticsKey: const ValueKey('app-icon-free-today-card'),
-      pressKey: const ValueKey('free-today-press'),
-      label: '$description\n$nextChange',
-      hint: selected ? null : AppStrings.t(AppStringKeys.appIconUseHint),
-      selected: selected,
-      enabled: enabled,
-      onTap: onTap,
-      builder: (focusHighlight) => SettingsPanel(
-        padding: const EdgeInsets.all(12),
-        child: Row(
-          children: [
-            _AppIconArt(
-              variant: variant,
-              selected: selected,
-              locked: false,
-              badgeBorder: c.card,
-              keyPrefix: 'free-today',
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const _FreeTodayPill(key: ValueKey('free-today-pill')),
-                  const SizedBox(height: 6),
-                  Text(
-                    name,
-                    key: const ValueKey('free-today-name'),
-                    softWrap: true,
-                    style: TextStyle(
-                      fontSize: 17,
-                      height: 22 / 17,
-                      fontWeight: FontWeight.w600,
-                      color: c.textPrimary,
-                      decoration: focusHighlight
-                          ? TextDecoration.underline
-                          : null,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    nextChange,
-                    key: const ValueKey('free-today-next-change'),
-                    softWrap: true,
-                    style: TextStyle(
-                      fontSize: 13,
-                      height: 18 / 13,
-                      color: c.textSecondary,
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  if (selected)
-                    ConstrainedBox(
-                      key: const ValueKey('free-today-selected'),
-                      constraints: const BoxConstraints(minHeight: 32),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          AppIcon(
-                            HeroAppIcons.check,
-                            size: 16,
-                            color: AppTheme.brand,
-                          ),
-                          const SizedBox(width: 6),
-                          Flexible(
-                            child: Text(
-                              AppStrings.t(AppStringKeys.supporterIconSelected),
-                              style: TextStyle(
-                                fontSize: 15,
-                                height: 20 / 15,
-                                fontWeight: FontWeight.w600,
-                                color: c.textSecondary,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    )
-                  else
-                    // The button's shape only: the whole card is the target.
-                    DecoratedBox(
-                      key: const ValueKey('free-today-use'),
-                      decoration: BoxDecoration(
-                        color: c.accentButton,
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 14,
-                          vertical: 6,
-                        ),
-                        child: Text(
-                          AppStrings.t(AppStringKeys.appIconUse),
-                          style: TextStyle(
-                            fontSize: 15,
-                            height: 20 / 15,
-                            fontWeight: FontWeight.w600,
-                            color: c.accentButtonText,
-                          ),
-                        ),
-                      ),
-                    ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
 class _AppIconVariantTile extends StatelessWidget {
   const _AppIconVariantTile({
     super.key,
     required this.variant,
     required this.selected,
     required this.locked,
-    required this.freeToday,
     required this.enabled,
     required this.horizontal,
     required this.onTap,
@@ -1193,8 +940,6 @@ class _AppIconVariantTile extends StatelessWidget {
   final AppIconVariant variant;
   final bool selected;
   final bool locked;
-  // Today's penguin for a non-Supporter: never locked, marked Free today.
-  final bool freeToday;
   final bool enabled;
   final bool horizontal;
   final VoidCallback onTap;
@@ -1206,13 +951,9 @@ class _AppIconVariantTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = context.colors;
     final stateKey = selected
-        ? freeToday
-              ? AppStringKeys.appIconSelectedFreeToday
-              : AppStringKeys.supporterIconSelected
+        ? AppStringKeys.supporterIconSelected
         : locked
         ? AppStringKeys.supporterIconRequired
-        : freeToday
-        ? AppStringKeys.appIconFreeToday
         : AppStringKeys.supporterIconAvailable;
     final art = _AppIconArt(
       variant: variant,
@@ -1224,9 +965,6 @@ class _AppIconVariantTile extends StatelessWidget {
     // full motif + background name in semantics; natural wrapping, never ellipsis.
     final semanticNameKey = variant.fullSemanticNameKey;
     final visibleNameKey = variant.pickerLabelKey ?? variant.labelKey;
-    final pill = freeToday
-        ? _FreeTodayPill(key: ValueKey('icon-free-today-${variant.key}'))
-        : null;
     return _AppIconChoice(
       semanticsKey: ValueKey('app-icon-${variant.key}'),
       pressKey: ValueKey('icon-press-${variant.key}'),
@@ -1234,11 +972,7 @@ class _AppIconVariantTile extends StatelessWidget {
         'value1': AppStrings.t(semanticNameKey),
         'value2': AppStrings.t(stateKey),
       }),
-      hint: locked
-          ? AppStrings.t(AppStringKeys.supporterIconLockedHint)
-          : freeToday && !selected
-          ? AppStrings.t(AppStringKeys.appIconUseHint)
-          : null,
+      hint: locked ? AppStrings.t(AppStringKeys.supporterIconLockedHint) : null,
       selected: selected,
       enabled: enabled,
       onTap: onTap,
@@ -1261,25 +995,12 @@ class _AppIconVariantTile extends StatelessWidget {
                 children: [
                   art,
                   const SizedBox(width: 12),
-                  Expanded(
-                    child: pill == null
-                        ? label
-                        : Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            mainAxisSize: MainAxisSize.min,
-                            children: [label, const SizedBox(height: 4), pill],
-                          ),
-                  ),
+                  Expanded(child: label),
                 ],
               )
             : Column(
                 mainAxisSize: MainAxisSize.min,
-                children: [
-                  art,
-                  const SizedBox(height: 4),
-                  label,
-                  if (pill != null) ...[const SizedBox(height: 4), pill],
-                ],
+                children: [art, const SizedBox(height: 4), label],
               );
       },
     );
@@ -3795,11 +3516,7 @@ class _EmojiFontPickerViewState extends State<EmojiFontPickerView> {
         ),
         child: Row(
           children: [
-            Icon(
-              Icons.bug_report_outlined,
-              size: 20,
-              color: c.textSecondary,
-            ),
+            Icon(Icons.bug_report_outlined, size: 20, color: c.textSecondary),
             const SizedBox(width: AppSpacing.lg),
             Expanded(
               child: Text(
@@ -5069,9 +4786,7 @@ class _EmojiDiagnosticsDialogState extends State<_EmojiDiagnosticsDialog> {
                   setState(() => _copied = true);
                 },
           child: Text(
-            _copied
-                ? '✓'
-                : AppStrings.t(AppStringKeys.emojiDiagnosticsCopy),
+            _copied ? '✓' : AppStrings.t(AppStringKeys.emojiDiagnosticsCopy),
           ),
         ),
         TextButton(

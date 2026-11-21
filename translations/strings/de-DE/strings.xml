@@ -311,7 +311,6 @@
     <string name="appIconFreeCaption">Jederzeit kostenlos wählbar.</string>
     <string name="appIconFirstChangeNote">Beim ersten Wechsel des App-Symbols schließt sich die App einmal kurz und startet danach neu.</string>
     <string name="appIconFreeHeading">Standard-App-Symbole</string>
-    <string name="appIconFreeToday">Heute kostenlos</string>
     <string name="appIconGamer">Gamer</string>
     <string name="appIconGardener">Gärtner</string>
     <string name="appIconGuitar">Gitarre</string>
@@ -328,18 +327,15 @@
     <string name="appIconMotifLetterM">Buchstabe M</string>
     <string name="appIconMotifPenguin">Pinguin</string>
     <string name="appIconMotifPixelPenguin">Pixel-Pinguin</string>
-    <string name="appIconNextPenguin">Nächster Pinguin: {value1}</string>
     <string name="appIconNinja">Ninja</string>
     <string name="appIconNoodles">Nudeln</string>
     <string name="appIconPainter">Maler</string>
     <string name="appIconPaperPlanes">Papierflieger</string>
     <string name="appIconParade">Parade</string>
     <string name="appIconParty">Party</string>
-    <string name="appIconPenguinCaption">Jeden Tag steht ein anderer Pinguin kostenlos zur Auswahl. Dein App-Symbol bleibt, bis du es änderst.</string>
     <string name="appIconPenguinHeading">Pinguin-App-Symbole</string>
     <string name="appIconPenguinNeutral">Pinguin, Neutral</string>
     <string name="appIconPenguinPinkPurple">Pinguin, Rosa-Lila</string>
-    <string name="appIconPenguinSupporterCaption">Mit Supporter kannst du jedes der 48 Pinguin-App-Symbole auswählen.</string>
     <string name="appIconPenguinTelegramBlue">Pinguin, Telegram-Blau</string>
     <string name="appIconPhotographer">Fotograf</string>
     <string name="appIconPicnic">Picknick</string>
@@ -356,7 +352,6 @@
     <string name="appIconReader">Lesen</string>
     <string name="appIconScientist">Wissenschaftler</string>
     <string name="appIconSeesaw">Wippe</string>
-    <string name="appIconSelectedFreeToday">Ausgewählt, heute kostenlos</string>
     <string name="appIconSignal">Fettes M</string>
     <string name="appIconSkateboard">Skateboard</string>
     <string name="appIconSkiing">Skifahren</string>
@@ -370,7 +365,6 @@
     <string name="appIconTitle">App-Symbol</string>
     <string name="appIconUnsupported">Diese Plattform oder dieser Launcher unterstützt das Ändern des App-Symbols möglicherweise nicht.</string>
     <string name="appIconUse">Symbol verwenden</string>
-    <string name="appIconUseHint">Dieses App-Symbol verwenden.</string>
     <string name="appIconWhite">Reines Weiß</string>
     <string name="appIconWinter">Winter</string>
     <string name="appLocaleArabic">العربية</string>
@@ -3536,7 +3530,6 @@
     <string name="supporterBillingNoticeGoogle">Die Zahlung wird bei Bestätigung deinem Google-Play-Konto belastet. Das Abo verlängert sich automatisch, wenn es nicht gekündigt wird. Verwalte oder kündige dein Abo in deinen Google-Play-Kontoeinstellungen.</string>
     <string name="supporterCancellation">Wenn du kündigst, bleibt die Unterstützung bis zum Ende des bezahlten Zeitraums aktiv.</string>
     <string name="supporterFunctionalAccess">Supporter bietet zusätzliche Gestaltungsmöglichkeiten. Alle anderen Funktionen sind gleich.</string>
-    <string name="supporterIconAccess">Ohne Supporter kannst du den heutigen kostenlosen Pinguin oder ein Standard-App-Symbol auswählen. Mit Supporter kannst du jeden Pinguin auswählen. Dein App-Symbol bleibt, bis du es änderst.</string>
     <string name="supporterIconAccessibility">{value1}, App-Symbol, {value2}</string>
     <string name="supporterIconAvailable">Verfügbar</string>
     <string name="supporterIconLockedHint">Öffnet „Unterstütze uns“, um dieses Symbol freizuschalten und zu verwenden.</string>

@@ -311,7 +311,6 @@
     <string name="appIconFreeCaption">いつでも無料で選べます。</string>
     <string name="appIconFirstChangeNote">アイコンを初めて変更すると、アプリが一度終了して再起動します。</string>
     <string name="appIconFreeHeading">標準アイコン</string>
-    <string name="appIconFreeToday">今日は無料</string>
     <string name="appIconGamer">ゲーマー</string>
     <string name="appIconGardener">庭師</string>
     <string name="appIconGuitar">ギター</string>
@@ -328,18 +327,15 @@
     <string name="appIconMotifLetterM">文字M</string>
     <string name="appIconMotifPenguin">ペンギン</string>
     <string name="appIconMotifPixelPenguin">ドット絵のペンギン</string>
-    <string name="appIconNextPenguin">次のペンギン：{value1}</string>
     <string name="appIconNinja">忍者</string>
     <string name="appIconNoodles">麺</string>
     <string name="appIconPainter">画家</string>
     <string name="appIconPaperPlanes">紙飛行機</string>
     <string name="appIconParade">パレード</string>
     <string name="appIconParty">パーティー</string>
-    <string name="appIconPenguinCaption">毎日、無料で選べるペンギンが変わります。選んだアイコンは、自分で変更するまでそのまま使えます。</string>
     <string name="appIconPenguinHeading">ペンギンアイコン</string>
     <string name="appIconPenguinNeutral">ペンギン, 白黒</string>
     <string name="appIconPenguinPinkPurple">ペンギン, ピンク・紫</string>
-    <string name="appIconPenguinSupporterCaption">Supporterなら、48種類のペンギンアイコンを自由に選べます。</string>
     <string name="appIconPenguinTelegramBlue">ペンギン, Telegramブルー</string>
     <string name="appIconPhotographer">写真家</string>
     <string name="appIconPicnic">ピクニック</string>
@@ -356,7 +352,6 @@
     <string name="appIconReader">読書</string>
     <string name="appIconScientist">科学者</string>
     <string name="appIconSeesaw">シーソー</string>
-    <string name="appIconSelectedFreeToday">選択中、今日は無料</string>
     <string name="appIconSignal">ボールド M</string>
     <string name="appIconSkateboard">スケートボード</string>
     <string name="appIconSkiing">スキー</string>
@@ -370,7 +365,6 @@
     <string name="appIconTitle">アプリアイコン</string>
     <string name="appIconUnsupported">このプラットフォームまたはランチャーでは、アプリアイコンの変更に対応していない場合があります。</string>
     <string name="appIconUse">このアイコンを使う</string>
-    <string name="appIconUseHint">このアイコンを使います。</string>
     <string name="appIconWhite">ピュアホワイト</string>
     <string name="appIconWinter">冬</string>
     <string name="appLocaleArabic">العربية</string>
@@ -3525,7 +3519,6 @@
     <string name="supporterBillingNoticeGoogle">確認時に Google Play アカウントに請求されます。解約しない限り自動更新されます。Google Play のアカウント設定で登録の管理・解約ができます。</string>
     <string name="supporterCancellation">解約しても、お支払い済みの期間が終了するまでサポーターは有効です。</string>
     <string name="supporterFunctionalAccess">Supporterでは、見た目のカスタマイズ項目が増えます。それ以外の機能はすべて同じです。</string>
-    <string name="supporterIconAccess">Supporterでなくても、今日の無料ペンギンや標準アイコンを選べます。Supporterなら、すべてのペンギンから自由に選べます。選んだアイコンは、自分で変更するまでそのまま使えます。</string>
     <string name="supporterIconAccessibility">{value1}、アプリアイコン、{value2}</string>
     <string name="supporterIconAvailable">利用可能</string>
     <string name="supporterIconLockedHint">「開発を支援」を開いて、このアイコンを使えるようにします。</string>

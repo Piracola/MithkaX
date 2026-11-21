@@ -135,25 +135,18 @@ abstract final class AppStringKeys {
   static const appIconFreeCaption = 'appIconFreeCaption';
   static const appIconFirstChangeNote = 'appIconFirstChangeNote';
   static const appIconFreeHeading = 'appIconFreeHeading';
-  static const appIconFreeToday = 'appIconFreeToday';
   static const appIconLetterMNeutral = 'appIconLetterMNeutral';
   static const appIconLetterMPinkPurple = 'appIconLetterMPinkPurple';
   static const appIconLetterMTelegramBlue = 'appIconLetterMTelegramBlue';
-  static const appIconNextPenguin = 'appIconNextPenguin';
-  static const appIconPenguinCaption = 'appIconPenguinCaption';
   static const appIconPenguinHeading = 'appIconPenguinHeading';
   static const appIconPenguinNeutral = 'appIconPenguinNeutral';
   static const appIconPenguinPinkPurple = 'appIconPenguinPinkPurple';
-  static const appIconPenguinSupporterCaption =
-      'appIconPenguinSupporterCaption';
   static const appIconPenguinTelegramBlue = 'appIconPenguinTelegramBlue';
   static const appIconPixelPenguinNeutral = 'appIconPixelPenguinNeutral';
   static const appIconPixelPenguinPinkPurple = 'appIconPixelPenguinPinkPurple';
   static const appIconPixelPenguinTelegramBlue =
       'appIconPixelPenguinTelegramBlue';
-  static const appIconSelectedFreeToday = 'appIconSelectedFreeToday';
   static const appIconUse = 'appIconUse';
-  static const appIconUseHint = 'appIconUseHint';
 
   static const appIconCurrentHeading = 'appIconCurrentHeading';
   static const appIconCurrentNote = 'appIconCurrentNote';
@@ -352,7 +345,6 @@ abstract final class AppStringKeys {
   static const supporterBillingNoticeGoogle = 'supporterBillingNoticeGoogle';
   static const supporterCancellation = 'supporterCancellation';
   static const supporterFunctionalAccess = 'supporterFunctionalAccess';
-  static const supporterIconAccess = 'supporterIconAccess';
   static const supporterIconAccessibility = 'supporterIconAccessibility';
   static const supporterIconAvailable = 'supporterIconAvailable';
   static const supporterIconLockedHint = 'supporterIconLockedHint';

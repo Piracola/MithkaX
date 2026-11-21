@@ -311,7 +311,6 @@
     <string name="appIconFreeCaption">Siempre disponibles gratis.</string>
     <string name="appIconFirstChangeNote">La primera vez que cambies el icono de la app, esta se cerrará una vez y se reiniciará.</string>
     <string name="appIconFreeHeading">Iconos estándar</string>
-    <string name="appIconFreeToday">Gratis hoy</string>
     <string name="appIconGamer">Videojugador</string>
     <string name="appIconGardener">Jardinero</string>
     <string name="appIconGuitar">Guitarra</string>
@@ -328,18 +327,15 @@
     <string name="appIconMotifLetterM">Letra M</string>
     <string name="appIconMotifPenguin">Pingüino</string>
     <string name="appIconMotifPixelPenguin">Pingüino pixelado</string>
-    <string name="appIconNextPenguin">Próximo pingüino: {value1}</string>
     <string name="appIconNinja">Ninja</string>
     <string name="appIconNoodles">Fideos</string>
     <string name="appIconPainter">Pintor</string>
     <string name="appIconPaperPlanes">Aviones de papel</string>
     <string name="appIconParade">Desfile</string>
     <string name="appIconParty">Fiesta</string>
-    <string name="appIconPenguinCaption">Cada día puedes elegir gratis un pingüino diferente. Tu icono se mantiene hasta que lo cambies.</string>
     <string name="appIconPenguinHeading">Iconos de pingüinos</string>
     <string name="appIconPenguinNeutral">Pingüino, Neutro</string>
     <string name="appIconPenguinPinkPurple">Pingüino, Rosa y morado</string>
-    <string name="appIconPenguinSupporterCaption">Con Supporter, elige cualquiera de los 48 iconos de pingüinos.</string>
     <string name="appIconPenguinTelegramBlue">Pingüino, Azul Telegram</string>
     <string name="appIconPhotographer">Fotógrafo</string>
     <string name="appIconPicnic">Pícnic</string>
@@ -356,7 +352,6 @@
     <string name="appIconReader">Lectura</string>
     <string name="appIconScientist">Científico</string>
     <string name="appIconSeesaw">Balancín</string>
-    <string name="appIconSelectedFreeToday">Seleccionado, gratis hoy</string>
     <string name="appIconSignal">M gruesa</string>
     <string name="appIconSkateboard">Monopatín</string>
     <string name="appIconSkiing">Esquí</string>
@@ -370,7 +365,6 @@
     <string name="appIconTitle">Icono de la app</string>
     <string name="appIconUnsupported">Es posible que esta plataforma o launcher no admita cambiar el icono.</string>
     <string name="appIconUse">Usar icono</string>
-    <string name="appIconUseHint">Usar este icono.</string>
     <string name="appIconWhite">Blanco puro</string>
     <string name="appIconWinter">Invierno</string>
     <string name="appLocaleArabic">العربية</string>
@@ -3536,7 +3530,6 @@
     <string name="supporterBillingNoticeGoogle">El pago se carga a tu cuenta de Google Play al confirmar. La suscripción se renueva automáticamente salvo que la canceles. Gestiona o cancela tu suscripción en los ajustes de tu cuenta de Google Play.</string>
     <string name="supporterCancellation">Si cancelas, el apoyo sigue activo hasta el final del período pagado.</string>
     <string name="supporterFunctionalAccess">Supporter añade opciones de personalización visual. Todas las demás funciones son iguales.</string>
-    <string name="supporterIconAccess">Sin Supporter, elige el pingüino gratis de hoy o cualquier icono estándar. Con Supporter, elige cualquier pingüino. Tu icono se mantiene hasta que lo cambies.</string>
     <string name="supporterIconAccessibility">{value1}, icono de la app, {value2}</string>
     <string name="supporterIconAvailable">Disponible</string>
     <string name="supporterIconLockedHint">Abre Apóyanos para desbloquear y usar este icono.</string>
