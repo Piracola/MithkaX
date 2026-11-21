@@ -151,4 +151,133 @@ void main() {
     await tester.pump();
     expect(picked, [MessageAction.forward]);
   });
+
+  group('theme', () {
+    Future<void> pumpIn(WidgetTester tester, ThemeData theme) async {
+      SharedPreferences.setMockInitialValues({});
+      final translation = TranslationController(
+        await SharedPreferences.getInstance(),
+      );
+      addTearDown(translation.dispose);
+      await tester.pumpWidget(
+        ChangeNotifierProvider<TranslationController>.value(
+          value: translation,
+          child: MaterialApp(
+            locale: const Locale('en'),
+            localizationsDelegates: const [
+              AppLocalizations.delegate,
+              GlobalMaterialLocalizations.delegate,
+              GlobalCupertinoLocalizations.delegate,
+              GlobalWidgetsLocalizations.delegate,
+            ],
+            supportedLocales: AppLocalizations.supportedLocales,
+            theme: theme,
+            home: Scaffold(
+              body: Center(
+                child: MessageActionMenu(
+                  message: message(),
+                  isPinned: false,
+                  layout: MessageActionMenuLayout.vertical,
+                  onSelect: (_) {},
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+    }
+
+    BoxDecoration surfaceOf(WidgetTester tester) =>
+        tester
+                .widget<Container>(
+                  find.byKey(const ValueKey('message-action-menu-surface')),
+                )
+                .decoration!
+            as BoxDecoration;
+
+    testWidgets('day theme floats a light card with dark ink', (tester) async {
+      await pumpIn(tester, ThemeData(extensions: [AppColors.light]));
+      final decoration = surfaceOf(tester);
+      expect(decoration.color, AppColors.light.card);
+      expect(
+        tester.widget<Text>(find.text('Copy')).style!.color,
+        AppColors.light.textPrimary,
+      );
+    });
+
+    testWidgets('night theme keeps the raised dark surface', (tester) async {
+      await pumpIn(
+        tester,
+        ThemeData(brightness: Brightness.dark, extensions: [AppColors.dark]),
+      );
+      final decoration = surfaceOf(tester);
+      expect(decoration.color, AppColors.dark.navBar);
+      expect(
+        tester.widget<Text>(find.text('Copy')).style!.color,
+        AppColors.dark.textPrimary,
+      );
+    });
+  });
+
+  group('placement', () {
+    test('the menu never climbs over the reaction strip', () {
+      // The bubble sits low: the old clamp pushed the menu up over the strip.
+      final top = MessageActionMenu.menuTopFor(
+        preferredTop: 700,
+        ceiling: 420,
+        bottomSafe: 800,
+        menuHeight: 300,
+      );
+      // Pushed down to the lowest top that still fits above the bottom safe
+      // area, never up past the strip's bottom edge.
+      expect(top, 500);
+      expect(top, greaterThanOrEqualTo(420));
+    });
+
+    test('a menu too tall for the strip stops at the ceiling and scrolls', () {
+      expect(
+        MessageActionMenu.menuTopFor(
+          preferredTop: 700,
+          ceiling: 420,
+          bottomSafe: 800,
+          menuHeight: 500,
+        ),
+        420,
+      );
+    });
+
+    test('a floating menu keeps its preferred top when it fits', () {
+      expect(
+        MessageActionMenu.menuTopFor(
+          preferredTop: 300,
+          ceiling: 420,
+          bottomSafe: 800,
+          menuHeight: 300,
+        ),
+        420,
+      );
+      expect(
+        MessageActionMenu.menuTopFor(
+          preferredTop: 450,
+          ceiling: 420,
+          bottomSafe: 800,
+          menuHeight: 300,
+        ),
+        450,
+      );
+    });
+
+    test('without a strip the ceiling is the safe-area top', () {
+      expect(
+        MessageActionMenu.menuTopFor(
+          preferredTop: 20,
+          ceiling: 60,
+          bottomSafe: 800,
+          menuHeight: 300,
+        ),
+        60,
+      );
+    });
+  });
 }

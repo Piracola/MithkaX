@@ -76,6 +76,53 @@ enum MessageActionSource { normal, video }
 
 enum MessageActionMenuLayout { adaptive, grid, vertical }
 
+/// The floating overlay's palette, taken from the app theme: a light card with
+/// dark ink in day mode, the raised dark surface at night.
+///
+/// The menu and the reaction strip above it draw from one palette so the pair
+/// reads as a single themed surface instead of a fixed dark HUD parked over a
+/// light chat.
+@immutable
+class MessageActionPalette {
+  const MessageActionPalette({
+    required this.surface,
+    required this.foreground,
+    required this.divider,
+    required this.destructive,
+    required this.shadow,
+    required this.chip,
+  });
+
+  factory MessageActionPalette.of(BuildContext context) {
+    final c = context.colors;
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    return MessageActionPalette(
+      // The raised surface the rest of the app floats over a page: white in
+      // day mode, the nav-bar grey at night.
+      surface: dark ? c.navBar : c.card,
+      foreground: c.textPrimary,
+      divider: c.divider,
+      destructive: dark ? _nightDestructive : AppTheme.tagRed,
+      shadow: Colors.black.withValues(alpha: dark ? 0.36 : 0.16),
+      chip: dark ? c.searchFill : c.groupedBackground,
+    );
+  }
+
+  /// The lighter red the dark HUD always used; the day palette takes the
+  /// app's own destructive red, which reads on a white card.
+  static const _nightDestructive = Color(0xFFFF6961);
+
+  final Color surface;
+  final Color foreground;
+  final Color divider;
+  final Color destructive;
+  final Color shadow;
+
+  /// Fill for a small control sitting on [surface] (the expand button, the
+  /// reaction tab strip).
+  final Color chip;
+}
+
 class QuickReactionBar extends StatelessWidget {
   const QuickReactionBar({
     super.key,
@@ -92,6 +139,7 @@ class QuickReactionBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = MessageActionPalette.of(context);
     final buttonCount = reactions.length + 1;
     return Container(
       key: const ValueKey('quick-reaction-bar'),
@@ -100,17 +148,15 @@ class QuickReactionBar extends StatelessWidget {
       ),
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
       decoration: BoxDecoration(
-        color: const Color(0xFF2C2C2E),
+        color: palette.surface,
         borderRadius: BorderRadius.circular(AppRadius.xxl),
-        boxShadow: [
-          BoxShadow(color: Colors.black.withValues(alpha: 0.3), blurRadius: 12),
-        ],
+        boxShadow: [BoxShadow(color: palette.shadow, blurRadius: 12)],
       ),
       child: LayoutBuilder(
         builder: (context, constraints) {
           final buttons = <Widget>[
-            for (final emoji in reactions) _reactionButton(emoji),
-            _expandButton(),
+            for (final emoji in reactions) _reactionButton(emoji, palette),
+            _expandButton(palette),
           ];
           if (buttonCount <= maxFittedButtonCount) {
             return Row(
@@ -127,7 +173,10 @@ class QuickReactionBar extends StatelessWidget {
     );
   }
 
-  Widget _reactionButton(QuickReactionChoice reaction) {
+  Widget _reactionButton(
+    QuickReactionChoice reaction,
+    MessageActionPalette palette,
+  ) {
     return GestureDetector(
       key: ValueKey('quick-reaction-${reaction.storageValue}'),
       behavior: HitTestBehavior.opaque,
@@ -140,7 +189,7 @@ class QuickReactionBar extends StatelessWidget {
               ? CustomEmojiView(
                   id: reaction.customEmojiId,
                   size: 28,
-                  color: Colors.white,
+                  color: palette.foreground,
                 )
               : Text(
                   reaction.emoji,
@@ -152,7 +201,7 @@ class QuickReactionBar extends StatelessWidget {
     );
   }
 
-  Widget _expandButton() {
+  Widget _expandButton(MessageActionPalette palette) {
     return GestureDetector(
       key: const ValueKey('quick-reaction-expand'),
       behavior: HitTestBehavior.opaque,
@@ -165,14 +214,14 @@ class QuickReactionBar extends StatelessWidget {
             width: 34,
             height: 34,
             alignment: Alignment.center,
-            decoration: const BoxDecoration(
-              color: Color(0xFF3A3A3C),
+            decoration: BoxDecoration(
+              color: palette.chip,
               shape: BoxShape.circle,
             ),
-            child: const AppIcon(
+            child: AppIcon(
               HeroAppIcons.chevronDown,
               size: 22,
-              color: Colors.white,
+              color: palette.foreground,
             ),
           ),
         ),
@@ -209,21 +258,19 @@ class MenuReactionBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = MessageActionPalette.of(context);
     final shown = reactions.take(maxReactionCount).toList(growable: false);
     return Container(
       key: const ValueKey('menu-reaction-bar'),
       height: height,
       padding: const EdgeInsets.symmetric(horizontal: _padding),
       decoration: BoxDecoration(
-        color: MessageActionMenu.surface,
+        color: palette.surface,
         borderRadius: BorderRadius.circular(AppRadius.control),
-        border: Border.all(
-          color: Colors.white.withValues(alpha: 0.22),
-          width: 0.75,
-        ),
+        border: Border.all(color: palette.divider, width: 0.75),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.24),
+            color: palette.shadow,
             blurRadius: 14,
             offset: const Offset(0, 6),
           ),
@@ -235,12 +282,13 @@ class MenuReactionBar extends StatelessWidget {
             Expanded(
               child: _MenuReactionSlot(
                 key: ValueKey('menu-reaction-${reaction.storageValue}'),
+                palette: palette,
                 onTap: () => onReaction(reaction),
                 child: reaction.isCustom
                     ? CustomEmojiView(
                         id: reaction.customEmojiId,
                         size: _emojiSize,
-                        color: Colors.white,
+                        color: palette.foreground,
                       )
                     : Text(
                         reaction.emoji,
@@ -252,11 +300,12 @@ class MenuReactionBar extends StatelessWidget {
           Expanded(
             child: _MenuReactionSlot(
               key: const ValueKey('menu-reaction-expand'),
+              palette: palette,
               onTap: onExpand,
-              child: const AppIcon(
+              child: AppIcon(
                 HeroAppIcons.faceSmile,
                 size: 21,
-                color: Colors.white,
+                color: palette.foreground,
               ),
             ),
           ),
@@ -271,10 +320,12 @@ class MenuReactionBar extends StatelessWidget {
 class _MenuReactionSlot extends StatefulWidget {
   const _MenuReactionSlot({
     super.key,
+    required this.palette,
     required this.onTap,
     required this.child,
   });
 
+  final MessageActionPalette palette;
   final VoidCallback onTap;
   final Widget child;
 
@@ -302,7 +353,7 @@ class _MenuReactionSlotState extends State<_MenuReactionSlot> {
           alignment: Alignment.center,
           decoration: BoxDecoration(
             color: _hovering
-                ? Colors.white.withValues(alpha: 0.12)
+                ? widget.palette.foreground.withValues(alpha: 0.10)
                 : Colors.transparent,
             borderRadius: BorderRadius.circular(AppRadius.md),
           ),
@@ -366,8 +417,6 @@ class MessageActionMenu extends StatelessWidget {
   final bool showingOriginalTranslation;
   final MessageActionMenuLayout layout;
 
-  static const surface = Color(0xFF2C2C2E);
-  static const _destructive = Color(0xFFFF6961);
   static const _horizontalPadding = 6.0;
   static const _actionWidth = 58.0;
   static const _maxContentSizedActionCount = 10;
@@ -470,6 +519,23 @@ class MessageActionMenu extends StatelessWidget {
       return Rect.fromLTWH(pointer.dx, pointer.dy, 0, 0);
     }
     return targetRect;
+  }
+
+  /// Where the menu's top edge lands, given the strip it must clear.
+  ///
+  /// [ceiling] is the bottom edge of the reaction strip above the menu (or the
+  /// safe-area top when no strip is drawn): the menu never climbs above it, so
+  /// a menu pushed up by the bottom safe area stops under the strip instead of
+  /// covering it. When the two do not both fit, the ceiling wins and the menu
+  /// scrolls in the height that is left.
+  static double menuTopFor({
+    required double preferredTop,
+    required double ceiling,
+    required double bottomSafe,
+    required double menuHeight,
+  }) {
+    final floor = math.max(ceiling, bottomSafe - menuHeight);
+    return preferredTop.clamp(math.min(ceiling, floor), floor);
   }
 
   static Offset verticalOriginForPointer({
@@ -733,17 +799,19 @@ class MessageActionMenu extends StatelessWidget {
             (math.max(columnCount, 1) * _actionWidth) +
             (_horizontalPadding * 2);
         final contentWidth = math.max(menuWidth, actionContentWidth);
+        final palette = MessageActionPalette.of(context);
         return Container(
           key: const ValueKey('message-action-menu-surface'),
           width: menuWidth,
           padding: const EdgeInsets.symmetric(vertical: 11),
           clipBehavior: Clip.antiAlias,
           decoration: BoxDecoration(
-            color: surface,
+            color: palette.surface,
             borderRadius: BorderRadius.circular(AppRadius.lg),
+            border: Border.all(color: palette.divider, width: 0.5),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withValues(alpha: 0.3),
+                color: palette.shadow,
                 blurRadius: 16,
                 offset: const Offset(0, 6),
               ),
@@ -762,15 +830,20 @@ class MessageActionMenu extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    _ActionRow(actions: firstRow, onSelect: onSelect),
+                    _ActionRow(
+                      actions: firstRow,
+                      onSelect: onSelect,
+                      palette: palette,
+                    ),
                     if (secondRow.isNotEmpty) ...[
                       const SizedBox(height: 10),
-                      Container(
-                        height: 1,
-                        color: Colors.white.withValues(alpha: 0.08),
-                      ),
+                      Container(height: 1, color: palette.divider),
                       const SizedBox(height: 10),
-                      _ActionRow(actions: secondRow, onSelect: onSelect),
+                      _ActionRow(
+                        actions: secondRow,
+                        onSelect: onSelect,
+                        palette: palette,
+                      ),
                     ],
                   ],
                 ),
@@ -820,6 +893,7 @@ class _VerticalActionList extends StatelessWidget {
             availableHeight: availableHeight,
           );
     final dividerInset = compact ? 10.0 : AppSpacing.lg;
+    final palette = MessageActionPalette.of(context);
     return Container(
       key: const ValueKey('message-action-menu-surface'),
       width: width,
@@ -829,15 +903,12 @@ class _VerticalActionList extends StatelessWidget {
       ),
       clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
-        color: MessageActionMenu.surface,
+        color: palette.surface,
         borderRadius: BorderRadius.circular(AppRadius.control),
-        border: Border.all(
-          color: Colors.white.withValues(alpha: 0.22),
-          width: 0.75,
-        ),
+        border: Border.all(color: palette.divider, width: 0.75),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.24),
+            color: palette.shadow,
             blurRadius: 14,
             offset: const Offset(0, 6),
           ),
@@ -861,11 +932,12 @@ class _VerticalActionList extends StatelessWidget {
                   key: const ValueKey('message-action-destructive-divider'),
                   height: 1,
                   margin: EdgeInsets.symmetric(horizontal: dividerInset),
-                  color: Colors.white.withValues(alpha: 0.10),
+                  color: palette.divider,
                 ),
               _VerticalActionRow(
                 action: action,
                 compact: compact,
+                palette: palette,
                 onTap: () => onSelect(action),
               ),
             ],
@@ -883,18 +955,20 @@ class _VerticalActionRow extends StatelessWidget {
   const _VerticalActionRow({
     required this.action,
     required this.compact,
+    required this.palette,
     required this.onTap,
   });
 
   final MessageAction action;
   final bool compact;
+  final MessageActionPalette palette;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     final color = action.isDestructive
-        ? MessageActionMenu._destructive
-        : Colors.white;
+        ? palette.destructive
+        : palette.foreground;
     final row = SizedBox(
       height: compact
           ? MessageActionMenu._desktopActionHeight
@@ -938,19 +1012,21 @@ class _VerticalActionRow extends StatelessWidget {
       onTap: onTap,
       child: compact
           ? row
-          : AppPressRipple(
-              color: Colors.white.withValues(alpha: 0.14),
-              child: row,
-            ),
+          : AppPressRipple(color: palette.foreground, child: row),
     );
   }
 }
 
 class _ActionRow extends StatelessWidget {
-  const _ActionRow({required this.actions, required this.onSelect});
+  const _ActionRow({
+    required this.actions,
+    required this.onSelect,
+    required this.palette,
+  });
 
   final List<MessageAction> actions;
   final ValueChanged<MessageAction> onSelect;
+  final MessageActionPalette palette;
 
   @override
   Widget build(BuildContext context) {
@@ -968,7 +1044,7 @@ class _ActionRow extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   if (action == MessageAction.repeat)
-                    const SizedBox(
+                    SizedBox(
                       height: 22,
                       child: Center(
                         child: Text(
@@ -976,7 +1052,7 @@ class _ActionRow extends StatelessWidget {
                           style: TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.w600,
-                            color: Colors.white,
+                            color: palette.foreground,
                           ),
                         ),
                       ),
@@ -986,8 +1062,8 @@ class _ActionRow extends StatelessWidget {
                       action.glyph,
                       size: 22,
                       color: action.isDestructive
-                          ? MessageActionMenu._destructive
-                          : Colors.white,
+                          ? palette.destructive
+                          : palette.foreground,
                     ),
                   const SizedBox(height: 5),
                   Text(
@@ -998,8 +1074,8 @@ class _ActionRow extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 12,
                       color: action.isDestructive
-                          ? MessageActionMenu._destructive
-                          : Colors.white,
+                          ? palette.destructive
+                          : palette.foreground,
                     ),
                   ),
                 ],

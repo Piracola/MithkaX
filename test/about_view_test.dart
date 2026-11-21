@@ -31,7 +31,7 @@ void main() {
       final frame = await codec.getNextFrame();
       final image = frame.image;
       addTearDown(image.dispose);
-      final rgba = await image.toByteData(format: ui.ImageByteFormat.rawRgba);
+      final rgba = await image.toByteData();
       final bytes = rgba!.buffer.asUint8List();
       int alphaAt(int x, int y) => bytes[(y * image.width + x) * 4 + 3];
 

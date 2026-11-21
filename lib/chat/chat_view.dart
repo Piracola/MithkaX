@@ -11683,13 +11683,20 @@ class _ChatViewState extends State<ChatView> {
         : _reactionExpanded
         ? _expandedPickerSize.height
         : 48.0;
+    const gap = 8.0;
     final menuH = showActionMenu
         ? math.min(
             actionMenu.preferredHeightFor(context),
-            math.max(0.0, bottomSafe - topSafe - desktopStripH),
+            math.max(
+              0.0,
+              bottomSafe -
+                  topSafe -
+                  (desktopMenu
+                      ? desktopStripH
+                      : (showReactions ? reactionH + gap : 0.0)),
+            ),
           )
         : 0.0;
-    const gap = 8.0;
     final menuGap = showActionMenu ? gap : 0.0;
 
     double reactionTop, menuTop;
@@ -11700,12 +11707,19 @@ class _ChatViewState extends State<ChatView> {
         topSafe,
         bottomSafe - reactionH,
       );
-      menuTop = (verticalMenu ? rect.top : rect.bottom + gap).clamp(
-        topSafe,
-        bottomSafe - menuH,
+      // The menu clears the reaction strip instead of climbing over it: a menu
+      // clamped up for the bottom safe area used to cover the pill.
+      menuTop = MessageActionMenu.menuTopFor(
+        preferredTop: verticalMenu ? rect.top : rect.bottom + gap,
+        ceiling: showReactions ? reactionTop + reactionH + gap : topSafe,
+        bottomSafe: bottomSafe,
+        menuHeight: menuH,
       );
     } else {
-      reactionTop = (screenH - reactionH - menuH - menuGap) / 2;
+      reactionTop = ((screenH - reactionH - menuH - menuGap) / 2).clamp(
+        topSafe,
+        math.max(topSafe, bottomSafe - reactionH),
+      );
       menuTop = reactionTop + reactionH + menuGap;
     }
     final align = outgoing ? Alignment.centerRight : Alignment.centerLeft;
@@ -11817,6 +11831,7 @@ class _ChatViewState extends State<ChatView> {
 
   Widget _expandedReactionPicker(MessageReactionAvailability availability) {
     final store = EmojiStore.shared;
+    final palette = MessageActionPalette.of(context);
     final packs = availability.allowArbitraryCustom
         ? store.customPacks
         : const <CustomEmojiPack>[];
@@ -11824,17 +11839,15 @@ class _ChatViewState extends State<ChatView> {
       width: _expandedPickerSize.width,
       height: _expandedPickerSize.height,
       decoration: BoxDecoration(
-        color: const Color(0xFF2C2C2E),
+        color: palette.surface,
         borderRadius: BorderRadius.circular(AppRadius.lg),
-        boxShadow: [
-          BoxShadow(color: Colors.black.withValues(alpha: 0.3), blurRadius: 12),
-        ],
+        boxShadow: [BoxShadow(color: palette.shadow, blurRadius: 12)],
       ),
       clipBehavior: Clip.antiAlias,
       child: Column(
         children: [
-          Expanded(child: _reactionContent(packs, availability)),
-          _reactionTabStrip(packs),
+          Expanded(child: _reactionContent(packs, availability, palette)),
+          _reactionTabStrip(packs, palette),
         ],
       ),
     );
@@ -11843,6 +11856,7 @@ class _ChatViewState extends State<ChatView> {
   Widget _reactionContent(
     List<CustomEmojiPack> packs,
     MessageReactionAvailability availability,
+    MessageActionPalette palette,
   ) {
     const reactionEmojiSize = 26.0;
     if (_reactionTab != 'standard') {
@@ -11868,7 +11882,7 @@ class _ChatViewState extends State<ChatView> {
                     child: CustomEmojiView(
                       id: item.customEmojiId,
                       size: reactionEmojiSize,
-                      color: Colors.white,
+                      color: palette.foreground,
                     ),
                   ),
                 ),
@@ -11890,7 +11904,7 @@ class _ChatViewState extends State<ChatView> {
                   ? CustomEmojiView(
                       id: reaction.customEmojiId,
                       size: reactionEmojiSize,
-                      color: Colors.white,
+                      color: palette.foreground,
                     )
                   : Text(
                       reaction.emoji,
@@ -11902,11 +11916,11 @@ class _ChatViewState extends State<ChatView> {
     );
   }
 
-  Widget _reactionTabStrip(List packs) {
+  Widget _reactionTabStrip(List packs, MessageActionPalette palette) {
     return Container(
       height: 46,
-      decoration: const BoxDecoration(
-        border: Border(top: BorderSide(color: Color(0xFF3A3A3C), width: 0.5)),
+      decoration: BoxDecoration(
+        border: Border(top: BorderSide(color: palette.divider, width: 0.5)),
       ),
       child: ListView(
         scrollDirection: Axis.horizontal,
@@ -11914,10 +11928,10 @@ class _ChatViewState extends State<ChatView> {
         children: [
           _reactionTab2(
             'standard',
-            const AppIcon(
+            AppIcon(
               HeroAppIcons.solidFaceSmile,
               size: 22,
-              color: Colors.white70,
+              color: palette.foreground.withValues(alpha: 0.7),
             ),
           ),
           for (final pack in packs)
@@ -11927,12 +11941,12 @@ class _ChatViewState extends State<ChatView> {
                   ? CustomEmojiView(
                       id: pack.emoji.first.customEmojiId,
                       size: 26,
-                      color: Colors.white,
+                      color: palette.foreground,
                     )
-                  : const AppIcon(
+                  : AppIcon(
                       HeroAppIcons.objectGroup,
                       size: 20,
-                      color: Colors.white70,
+                      color: palette.foreground.withValues(alpha: 0.7),
                     ),
             ),
           GestureDetector(
@@ -11951,14 +11965,14 @@ class _ChatViewState extends State<ChatView> {
                 ),
               );
             },
-            child: const SizedBox(
+            child: SizedBox(
               width: 40,
               height: 36,
               child: Center(
                 child: AppIcon(
                   HeroAppIcons.gear,
                   size: 21,
-                  color: Colors.white70,
+                  color: palette.foreground.withValues(alpha: 0.7),
                 ),
               ),
             ),
