@@ -448,6 +448,7 @@ class TopicTabStrip extends StatefulWidget {
     this.showUnreadBadges = true,
     this.badgeOverflowLabel,
     this.isLoading = false,
+    this.onLongPress,
   });
 
   /// The chat whose topics these are; keys the scroll-offset memory.
@@ -468,6 +469,10 @@ class TopicTabStrip extends StatefulWidget {
 
   /// Shows the trailing shimmer tab while a topic page is still in flight.
   final bool isLoading;
+
+  /// Long press on a real topic tab, with the tab's global rect as the
+  /// anchor for the host's topic menu. The "All" pseudo-tab never fires it.
+  final void Function(TopicNavigationItem topic, Rect anchor)? onLongPress;
 
   @override
   State<TopicTabStrip> createState() => _TopicTabStripState();
@@ -550,6 +555,9 @@ class _TopicTabStripState extends State<TopicTabStrip> {
               showUnreadBadge: widget.showUnreadBadges,
               badgeOverflowLabel: widget.badgeOverflowLabel,
               onTap: () => widget.onSelected(topic?.id),
+              onLongPress: topic == null
+                  ? null
+                  : (anchor) => widget.onLongPress?.call(topic, anchor),
             );
           },
         ),
@@ -564,6 +572,7 @@ class _TopicTab extends StatelessWidget {
     required this.topic,
     required this.selected,
     required this.onTap,
+    this.onLongPress,
     this.showUnreadBadge = true,
     this.badgeOverflowLabel,
   });
@@ -571,6 +580,9 @@ class _TopicTab extends StatelessWidget {
   final TopicNavigationItem? topic;
   final bool selected;
   final VoidCallback onTap;
+
+  /// Reports the tab's global rect so the host can hang its menu there.
+  final ValueChanged<Rect>? onLongPress;
   final bool showUnreadBadge;
   final String? Function(int count)? badgeOverflowLabel;
 
@@ -589,9 +601,17 @@ class _TopicTab extends StatelessWidget {
         : rawColor == 0
         ? c.textSecondary
         : Color(0xFF000000 | (rawColor & 0xFFFFFF));
+    final longPress = onLongPress;
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTap: onTap,
+      onLongPress: longPress == null
+          ? null
+          : () {
+              final box = context.findRenderObject() as RenderBox?;
+              if (box == null || !box.hasSize) return;
+              longPress(box.localToGlobal(Offset.zero) & box.size);
+            },
       child: SizedBox(
         height: 44,
         child: Column(

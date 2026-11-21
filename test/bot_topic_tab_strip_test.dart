@@ -27,6 +27,7 @@ void main() {
     bool showUnreadBadges = true,
     bool isLoading = false,
     ValueChanged<int?>? onSelected,
+    void Function(TopicNavigationItem topic, Rect anchor)? onLongPress,
   }) => MaterialApp(
     theme: ThemeData(extensions: [AppColors.light]),
     locale: const Locale('en'),
@@ -40,6 +41,7 @@ void main() {
         showUnreadBadges: showUnreadBadges,
         isLoading: isLoading,
         onSelected: onSelected ?? (_) {},
+        onLongPress: onLongPress,
       ),
     ),
   );
@@ -103,6 +105,42 @@ void main() {
       stripHost(chatId: 2, topics: topics, showUnreadBadges: false),
     );
     expect(find.byType(FolderUnreadBadge), findsNothing);
+  });
+
+  testWidgets('long press reports the topic tab and its rect, never All', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(600, 300);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    final pressed = <int>[];
+    Rect? anchor;
+    await tester.pumpWidget(
+      stripHost(
+        chatId: 3,
+        topics: topics,
+        onLongPress: (topic, rect) {
+          pressed.add(topic.id);
+          anchor = rect;
+        },
+      ),
+    );
+
+    final tab = find.byKey(const ValueKey('topic-tab-10'));
+    final tabRect = tester.getRect(tab);
+    await tester.longPress(tab);
+    expect(pressed, [10]);
+    // The host hangs its menu off the tab itself, so the reported anchor is
+    // the tab's own box, not the strip or the touch point.
+    expect(anchor!.left, closeTo(tabRect.left, 0.01));
+    expect(anchor!.top, closeTo(tabRect.top, 0.01));
+    expect(anchor!.width, closeTo(tabRect.width, 0.01));
+    expect(anchor!.height, closeTo(tabRect.height, 0.01));
+
+    // The All pseudo-topic has nothing to manage.
+    await tester.longPress(find.byKey(_botChatAllTabKey));
+    expect(pressed, [10]);
   });
 
   // `isLoading` only fires while the topic page is empty, so the placeholder

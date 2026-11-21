@@ -4096,4 +4096,6 @@
     <string name="mithkaxChannelPostStats">チャンネル投稿に表示回数と転送数を表示</string>
     <string name="mithkaxChannelPostViews">{value1} 回表示</string>
     <string name="mithkaxChannelPostForwards">{value1} 回転送</string>
+    <string name="mithkaxDeleteTopic">トピックを削除</string>
+    <string name="mithkaxReadAllFailed">既読にできませんでした</string>
 </resources>

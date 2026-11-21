@@ -38,6 +38,7 @@ import '../chats/chat_list_view.dart';
 import '../chats/search_token_views.dart';
 import '../communities/community_models.dart';
 import '../communities/community_view.dart';
+import '../components/app_anchored_menu.dart';
 import '../components/app_confirm_dialog.dart';
 import '../components/app_dialog.dart';
 import '../components/app_icons.dart';
@@ -7498,6 +7499,7 @@ class _ChatViewState extends State<ChatView> {
           showUnreadBadges: theme.showFolderUnreadBadges,
           badgeOverflowLabel: theme.unreadBadgeOverflowMode.format,
           isLoading: _vm.forumTopicsLoading && _vm.forumTopics.isEmpty,
+          onLongPress: _showTopicTabMenu,
         ),
         if (_showsChatTranslationPanel) _chatTranslationPanel(),
         Expanded(child: child),
@@ -8324,6 +8326,8 @@ class _ChatViewState extends State<ChatView> {
             label: AppStrings.t(AppStringKeys.notificationMentions),
             opening: _openingUnreadMention,
             onTap: _openUnreadMention,
+            onLongPress: (anchor) =>
+                _showUnreadActivityMenu(anchor: anchor, mentions: true),
           ),
         if (_vm.unreadMentionCount > 0 && _vm.unreadReactionCount > 0)
           const SizedBox(height: AppSpacing.md),
@@ -8335,6 +8339,8 @@ class _ChatViewState extends State<ChatView> {
             label: AppStrings.t(AppStringKeys.notificationReactions),
             opening: _openingUnreadReaction,
             onTap: _openUnreadReaction,
+            onLongPress: (anchor) =>
+                _showUnreadActivityMenu(anchor: anchor, mentions: false),
           ),
       ],
     );
@@ -8347,48 +8353,60 @@ class _ChatViewState extends State<ChatView> {
     required String label,
     required bool opening,
     required VoidCallback onTap,
+    required ValueChanged<Rect> onLongPress,
   }) {
     final countLabel = count > 999 ? '999+' : '$count';
     return Semantics(
       button: true,
       label: '$label: $countLabel',
-      child: GestureDetector(
-        key: key,
-        behavior: HitTestBehavior.opaque,
-        onTap: opening ? null : onTap,
-        child: AnimatedOpacity(
-          duration: const Duration(milliseconds: 120),
-          opacity: opening ? 0.62 : 1,
-          child: Container(
-            height: 34,
-            constraints: const BoxConstraints(minWidth: 40),
-            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
-            decoration: BoxDecoration(
-              color: AppTheme.brand,
-              borderRadius: BorderRadius.circular(17),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.12),
-                  blurRadius: 6,
-                  offset: const Offset(0, 2),
-                ),
-              ],
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                AppIcon(icon, size: AppIconSize.lg, color: Colors.white),
-                const SizedBox(width: AppSpacing.xs),
-                Text(
-                  countLabel,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: AppTextSize.caption,
-                    fontWeight: AppTextWeight.semibold,
+      child: Builder(
+        builder: (pillContext) => GestureDetector(
+          key: key,
+          behavior: HitTestBehavior.opaque,
+          onTap: opening ? null : onTap,
+          // The menu hangs off the pill itself, so its anchor is this
+          // widget's own box — not the transcript or the press point.
+          onLongPress: opening
+              ? null
+              : () {
+                  final box = pillContext.findRenderObject() as RenderBox?;
+                  if (box == null || !box.hasSize) return;
+                  onLongPress(box.localToGlobal(Offset.zero) & box.size);
+                },
+          child: AnimatedOpacity(
+            duration: const Duration(milliseconds: 120),
+            opacity: opening ? 0.62 : 1,
+            child: Container(
+              height: 34,
+              constraints: const BoxConstraints(minWidth: 40),
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+              decoration: BoxDecoration(
+                color: AppTheme.brand,
+                borderRadius: BorderRadius.circular(17),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.12),
+                    blurRadius: 6,
+                    offset: const Offset(0, 2),
                   ),
-                ),
-              ],
+                ],
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  AppIcon(icon, size: AppIconSize.lg, color: Colors.white),
+                  const SizedBox(width: AppSpacing.xs),
+                  Text(
+                    countLabel,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: AppTextSize.caption,
+                      fontWeight: AppTextWeight.semibold,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ),
@@ -8420,6 +8438,39 @@ class _ChatViewState extends State<ChatView> {
       }
     }
     if (mounted) setState(() => _openingUnreadReaction = false);
+  }
+
+  /// The read-all menu behind a long press on an unread activity pill: one
+  /// anchored row that clears every mention / reaction at once, mirroring
+  /// exteraless's ReadAllMentionsMenu over the chat's side control.
+  Future<void> _showUnreadActivityMenu({
+    required Rect anchor,
+    required bool mentions,
+  }) => showAppAnchoredMenu(
+    context: context,
+    anchor: anchor,
+    actions: [
+      AppMenuAction(
+        key: mentions ? 'read-all-mentions' : 'read-all-reactions',
+        label: AppStrings.t(AppStringKeys.chatListMarkAllRead),
+        icon: HeroAppIcons.check,
+        onSelected: () => unawaited(
+          mentions ? _markAllMentionsRead() : _markAllReactionsRead(),
+        ),
+      ),
+    ],
+  );
+
+  Future<void> _markAllMentionsRead() async {
+    if (!await _vm.markAllMentionsRead() && mounted) {
+      showToast(context, AppStrings.t(AppStringKeys.mithkaxReadAllFailed));
+    }
+  }
+
+  Future<void> _markAllReactionsRead() async {
+    if (!await _vm.markAllReactionsRead() && mounted) {
+      showToast(context, AppStrings.t(AppStringKeys.mithkaxReadAllFailed));
+    }
   }
 
   // MARK: - Composer area (input bar / join bar / disabled bar)
@@ -9365,6 +9416,56 @@ class _ChatViewState extends State<ChatView> {
         onToggleClosed: () => _toggleTopicClosed(topic),
         onDelete: () => _deleteTopic(topic),
       ),
+    );
+  }
+
+  /// The topic tab's anchored menu, the way exteraless opens ItemOptions over
+  /// a long-pressed topic tab: pin / edit / delete, each gated by the rights
+  /// the row menu uses. The creator deletion carve-out probes the topic's
+  /// live history before Delete can be offered.
+  Future<void> _showTopicTabMenu(TopicNavigationItem item, Rect anchor) async {
+    final topic = _topicById(item.id);
+    if (topic == null) return;
+    if (!topic.isGeneral &&
+        _vm.canDeleteForumTopics != true &&
+        _vm.creatorOfTopic(topic)) {
+      await _vm.ensureTopicCreatorDeletable(topic.id);
+      if (!mounted) return;
+    }
+    final actions = <AppMenuAction>[
+      if (_vm.canManageTopics)
+        AppMenuAction(
+          key: 'pin',
+          label: AppStrings.t(
+            topic.isPinned
+                ? AppStringKeys.chatListUnpin
+                : AppStringKeys.chatInfoPin,
+          ),
+          icon: HeroAppIcons.pin,
+          onSelected: () => unawaited(_toggleTopicPinned(topic)),
+        ),
+      if (_vm.canManageTopics && !topic.isGeneral)
+        AppMenuAction(
+          key: 'edit',
+          label: AppStrings.t(AppStringKeys.groupAdministrationEditTopic),
+          icon: HeroAppIcons.pen,
+          onSelected: () => unawaited(_editTopic(topic)),
+        ),
+      if (_vm.canDeleteTopic(topic))
+        AppMenuAction(
+          key: 'delete',
+          label: AppStrings.t(AppStringKeys.mithkaxDeleteTopic),
+          icon: HeroAppIcons.trash,
+          destructive: true,
+          onSelected: () => unawaited(_deleteTopic(topic)),
+        ),
+    ];
+    if (actions.isEmpty) return;
+    await showAppAnchoredMenu(
+      context: context,
+      anchor: anchor,
+      header: topic.name,
+      actions: actions,
     );
   }
 

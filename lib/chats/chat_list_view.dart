@@ -33,6 +33,7 @@ import '../chat/links_search/link_handler.dart';
 import '../chat/stickers/custom_emoji.dart';
 import '../communities/community_models.dart';
 import '../communities/community_view.dart';
+import '../components/app_anchored_menu.dart';
 import '../components/app_confirm_dialog.dart';
 import '../components/app_icons.dart';
 import '../components/app_interactive_surface.dart';
@@ -1812,39 +1813,39 @@ class _ChatListViewState extends State<ChatListView>
   /// same popup.
   Future<void> _showFolderMenu(ChatFilterOption filter, Rect anchor) async {
     final folderId = filter.folderId;
-    await showChatFolderPopupMenu(
+    await showAppAnchoredMenu(
       context: context,
       anchor: anchor,
-      title: filter.title.l10n(context),
+      header: filter.title.l10n(context),
       actions: [
         if (folderId != null)
-          ChatFolderMenuAction(
+          AppMenuAction(
             key: 'edit',
             label: AppStrings.t(AppStringKeys.chatFolderManagementEditFolder),
             icon: HeroAppIcons.pen,
             onSelected: () => unawaited(_editFolder(filter)),
           ),
         if (folderId != null)
-          ChatFolderMenuAction(
+          AppMenuAction(
             key: 'add-chat',
             label: AppStrings.t(AppStringKeys.chatFolderManagementAddChat),
             icon: HeroAppIcons.plus,
             onSelected: () => unawaited(_addChatToFolder(filter)),
           ),
-        ChatFolderMenuAction(
+        AppMenuAction(
           key: 'mark-read',
           label: AppStrings.t(AppStringKeys.chatFolderManagementMarkAllRead),
           icon: HeroAppIcons.check,
           onSelected: () => unawaited(_markFolderRead(filter)),
         ),
-        ChatFolderMenuAction(
+        AppMenuAction(
           key: 'reorder',
           label: AppStrings.t(AppStringKeys.chatFolderManagementReorderFolders),
           icon: HeroAppIcons.bars,
           onSelected: () => unawaited(_reorderFolders()),
         ),
         if (folderId != null)
-          ChatFolderMenuAction(
+          AppMenuAction(
             key: 'delete',
             label: AppStrings.t(AppStringKeys.chatFolderManagementDeleteFolder),
             icon: HeroAppIcons.trash,

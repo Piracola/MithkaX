@@ -742,6 +742,65 @@ extension ChatViewModelHistory on ChatViewModel {
     _consumeViewedReactions([messageId], force: true);
   }
 
+  /// Marks every unread mention in this conversation read at once — the
+  /// long-press action on the chat's @ pill (exteraless's ReadAllMentionsMenu).
+  /// TDLib exposes one scoped call per chat / forum topic; a refused call
+  /// leaves the counter intact so the pill and a retry stay available.
+  Future<bool> markAllMentionsRead() async {
+    if (unreadMentionCount <= 0) return true;
+    // Ghost mode skips only the server report; the local flags and counter
+    // still clear so the UI reads the mentions as seen.
+    if (!_blocksReadReports) {
+      try {
+        await _client.query({
+          '@type': isForumTopicTranscript
+              ? 'readAllForumTopicMentions'
+              : 'readAllChatMentions',
+          'chat_id': chatId,
+          if (isForumTopicTranscript) 'forum_topic_id': forumTopicId,
+        });
+      } catch (_) {
+        return false;
+      }
+    }
+    for (final message in _allMessages) {
+      if (message.containsUnreadMention) message.containsUnreadMention = false;
+    }
+    _setUnreadMentionCount(0, emitLocalUpdate: true);
+    return true;
+  }
+
+  /// Marks every unread reaction in this conversation read at once — the
+  /// long-press action on the chat's reaction pill. Mirrors
+  /// [markAllMentionsRead]'s scoped TDLib call and local clear.
+  Future<bool> markAllReactionsRead() async {
+    if (unreadReactionCount <= 0) return true;
+    if (!_blocksReadReports) {
+      try {
+        await _client.query({
+          '@type': isForumTopicTranscript
+              ? 'readAllForumTopicReactions'
+              : 'readAllChatReactions',
+          'chat_id': chatId,
+          if (isForumTopicTranscript) 'forum_topic_id': forumTopicId,
+        });
+      } catch (_) {
+        return false;
+      }
+    }
+    for (final message in _allMessages) {
+      if (message.hasUnreadReactions) message.hasUnreadReactions = false;
+    }
+    _setUnreadReactionCount(0, emitLocalUpdate: true);
+    return true;
+  }
+
+  /// Ghost mode blocks read receipts at the server; the local counters still
+  /// clear so the UI does not keep showing what the user already looked at.
+  bool get _blocksReadReports =>
+      allowTelegramTosViolations &&
+      GhostModeController.shared.shouldBlockRead(chatId).isBlock;
+
   void _consumeViewedMentions(Iterable<int> messageIds, {bool force = false}) {
     final consumed = _consumeViewedFlags(
       messageIds,

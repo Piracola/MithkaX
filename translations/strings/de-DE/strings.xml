@@ -4113,4 +4113,6 @@
     <string name="mithkaxChannelPostStats">Aufrufe und Weiterleitungen bei Kanalbeiträgen anzeigen</string>
     <string name="mithkaxChannelPostViews">{value1} Aufrufe</string>
     <string name="mithkaxChannelPostForwards">{value1} Weiterleitungen</string>
+    <string name="mithkaxDeleteTopic">Thema löschen</string>
+    <string name="mithkaxReadAllFailed">Als gelesen markieren fehlgeschlagen</string>
 </resources>

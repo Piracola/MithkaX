@@ -4113,4 +4113,6 @@
     <string name="mithkaxChannelPostStats">Mostrar visualizaciones y reenvíos en las publicaciones del canal</string>
     <string name="mithkaxChannelPostViews">{value1} visualizaciones</string>
     <string name="mithkaxChannelPostForwards">{value1} reenvíos</string>
+    <string name="mithkaxDeleteTopic">Eliminar tema</string>
+    <string name="mithkaxReadAllFailed">No se pudo marcar como leído</string>
 </resources>

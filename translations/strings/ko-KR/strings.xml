@@ -4096,4 +4096,6 @@
     <string name="mithkaxChannelPostStats">채널 게시물에 조회수와 전달 수 표시</string>
     <string name="mithkaxChannelPostViews">{value1}회 조회</string>
     <string name="mithkaxChannelPostForwards">{value1}회 전달</string>
+    <string name="mithkaxDeleteTopic">주제 삭제</string>
+    <string name="mithkaxReadAllFailed">읽음으로 표시하지 못했습니다</string>
 </resources>

@@ -4096,4 +4096,6 @@
     <string name="mithkaxChannelPostStats">频道帖子显示阅读量和转发次数</string>
     <string name="mithkaxChannelPostViews">{value1} 次阅读</string>
     <string name="mithkaxChannelPostForwards">{value1} 次转发</string>
+    <string name="mithkaxDeleteTopic">删除话题</string>
+    <string name="mithkaxReadAllFailed">标为已读失败</string>
 </resources>

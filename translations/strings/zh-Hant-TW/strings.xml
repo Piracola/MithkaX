@@ -4096,4 +4096,6 @@
     <string name="mithkaxChannelPostStats">頻道貼文顯示閱讀次數和轉發次數</string>
     <string name="mithkaxChannelPostViews">{value1} 次閱讀</string>
     <string name="mithkaxChannelPostForwards">{value1} 次轉發</string>
+    <string name="mithkaxDeleteTopic">刪除主題</string>
+    <string name="mithkaxReadAllFailed">標示為已讀失敗</string>
 </resources>

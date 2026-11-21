@@ -436,6 +436,8 @@ abstract final class AppStringKeys {
   static const mithkaxChannelPostStats = 'mithkaxChannelPostStats';
   static const mithkaxChannelPostViews = 'mithkaxChannelPostViews';
   static const mithkaxChannelPostForwards = 'mithkaxChannelPostForwards';
+  static const mithkaxDeleteTopic = 'mithkaxDeleteTopic';
+  static const mithkaxReadAllFailed = 'mithkaxReadAllFailed';
   static const addMembersDone = 'addMembersDone';
   static const addMembersDoneWithCount = 'addMembersDoneWithCount';
   static const addMembersInviteMembersTitle = 'addMembersInviteMembersTitle';

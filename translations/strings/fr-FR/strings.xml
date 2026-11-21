@@ -4113,4 +4113,6 @@
     <string name="mithkaxChannelPostStats">Afficher les vues et les transferts sur les publications de canal</string>
     <string name="mithkaxChannelPostViews">{value1} vues</string>
     <string name="mithkaxChannelPostForwards">{value1} transferts</string>
+    <string name="mithkaxDeleteTopic">Supprimer le sujet</string>
+    <string name="mithkaxReadAllFailed">Impossible de marquer comme lu</string>
 </resources>

@@ -4113,4 +4113,6 @@
     <string name="mithkaxChannelPostStats">Show views and forwards on channel posts</string>
     <string name="mithkaxChannelPostViews">{value1} views</string>
     <string name="mithkaxChannelPostForwards">{value1} forwards</string>
+    <string name="mithkaxDeleteTopic">Delete topic</string>
+    <string name="mithkaxReadAllFailed">Failed to mark as read</string>
 </resources>
