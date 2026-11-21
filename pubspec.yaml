@@ -2,7 +2,7 @@ name: mithka
 description: "Mithka — a cross-platform Telegram client (Flutter), built on TDLib."
 publish_to: 'none'
 
-version: 1.13.0+317
+version: 1.13.0+318
 
 environment:
   sdk: ^3.12.2
@@ -221,6 +221,9 @@ flutter:
     # Country flag sprite, built by tool/build_flag_sprite.py.
     - assets/flags/
     - assets/penguin.png
+    # The same mark with its transparent canvas trimmed, for layouts that
+    # space it by the ink rather than by the canvas.
+    - assets/penguin_mark.png
     - assets/app_icon.png
     # Full launcher PNGs are only read by the macOS Dock plugin.
     # iOS uses its native icon catalogue; every Flutter picker uses WebP.

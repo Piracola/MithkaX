@@ -153,7 +153,20 @@ class EmojiFontCatalog {
     final cacheFile = await _manifestCacheFile();
     if (!forceRefresh && await cacheFile.exists()) {
       final cached = await _readManifest(cacheFile);
-      if (cached.isNotEmpty) return cached;
+      if (cached.isNotEmpty) {
+        final cachedChatId = cached.first.chatId;
+        if (cachedChatId != 0) {
+          _channelLastChatId = cachedChatId;
+          return cached;
+        }
+        // Cached entries predate the chat-id stamp (old build wrote chat_id
+        // 0). Falling through re-fetches the catalog so the fresh entries
+        // carry the resolved channel id — otherwise every download fails
+        // with "channel emoji font unavailable".
+        debugPrint(
+          '[emoji_font_catalog] cached manifest has no chat id, refreshing',
+        );
+      }
     }
 
     final entries = await (debugChannelSource ?? _channelSource).fetchCatalog();
@@ -372,8 +385,26 @@ class EmojiFontCatalog {
   }
 
   Future<int> _downloadFontTo(EmojiFontManifestEntry entry, File file) async {
-    final chatId = entry.chatId != 0 ? entry.chatId : _channelLastChatId;
+    var chatId = entry.chatId != 0 ? entry.chatId : _channelLastChatId;
+    if ((chatId == null || chatId == 0) && entry.isChannelServed) {
+      // Cached entries may predate the chat-id stamp — resolve the channel
+      // id by re-fetching the catalog instead of failing every download.
+      final refreshed = await (debugChannelSource ?? _channelSource)
+          .fetchCatalog();
+      if (refreshed != null && refreshed.isNotEmpty) {
+        _channelLastChatId = refreshed.first.chatId;
+        chatId = refreshed.first.chatId;
+        debugPrint(
+          '[emoji_font_catalog] resolved chat id from refresh: $chatId',
+        );
+      }
+    }
     if (chatId == null || chatId == 0 || !entry.isChannelServed) {
+      debugPrint(
+        '[emoji_font_catalog] channel unavailable key=${entry.key} '
+        'chatId=$chatId entryChatId=${entry.chatId} '
+        'lastChatId=$_channelLastChatId msgId=${entry.channelMessageId}',
+      );
       throw const FileSystemException('channel emoji font unavailable');
     }
     final bytes = await (debugChannelSource ?? _channelSource).downloadFont(
@@ -406,8 +437,20 @@ class EmojiFontCatalog {
   Future<File?> channelPreviewFile(EmojiFontManifestEntry entry) async {
     final previewMessageId = entry.channelPreviewMessageId;
     if (previewMessageId == null || previewMessageId <= 0) return null;
-    final chatId = entry.chatId != 0 ? entry.chatId : _channelLastChatId;
-    if (chatId == null || chatId == 0) return null;
+    var chatId = entry.chatId != 0 ? entry.chatId : _channelLastChatId;
+    if (chatId == null || chatId == 0) {
+      // Same cache-predates-chat-id case as _downloadFontTo: resolve the
+      // channel id before giving up, otherwise every preview falls back.
+      final refreshed = await (debugChannelSource ?? _channelSource)
+          .fetchCatalog();
+      if (refreshed == null || refreshed.isEmpty) return null;
+      _channelLastChatId = refreshed.first.chatId;
+      chatId = refreshed.first.chatId;
+      if (chatId == 0) return null;
+      debugPrint(
+        '[emoji_font_catalog] resolved preview chat id from refresh: $chatId',
+      );
+    }
     final dir = await _cacheDir();
     final file = File('${dir.path}/preview_${entry.key}.png');
     if (await file.exists()) {

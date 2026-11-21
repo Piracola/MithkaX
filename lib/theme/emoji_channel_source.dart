@@ -192,7 +192,14 @@ class EmojiChannelSource {
       for (final candidate in list) {
         if (candidate.int64('id') == messageId) message = candidate;
       }
-      if (message == null) return null;
+      if (message == null) {
+        debugPrint(
+          '[emoji_channel_source] message missing chatId=$chatId '
+          'msgId=$messageId returned=${list.length} '
+          'responseType=${messages.str('@type')}',
+        );
+        return null;
+      }
       final document = message.obj('content')?.obj('document');
       // TDLib's messageDocument carries the file directly on content.document:
       // content.document.id IS the download file id. There is no extra
@@ -202,7 +209,7 @@ class EmojiChannelSource {
       if (fileId == null || fileId == 0) {
         debugPrint(
           '[emoji_channel_source] no fileId for chatId=$chatId msgId=$messageId '
-          'document=$document',
+          'document=${jsonEncode(document)}',
         );
         return null;
       }
@@ -233,10 +240,15 @@ class EmojiChannelSource {
       if (downloadResponse.str('@type') == 'error') {
         debugPrint(
           '[emoji_channel_source] downloadFile error chatId=$chatId msgId=$messageId '
-          'fileId=$fileId response=$downloadResponse',
+          'fileId=$fileId response=${jsonEncode(downloadResponse)}',
         );
         return null;
       }
+      debugPrint(
+        '[emoji_channel_source] downloadFile accepted chatId=$chatId '
+        'msgId=$messageId fileId=$fileId '
+        'responseType=${downloadResponse.str('@type')}',
+      );
 
       final stopwatch = Stopwatch()..start();
       while (stopwatch.elapsed < const Duration(minutes: 9)) {
@@ -248,6 +260,12 @@ class EmojiChannelSource {
         final local = fileInfo.obj('local');
         final done = local?.boolean('is_downloading_completed') == true;
         final path = local?.str('path');
+        debugPrint(
+          '[emoji_channel_source] getFile poll msgId=$messageId '
+          'done=$done path=${path ?? ''} '
+          'downloaded=${local?.int64('downloaded_prefix_size') ?? 0} '
+          'size=${local?.int64('downloaded_size') ?? 0}',
+        );
         if (done && path != null && path.isNotEmpty) {
           final src = File(path);
           if (await src.exists()) {
@@ -260,9 +278,12 @@ class EmojiChannelSource {
       }
       return null;
     } catch (error) {
+      final detail = error is TdError
+          ? 'code=${error.code} message=${error.message}'
+          : '$error';
       debugPrint(
         '[emoji_channel_source] document download failed '
-        'type=${error.runtimeType}',
+        'type=${error.runtimeType} $detail',
       );
       return null;
     }
