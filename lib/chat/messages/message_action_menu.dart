@@ -540,8 +540,16 @@ class MessageActionMenu extends StatelessWidget {
     return targetRect;
   }
 
-  /// The phone overlay's two positions: the reaction strip above the message,
-  /// and the menu either under the strip or flipped above it.
+  /// Where the phone overlay puts its two pieces.
+  ///
+  /// The strip always rides ABOVE the menu — the pair reads as one stack in
+  /// that order, so a message near the bottom lifts the whole pair instead of
+  /// flipping the menu over the reactions.
+  ///
+  /// [menuStartsAtAnchorTop] is the dropdown (true), whose menu covers the
+  /// bubble right under the strip; the grid (false) keeps its menu below the
+  /// bubble and only lifts it when the bottom leaves no room. A null [anchor]
+  /// centres the pair in the viewport.
   static MessageActionOverlayPlacement placeMobileOverlay({
     required Rect? anchor,
     required double preferredMenuHeight,
@@ -553,75 +561,57 @@ class MessageActionMenu extends StatelessWidget {
     double gap = 8,
   }) {
     final stripGap = stripHeight > 0 ? gap : 0.0;
+    final menuHeight = math.min(
+      preferredMenuHeight,
+      math.max(0.0, bottomSafe - topSafe - stripHeight - stripGap),
+    );
+    final stackHeight = stripHeight + stripGap + menuHeight;
+
     if (anchor == null) {
-      final menuHeight = math.min(
-        preferredMenuHeight,
-        math.max(0.0, bottomSafe - topSafe - stripHeight - stripGap),
-      );
-      final stackHeight = stripHeight + stripGap + menuHeight;
-      final stripTop = ((viewportHeight - stackHeight) / 2)
-          .clamp(topSafe, math.max(topSafe, bottomSafe - stripHeight))
+      final top = ((viewportHeight - stackHeight) / 2)
+          .clamp(topSafe, math.max(topSafe, bottomSafe - stackHeight))
           .toDouble();
       return MessageActionOverlayPlacement(
-        stripTop: stripTop,
-        menuTop: stripTop + stripHeight + stripGap,
+        stripTop: top,
+        menuTop: top + stripHeight + stripGap,
         menuHeight: menuHeight,
       );
     }
-    final stripTop = (anchor.top - stripHeight - gap)
+
+    if (menuStartsAtAnchorTop) {
+      // Dropdown: the strip sits above the bubble and the menu directly under
+      // it. When the menu would run past the bottom, the pair slides up so the
+      // menu ends at the safe area and the strip stays on top of it.
+      final top = (anchor.top - stripHeight - stripGap)
+          .clamp(topSafe, math.max(topSafe, bottomSafe - stackHeight))
+          .toDouble();
+      return MessageActionOverlayPlacement(
+        stripTop: top,
+        menuTop: top + stripHeight + stripGap,
+        menuHeight: menuHeight,
+      );
+    }
+
+    // Grid: strip above the bubble, menu under the bubble. Lift both only when
+    // the bottom would cut the menu off, and keep the strip above the menu.
+    final stripTop = (anchor.top - stripHeight - stripGap)
         .clamp(topSafe, math.max(topSafe, bottomSafe - stripHeight))
         .toDouble();
-    final stripBottom = stripHeight > 0 ? stripTop + stripHeight : topSafe;
-    final bounds = mobileMenuBounds(
-      preferredTop: menuStartsAtAnchorTop
-          ? math.max(anchor.top, stripBottom + stripGap)
-          : anchor.bottom + stripGap,
-      preferredHeight: preferredMenuHeight,
-      stripTop: stripHeight > 0 ? stripTop : topSafe,
-      stripBottom: stripBottom,
-      topSafe: topSafe,
-      bottomSafe: bottomSafe,
-      gap: gap,
-    );
+    var menuTop = anchor.bottom + stripGap;
+    if (menuTop + menuHeight > bottomSafe) {
+      menuTop = math.max(
+        topSafe + stripHeight + stripGap,
+        bottomSafe - menuHeight,
+      );
+    }
+    final liftedStripTop = math
+        .min(stripTop, math.max(topSafe, menuTop - stripGap - stripHeight))
+        .toDouble();
     return MessageActionOverlayPlacement(
-      stripTop: stripTop,
-      menuTop: bounds.top,
-      menuHeight: bounds.height,
+      stripTop: liftedStripTop,
+      menuTop: menuTop,
+      menuHeight: menuHeight,
     );
-  }
-
-  /// Where the phone's dropdown opens: under the reaction strip when it fits,
-  /// flipped above the strip when the message sits too low, and never across
-  /// the strip itself.
-  ///
-  /// [stripTop]/[stripBottom] are the strip's edges (both the safe-area top
-  /// when no strip is drawn). The menu opens under [stripBottom] or, flipped,
-  /// ends above [stripTop]. Returns the top the menu takes and the height it
-  /// gets; when neither side holds the whole menu, the roomier side wins and
-  /// the list scrolls inside it.
-  static ({double top, double height}) mobileMenuBounds({
-    required double preferredTop,
-    required double preferredHeight,
-    required double stripTop,
-    required double stripBottom,
-    required double topSafe,
-    required double bottomSafe,
-    double gap = 8,
-  }) {
-    final floorTop = math.max(topSafe, stripBottom + gap);
-    final roomBelow = math.max(0.0, bottomSafe - floorTop);
-    if (preferredHeight <= roomBelow) {
-      final top = preferredTop.clamp(floorTop, bottomSafe - preferredHeight);
-      return (top: top, height: preferredHeight);
-    }
-    final roomAbove = math.max(0.0, stripTop - gap - topSafe);
-    if (preferredHeight <= roomAbove) {
-      return (top: stripTop - gap - preferredHeight, height: preferredHeight);
-    }
-    if (roomBelow >= roomAbove) {
-      return (top: floorTop, height: roomBelow);
-    }
-    return (top: topSafe, height: roomAbove);
   }
 
   static Offset verticalOriginForPointer({

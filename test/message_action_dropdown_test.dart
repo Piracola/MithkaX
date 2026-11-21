@@ -224,104 +224,105 @@ void main() {
     const bottomSafe = 800.0;
     const topSafe = 0.0;
     const stripHeight = 48.0;
+    const gap = 8.0;
 
     MessageActionOverlayPlacement place({
       Rect? anchor = const Rect.fromLTWH(10, 700, 200, 60),
       double menuHeight = 544,
-      bool startsAtAnchorTop = true,
+      bool dropdown = true,
+      double strip = stripHeight,
     }) => MessageActionMenu.placeMobileOverlay(
       anchor: anchor,
       preferredMenuHeight: menuHeight,
-      stripHeight: stripHeight,
+      stripHeight: strip,
       topSafe: topSafe,
       bottomSafe: bottomSafe,
       viewportHeight: 800,
-      menuStartsAtAnchorTop: startsAtAnchorTop,
+      menuStartsAtAnchorTop: dropdown,
     );
 
-    /// The strip is drawn above the bubble: 700 − 48 − 8.
-    test('the strip stays glued above the message', () {
-      expect(place().stripTop, 644);
-    });
-
-    test('a message at the bottom flips the menu above the strip', () {
-      // Only 100pt below the strip: the full menu cannot fit there.
-      final placement = place();
-      expect(placement.menuHeight, 544);
-      expect(placement.menuTop + placement.menuHeight, lessThanOrEqualTo(644));
-      expect(placement.menuTop, greaterThanOrEqualTo(topSafe));
-    });
-
-    test('the menu never crosses the strip', () {
-      for (final anchorTop in [120.0, 300.0, 500.0, 640.0, 700.0, 760.0]) {
-        for (final menuHeight in [40.0, 200.0, 400.0, 544.0, 700.0]) {
-          for (final startsAtTop in [true, false]) {
+    test('the strip rides above the menu on every anchor and height', () {
+      for (final anchorTop in [0.0, 80.0, 300.0, 500.0, 640.0, 700.0, 760.0]) {
+        for (final menuHeight in [40.0, 152.0, 300.0, 544.0, 700.0, 900.0]) {
+          for (final dropdown in [true, false]) {
             final placement = place(
               anchor: Rect.fromLTWH(10, anchorTop, 200, 60),
               menuHeight: menuHeight,
-              startsAtAnchorTop: startsAtTop,
+              dropdown: dropdown,
             );
-            final stripTop = placement.stripTop;
-            final stripBottom = stripTop + stripHeight;
-            final opensBelow = placement.menuTop >= stripBottom;
-            final flippedAbove =
-                placement.menuTop + placement.menuHeight <= stripTop;
+            final stripBottom = placement.stripTop + stripHeight;
             expect(
-              opensBelow || flippedAbove,
-              isTrue,
+              placement.menuTop,
+              greaterThanOrEqualTo(stripBottom),
               reason:
-                  'anchor $anchorTop, menu $menuHeight, top-anchored $startsAtTop, '
-                  'strip $stripTop..$stripBottom, menu ${placement.menuTop}..'
-                  '${placement.menuTop + placement.menuHeight}',
+                  'anchor $anchorTop, menu $menuHeight, dropdown $dropdown: '
+                  'strip ${placement.stripTop}..$stripBottom, '
+                  'menu ${placement.menuTop}',
             );
-            expect(placement.menuTop, greaterThanOrEqualTo(topSafe));
+            expect(placement.stripTop, greaterThanOrEqualTo(topSafe));
             expect(
               placement.menuTop + placement.menuHeight,
               lessThanOrEqualTo(bottomSafe),
+              reason: 'anchor $anchorTop, menu $menuHeight, dropdown $dropdown',
             );
           }
         }
       }
     });
 
-    test('a menu with room opens under the strip', () {
+    test(
+      'a message at the bottom lifts the pair, menu end at the safe area',
+      () {
+        final placement = place();
+        expect(placement.menuHeight, 544);
+        expect(placement.menuTop + placement.menuHeight, bottomSafe);
+        // The strip sits directly on top of the menu, not over it.
+        expect(placement.menuTop, placement.stripTop + stripHeight + gap);
+      },
+    );
+
+    test('a message with room keeps the strip above the bubble', () {
       final placement = place(
         anchor: const Rect.fromLTWH(10, 300, 200, 60),
         menuHeight: 300,
       );
+      expect(placement.stripTop, 300 - stripHeight - gap);
       expect(placement.menuTop, 300);
-      expect(placement.menuHeight, 300);
-      expect(placement.menuTop + placement.menuHeight, lessThanOrEqualTo(700));
     });
 
-    test('the grid style opens below the bubble', () {
+    test('the grid opens below the bubble and never above the strip', () {
       final placement = place(
-        anchor: const Rect.fromLTWH(10, 200, 200, 60),
+        anchor: const Rect.fromLTWH(10, 300, 200, 60),
         menuHeight: 152,
-        startsAtAnchorTop: false,
+        dropdown: false,
       );
-      expect(placement.menuTop, 268);
-      expect(placement.menuHeight, 152);
+      expect(placement.menuTop, 368);
+      expect(placement.menuTop, greaterThan(placement.stripTop + stripHeight));
+    });
+
+    test('the grid near the bottom lifts without crossing the strip', () {
+      final placement = place(menuHeight: 152, dropdown: false);
+      expect(placement.menuTop + placement.menuHeight, bottomSafe);
+      expect(
+        placement.menuTop,
+        greaterThanOrEqualTo(placement.stripTop + stripHeight),
+      );
     });
 
     test('without a strip the menu opens at the bubble', () {
-      final placement = MessageActionMenu.placeMobileOverlay(
+      final placement = place(
         anchor: const Rect.fromLTWH(10, 300, 200, 60),
-        preferredMenuHeight: 200,
-        stripHeight: 0,
-        topSafe: topSafe,
-        bottomSafe: bottomSafe,
-        viewportHeight: 800,
-        menuStartsAtAnchorTop: true,
+        strip: 0,
+        menuHeight: 200,
       );
       expect(placement.menuTop, 300);
-      expect(placement.menuHeight, 200);
+      expect(placement.stripTop, 300);
     });
 
-    test('a menu taller than the screen takes the roomier side', () {
-      final placement = place(menuHeight: 900);
-      expect(placement.menuTop, topSafe);
-      expect(placement.menuHeight, placement.stripTop - 8);
+    test('no anchor centres the pair', () {
+      final placement = place(anchor: null, menuHeight: 300, strip: 0);
+      expect(placement.menuTop, 250);
+      expect(placement.menuHeight, 300);
     });
   });
 }
