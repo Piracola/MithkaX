@@ -156,7 +156,7 @@ void main() {
                 return {'@type': 'chat', 'id': '-1'};
               case 'getMessages':
                 final ids = request['message_ids'] as List?;
-                if (ids == null || ids.length != 1 || ids[0] != 43) {
+                if (ids == null || ids.length != 1 || ids[0] != (43 << 20)) {
                   return {'@type': 'messages', 'messages': []};
                 }
                 return {
@@ -164,7 +164,7 @@ void main() {
                   'messages': [
                     {
                       '@type': 'message',
-                      'id': 43,
+                      'id': 43 << 20,
                       'content': {
                         '@type': 'messageDocument',
                         'document': {
@@ -242,7 +242,7 @@ void main() {
         final tmpDir = await Directory.systemTemp.createTemp('emoji_prev');
         addTearDown(() => tmpDir.delete(recursive: true));
         File('${tmpDir.path}/td.png').writeAsBytesSync(List.filled(32, 1));
-        String mimeFor(int id) => id == 90 ? 'image/png' : 'font/ttf';
+        String mimeFor(int id) => id == (90 << 20) ? 'image/png' : 'font/ttf';
         final source = EmojiChannelSource(
           client: _ScriptedTdClient((request) async {
             switch (request['@type']) {
@@ -329,7 +329,7 @@ void main() {
                   'messages': [
                     {
                       '@type': 'message',
-                      'id': 43,
+                      'id': 43 << 20,
                       'content': {
                         '@type': 'messageDocument',
                         'document': {

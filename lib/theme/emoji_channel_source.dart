@@ -254,17 +254,21 @@ class EmojiChannelSource {
 
     final entry = entries.first;
     Future<int?> inspect(String label, int messageId, String wantMime) async {
+      final tdMessageId = toTdlibMessageId(messageId);
       try {
         final response = await _client.query({
           '@type': 'getMessages',
           'chat_id': chatId,
-          'message_ids': [messageId],
+          'message_ids': [tdMessageId],
         }, timeout: const Duration(seconds: 15));
         final list = response.objects('messages') ?? const [];
-        log('$label getMessages($messageId): OK messages=${list.length}');
+        log(
+          '$label getMessages(server=$messageId td=$tdMessageId): '
+          'OK messages=${list.length}',
+        );
         Map<String, dynamic>? message;
         for (final m in list) {
-          if (m.int64('id') == messageId) message = m;
+          if (m.int64('id') == tdMessageId) message = m;
         }
         if (message == null) {
           log('$label: message id not present in response');
@@ -356,6 +360,16 @@ class EmojiChannelSource {
     return out.join('\n');
   }
 
+  /// TDLib stores supergroup/channel message ids as `server_id << 20`; the
+  /// catalog text carries the plain server ids (file: 23 → TDLib 24117248).
+  /// Passing the server id straight to getMessages yields TdError 400
+  /// "Invalid message identifier" and every download silently fails.
+  static const _channelMessageIdShift = 20;
+
+  @visibleForTesting
+  static int toTdlibMessageId(int channelMessageId) =>
+      channelMessageId << _channelMessageIdShift;
+
   /// Shared message → document → downloadFile pipeline for both font and
   /// preview documents. [expectedMimeType] rejects wrong-kind messages (a
   /// font where a preview should be, and vice versa).
@@ -365,21 +379,22 @@ class EmojiChannelSource {
     required String destPath,
     required String expectedMimeType,
   }) async {
+    final tdMessageId = toTdlibMessageId(messageId);
     try {
       final messages = await _client.query({
         '@type': 'getMessages',
         'chat_id': chatId,
-        'message_ids': [messageId],
+        'message_ids': [tdMessageId],
       }, timeout: const Duration(seconds: 15));
       final list = messages.objects('messages') ?? const [];
       Map<String, dynamic>? message;
       for (final candidate in list) {
-        if (candidate.int64('id') == messageId) message = candidate;
+        if (candidate.int64('id') == tdMessageId) message = candidate;
       }
       if (message == null) {
         debugPrint(
           '[emoji_channel_source] message missing chatId=$chatId '
-          'msgId=$messageId returned=${list.length} '
+          'serverMsgId=$messageId tdMsgId=$tdMessageId returned=${list.length} '
           'responseType=${messages.str('@type')}',
         );
         return null;
