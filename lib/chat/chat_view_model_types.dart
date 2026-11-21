@@ -389,7 +389,9 @@ class ForumTopicOption {
     iconColor: entry.iconColor,
     unreadCount: entry.unreadCount,
     isMuted: entry.isMuted,
-    isPinned: isPinned,
+    // The index owns pin state now that it orders the list by it; keeping a
+    // stale row flag here would paint a topic out of the pinned block.
+    isPinned: entry.isPinned,
     isGeneral: isGeneral,
     isClosed: isClosed,
     creatorId: creatorId,

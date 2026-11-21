@@ -600,7 +600,11 @@ extension ChatViewModelHeaderTopics on ChatViewModel {
         );
       }
       final previous = forumTopics;
-      forumTopics = topics;
+      forumTopics = orderForumTopics(
+        topics,
+        isPinned: (topic) => topic.isPinned,
+        lastMessageId: (topic) => topic.lastMessageId,
+      );
       ForumTopicIndex.shared.storeAll(_accountSlot, chatId, [
         for (final topic in raw) ?ForumTopicIndexEntry.fromTopic(topic),
       ]);
@@ -670,6 +674,7 @@ extension ChatViewModelHeaderTopics on ChatViewModel {
         iconColor: entry.iconColor,
         unreadCount: entry.unreadCount,
         isMuted: entry.isMuted,
+        isPinned: entry.isPinned,
         lastMessageId: entry.lastMessageId,
       );
 
@@ -1070,6 +1075,14 @@ extension ChatViewModelHeaderTopics on ChatViewModel {
           lastMessageDate: message.date,
           lastMessageId: message.id,
         );
+        // The strip orders by newest activity: move the topic now instead of
+        // waiting for the index notification, so a live update that reaches
+        // this pane first cannot paint the old order.
+        forumTopics = orderForumTopics(
+          forumTopics,
+          isPinned: (option) => option.isPinned,
+          lastMessageId: (option) => option.lastMessageId,
+        );
         notifyListeners();
         unawaited(_resolveTopicPreviewSenders([message]));
         // New traffic can cross the 12-message or other-user boundary of the
@@ -1100,6 +1113,13 @@ extension ChatViewModelHeaderTopics on ChatViewModel {
           lastSender: forumTopics[index].lastSender,
           lastMessageDate: forumTopics[index].lastMessageDate,
           lastMessageId: forumTopics[index].lastMessageId,
+        );
+        // A pin change moves the row between the pinned block and the
+        // activity-sorted rest.
+        forumTopics = orderForumTopics(
+          forumTopics,
+          isPinned: (option) => option.isPinned,
+          lastMessageId: (option) => option.lastMessageId,
         );
         notifyListeners();
 

@@ -1572,7 +1572,13 @@ extension ChatViewModelUpdates on ChatViewModel {
       _forumTopicIndexListening = true;
     }
     ForumTopicIndex.shared.storeAll(_accountSlot, chatId, entries);
-    forumTopics = [for (final entry in entries) _optionFromIndex(entry)];
+    forumTopics = [
+      for (final entry in ForumTopicIndex.shared.topicsFor(
+        _accountSlot,
+        chatId,
+      ))
+        _optionFromIndex(entry),
+    ];
   }
 
   @visibleForTesting
