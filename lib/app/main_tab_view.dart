@@ -2408,9 +2408,10 @@ class _MainBottomBar extends StatelessWidget {
   /// sits over the detail pane, not over this column.
   final bool reserveBottomInset;
 
-  /// Label size the classic bar is laid out around. The icon block above it
-  /// keeps its size at every text scale, so only this line's growth is added
-  /// to the bar. The glass bar draws no label at all and always grows by zero.
+  /// Label size the bar is laid out around. The icon block above it keeps its
+  /// size at every text scale, so only this line's growth is added to the bar.
+  /// A host that draws no label — the glass bar docked in the split shell's
+  /// sidebar column — always grows by zero.
   static const double _labelSize = 11;
 
   /// Line box of the label relative to its font size.
@@ -2504,15 +2505,22 @@ class _MainBottomBar extends StatelessWidget {
         ),
       );
     }
-    // The glass row contains only centered icons and reserves no label height;
-    // the classic bar keeps growing with the scaled label line.
-    final labelGrowth = glass
-        ? 0.0
-        : math.max(
+    // The label rule follows the slot's width, not the surface: the compact
+    // shell (the only host that reserves the home indicator's clearance) spans
+    // the window, so each of its slots fits a label line under the icon. The
+    // split shell docks the bar inside its sidebar column, where the slot is
+    // narrower than the label and the selection capsule around it would reach
+    // past the tab it marks — that host keeps the Telegram-iOS icon-only row.
+    final drawsTabLabel = !glass || reserveBottomInset;
+    // Icons and badges keep their size, so a bar that draws labels only grows
+    // by what the scaled label line gains.
+    final labelGrowth = drawsTabLabel
+        ? math.max(
             0.0,
             (MediaQuery.textScalerOf(context).scale(_labelSize) - _labelSize) *
                 _labelLineHeight,
-          );
+          )
+        : 0.0;
     // Only the compact shell reserves the home indicator's own height; the
     // split shell leaves the window edge to its column, so the row keeps the
     // bar's whole box.
@@ -2629,11 +2637,11 @@ class _MainBottomBar extends StatelessWidget {
                                 ],
                               ),
                             ),
-                            // The glass row is icon-only: the label line and its
-                            // gutter are dropped, and the icon stays centred in
-                            // the slot. Every other target keeps the classic
-                            // icon + label column untouched.
-                            if (!glass) ...[
+                            // The phone's glass row carries the tab's name the
+                            // same way the classic bar does; only the split
+                            // shell's sidebar column drops the line and its
+                            // gutter, leaving the icon centred in the slot.
+                            if (drawsTabLabel) ...[
                               const SizedBox(height: 2),
                               AnimatedDefaultTextStyle(
                                 duration: AppMotion.duration(
