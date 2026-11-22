@@ -14,11 +14,13 @@
 //
 
 import 'dart:io';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:image/image.dart' as image_lib;
 import 'package:mithka/l10n/app_localizations.dart';
 import 'package:mithka/settings/app_icon_controller.dart';
 import 'package:mithka/settings/appearance_view.dart';
@@ -68,6 +70,25 @@ void _mockBridge({String current = 'mithkax_default'}) {
 
 /// PNG colour type (IHDR byte 25): 2 = RGB (opaque), 6 = RGBA (alpha).
 int _pngColorType(String path) => File(path).readAsBytesSync()[25];
+
+/// Alpha bounds of a decoded PNG, as [left, top, right, bottom] (right/bottom
+/// exclusive). Faint antialiasing edges are ignored so the numbers describe the
+/// mark's ink, not its fringe.
+List<int> _alphaBounds(String path) {
+  final decoded = image_lib.decodePng(File(path).readAsBytesSync())!;
+  var left = decoded.width, top = decoded.height, right = -1, bottom = -1;
+  for (var y = 0; y < decoded.height; y++) {
+    for (var x = 0; x < decoded.width; x++) {
+      if (decoded.getPixel(x, y).a > 8) {
+        if (x < left) left = x;
+        if (y < top) top = y;
+        if (x > right) right = x;
+        if (y > bottom) bottom = y;
+      }
+    }
+  }
+  return [left, top, right + 1, bottom + 1];
+}
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -144,6 +165,42 @@ void main() {
           isFalse,
           reason: '$set must not carry an iOS dark rendition',
         );
+      }
+    });
+
+    test('the adaptive foreground keeps the mark at the preview\'s size', () {
+      // Android scales every 108dp layer to the icon and crops it to the
+      // visible 72dp window, so the mark must be measured against that window.
+      // The shipped maths once drew the design at 81.35% of the canvas, which
+      // put 74-78% ink inside the window — larger than the preview and outside
+      // the round mask. Design scale is 72/108: 61.1% x 63.9% ink, as on the
+      // 1024 plate (60.9% x 63.4%).
+      for (final variant in AppIconVariant.mithkaXSection) {
+        final path =
+            'android/app/src/main/res/mipmap-xxxhdpi/'
+            'ic_launcher_${variant.key}_foreground.png';
+        final bounds = _alphaBounds(path);
+        final width = (bounds[2] - bounds[0]) / 4;
+        final height = (bounds[3] - bounds[1]) / 4;
+        expect(
+          width / 72,
+          closeTo(0.61, 0.03),
+          reason: '${variant.key} ink is ${width}dp of the 72dp window',
+        );
+        expect(
+          height / 72,
+          closeTo(0.64, 0.03),
+          reason: '${variant.key} ink is ${height}dp of the 72dp window',
+        );
+        // Android's safe zone: the 66dp circle inscribed in the window.
+        expect(
+          math.sqrt(math.pow(width / 2, 2) + math.pow(height / 2, 2)),
+          lessThanOrEqualTo(33),
+          reason: '${variant.key} ink escapes the safe circle',
+        );
+        // Optical centring: the mark's own bbox sits on the canvas centre.
+        expect((bounds[0] + bounds[2]) / 8, closeTo(54, 0.5));
+        expect((bounds[1] + bounds[3]) / 8, closeTo(54, 0.5));
       }
     });
 
