@@ -578,11 +578,15 @@ enum AppIconVariant {
   // (AppIconVariant.mithkaXSection), never in the standard motif grid, and
   // [mithkaxDefault] is what a fresh install ships: the manifest-enabled
   // launcher alias carries its artwork.
+  //
+  // Every fork mark is a FIXED appearance: day plates carry no `darkAsset` and
+  // no `mipmap-night-*` twin, and the night plates are their own entries. A
+  // launcher re-resolving night resources under the user's chosen tile made the
+  // icon change on its own — the six tiles are now exactly what you get.
   mithkaxDefault(
     key: 'mithkax_default',
     labelKey: AppStringKeys.mithkaxIconAurora,
     asset: 'assets/app_icons/mithkax_default.png',
-    darkAsset: 'assets/app_icons/mithkax_default_dark.png',
     pickerAsset: 'assets/app_icons/picker/standard-mithkax_default.webp',
     mithkaX: true,
     penguinCount: 0,
@@ -592,7 +596,6 @@ enum AppIconVariant {
     key: 'mithkax_green',
     labelKey: AppStringKeys.mithkaxIconVerdant,
     asset: 'assets/app_icons/mithkax_green.png',
-    darkAsset: 'assets/app_icons/mithkax_green_dark.png',
     pickerAsset: 'assets/app_icons/picker/standard-mithkax_green.webp',
     mithkaX: true,
     penguinCount: 0,
@@ -602,7 +605,6 @@ enum AppIconVariant {
     key: 'mithkax_flame',
     labelKey: AppStringKeys.mithkaxIconBlaze,
     asset: 'assets/app_icons/mithkax_flame.png',
-    darkAsset: 'assets/app_icons/mithkax_flame_dark.png',
     pickerAsset: 'assets/app_icons/picker/standard-mithkax_flame.webp',
     mithkaX: true,
     penguinCount: 0,

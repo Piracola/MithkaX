@@ -104,6 +104,49 @@ void main() {
       }
     });
 
+    test('the fork marks keep one fixed appearance', () {
+      // A night plate is its own catalogue entry. A day entry that carried a
+      // dark twin, a mipmap-night-* layer or an iOS luminosity rendition would
+      // repaint the icon the user pinned as soon as the system flipped theme.
+      for (final variant in AppIconVariant.mithkaXSection) {
+        expect(
+          variant.darkAsset,
+          isNull,
+          reason: '${variant.key} must keep the plate it was chosen for',
+        );
+      }
+      final res = Directory('android/app/src/main/res');
+      for (final directory in res.listSync().whereType<Directory>()) {
+        if (!directory.path.split('/').last.startsWith('mipmap-night-')) {
+          continue;
+        }
+        for (final file in directory.listSync().whereType<File>()) {
+          expect(
+            file.path.contains('/ic_launcher_mithkax_'),
+            isFalse,
+            reason: '${file.path} would swap a fork icon at night',
+          );
+        }
+      }
+      for (final set in const [
+        'MithkaDefault',
+        'MithkaGreen',
+        'MithkaFlame',
+        'MithkaDefaultNight',
+        'MithkaGreenNight',
+        'MithkaFlameNight',
+      ]) {
+        final contents = File(
+          'ios/Runner/Assets.xcassets/$set.appiconset/Contents.json',
+        ).readAsStringSync();
+        expect(
+          contents.contains('luminosity'),
+          isFalse,
+          reason: '$set must not carry an iOS dark rendition',
+        );
+      }
+    });
+
     test('every referenced artwork exists at its expected size', () {
       for (final variant in AppIconVariant.values) {
         final light = variant.asset;
