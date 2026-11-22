@@ -1,7 +1,8 @@
 //
 //  process_engine.dart
 //
-//  How many FlutterEngines the current OS process has hosted.
+//  How many FlutterEngines the current OS process has hosted, and whether the
+//  engine that left native state behind is really gone.
 //
 //  Android does not give an app one process per launch: finishing the last
 //  activity leaves a cached process behind, and the next launch attaches a NEW
@@ -18,27 +19,49 @@ import 'package:flutter/services.dart';
 
 const MethodChannel _appInfoChannel = MethodChannel('mithka/app_info');
 
-/// The Android host counts the FlutterEngines it has attached to this process;
-/// this asks it. Answers 1 when the platform has no such notion (each engine
-/// owns its process) or the host does not expose the counter.
-Future<int> processEngineOrdinal() async {
-  if (!Platform.isAndroid) return 1;
-  return readEngineOrdinal(_appInfoChannel);
+/// Host-reported engine bookkeeping for this process.
+@immutable
+class ProcessEngineState {
+  const ProcessEngineState({this.ordinal = 1, this.destroyedOrdinal = 0});
+
+  /// 1 = this process has never hosted a FlutterEngine before.
+  final int ordinal;
+
+  /// Highest ordinal whose Activity has already been destroyed.
+  final int destroyedOrdinal;
+
+  /// True when this engine is a re-entry AND the engine that created the
+  /// persisted TDLib clients has definitely finished: the only case where
+  /// closing those clients cannot pull a live session out from under its VM.
+  bool get mayReclaimPreviousEngine =>
+      ordinal > 1 && destroyedOrdinal >= ordinal - 1;
 }
 
-/// Reads the host's engine counter for [channel].
+/// Reads the host's engine bookkeeping. Answers "cold start, nothing to
+/// reclaim" when the platform has no such notion or the host lacks it.
+Future<ProcessEngineState> processEngineState() async {
+  if (!Platform.isAndroid) return const ProcessEngineState();
+  return readEngineState(_appInfoChannel);
+}
+
+/// Reads [channel]'s engine bookkeeping.
 ///
 /// Split out so a widget test can drive the decision with a mocked channel
 /// instead of a real Android host.
 @visibleForTesting
-Future<int> readEngineOrdinal(MethodChannel channel) async {
+Future<ProcessEngineState> readEngineState(MethodChannel channel) async {
   try {
-    final ordinal = await channel.invokeMethod<int>('engineOrdinal');
-    return ordinal == null || ordinal < 1 ? 1 : ordinal;
+    final state = await channel.invokeMapMethod<String, Object?>('engineState');
+    if (state == null) return const ProcessEngineState();
+    final ordinal = state['ordinal'];
+    final destroyed = state['destroyedOrdinal'];
+    return ProcessEngineState(
+      ordinal: ordinal is int && ordinal >= 1 ? ordinal : 1,
+      destroyedOrdinal: destroyed is int && destroyed >= 0 ? destroyed : 0,
+    );
   } catch (_) {
-    // An older host without the method answers notImplemented; treat it as a
-    // cold start so the launch never waits on a re-entry reclaim that cannot
-    // have anything to reclaim.
-    return 1;
+    // An older host answers notImplemented: treat it as a cold start so the
+    // launch never waits on a reclaim that cannot have anything to reclaim.
+    return const ProcessEngineState();
   }
 }

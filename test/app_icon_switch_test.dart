@@ -412,11 +412,23 @@ void main() {
       // clients still hold every account's binlog lock.
       expect(kt.contains('flutterEngineOrdinal += 1'), isTrue);
       expect(
-        kt.contains('"engineOrdinal" -> result.success(flutterEngineOrdinal)'),
+        kt.contains('"engineState" -> result.success('),
         isTrue,
-        reason: 'Dart needs the ordinal on the app_info channel',
+        reason: 'Dart needs the ordinal AND the destroyed marker',
+      );
+      expect(
+        kt.contains('flutterEngineDestroyedOrdinal = flutterEngineOrdinal'),
+        isTrue,
+        reason:
+            'without the destroyed marker a config-change recreate looks like '
+            'a re-entry whose previous engine is gone, and the reclaim would '
+            'close a live session',
       );
       expect(kt.contains('private var flutterEngineOrdinal = 0'), isTrue);
+      expect(
+        kt.contains('private var flutterEngineDestroyedOrdinal = 0'),
+        isTrue,
+      );
     });
   });
 }

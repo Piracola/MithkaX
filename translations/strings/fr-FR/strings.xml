@@ -4115,4 +4115,9 @@
     <string name="mithkaxChannelPostForwards">{value1} transferts</string>
     <string name="mithkaxDeleteTopic">Supprimer le sujet</string>
     <string name="mithkaxReadAllFailed">Impossible de marquer comme lu</string>
+    <string name="mithkaxStartupDiagnosticsTitle">Diagnostic de démarrage</string>
+    <string name="mithkaxStartupDiagnosticsDescription">Temporaire : enregistre le dernier démarrage et les exceptions non interceptées pour diagnostiquer le plantage au démarrage à froid après un changement d\'icône.</string>
+    <string name="mithkaxStartupDiagnosticsCopy">Tout copier</string>
+    <string name="mithkaxStartupDiagnosticsClear">Effacer</string>
+    <string name="mithkaxStartupDiagnosticsEmpty">Aucun enregistrement</string>
 </resources>

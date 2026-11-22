@@ -41,6 +41,7 @@ import 'app/global_video_split_host.dart';
 import 'app/handoff_service.dart';
 import 'app/horizontal_safe_viewport.dart';
 import 'app/scaled_app_view.dart';
+import 'app/startup_trace.dart';
 import 'app/telemetry_config.dart';
 import 'app/video_window_telemetry.dart';
 import 'auth/account_store.dart';
@@ -118,6 +119,7 @@ Future<void> _preloadLocaleCatalogue([SharedPreferences? prefs]) {
 }
 
 Future<void> main(List<String> arguments) async {
+  StartupTrace.log('dart', 'main() start');
   if (supportsDesktopVideoWindows) {
     final videoArguments = await FVideoDesktopWindows.initialize(arguments);
     if (videoArguments != null) {
@@ -258,6 +260,7 @@ Future<void> _bootstrapAndRunApp() async {
   final appLockReady = LocalAppLockController.shared.initialize();
   final videoViewTypeReady = initializeCompatibleVideoViewType();
   final prefs = await SharedPreferences.getInstance();
+  StartupTrace.log('dart', 'preferences ready (bootstrap)');
   // These must land before the first frame — the catalogue or early widgets
   // render bare keys, the lock or the chat list flashes before the gate, and
   // video surfaces must be selected before any controller is created. Their
@@ -307,6 +310,7 @@ Future<void> _bootstrapAndRunApp() async {
     SchedulerBinding.instance.scheduleTask<void>(_initTelemetry, Priority.idle),
   );
   final app = MithkaApp(prefs: prefs, auth: auth);
+  StartupTrace.log('dart', 'bootstrap complete, runApp');
   _runAppWithNonFatalGoogleFonts(app);
 }
 
@@ -521,6 +525,10 @@ class _MithkaAppState extends State<MithkaApp> with WidgetsBindingObserver {
   @override
   void initState() {
     super.initState();
+    StartupTrace.log('dart', 'MithkaApp.initState');
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      StartupTrace.log('dart', 'first frame');
+    });
     MusicPlayerController.shared.setActiveAccountSlot(_accounts.activeSlot);
     if (allowTelegramTosViolations) {
       ChatViewModel.accountSummaryProvider = _accounts.summaryForSlot;
@@ -775,15 +783,6 @@ class _MithkaAppState extends State<MithkaApp> with WidgetsBindingObserver {
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.detached &&
-        defaultTargetPlatform == TargetPlatform.android) {
-      // Android keeps the process after the last activity finishes, so a later
-      // launch can attach a second engine to it. This VM cannot await anything
-      // — it dies as soon as this returns — but TDLib processes a synchronous
-      // `close` on its own workers, so the account directories are released
-      // instead of being inherited by that engine.
-      TdClient.shared.closeClientsForNativeEngineDetach();
-    }
     _appLock.handleLifecycleState(state);
     if (state != AppLifecycleState.resumed) {
       // `inactive` on its own is a Control Center glance, the notification

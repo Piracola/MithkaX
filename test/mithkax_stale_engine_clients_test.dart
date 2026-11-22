@@ -33,24 +33,79 @@ void main() {
     });
   }
 
-  group('engine ordinal', () {
-    test('a re-entry reports the host counter', () async {
-      answer((call) async => call.method == 'engineOrdinal' ? 2 : null);
+  group('engine state', () {
+    test('a re-entry reports the host counters', () async {
+      answer(
+        (call) async => call.method == 'engineState'
+            ? <String, Object?>{'ordinal': 2, 'destroyedOrdinal': 1}
+            : null,
+      );
 
-      expect(await readEngineOrdinal(channel), 2);
+      final state = await readEngineState(channel);
+      expect(state.ordinal, 2);
+      expect(state.destroyedOrdinal, 1);
+      expect(
+        state.mayReclaimPreviousEngine,
+        isTrue,
+        reason: 'the engine that left the clients behind has been destroyed',
+      );
+    });
+
+    test('a live previous engine is never reclaimed', () async {
+      answer(
+        (call) async => call.method == 'engineState'
+            ? <String, Object?>{'ordinal': 2, 'destroyedOrdinal': 0}
+            : null,
+      );
+
+      final state = await readEngineState(channel);
+      expect(
+        state.mayReclaimPreviousEngine,
+        isFalse,
+        reason:
+            'a configuration change attaches this engine before the previous '
+            'Activity onDestroy returns; closing a live session would kill it',
+      );
+    });
+
+    test('a deeper re-entry needs its own predecessor destroyed', () async {
+      answer(
+        (call) async => call.method == 'engineState'
+            ? <String, Object?>{'ordinal': 3, 'destroyedOrdinal': 1}
+            : null,
+      );
+      expect(
+        (await readEngineState(channel)).mayReclaimPreviousEngine,
+        isFalse,
+      );
+
+      answer(
+        (call) async => call.method == 'engineState'
+            ? <String, Object?>{'ordinal': 3, 'destroyedOrdinal': 2}
+            : null,
+      );
+      expect((await readEngineState(channel)).mayReclaimPreviousEngine, isTrue);
     });
 
     test('an older host without the method reads as a cold start', () async {
       answer((call) async => throw MissingPluginException());
 
-      expect(await readEngineOrdinal(channel), 1);
+      final state = await readEngineState(channel);
+      expect(state.ordinal, 1);
+      expect(state.mayReclaimPreviousEngine, isFalse);
     });
 
     test('a zero or negative answer reads as a cold start', () async {
-      for (final answerValue in <Object?>[0, -1, null]) {
+      for (final answerValue in <Object?>[
+        <String, Object?>{'ordinal': 0, 'destroyedOrdinal': 0},
+        <String, Object?>{'ordinal': -1, 'destroyedOrdinal': 5},
+        <String, Object?>{'ordinal': null, 'destroyedOrdinal': null},
+      ]) {
         answer((call) async => answerValue);
 
-        expect(await readEngineOrdinal(channel), 1);
+        final state = await readEngineState(channel);
+        expect(state.ordinal, 1);
+        expect(state.mayReclaimPreviousEngine, isFalse);
       }
     });
   });
@@ -84,7 +139,7 @@ void main() {
     test('the reclaim waits for the closed acknowledgement, not a timer', () {
       final body = between(
         'Future<void> _reclaimStaleEngineClients()',
-        'void closeClientsForNativeEngineDetach()',
+        'Future<void> _persistLiveClientIds()',
       );
       expect(
         body,
@@ -98,14 +153,22 @@ void main() {
         isFalse,
         reason: 'a fixed sleep cannot tell whether the lock is gone',
       );
+      expect(
+        body.contains('Future.any'),
+        isFalse,
+        reason:
+            'a grace period treats a SLOW close as "gone" and lets the '
+            'replacement open the binlog mid-close — the 100% crash',
+      );
     });
 
-    test('the gate is the host counter, not the build mode', () {
+    test('the gate is host-proven, not the build mode', () {
       final gate = between(
         '// Android can attach a SECOND FlutterEngine',
         'final storedBotApiAccounts',
       );
-      expect(gate, contains('processEngineOrdinal() > 1'));
+      expect(gate, contains('processEngineState()'));
+      expect(gate, contains('engineState.mayReclaimPreviousEngine'));
       expect(gate, contains('kDebugMode ||'));
       expect(gate, contains('await _reclaimStaleEngineClients();'));
     });
@@ -120,23 +183,25 @@ void main() {
       expect(td.contains('_persistDebugLiveClientIds'), isFalse);
     });
 
-    test('engine teardown closes the native clients before the VM dies', () {
+    test('one closer only: teardown must not race the reclaim', () {
       expect(
-        main.contains(
-          'state == AppLifecycleState.detached &&\n'
-          '        defaultTargetPlatform == TargetPlatform.android',
-        ),
-        isTrue,
+        main.contains('closeClientsForNativeEngineDetach()'),
+        isFalse,
         reason:
-            'only the process-reusing platform should close clients at detach; '
-            'desktop windows share the primary engine',
+            'the engine is destroyed milliseconds after `detached`, so a close '
+            'sent there may still be running when the next engine opens the '
+            'same binlog',
       );
-      expect(main, contains('closeClientsForNativeEngineDetach()'));
       expect(
         td,
-        contains(
-          'if (_proxyTransport != null || _isShuttingDown || _shutdownComplete)',
-        ),
+        contains("(object.str('message') ?? '').startsWith('Request aborted')"),
+        reason:
+            'a client TDLib no longer has answers "Request aborted"; without '
+            'that the reclaim waits out the timeout on every cold start',
+      );
+      expect(
+        td,
+        contains('final waiter = _clientClosedWaiters.remove(clientId);'),
       );
     });
   });

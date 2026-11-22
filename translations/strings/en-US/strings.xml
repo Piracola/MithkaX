@@ -4115,4 +4115,9 @@
     <string name="mithkaxChannelPostForwards">{value1} forwards</string>
     <string name="mithkaxDeleteTopic">Delete topic</string>
     <string name="mithkaxReadAllFailed">Failed to mark as read</string>
+    <string name="mithkaxStartupDiagnosticsTitle">Startup diagnostics</string>
+    <string name="mithkaxStartupDiagnosticsDescription">Temporary: records the last launch trace and any uncaught exception, to diagnose the cold-start crash after an icon change.</string>
+    <string name="mithkaxStartupDiagnosticsCopy">Copy all</string>
+    <string name="mithkaxStartupDiagnosticsClear">Clear</string>
+    <string name="mithkaxStartupDiagnosticsEmpty">No records yet</string>
 </resources>

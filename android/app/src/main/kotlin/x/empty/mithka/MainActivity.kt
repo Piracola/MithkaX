@@ -74,6 +74,13 @@ class MainActivity : FlutterFragmentActivity() {
         // Let Flutter paint under the status bar and gesture/nav bar.
         WindowCompat.setDecorFitsSystemWindows(window, false)
         super.onCreate(savedInstanceState)
+        StartupDiagnostics.log(
+            this,
+            "activity",
+            "onCreate component=${componentName?.flattenToShortString()} " +
+                "action=${intent?.action} flags=0x${intent?.flags?.toString(16)} " +
+                "restored=${savedInstanceState != null} task=${taskId}",
+        )
         requestHighestRefreshRate()
         pendingSharePayload = parseIncomingShareIntent(intent)
         PushServiceBridge.captureTap(this, intent)
@@ -102,6 +109,11 @@ class MainActivity : FlutterFragmentActivity() {
             val primordialState = packageManager.getComponentEnabledSetting(
                 primordialDefaultAlias,
             )
+            StartupDiagnostics.log(
+                this,
+                "alias",
+                "self-heal primordialState=$primordialState",
+            )
             if (primordialState == PackageManager.COMPONENT_ENABLED_STATE_DEFAULT ||
                 primordialState == PackageManager.COMPONENT_ENABLED_STATE_ENABLED
             ) {
@@ -111,16 +123,25 @@ class MainActivity : FlutterFragmentActivity() {
                 val state = packageManager.getComponentEnabledSetting(
                     ComponentName(packageName, className),
                 )
-                if (state == PackageManager.COMPONENT_ENABLED_STATE_ENABLED) return
+                if (state == PackageManager.COMPONENT_ENABLED_STATE_ENABLED) {
+                    StartupDiagnostics.log(
+                        this,
+                        "alias",
+                        "self-heal live=$className",
+                    )
+                    return
+                }
             }
             // Nothing is live: re-root the launcher at the shipped default so this
             // launch already resolves, and the home screen gets its icon back.
+            StartupDiagnostics.log(this, "alias", "self-heal: nothing live, re-rooting")
             packageManager.setComponentEnabledSetting(
                 primordialDefaultAlias,
                 PackageManager.COMPONENT_ENABLED_STATE_ENABLED,
                 PackageManager.DONT_KILL_APP,
             )
         } catch (error: Exception) {
+            StartupDiagnostics.log(this, "alias", "self-heal failed: $error")
             Log.w("MainActivity", "Could not repair the launcher alias", error)
         }
     }
@@ -152,6 +173,11 @@ class MainActivity : FlutterFragmentActivity() {
                     "ic_launcher_" + current.replace('-', '_')
                 }
                 val iconRes = resources.getIdentifier(resName, "mipmap", packageName)
+                StartupDiagnostics.log(
+                    this,
+                    "recents",
+                    "updateTaskDescription current=$current resource=$resName id=$iconRes",
+                )
                 runOnUiThread {
                     val taskDescription =
                         android.app.ActivityManager.TaskDescription("Mithka X", iconRes, 0)
@@ -266,6 +292,34 @@ class MainActivity : FlutterFragmentActivity() {
         // TDLib clients. Dart reads this counter to tell that re-entry from a
         // cold start and to reclaim the previous engine's clients.
         flutterEngineOrdinal += 1
+        StartupDiagnostics.log(
+            this,
+            "engine",
+            "configureFlutterEngine ordinal=$flutterEngineOrdinal",
+        )
+        // TEMPORARY: read/clear the device-side startup trace. Remove with
+        // StartupDiagnostics once the icon-switch crash is understood.
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "mithka/diagnostics")
+            .setMethodCallHandler { call, result ->
+                when (call.method) {
+                    "log" -> {
+                        val args = call.arguments as? Map<*, *>
+                        StartupDiagnostics.log(
+                            this,
+                            args?.get("tag") as? String ?: "dart",
+                            args?.get("message") as? String ?: "",
+                        )
+                        result.success(null)
+                    }
+                    "read" -> result.success(StartupDiagnostics.read(this))
+                    "clear" -> {
+                        StartupDiagnostics.clear(this)
+                        StartupDiagnostics.log(this, "process", "trace cleared")
+                        result.success(null)
+                    }
+                    else -> result.notImplemented()
+                }
+            }
         webProxyBridge = WebProxyBridge(this, flutterEngine.dartExecutor.binaryMessenger)
         registerPlugins(flutterEngine)
         pushBridge = PushServiceBridge(
@@ -337,7 +391,14 @@ class MainActivity : FlutterFragmentActivity() {
                     }
                     // 1 = this process has never hosted a FlutterEngine before.
                     // Dart reclaims a previous engine's native TDLib clients
-                    // only when this answers 2 or more.
+                    // only when this answers 2 or more AND the owning activity
+                    // has actually been destroyed.
+                    "engineState" -> result.success(
+                        mapOf(
+                            "ordinal" to flutterEngineOrdinal,
+                            "destroyedOrdinal" to flutterEngineDestroyedOrdinal,
+                        ),
+                    )
                     "engineOrdinal" -> result.success(flutterEngineOrdinal)
                     else -> result.notImplemented()
                 }
@@ -369,8 +430,15 @@ class MainActivity : FlutterFragmentActivity() {
                     // the loading page keeps painting and the Dart future just
                     // resolves a few ms later.
                     "currentIcon" -> Thread {
+                        val startedAt = System.currentTimeMillis()
                         try {
                             val current = currentLauncherIcon()
+                            StartupDiagnostics.log(
+                                this@MainActivity,
+                                "icon",
+                                "currentIcon=$current " +
+                                    "in ${System.currentTimeMillis() - startedAt}ms",
+                            )
                             runOnUiThread { result.success(current) }
                         } catch (e: Exception) {
                             runOnUiThread {
@@ -406,8 +474,20 @@ class MainActivity : FlutterFragmentActivity() {
                         // launcher. A background thread keeps the switch UI
                         // (and its result callback) off that lock.
                         Thread {
+                            val startedAt = System.currentTimeMillis()
                             try {
+                                StartupDiagnostics.log(
+                                    this@MainActivity,
+                                    "icon",
+                                    "setIcon start name=$name ordinal=$flutterEngineOrdinal",
+                                )
                                 setLauncherIcon(name)
+                                StartupDiagnostics.log(
+                                    this@MainActivity,
+                                    "icon",
+                                    "setIcon done name=$name " +
+                                        "in ${System.currentTimeMillis() - startedAt}ms",
+                                )
                                 runOnUiThread {
                                     result.success(null)
                                     // The alias just went live: refresh the recents
@@ -913,6 +993,13 @@ class MainActivity : FlutterFragmentActivity() {
         /// still alive; Dart keys its stale-client reclaim off this counter.
         @Volatile
         private var flutterEngineOrdinal = 0
+
+        /// Highest ordinal whose Activity has been destroyed. A new engine may
+        /// be created while the previous one is still tearing down (a config
+        /// change re-creates the Activity before the old onDestroy returns), so
+        /// the reclaim must not touch clients whose engine may still be alive.
+        @Volatile
+        private var flutterEngineDestroyedOrdinal = 0
     }
 
     private fun handleMediaDragEvent(event: DragEvent): Boolean {
@@ -1507,6 +1594,13 @@ class MainActivity : FlutterFragmentActivity() {
     }
 
     override fun onDestroy() {
+        flutterEngineDestroyedOrdinal = flutterEngineOrdinal
+        StartupDiagnostics.log(
+            this,
+            "activity",
+            "onDestroy finishing=$isFinishing " +
+                "changingConfig=$isChangingConfigurations ordinal=$flutterEngineOrdinal",
+        )
         FVideoPictureInPicturePlugin.onActivityDestroyed(this)
         super.onDestroy()
     }

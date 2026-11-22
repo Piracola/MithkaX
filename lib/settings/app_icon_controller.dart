@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../app/startup_trace.dart';
 import '../l10n/app_localizations.dart';
 import '../pro/mithka_pro_service.dart';
 
@@ -581,6 +582,7 @@ enum AppIconVariant {
     key: 'mithkax_default',
     labelKey: AppStringKeys.mithkaxIconAurora,
     asset: 'assets/app_icons/mithkax_default.png',
+    darkAsset: 'assets/app_icons/mithkax_default_dark.png',
     pickerAsset: 'assets/app_icons/picker/standard-mithkax_default.webp',
     mithkaX: true,
     penguinCount: 0,
@@ -936,6 +938,10 @@ class AppIconController extends ChangeNotifier {
           (current != null &&
               current.isNotEmpty &&
               current != 'mithkax_default');
+      StartupTrace.log(
+        'icon',
+        'initialize saved=$saved native=$current supported=$_supported',
+      );
     } catch (_) {
       _supported = false;
     }
