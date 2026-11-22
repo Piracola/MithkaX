@@ -314,6 +314,14 @@ class _VideoStickerViewState extends State<VideoStickerView>
         await _disposeInitializingLoad(c, lease);
         return;
       }
+      // MDK takes the playback rate when playback starts: a rate set while a
+      // looping clip is already running is ignored, which put the sticker back
+      // at its racing pace. Set it before play.
+      final rate = await _stickerPlaybackRate(c, path);
+      if (rate != null && _ownsLoad(generation, ref, slot, lease)) {
+        _pacingSpeed = rate;
+        await _applyStickerPacing(c, rate);
+      }
       await c.play();
     } catch (error) {
       final ownsCurrentSource = _ownsLoad(generation, ref, slot, lease);
@@ -343,7 +351,7 @@ class _VideoStickerViewState extends State<VideoStickerView>
     _pacing = null;
     _pacingSpeed = 1;
     _pacingPasses = 0;
-    unawaited(_startStickerPacing(c, path));
+    _startStickerPacing(c);
     c.addListener(() {
       if (!_ownsAttempt(generation, ref, slot)) return;
       final value = c.value;
@@ -380,31 +388,43 @@ class _VideoStickerViewState extends State<VideoStickerView>
   /// three-second one — which is why only short, low-frame-rate stickers were
   /// reported racing. The header states the frame duration, so the rate is
   /// known before the first loop instead of being measured.
-  Future<void> _startStickerPacing(VideoPlayerController c, String path) async {
+  Future<double?> _stickerPlaybackRate(
+    VideoPlayerController c,
+    String path,
+  ) async {
     final frameDuration = await _frameDurationOf(path);
-    final rate = stickerTailCorrection(
+    return stickerTailCorrection(
       duration: c.value.duration,
       frameDuration: frameDuration,
     );
-    if (!mounted || !identical(_controller, c)) return;
-    if (rate != null) {
-      _pacingSpeed = rate;
-      await _applyStickerPacing(c, rate);
-    }
-    if (!mounted || !identical(_controller, c)) return;
+  }
+
+  void _startStickerPacing(VideoPlayerController c) {
     _pacing = StickerPacingMeter(startPosition: c.value.position)..start();
     _startPacingReassert(c);
   }
 
-  /// MDK drops the rate when its own loop restarts on some platforms; re-assert
-  /// it so the second loop is as correct as the first.
+  /// Re-asserts the rate at least twice per loop.
+  ///
+  /// A backend that resets the rate when its own loop restarts would otherwise
+  /// play the first loop correctly and every later one at authored speed.
   void _startPacingReassert(VideoPlayerController c) {
     _pacingReassert?.cancel();
-    _pacingReassert = Timer.periodic(_pacingReassertInterval, (_) {
-      if (!mounted || !identical(_controller, c) || c.value.hasError) return;
-      if (!c.value.isPlaying || _pacingSpeed >= 0.999) return;
-      unawaited(_applyStickerPacing(c, _pacingSpeed));
-    });
+    if (_pacingSpeed >= 0.999) return;
+    final loop = c.value.duration.inMicroseconds;
+    final period = loop <= 0
+        ? _pacingReassertInterval
+        : Duration(microseconds: (loop / 2).round());
+    _pacingReassert = Timer.periodic(
+      period < const Duration(milliseconds: 120)
+          ? const Duration(milliseconds: 120)
+          : period,
+      (_) {
+        if (!mounted || !identical(_controller, c) || c.value.hasError) return;
+        if (!c.value.isPlaying || _pacingSpeed >= 0.999) return;
+        unawaited(_applyStickerPacing(c, _pacingSpeed));
+      },
+    );
   }
 
   static Future<Duration?> _frameDurationOf(String path) async {
