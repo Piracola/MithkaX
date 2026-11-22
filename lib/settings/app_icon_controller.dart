@@ -607,6 +607,38 @@ enum AppIconVariant {
     mithkaX: true,
     penguinCount: 0,
     colors: [Color(0xFFFF8E2B), Color(0xFFE02112)],
+  ),
+
+  // The night plates as selectable marks of their own. A launcher does not
+  // reliably re-resolve `mipmap-night-*` on a uiMode change, so the dark art
+  // is also offered explicitly: these entries carry the dark plate as their
+  // one and only asset, and therefore stay dark at any time of day.
+  mithkaxDefaultNight(
+    key: 'mithkax_default_night',
+    labelKey: AppStringKeys.mithkaxIconAuroraNight,
+    asset: 'assets/app_icons/mithkax_default_night.png',
+    pickerAsset: 'assets/app_icons/picker/standard-mithkax_default_night.webp',
+    mithkaX: true,
+    penguinCount: 0,
+    colors: [Color(0xFF1E1F23), Color(0xFF0A84FF)],
+  ),
+  mithkaxGreenNight(
+    key: 'mithkax_green_night',
+    labelKey: AppStringKeys.mithkaxIconVerdantNight,
+    asset: 'assets/app_icons/mithkax_green_night.png',
+    pickerAsset: 'assets/app_icons/picker/standard-mithkax_green_night.webp',
+    mithkaX: true,
+    penguinCount: 0,
+    colors: [Color(0xFF1E1F23), Color(0xFF0CE06D)],
+  ),
+  mithkaxFlameNight(
+    key: 'mithkax_flame_night',
+    labelKey: AppStringKeys.mithkaxIconBlazeNight,
+    asset: 'assets/app_icons/mithkax_flame_night.png',
+    pickerAsset: 'assets/app_icons/picker/standard-mithkax_flame_night.webp',
+    mithkaX: true,
+    penguinCount: 0,
+    colors: [Color(0xFF1E1F23), Color(0xFFFF8526)],
   );
 
   const AppIconVariant({
@@ -665,6 +697,9 @@ enum AppIconVariant {
     AppIconVariant.mithkaxDefault => AppStringKeys.mithkaxIconAurora,
     AppIconVariant.mithkaxGreen => AppStringKeys.mithkaxIconVerdant,
     AppIconVariant.mithkaxFlame => AppStringKeys.mithkaxIconBlaze,
+    AppIconVariant.mithkaxDefaultNight => AppStringKeys.mithkaxIconAuroraNight,
+    AppIconVariant.mithkaxGreenNight => AppStringKeys.mithkaxIconVerdantNight,
+    AppIconVariant.mithkaxFlameNight => AppStringKeys.mithkaxIconBlazeNight,
     _ => labelKey,
   };
   String? get pickerLabelKey =>
@@ -731,6 +766,9 @@ enum AppIconVariant {
     mithkaxDefault,
     mithkaxGreen,
     mithkaxFlame,
+    mithkaxDefaultNight,
+    mithkaxGreenNight,
+    mithkaxFlameNight,
   ];
 
   static List<AppIconVariant> get supporterVariants => values

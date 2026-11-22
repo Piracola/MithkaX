@@ -2460,8 +2460,11 @@
     <string name="mithkaProYearly">年額</string>
     <string name="mithkaxIconHeading">Mithka X アイコン</string>
     <string name="mithkaxIconAurora">オーロラ</string>
+    <string name="mithkaxIconAuroraNight">オーロラ（夜）</string>
     <string name="mithkaxIconVerdant">若草</string>
+    <string name="mithkaxIconVerdantNight">若草（夜）</string>
     <string name="mithkaxIconBlaze">炎</string>
+    <string name="mithkaxIconBlazeNight">炎（夜）</string>
     <string name="mithkaxPushServiceTitle">プッシュサービス</string>
     <string name="mithkaxPushServiceMode">配信方法</string>
     <string name="mithkaxPushServiceInApp">アプリ内</string>

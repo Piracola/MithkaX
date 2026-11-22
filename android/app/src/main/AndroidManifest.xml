@@ -984,6 +984,42 @@
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
         </activity-alias>
+        <activity-alias
+            android:name=".MainActivityMithkaXDefaultNight"
+            android:enabled="false"
+            android:exported="true"
+            android:icon="@mipmap/ic_launcher_mithkax_default_night"
+            android:label="Mithka X"
+            android:targetActivity=".MainActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN"/>
+                <category android:name="android.intent.category.LAUNCHER"/>
+            </intent-filter>
+        </activity-alias>
+        <activity-alias
+            android:name=".MainActivityMithkaXGreenNight"
+            android:enabled="false"
+            android:exported="true"
+            android:icon="@mipmap/ic_launcher_mithkax_green_night"
+            android:label="Mithka X"
+            android:targetActivity=".MainActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN"/>
+                <category android:name="android.intent.category.LAUNCHER"/>
+            </intent-filter>
+        </activity-alias>
+        <activity-alias
+            android:name=".MainActivityMithkaXFlameNight"
+            android:enabled="false"
+            android:exported="true"
+            android:icon="@mipmap/ic_launcher_mithkax_flame_night"
+            android:label="Mithka X"
+            android:targetActivity=".MainActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN"/>
+                <category android:name="android.intent.category.LAUNCHER"/>
+            </intent-filter>
+        </activity-alias>
     </application>
     <!-- Required to query activities that can process text, see:
          https://developer.android.com/training/package-visibility and

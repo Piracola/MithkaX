@@ -2460,8 +2460,11 @@
     <string name="mithkaProYearly">每年</string>
     <string name="mithkaxIconHeading">Mithka X 圖示</string>
     <string name="mithkaxIconAurora">極光</string>
+    <string name="mithkaxIconAuroraNight">極光（夜）</string>
     <string name="mithkaxIconVerdant">青蔥</string>
+    <string name="mithkaxIconVerdantNight">青蔥（夜）</string>
     <string name="mithkaxIconBlaze">烈焰</string>
+    <string name="mithkaxIconBlazeNight">烈焰（夜）</string>
     <string name="mithkaxPushServiceTitle">推送服務</string>
     <string name="mithkaxPushServiceMode">推送方式</string>
     <string name="mithkaxPushServiceInApp">內建通知</string>

@@ -255,6 +255,12 @@ flutter:
       platforms: [macos]
     - path: assets/app_icons/mithkax_flame.png
       platforms: [macos]
+    - path: assets/app_icons/mithkax_default_night.png
+      platforms: [macos]
+    - path: assets/app_icons/mithkax_green_night.png
+      platforms: [macos]
+    - path: assets/app_icons/mithkax_flame_night.png
+      platforms: [macos]
     - assets/app_icons/picker/
     - assets/emoji_preview/
     - assets/message_bubbles/

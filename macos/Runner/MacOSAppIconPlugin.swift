@@ -25,6 +25,9 @@ final class MacOSAppIconPlugin: NSObject, FlutterPlugin {
     "mithkax_default",
     "mithkax_green",
     "mithkax_flame",
+    "mithkax_default_night",
+    "mithkax_green_night",
+    "mithkax_flame_night",
   ]
 
   private let registrar: FlutterPluginRegistrar

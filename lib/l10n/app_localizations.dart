@@ -396,8 +396,11 @@ abstract final class AppStringKeys {
   static const mithkaxStartupDiagnosticsEmpty =
       'mithkaxStartupDiagnosticsEmpty';
   static const mithkaxIconAurora = 'mithkaxIconAurora';
+  static const mithkaxIconAuroraNight = 'mithkaxIconAuroraNight';
   static const mithkaxIconVerdant = 'mithkaxIconVerdant';
+  static const mithkaxIconVerdantNight = 'mithkaxIconVerdantNight';
   static const mithkaxIconBlaze = 'mithkaxIconBlaze';
+  static const mithkaxIconBlazeNight = 'mithkaxIconBlazeNight';
   static const mithkaxPushServiceTitle = 'mithkaxPushServiceTitle';
   static const mithkaxPushServiceMode = 'mithkaxPushServiceMode';
   static const mithkaxPushServiceInApp = 'mithkaxPushServiceInApp';

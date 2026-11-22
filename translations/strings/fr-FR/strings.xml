@@ -2468,8 +2468,11 @@
     <string name="mithkaProYearly">Annuel</string>
     <string name="mithkaxIconHeading">Icônes Mithka X</string>
     <string name="mithkaxIconAurora">Aurore</string>
+    <string name="mithkaxIconAuroraNight">Aurore (nuit)</string>
     <string name="mithkaxIconVerdant">Vert tendre</string>
+    <string name="mithkaxIconVerdantNight">Vert tendre (nuit)</string>
     <string name="mithkaxIconBlaze">Flamme</string>
+    <string name="mithkaxIconBlazeNight">Flamme (nuit)</string>
     <string name="mithkaxPushServiceTitle">Service de notifications push</string>
     <string name="mithkaxPushServiceMode">Mode de livraison</string>
     <string name="mithkaxPushServiceInApp">Dans l'app</string>

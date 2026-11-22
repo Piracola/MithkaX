@@ -79,6 +79,9 @@ void main() {
         AppIconVariant.mithkaxDefault,
         AppIconVariant.mithkaxGreen,
         AppIconVariant.mithkaxFlame,
+        AppIconVariant.mithkaxDefaultNight,
+        AppIconVariant.mithkaxGreenNight,
+        AppIconVariant.mithkaxFlameNight,
       ]);
       for (final variant in AppIconVariant.mithkaXSection) {
         expect(
@@ -360,6 +363,9 @@ void main() {
         'mithkax_default': 'MainActivityMithkaXDefaultAlt',
         'mithkax_green': 'MainActivityMithkaXGreen',
         'mithkax_flame': 'MainActivityMithkaXFlame',
+        'mithkax_default_night': 'MainActivityMithkaXDefaultNight',
+        'mithkax_green_night': 'MainActivityMithkaXGreenNight',
+        'mithkax_flame_night': 'MainActivityMithkaXFlameNight',
       }.entries) {
         expect(
           kt.contains('"${entry.key}" to "\$packageName.${entry.value}"'),
@@ -480,21 +486,26 @@ void main() {
         order.indexOf('app-icon-mithkax-heading'),
         lessThan(order.indexOf('app-icon-mithkax_default')),
       );
+      // All six tiles, in catalogue order: the three colourways then their
+      // explicit night plates.
+      final sectionTiles = [
+        for (final variant in AppIconVariant.mithkaXSection)
+          'app-icon-${variant.key}',
+      ];
+      for (var index = 0; index + 1 < sectionTiles.length; index++) {
+        expect(
+          order.indexOf(sectionTiles[index]),
+          lessThan(order.indexOf(sectionTiles[index + 1])),
+          reason: '${sectionTiles[index]} must precede its successor',
+        );
+      }
       expect(
-        order.indexOf('app-icon-mithkax_default'),
-        lessThan(order.indexOf('app-icon-mithkax_green')),
-      );
-      expect(
-        order.indexOf('app-icon-mithkax_green'),
-        lessThan(order.indexOf('app-icon-mithkax_flame')),
-      );
-      expect(
-        order.indexOf('app-icon-mithkax_flame'),
+        order.indexOf(sectionTiles.last),
         lessThan(order.indexOf('app-icon-standard-heading')),
         reason: 'the Mithka X section sits above the standard icons',
       );
       expect(
-        order.indexOf('app-icon-mithkax_flame'),
+        order.indexOf(sectionTiles.last),
         lessThan(order.indexOf('app-icon-white')),
         reason: 'the fork marks never appear inside the motif grid',
       );
