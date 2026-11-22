@@ -9544,8 +9544,23 @@ class _ChatViewState extends State<ChatView> {
                 return ChatListSelectionHighlight(
                   key: ValueKey('topic-selector-row-${topic?.id ?? "all"}'),
                   selected: current,
-                  child: Builder(
-                    builder: (rowContext) => ListTile(
+                  // The same anchored menu the topic tabs open, but hung off
+                  // the finger that pressed the row: a long press on a list
+                  // row is a pointer gesture, so the menu has to open where
+                  // the finger is, not at the row's box.
+                  child: GestureDetector(
+                    onLongPressStart: topic == null
+                        ? null
+                        : (details) {
+                            final press = details.globalPosition;
+                            unawaited(
+                              _showTopicMenu(
+                                topic,
+                                Rect.fromLTWH(press.dx, press.dy, 0, 0),
+                              ),
+                            );
+                          },
+                    child: ListTile(
                       leading: _forumTopicIcon(topic, all, c, current: current),
                       title: Text(
                         (all ? AppStringKeys.topicChatAllTopics : topic!.name)
@@ -9566,21 +9581,6 @@ class _ChatViewState extends State<ChatView> {
                         Navigator.of(sheetContext).pop();
                         _openTopicTranscript(topic?.id);
                       },
-                      // The same anchored menu the topic tabs open, attached
-                      // to the row rather than the tab.
-                      onLongPress: topic == null
-                          ? null
-                          : () {
-                              final box =
-                                  rowContext.findRenderObject() as RenderBox?;
-                              if (box == null || !box.hasSize) return;
-                              unawaited(
-                                _showTopicMenu(
-                                  topic,
-                                  box.localToGlobal(Offset.zero) & box.size,
-                                ),
-                              );
-                            },
                     ),
                   ),
                 );

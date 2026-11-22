@@ -390,6 +390,55 @@ void main() {
     await tester.pump(const Duration(seconds: 6));
   });
 
+  // A long press on a selector row used to anchor the menu to the row's box,
+  // so it always opened at the row's own left edge and bottom — nowhere near a
+  // finger pressed at the row's other end. The menu has to hang off the press
+  // point, like every other pointer gesture in the app.
+  testWidgets('the selector menu opens at the finger, not the row box', (
+    tester,
+  ) async {
+    await openChat(
+      tester,
+      chatId: _forumChatId,
+      title: 'Forum Group',
+      isForum: true,
+    );
+
+    await tester.tap(find.byKey(const ValueKey('chatHeaderTopics')));
+    await tester.pumpAndSettle();
+
+    final row = find.byKey(const ValueKey('topic-selector-row-50'));
+    final rowRect = tester.getRect(row);
+    final press = Offset(rowRect.left + 40, rowRect.center.dy);
+    await tester.longPressAt(press);
+    await tester.pumpAndSettle();
+
+    final menuRect = tester.getRect(
+      find.byKey(const ValueKey('app-anchored-menu')),
+    );
+    final view = tester.view.physicalSize / tester.view.devicePixelRatio;
+    final expectedLeft = press.dx.clamp(8.0, view.width - menuRect.width - 8);
+    expect(menuRect.left, closeTo(expectedLeft, 0.5));
+    // The placement works from the menu's metric estimate while the painted
+    // card carries its own hairline borders, so allow the one-pixel seam.
+    expect(
+      menuRect.top,
+      anyOf(
+        closeTo(press.dy + 8, 2),
+        closeTo(press.dy - 8 - menuRect.height, 2),
+      ),
+      reason: 'the menu hangs off the press point',
+    );
+    expect(
+      (menuRect.left - rowRect.left).abs(),
+      greaterThan(1),
+      reason: 'the row box anchor would put the left edge at the row itself',
+    );
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(const Duration(seconds: 6));
+  });
+
   testWidgets('a bot topic chat can pin, edit and delete its topics', (
     tester,
   ) async {
