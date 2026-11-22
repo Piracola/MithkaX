@@ -400,17 +400,23 @@ extension ChatViewModelSending on ChatViewModel {
   /// in which case the request is sent unscoped and the server's error stands).
   Future<int?> _scopeSendToNewBotTopic(Map<String, dynamic> request) async {
     if (!_startsBotTopicFor(request)) return null;
-    var creation = _botTopicCreation;
-    if (creation == null) {
-      final title = botTopicTitleForMessage(_sendRequestText(request));
-      creation = _createBotTopicForSend(
-        title.isEmpty ? AppStrings.t(AppStringKeys.topicChatTopicTitle) : title,
-      );
-      _botTopicCreation = creation;
+    var topicId = _botTopicBurstId;
+    if (topicId == null) {
+      var creation = _botTopicCreation;
+      if (creation == null) {
+        final title = botTopicTitleForMessage(_sendRequestText(request));
+        creation = _createBotTopicForSend(
+          title.isEmpty
+              ? AppStrings.t(AppStringKeys.topicChatTopicTitle)
+              : title,
+        );
+        _botTopicCreation = creation;
+      }
+      topicId = await creation;
+      if (identical(_botTopicCreation, creation)) _botTopicCreation = null;
+      if (topicId == null) return null;
+      _botTopicBurstId = topicId;
     }
-    final topicId = await creation;
-    if (identical(_botTopicCreation, creation)) _botTopicCreation = null;
-    if (topicId == null) return null;
     request['topic_id'] = {
       '@type': 'messageTopicForum',
       'forum_topic_id': topicId,
@@ -427,7 +433,11 @@ extension ChatViewModelSending on ChatViewModel {
   bool _startsBotTopicFor(Map<String, dynamic> request) {
     if (!_inBotTopicAllView || !canSendMessages) return false;
     final type = request.type;
-    if (type != 'sendMessage' && type != 'sendMessageAlbum') return false;
+    if (type != 'sendMessage' &&
+        type != 'sendMessageAlbum' &&
+        type != 'forwardMessages') {
+      return false;
+    }
     if (request.int64('chat_id') != chatId) return false;
     if (request.containsKey('topic_id') ||
         request.containsKey('message_thread_id')) {
@@ -444,9 +454,43 @@ extension ChatViewModelSending on ChatViewModel {
         ? contents.first
         : request['input_message_content'];
     if (rawContent is! Map<String, dynamic>) return '';
-    return rawContent.obj('text')?.str('text') ??
-        rawContent.obj('caption')?.str('text') ??
-        '';
+    final formatted = rawContent.obj('text') ?? rawContent.obj('caption');
+    if (formatted != null) return formatted.str('text') ?? '';
+    // A rich message carries its text as nested rich-text nodes (Bot API
+    // transport: as HTML). Its first readable run names the topic the way a
+    // plain message's opening words would.
+    return _richMessageText(
+      rawContent.obj('message') ?? rawContent.obj('rich_message'),
+    );
+  }
+
+  /// The first readable run inside a rich-message payload.
+  ///
+  /// Block trees nest `richTextPlain` nodes arbitrarily deep (inside
+  /// `richTextBold`, paragraph blocks, table cells), so the walk goes by shape
+  /// rather than by block type: the first node that actually carries text wins.
+  String _richMessageText(Object? node) {
+    if (node is List) {
+      for (final child in node) {
+        final text = _richMessageText(child);
+        if (text.isNotEmpty) return text;
+      }
+      return '';
+    }
+    if (node is! Map) return '';
+    if (node['@type'] == 'richTextPlain') {
+      final text = node['text'];
+      return text is String ? text : '';
+    }
+    final html = node['html'];
+    if (html is String && html.trim().isNotEmpty) {
+      return html.replaceAll(RegExp(r'<[^>]*>'), ' ').replaceAll('&nbsp;', ' ');
+    }
+    for (final value in node.values) {
+      final text = _richMessageText(value);
+      if (text.isNotEmpty) return text;
+    }
+    return '';
   }
 
   Future<int?> _createBotTopicForSend(String name) async {

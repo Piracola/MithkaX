@@ -941,6 +941,12 @@ class ChatViewModel extends ChangeNotifier {
   /// of opening two (exteraless serialises them the same way).
   Future<int?>? _botTopicCreation;
 
+  /// The topic this view model started for the "All" view's sends. A rich
+  /// document arrives as several segments and two quick taps are two sends;
+  /// all of them belong to the one conversation the first send opened, so the
+  /// burst id outlives the creation request.
+  int? _botTopicBurstId;
+
   /// The topic a send from a bot topic chat's "All" view just started, until
   /// the transcript host consumes it and opens that topic.
   int? _pendingBotTopicOpen;
@@ -1177,14 +1183,19 @@ class ChatViewModel extends ChangeNotifier {
       );
       return false;
     } finally {
-      // Announce the topic this send started only once its outcome is known:
-      // the host switches afterwards, so a failed message is retried inside
-      // its topic instead of starting yet another one.
-      if (startedBotTopicId != null && !_isDisposed) {
-        _pendingBotTopicOpen = startedBotTopicId;
-        notifyListeners();
-      }
+      _announceStartedBotTopic(startedBotTopicId);
     }
+  }
+
+  /// Hands the topic a send just started to the transcript host, once the send
+  /// outcome is known: the host switches afterwards, so a failed message is
+  /// retried inside its topic instead of starting yet another one.
+  void _announceStartedBotTopic(int? topicId) {
+    if (topicId == null || _isDisposed) return;
+    // A multi-segment send announces the same topic once per segment.
+    if (_pendingBotTopicOpen == topicId) return;
+    _pendingBotTopicOpen = topicId;
+    notifyListeners();
   }
 
   /// Panel fire-and-forget sends: stamps the reply anchor, submits the
@@ -1636,9 +1647,18 @@ class ChatViewModel extends ChangeNotifier {
     if (replyTo != null) {
       request['reply_to'] = replyToInput;
     }
-    final pendingMessage = await _client.query(
-      _withPaidMessageOptions(request),
-    );
+    // A rich message is still a new message: a bot topic chat's "All" view has
+    // to start a topic for it exactly like the plain composer path does.
+    final startedBotTopicId = await _scopeSendToNewBotTopic(request);
+    late final Map<String, dynamic> pendingMessage;
+    try {
+      pendingMessage = await _client.query(_withPaidMessageOptions(request));
+    } finally {
+      // Announce before waiting for an upload: the topic exists as soon as
+      // the send is accepted, and the user should be reading it while media
+      // is still going up.
+      _announceStartedBotTopic(startedBotTopicId);
+    }
     _consumeReplyAnchorIfCurrent(replyRevision);
     final pendingMessageId = pendingMessage.int64('id');
     if (pendingMessageId != null &&
@@ -2125,38 +2145,50 @@ class ChatViewModel extends ChangeNotifier {
     );
     final music = message.music;
     final fileId = music?.file?.id;
+    Map<String, dynamic>? topicRef;
+    int? startedTopicId;
     if (music != null && fileId != null && fileId > 0) {
-      try {
-        await _client.query(
-          _withPaidMessageOptions({
-            '@type': 'sendMessage',
-            'chat_id': chatId,
-            'input_message_content': {
-              '@type': 'inputMessageAudio',
-              'audio': {
-                '@type': 'inputAudio',
-                'audio': {'@type': 'inputFileId', 'id': fileId},
-                'duration': music.duration,
-                'title': music.title,
-                'performer': music.performer ?? '',
-              },
-            },
-          }),
-        );
-        return;
-      } catch (_) {}
-    }
-    await _client.query(
-      _withPaidMessageOptions({
-        '@type': 'forwardMessages',
+      final audioRequest = <String, dynamic>{
+        '@type': 'sendMessage',
         'chat_id': chatId,
-        'from_chat_id': sourceChatId,
-        'message_ids': [message.id],
-        'options': {'@type': 'messageSendOptions'},
-        'send_copy': true,
-        'remove_caption': false,
-      }),
-    );
+        'input_message_content': {
+          '@type': 'inputMessageAudio',
+          'audio': {
+            '@type': 'inputAudio',
+            'audio': {'@type': 'inputFileId', 'id': fileId},
+            'duration': music.duration,
+            'title': music.title,
+            'performer': music.performer ?? '',
+          },
+        },
+      };
+      startedTopicId = await _scopeSendToNewBotTopic(audioRequest);
+      topicRef = audioRequest.obj('topic_id');
+      try {
+        await _client.query(_withPaidMessageOptions(audioRequest));
+        _announceStartedBotTopic(startedTopicId);
+        return;
+      } catch (_) {
+        // Fall back to a copy of the original message below; the topic this
+        // attempt started (if any) is reused so the copy lands inside it.
+      }
+    }
+    final forwardRequest = <String, dynamic>{
+      '@type': 'forwardMessages',
+      'chat_id': chatId,
+      'topic_id': ?topicRef,
+      'from_chat_id': sourceChatId,
+      'message_ids': [message.id],
+      'options': {'@type': 'messageSendOptions'},
+      'send_copy': true,
+      'remove_caption': false,
+    };
+    final startedForwardTopicId = await _scopeSendToNewBotTopic(forwardRequest);
+    try {
+      await _client.query(_withPaidMessageOptions(forwardRequest));
+    } finally {
+      _announceStartedBotTopic(startedTopicId ?? startedForwardTopicId);
+    }
   }
 
   /// 清单: send a checklist (to-do list). Creating checklists needs Premium.
@@ -2687,10 +2719,7 @@ class ChatViewModel extends ChangeNotifier {
             : {'@type': 'messageTopicForum', 'forum_topic_id': startedTopicId},
       );
     } finally {
-      if (startedTopicId != null && !_isDisposed) {
-        _pendingBotTopicOpen = startedTopicId;
-        notifyListeners();
-      }
+      _announceStartedBotTopic(startedTopicId);
     }
   }
 

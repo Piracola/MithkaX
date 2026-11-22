@@ -183,6 +183,67 @@ void main() {
     );
   });
 
+  test(
+    'a rich message from All starts a topic from its first text run',
+    () async {
+      final vm = model();
+
+      await vm.sendRichMessageHtml(
+        '<b>Hello rich world</b>',
+        blocks: [
+          {
+            '@type': 'inputPageBlockParagraph',
+            'text': {'@type': 'richTextPlain', 'text': 'Hello rich world'},
+          },
+        ],
+      );
+
+      final create = createRequest();
+      expect(create, isNotNull, reason: 'rich text is still a new message');
+      expect(create!['name'], 'Hello rich world');
+
+      final message = sends().single;
+      expect(
+        (message['input_message_content'] as Map<String, dynamic>)['@type'],
+        'inputMessageRichMessage',
+      );
+      expect(
+        (message['topic_id'] as Map<String, dynamic>)['forum_topic_id'],
+        777,
+      );
+      expect(vm.consumePendingBotTopicOpen(), 777);
+    },
+  );
+
+  test('multi-segment rich sends land in one topic', () async {
+    final vm = model();
+
+    for (final part in ['Part one', 'Part two']) {
+      await vm.sendRichMessageHtml(
+        '<p>$part</p>',
+        blocks: [
+          {
+            '@type': 'inputPageBlockParagraph',
+            'text': {'@type': 'richTextPlain', 'text': part},
+          },
+        ],
+      );
+    }
+
+    expect(
+      requests.where((request) => request['@type'] == 'createForumTopic'),
+      hasLength(1),
+      reason: 'a rich document splits into segments; they share its topic',
+    );
+    expect(sends(), hasLength(2));
+    for (final message in sends()) {
+      expect(
+        (message['topic_id'] as Map<String, dynamic>)['forum_topic_id'],
+        777,
+      );
+    }
+  });
+
   test('concurrent All sends share one topic creation', () async {
     final vm = model();
 
