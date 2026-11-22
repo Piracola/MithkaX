@@ -2468,12 +2468,8 @@
     <string name="mithkaProYearly">Anual</string>
     <string name="mithkaxIconHeading">Iconos de Mithka X</string>
     <string name="mithkaxIconAurora">Aurora</string>
-    <string name="mithkaxIconShadowLight">Luz y sombra (día)</string>
-    <string name="mithkaxIconShadowDark">Luz y sombra (noche)</string>
-    <string name="mithkaxIconJade">Jade</string>
-    <string name="mithkaxIconGoogleLight">Google (día)</string>
-    <string name="mithkaxIconGoogleDark">Google (noche)</string>
-    <string name="mithkaxIconGlitch">Glitch</string>
+    <string name="mithkaxIconVerdant">Verde primavera</string>
+    <string name="mithkaxIconBlaze">Llama</string>
     <string name="mithkaxPushServiceTitle">Servicio push</string>
     <string name="mithkaxPushServiceMode">Método de entrega</string>
     <string name="mithkaxPushServiceInApp">En la app</string>

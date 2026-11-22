@@ -2460,12 +2460,8 @@
     <string name="mithkaProYearly">연간</string>
     <string name="mithkaxIconHeading">Mithka X 아이콘</string>
     <string name="mithkaxIconAurora">오로라</string>
-    <string name="mithkaxIconShadowLight">빛과 그림자 (낮)</string>
-    <string name="mithkaxIconShadowDark">빛과 그림자 (밤)</string>
-    <string name="mithkaxIconJade">청록</string>
-    <string name="mithkaxIconGoogleLight">Google (낮)</string>
-    <string name="mithkaxIconGoogleDark">Google (밤)</string>
-    <string name="mithkaxIconGlitch">글리치</string>
+    <string name="mithkaxIconVerdant">새싹</string>
+    <string name="mithkaxIconBlaze">불꽃</string>
     <string name="mithkaxPushServiceTitle">푸시 서비스</string>
     <string name="mithkaxPushServiceMode">전송 방식</string>
     <string name="mithkaxPushServiceInApp">앱 내</string>

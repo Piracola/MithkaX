@@ -3,7 +3,7 @@
 //
 //  Pins MithkaX's own app icons:
 //
-//  - the two fork marks live in their own picker section ("Mithka X icons"),
+//  - the fork marks live in their own picker section ("Mithka X icons"),
 //    never in the motif grid, and the gradient mark is what a fresh install
 //    ships (Dart selection + the manifest-enabled primordial alias);
 //  - every artwork the picker and the native bridges reference exists on
@@ -77,12 +77,8 @@ void main() {
     test('the fork marks form their own section, outside the motif grid', () {
       expect(AppIconVariant.mithkaXSection, [
         AppIconVariant.mithkaxDefault,
-        AppIconVariant.mithkaxShadowLight,
-        AppIconVariant.mithkaxShadowDark,
-        AppIconVariant.mithkaxJade,
-        AppIconVariant.mithkaxGoogleLight,
-        AppIconVariant.mithkaxGoogleDark,
-        AppIconVariant.mithkaxGlitch,
+        AppIconVariant.mithkaxGreen,
+        AppIconVariant.mithkaxFlame,
       ]);
       for (final variant in AppIconVariant.mithkaXSection) {
         expect(
@@ -264,6 +260,31 @@ void main() {
       }
     });
 
+    test('retired fork keys resolve to a surviving mark, never an unknown', () {
+      const retired = {
+        'mithkax_monochrome': AppIconVariant.mithkaxDefault,
+        'mithkax_shadow_light': AppIconVariant.mithkaxDefault,
+        'mithkax_shadow_dark': AppIconVariant.mithkaxDefault,
+        'mithkax_google_light': AppIconVariant.mithkaxDefault,
+        'mithkax_google_dark': AppIconVariant.mithkaxDefault,
+        'mithkax_glitch': AppIconVariant.mithkaxDefault,
+        // The green predecessor keeps its colour: jade hands over to verdant.
+        'mithkax_jade': AppIconVariant.mithkaxGreen,
+      };
+      for (final entry in retired.entries) {
+        expect(
+          AppIconVariant.recognizedFromKey(entry.key),
+          entry.value,
+          reason: '${entry.key} must keep resolving to a shipped mark',
+        );
+        expect(
+          AppIconVariant.values.any((variant) => variant.key == entry.key),
+          isFalse,
+          reason: '${entry.key} is retired, so it cannot stay in the catalogue',
+        );
+      }
+    });
+
     test(
       'the retired monochrome key resolves to the shipped default',
       () async {
@@ -337,12 +358,8 @@ void main() {
     test('every fork mark is selectable through a disabled alias', () {
       for (final entry in {
         'mithkax_default': 'MainActivityMithkaXDefaultAlt',
-        'mithkax_shadow_light': 'MainActivityMithkaXShadowLight',
-        'mithkax_shadow_dark': 'MainActivityMithkaXShadowDark',
-        'mithkax_jade': 'MainActivityMithkaXJade',
-        'mithkax_google_light': 'MainActivityMithkaXGoogleLight',
-        'mithkax_google_dark': 'MainActivityMithkaXGoogleDark',
-        'mithkax_glitch': 'MainActivityMithkaXGlitch',
+        'mithkax_green': 'MainActivityMithkaXGreen',
+        'mithkax_flame': 'MainActivityMithkaXFlame',
       }.entries) {
         expect(
           kt.contains('"${entry.key}" to "\$packageName.${entry.value}"'),
@@ -441,9 +458,7 @@ void main() {
       final defaultTile = find.byKey(
         const ValueKey('app-icon-mithkax_default'),
       );
-      final shadowTile = find.byKey(
-        const ValueKey('app-icon-mithkax_shadow_light'),
-      );
+      final greenTile = find.byKey(const ValueKey('app-icon-mithkax_green'));
       final standardHeading = find.byKey(
         const ValueKey('app-icon-standard-heading'),
       );
@@ -451,7 +466,7 @@ void main() {
       // The shipped en-US value, not the key and not the Chinese UI label.
       expect(tester.widget<Text>(heading).data, 'Mithka X icons');
       expect(defaultTile, findsOneWidget);
-      expect(shadowTile, findsOneWidget);
+      expect(greenTile, findsOneWidget);
       expect(standardHeading, findsOneWidget);
 
       // A separate section ABOVE the motif grid, default first. Order comes
@@ -467,15 +482,19 @@ void main() {
       );
       expect(
         order.indexOf('app-icon-mithkax_default'),
-        lessThan(order.indexOf('app-icon-mithkax_shadow_light')),
+        lessThan(order.indexOf('app-icon-mithkax_green')),
       );
       expect(
-        order.indexOf('app-icon-mithkax_shadow_light'),
+        order.indexOf('app-icon-mithkax_green'),
+        lessThan(order.indexOf('app-icon-mithkax_flame')),
+      );
+      expect(
+        order.indexOf('app-icon-mithkax_flame'),
         lessThan(order.indexOf('app-icon-standard-heading')),
         reason: 'the Mithka X section sits above the standard icons',
       );
       expect(
-        order.indexOf('app-icon-mithkax_glitch'),
+        order.indexOf('app-icon-mithkax_flame'),
         lessThan(order.indexOf('app-icon-white')),
         reason: 'the fork marks never appear inside the motif grid',
       );
@@ -486,7 +505,7 @@ void main() {
         findsOneWidget,
       );
       expect(
-        find.byKey(const ValueKey('icon-selected-mithkax_shadow_light')),
+        find.byKey(const ValueKey('icon-selected-mithkax_green')),
         findsNothing,
       );
 

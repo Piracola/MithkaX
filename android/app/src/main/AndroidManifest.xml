@@ -961,10 +961,10 @@
             </intent-filter>
         </activity-alias>
         <activity-alias
-            android:name=".MainActivityMithkaXShadowLight"
+            android:name=".MainActivityMithkaXGreen"
             android:enabled="false"
             android:exported="true"
-            android:icon="@mipmap/ic_launcher_mithkax_shadow_light"
+            android:icon="@mipmap/ic_launcher_mithkax_green"
             android:label="Mithka X"
             android:targetActivity=".MainActivity">
             <intent-filter>
@@ -973,58 +973,10 @@
             </intent-filter>
         </activity-alias>
         <activity-alias
-            android:name=".MainActivityMithkaXShadowDark"
+            android:name=".MainActivityMithkaXFlame"
             android:enabled="false"
             android:exported="true"
-            android:icon="@mipmap/ic_launcher_mithkax_shadow_dark"
-            android:label="Mithka X"
-            android:targetActivity=".MainActivity">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN"/>
-                <category android:name="android.intent.category.LAUNCHER"/>
-            </intent-filter>
-        </activity-alias>
-        <activity-alias
-            android:name=".MainActivityMithkaXJade"
-            android:enabled="false"
-            android:exported="true"
-            android:icon="@mipmap/ic_launcher_mithkax_jade"
-            android:label="Mithka X"
-            android:targetActivity=".MainActivity">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN"/>
-                <category android:name="android.intent.category.LAUNCHER"/>
-            </intent-filter>
-        </activity-alias>
-        <activity-alias
-            android:name=".MainActivityMithkaXGoogleLight"
-            android:enabled="false"
-            android:exported="true"
-            android:icon="@mipmap/ic_launcher_mithkax_google_light"
-            android:label="Mithka X"
-            android:targetActivity=".MainActivity">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN"/>
-                <category android:name="android.intent.category.LAUNCHER"/>
-            </intent-filter>
-        </activity-alias>
-        <activity-alias
-            android:name=".MainActivityMithkaXGoogleDark"
-            android:enabled="false"
-            android:exported="true"
-            android:icon="@mipmap/ic_launcher_mithkax_google_dark"
-            android:label="Mithka X"
-            android:targetActivity=".MainActivity">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN"/>
-                <category android:name="android.intent.category.LAUNCHER"/>
-            </intent-filter>
-        </activity-alias>
-        <activity-alias
-            android:name=".MainActivityMithkaXGlitch"
-            android:enabled="false"
-            android:exported="true"
-            android:icon="@mipmap/ic_launcher_mithkax_glitch"
+            android:icon="@mipmap/ic_launcher_mithkax_flame"
             android:label="Mithka X"
             android:targetActivity=".MainActivity">
             <intent-filter>

@@ -251,17 +251,9 @@ flutter:
       platforms: [macos]
     - path: assets/app_icons/mithkax_default.png
       platforms: [macos]
-    - path: assets/app_icons/mithkax_shadow_light.png
+    - path: assets/app_icons/mithkax_green.png
       platforms: [macos]
-    - path: assets/app_icons/mithkax_shadow_dark.png
-      platforms: [macos]
-    - path: assets/app_icons/mithkax_jade.png
-      platforms: [macos]
-    - path: assets/app_icons/mithkax_google_light.png
-      platforms: [macos]
-    - path: assets/app_icons/mithkax_google_dark.png
-      platforms: [macos]
-    - path: assets/app_icons/mithkax_glitch.png
+    - path: assets/app_icons/mithkax_flame.png
       platforms: [macos]
     - assets/app_icons/picker/
     - assets/emoji_preview/

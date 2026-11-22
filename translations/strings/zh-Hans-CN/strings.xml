@@ -2460,12 +2460,8 @@
     <string name="mithkaProYearly">年度</string>
     <string name="mithkaxIconHeading">Mithka X 图标</string>
     <string name="mithkaxIconAurora">极光</string>
-    <string name="mithkaxIconShadowLight">光影（白天）</string>
-    <string name="mithkaxIconShadowDark">光影（夜晚）</string>
-    <string name="mithkaxIconJade">青绿</string>
-    <string name="mithkaxIconGoogleLight">Google（白天）</string>
-    <string name="mithkaxIconGoogleDark">Google（夜晚）</string>
-    <string name="mithkaxIconGlitch">故障</string>
+    <string name="mithkaxIconVerdant">青葱</string>
+    <string name="mithkaxIconBlaze">烈焰</string>
     <string name="mithkaxPushServiceTitle">推送服务</string>
     <string name="mithkaxPushServiceMode">推送方式</string>
     <string name="mithkaxPushServiceInApp">内置通知</string>

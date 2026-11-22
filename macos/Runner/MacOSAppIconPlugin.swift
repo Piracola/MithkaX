@@ -23,12 +23,8 @@ final class MacOSAppIconPlugin: NSObject, FlutterPlugin {
     "letter_m_neutral",
     "letter_m_gradient",
     "mithkax_default",
-    "mithkax_shadow_light",
-    "mithkax_shadow_dark",
-    "mithkax_jade",
-    "mithkax_google_light",
-    "mithkax_google_dark",
-    "mithkax_glitch",
+    "mithkax_green",
+    "mithkax_flame",
   ]
 
   private let registrar: FlutterPluginRegistrar
