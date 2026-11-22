@@ -9407,8 +9407,9 @@ class _ChatViewState extends State<ChatView> {
       topic: item,
       actions: topicRowActions(
         topic: item,
-        canManage: _vm.canManageTopics,
+        canManage: _vm.canPinAndEditTopics,
         canDelete: _vm.canDeleteTopic(topic),
+        canClose: _vm.canManageTopics,
         onMarkRead: () => _markTopicRead(topic),
         onTogglePinned: () => _toggleTopicPinned(topic),
         onToggleMuted: () => _toggleTopicMuted(topic),
@@ -9433,7 +9434,7 @@ class _ChatViewState extends State<ChatView> {
       if (!mounted) return;
     }
     final actions = <AppMenuAction>[
-      if (_vm.canManageTopics)
+      if (_vm.canPinAndEditTopics)
         AppMenuAction(
           key: 'pin',
           label: AppStrings.t(
@@ -9444,7 +9445,7 @@ class _ChatViewState extends State<ChatView> {
           icon: HeroAppIcons.pin,
           onSelected: () => unawaited(_toggleTopicPinned(topic)),
         ),
-      if (_vm.canManageTopics && !topic.isGeneral)
+      if (_vm.canPinAndEditTopics && !topic.isGeneral)
         AppMenuAction(
           key: 'edit',
           label: AppStrings.t(AppStringKeys.groupAdministrationEditTopic),

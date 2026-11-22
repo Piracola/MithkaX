@@ -24,6 +24,8 @@ import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 const _forumChatId = -1009012;
+const _botChatId = 770001;
+const _botUserId = 77;
 
 Map<String, dynamic> _topic(
   int id,
@@ -31,6 +33,8 @@ Map<String, dynamic> _topic(
   int lastMessageId = 0,
   bool isPinned = false,
   bool isGeneral = false,
+  int chatId = _forumChatId,
+  int creatorId = 0,
 }) => {
   '@type': 'forumTopic',
   'info': {
@@ -38,6 +42,8 @@ Map<String, dynamic> _topic(
     'forum_topic_id': id,
     'name': name,
     if (isGeneral) 'is_general': true,
+    if (creatorId != 0)
+      'creator_id': {'@type': 'messageSenderUser', 'user_id': creatorId},
     'icon': {'@type': 'forumTopicIcon', 'color': 0x6FB9F0},
   },
   'unread_count': 0,
@@ -45,7 +51,7 @@ Map<String, dynamic> _topic(
   'last_message': {
     '@type': 'message',
     'id': lastMessageId,
-    'chat_id': _forumChatId,
+    'chat_id': chatId,
     'date': 1700000000 + lastMessageId,
     'is_outgoing': false,
     'sender_id': {'@type': 'messageSenderUser', 'user_id': 5},
@@ -70,6 +76,16 @@ void main() {
           queries.add(request);
           switch (request['@type']) {
             case 'getChat':
+              if (request['chat_id'] == _botChatId) {
+                return {
+                  '@type': 'chat',
+                  'id': _botChatId,
+                  'type': {'@type': 'chatTypePrivate', 'user_id': _botUserId},
+                  'title': 'Topics Bot',
+                  'unread_count': 0,
+                  'permissions': {'can_send_basic_messages': true},
+                };
+              }
               return {
                 '@type': 'chat',
                 'id': _forumChatId,
@@ -78,6 +94,21 @@ void main() {
                 'unread_count': 0,
                 'permissions': {'can_send_basic_messages': true},
               };
+            case 'getUser':
+              if (request['user_id'] == _botUserId) {
+                return {
+                  '@type': 'user',
+                  'id': _botUserId,
+                  'first_name': 'Topics Bot',
+                  'type': {
+                    '@type': 'userTypeBot',
+                    'has_topics': true,
+                    // Lets users pin/edit/delete the bot's topics.
+                    'allows_users_to_create_topics': true,
+                  },
+                };
+              }
+              return {'@type': 'user', 'id': 5, 'first_name': 'Alice'};
             case 'getSupergroup':
               // Creator: pin and edit ride can_manage_topics, delete rides
               // can_delete_messages — the row menu's own gates.
@@ -90,6 +121,21 @@ void main() {
             case 'getSupergroupFullInfo':
               return {'@type': 'supergroupFullInfo', 'member_count': 8};
             case 'getForumTopics':
+              if (request['chat_id'] == _botChatId) {
+                return {
+                  '@type': 'forumTopics',
+                  'topics': [
+                    _topic(
+                      900,
+                      'Releases',
+                      chatId: _botChatId,
+                      lastMessageId: 9000,
+                      creatorId: 1,
+                    ),
+                  ],
+                  'total_count': 1,
+                };
+              }
               return {
                 '@type': 'forumTopics',
                 'topics': [
@@ -122,7 +168,12 @@ void main() {
 
   setUp(queries.clear);
 
-  Future<void> openForum(WidgetTester tester) async {
+  Future<void> openChat(
+    WidgetTester tester, {
+    required int chatId,
+    required String title,
+    bool isForum = false,
+  }) async {
     tester.view.physicalSize = const Size(390, 844);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
@@ -166,10 +217,12 @@ void main() {
       '@type': 'updateNewChat',
       'chat': {
         '@type': 'chat',
-        'id': _forumChatId,
-        'type': {'@type': 'chatTypeSupergroup', 'supergroup_id': 9012},
-        'title': 'Forum Group',
-        'is_forum': true,
+        'id': chatId,
+        'type': isForum
+            ? {'@type': 'chatTypeSupergroup', 'supergroup_id': 9012}
+            : {'@type': 'chatTypePrivate', 'user_id': _botUserId},
+        'title': title,
+        if (isForum) 'is_forum': true,
         'positions': [
           {
             '@type': 'chatPosition',
@@ -183,7 +236,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 80));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('Forum Group'));
+    await tester.tap(find.text(title));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 400));
     expect(find.byType(ChatView), findsOneWidget);
@@ -192,7 +245,12 @@ void main() {
   testWidgets('long press opens an anchored pin/edit/delete menu', (
     tester,
   ) async {
-    await openForum(tester);
+    await openChat(
+      tester,
+      chatId: _forumChatId,
+      title: 'Forum Group',
+      isForum: true,
+    );
 
     await tester.longPress(find.byKey(const ValueKey('topic-tab-50')));
     await tester.pumpAndSettle();
@@ -231,7 +289,12 @@ void main() {
   });
 
   testWidgets('the General topic only offers pin', (tester) async {
-    await openForum(tester);
+    await openChat(
+      tester,
+      chatId: _forumChatId,
+      title: 'Forum Group',
+      isForum: true,
+    );
 
     await tester.longPress(find.byKey(const ValueKey('topic-tab-1')));
     await tester.pumpAndSettle();
@@ -247,6 +310,42 @@ void main() {
     await tester.tapAt(const Offset(10, 800));
     await tester.pumpAndSettle();
     expect(find.byKey(const ValueKey('app-anchored-menu')), findsNothing);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(const Duration(seconds: 6));
+  });
+
+  // A chat with a topics bot has no supergroup status, so can_manage_topics
+  // never applies there; the bot's own `allows_users_to_create_topics` flag is
+  // what makes pin/edit/delete operable. The tab menu used to gate on the
+  // supergroup right alone and stayed silent in these chats.
+  testWidgets('a bot topic chat can pin, edit and delete its topics', (
+    tester,
+  ) async {
+    await openChat(tester, chatId: _botChatId, title: 'Topics Bot');
+
+    await tester.longPress(find.byKey(const ValueKey('topic-tab-900')));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const ValueKey('app-anchored-menu')), findsOneWidget);
+    expect(find.byKey(const ValueKey('app-anchored-menu-pin')), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('app-anchored-menu-edit')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('app-anchored-menu-delete')),
+      findsOneWidget,
+    );
+
+    await tester.tap(find.byKey(const ValueKey('app-anchored-menu-pin')));
+    await tester.pumpAndSettle();
+    final pin = queries.lastWhere(
+      (request) => request['@type'] == 'toggleForumTopicIsPinned',
+    );
+    expect(pin['chat_id'], _botChatId);
+    expect(pin['forum_topic_id'], 900);
+    expect(pin['is_pinned'], true);
 
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump(const Duration(seconds: 6));

@@ -362,11 +362,14 @@ Map<String, dynamic> toggleForumTopicClosedRequest({
 /// The gated action list for one topic row, exactly the way Telegram iOS
 /// offers them: mark-read while unread remains, mute for everyone, pin/edit/
 /// close behind can_manage_topics, delete behind the creator /
-/// can_delete_messages rule (the caller decides that one).
+/// can_delete_messages rule (the caller decides that one). [canClose] lets a
+/// bot topic chat keep pin/edit while dropping close, whose TDLib call is
+/// supergroup-only.
 List<TopicRowAction> topicRowActions({
   required TopicNavigationItem topic,
   required bool canManage,
   required bool canDelete,
+  bool canClose = true,
   required Future<void> Function() onMarkRead,
   required Future<void> Function() onTogglePinned,
   required Future<void> Function() onToggleMuted,
@@ -406,7 +409,7 @@ List<TopicRowAction> topicRowActions({
         icon: HeroAppIcons.pen,
         onSelected: onEdit,
       ),
-    if (canManage && !topic.isGeneral)
+    if (canManage && canClose && !topic.isGeneral)
       TopicRowAction(
         key: 'close',
         label: topic.isClosed

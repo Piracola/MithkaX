@@ -1199,11 +1199,17 @@ extension ChatViewModelHeaderTopics on ChatViewModel {
     if (user.int64('id') != peerUserId) return;
     final nextIsBot = TDParse.isBotUser(user);
     final nextSupportsTopics = TDParse.botUserHasTopics(user);
-    if (peerIsBot == nextIsBot && supportsBotTopics == nextSupportsTopics) {
+    final nextBotTopicsManageable =
+        nextSupportsTopics &&
+        (user.obj('type')?.boolean('allows_users_to_create_topics') ?? false);
+    if (peerIsBot == nextIsBot &&
+        supportsBotTopics == nextSupportsTopics &&
+        botTopicsManageable == nextBotTopicsManageable) {
       return;
     }
     peerIsBot = nextIsBot;
     supportsBotTopics = nextSupportsTopics;
+    botTopicsManageable = nextBotTopicsManageable;
     if (!supportsTopics) {
       forumTopicsLoading = false;
       forumTopics = const [];

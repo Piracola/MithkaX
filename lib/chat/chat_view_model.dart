@@ -581,9 +581,13 @@ class ChatViewModel extends ChangeNotifier {
 
   /// Probes whether the creator carve-out applies to [topicId]: at most 11
   /// messages and none from another user. The 12th message proves the limit
-  /// is exceeded without paging further.
+  /// is exceeded without paging further. A chat with a topics bot has no
+  /// General topic and no administrator rights, but deletion still runs
+  /// through TDLib's creator carve-out, so the probe applies there too.
   Future<bool> ensureTopicCreatorDeletable(int topicId) async {
-    if (!isForum || topicId == generalForumTopicId) return false;
+    if ((!isForum && !supportsBotTopics) || topicId == generalForumTopicId) {
+      return false;
+    }
     if (_creatorDeletableTopicIds.containsKey(topicId)) {
       return _creatorDeletableTopicIds[topicId]!;
     }
@@ -653,6 +657,16 @@ class ChatViewModel extends ChangeNotifier {
   bool hasForumTabs = false;
 
   bool supportsBotTopics = false;
+
+  /// True when the peer bot lets users manage its topics
+  /// (`userTypeBot.allows_users_to_create_topics`). Pin, edit and delete in a
+  /// chat with a bot need no administrator rights there, so the topic menus
+  /// must not gate those rows on [canManageTopics] alone.
+  bool botTopicsManageable = false;
+
+  /// Pin/edit rights for the topic surfaces: forum administrators
+  /// ([canManageTopics]) or a bot topic chat whose bot allows management.
+  bool get canPinAndEditTopics => canManageTopics || botTopicsManageable;
 
   bool get supportsTopics => isForum || supportsBotTopics;
 
