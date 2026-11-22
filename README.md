@@ -2,7 +2,7 @@
 
 ![Mithka X](docs/images/mithka-github-banner.png)
 
-English | [简体中文](README.zh-CN.md)
+English | [简体中文](README.zh-CN.md) | [日本語](README.ja.md)
 
 Mithka X is an unofficial fork of [Mithka](https://github.com/iebb/mithka),
 the cross-platform Telegram client built with Flutter and
