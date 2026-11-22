@@ -133,19 +133,6 @@ void main() {
     });
   });
 
-  group('StickerPacingMeter', () {
-    test('a moving clock counts forward progress', () {
-      final meter = StickerPacingMeter(startPosition: Duration.zero)..start();
-      for (var tick = 1; tick <= 15; tick++) {
-        meter.tick(
-          Duration(milliseconds: (tick % 8) * 100),
-          const Duration(milliseconds: 800),
-        );
-      }
-      expect(meter.mediaElapsed, const Duration(milliseconds: 1500));
-    });
-  });
-
   group('loopingSurfaceIsOnScreen', () {
     const screen = Size(400, 800);
 
