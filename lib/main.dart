@@ -120,6 +120,13 @@ Future<void> _preloadLocaleCatalogue([SharedPreferences? prefs]) {
 }
 
 Future<void> main(List<String> arguments) async {
+  // A duplicate window must not start the app: the live engine in this process
+  // owns TDLib's process-wide receive lock, and a second receiver aborts the
+  // whole process (Client.cpp:285). Returning here means no TDLib clients, no
+  // pump — the host is already closing the window.
+  if (ui.PlatformDispatcher.instance.defaultRouteName == siblingEngineRoute) {
+    return;
+  }
   StartupTrace.log('dart', 'main() start');
   if (supportsDesktopVideoWindows) {
     final videoArguments = await FVideoDesktopWindows.initialize(arguments);

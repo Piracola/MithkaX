@@ -158,7 +158,7 @@ void main() {
       expect(notifier, contains('AppEntry.intent(app)'));
     });
 
-    test('a duplicate instance forwards and closes', () {
+    test('a duplicate is decided before the engine exists', () {
       final activity = File(
         'android/app/src/main/kotlin/x/empty/mithka/MainActivity.kt',
       ).readAsStringSync();
@@ -168,17 +168,71 @@ void main() {
       );
       expect(create, contains('savedInstanceState == null'));
       expect(
+        create.indexOf('val duplicate ='),
+        lessThan(create.indexOf('super.onCreate(savedInstanceState)')),
+        reason:
+            'configureFlutterEngine runs inside super.onCreate and must already '
+            'know this window is a duplicate',
+      );
+      expect(
         create,
         contains('sibling.receiveForwardedIntent(intent)'),
         reason: 'the deep link or share must not be lost with the duplicate',
       );
-      expect(create, contains('closedAsDuplicate = true'));
+      expect(
+        create,
+        contains('if (!sibling.isFinishing) {'),
+        reason:
+            'a finishing sibling must not receive the intent: its tree is '
+            'torn down',
+      );
+      // A finishing sibling still owns an engine: Back + an immediate icon tap
+      // produces exactly that, and it must not start a second engine.
+      final check = create.substring(
+        create.indexOf('val duplicate ='),
+        create.indexOf('closedAsDuplicate = duplicate'),
+      );
+      expect(check.contains('isFinishing'), isFalse);
       expect(
         activity,
-        contains('leavingForGood && !closedAsDuplicate'),
+        contains('flutterEngine.navigationChannel.setInitialRoute('),
         reason:
-            'a duplicate closing must not kill the process out from under the '
-            'engine the user is actually using',
+            'Dart must be kept out of a duplicate window entirely: its TDLib '
+            'clients would fight the live engine for the binlog and its receive '
+            'thread would abort the process',
+      );
+    });
+
+    test('only the last engine may kill the process', () {
+      final activity = File(
+        'android/app/src/main/kotlin/x/empty/mithka/MainActivity.kt',
+      ).readAsStringSync();
+      expect(
+        activity,
+        contains('if (leavingForGood && liveInstances <= 0'),
+        reason:
+            'a secondary window closing must never take the process (and the '
+            'engine the user is looking at) down with it',
+      );
+      expect(activity, contains('if (!closedAsDuplicate) liveInstances -= 1'));
+    });
+
+    test('the duplicate route is the same string on both sides', () {
+      expect(siblingEngineRoute, '/mithka-sibling-engine');
+      final activity = File(
+        'android/app/src/main/kotlin/x/empty/mithka/MainActivity.kt',
+      ).readAsStringSync();
+      expect(
+        activity,
+        contains('const val SIBLING_ENGINE_ROUTE = "$siblingEngineRoute"'),
+      );
+      final main = File('lib/main.dart').readAsStringSync();
+      expect(
+        main
+            .substring(main.indexOf('Future<void> main('))
+            .contains('defaultRouteName == siblingEngineRoute'),
+        isTrue,
+        reason: 'main() must bail out before anything creates TDLib state',
       );
     });
 

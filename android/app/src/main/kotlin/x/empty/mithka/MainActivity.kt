@@ -72,26 +72,28 @@ class MainActivity : FlutterFragmentActivity() {
     private val languageIdentifier by languageIdentifierDelegate
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        // Let Flutter paint under the status bar and gesture/nav bar.
-        WindowCompat.setDecorFitsSystemWindows(window, false)
-        super.onCreate(savedInstanceState)
-        // A second Activity in a live process means a second FlutterEngine, and
-        // TDLib's receive lock is a process-wide native static that a destroyed
-        // VM never releases — the second engine aborts the process on its first
-        // td_receive (Client.cpp:285). Any launch path can do this (a deep link
-        // or share targeting MainActivity while an icon alias is running, a
-        // notification built from the base class, the recents entry of a task
-        // created under a previous alias), so the duplicate is closed here:
-        // hand its intent to the instance the user already has and finish.
+        // Decide BEFORE the engine exists. A second Activity in a live process
+        // is a second FlutterEngine, and TDLib's receive lock is a process-wide
+        // native static that a destroyed VM never releases — the newcomer aborts
+        // the whole process on its first td_receive (Client.cpp:285).
         //
-        // A configuration change never qualifies: it restores state, so
-        // savedInstanceState is non-null.
+        // `savedInstanceState == null` excludes a configuration change. A
+        // FINISHING sibling still counts: pressing Back and immediately tapping
+        // the icon again produces exactly that, and its engine lives until its
+        // onDestroy runs.
         val sibling = liveInstance?.get()
         val duplicate = savedInstanceState == null &&
             sibling != null &&
             sibling !== this &&
-            !sibling.isFinishing &&
             !sibling.isDestroyed
+        closedAsDuplicate = duplicate
+        if (!duplicate) {
+            liveInstance = java.lang.ref.WeakReference(this)
+            liveInstances += 1
+        }
+        // Let Flutter paint under the status bar and gesture/nav bar.
+        WindowCompat.setDecorFitsSystemWindows(window, false)
+        super.onCreate(savedInstanceState)
         if (duplicate && sibling != null) {
             StartupDiagnostics.log(
                 this,
@@ -99,14 +101,16 @@ class MainActivity : FlutterFragmentActivity() {
                 "duplicate instance for ${componentName?.flattenToShortString()}: " +
                     "forwarding to the live one",
             )
-            sibling.receiveForwardedIntent(intent)
-            sibling.bringTaskToFront()
-            closedAsDuplicate = true
+            if (!sibling.isFinishing) {
+                // Handing an intent to a window that is already closing would
+                // run share/deep-link code against a torn-down tree.
+                sibling.receiveForwardedIntent(intent)
+                sibling.bringTaskToFront()
+            }
             finish()
             overridePendingTransition(0, 0)
             return
         }
-        liveInstance = java.lang.ref.WeakReference(this)
         StartupDiagnostics.log(
             this,
             "activity",
@@ -318,6 +322,12 @@ class MainActivity : FlutterFragmentActivity() {
     }
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
+        if (closedAsDuplicate) {
+            // Never start the app in a duplicate: its TDLib clients would open
+            // the same binlog the live engine holds, and its receive thread
+            // aborts the process. Route it to a no-op entrypoint instead.
+            flutterEngine.navigationChannel.setInitialRoute(SIBLING_ENGINE_ROUTE)
+        }
         // This process can host more than one FlutterEngine: Android keeps a
         // finished activity's process around, so re-entering the app (or
         // launching it again right after SystemNavigator.pop()) attaches a NEW
@@ -1030,6 +1040,13 @@ class MainActivity : FlutterFragmentActivity() {
         /// The instance that currently owns this process' engine.
         private var liveInstance: java.lang.ref.WeakReference<MainActivity>? = null
 
+        /// Activities of this process that currently own an engine.
+        private var liveInstances = 0
+
+        /// Dart returns from `main()` when the initial route is this: the window
+        /// is a duplicate and must not create TDLib state.
+        const val SIBLING_ENGINE_ROUTE = "/mithka-sibling-engine"
+
         /// Highest ordinal whose Activity has been destroyed. A new engine may
         /// be created while the previous one is still tearing down (a config
         /// change re-creates the Activity before the old onDestroy returns), so
@@ -1650,6 +1667,7 @@ class MainActivity : FlutterFragmentActivity() {
     override fun onDestroy() {
         flutterEngineDestroyedOrdinal = flutterEngineOrdinal
         if (liveInstance?.get() === this) liveInstance = null
+        if (!closedAsDuplicate) liveInstances -= 1
         val leavingForGood = isFinishing && !isChangingConfigurations
         StartupDiagnostics.log(
             this,
@@ -1673,7 +1691,9 @@ class MainActivity : FlutterFragmentActivity() {
         // Killing the process on a real exit makes every entry a cold start: one
         // engine, one receiver, no stale TDLib clients, no binlog lock. Only
         // audio playback gets to keep the process (killing it would cut music).
-        if (leavingForGood && !closedAsDuplicate && !MediaPlaybackService.isRunning) {
+        // Only the LAST engine may take the process down: a secondary one that
+        // closes while another instance is still alive must leave it running.
+        if (leavingForGood && liveInstances <= 0 && !MediaPlaybackService.isRunning) {
             StartupDiagnostics.log(
                 this,
                 "activity",

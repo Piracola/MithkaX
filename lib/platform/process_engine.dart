@@ -19,6 +19,12 @@ import 'package:flutter/services.dart';
 
 const MethodChannel _appInfoChannel = MethodChannel('mithka/app_info');
 
+/// Initial route the Android host gives a DUPLICATE window: another Activity in
+/// this process already owns a FlutterEngine, and TDLib's receive lock is a
+/// process-wide native static, so starting the app here would abort the process
+/// (Client.cpp:285). `main()` returns without running anything.
+const String siblingEngineRoute = '/mithka-sibling-engine';
+
 /// Host-reported engine bookkeeping for this process.
 @immutable
 class ProcessEngineState {
