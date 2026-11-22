@@ -2,9 +2,10 @@
 //  unread_activity_menu_test.dart
 //
 //  The floating @ / reaction pills inside a chat keep their tap-to-jump
-//  behavior, and a long press opens the same narrow anchored menu as a folder
-//  tab with one "Mark all as read" command — exteraless's
-//  ReadAllMentionsMenu over the chat's side control, not a bottom sheet.
+//  behavior. Long press on @ opens the narrow anchored "Mark all as read"
+//  menu (exteraless's ReadAllMentionsMenu over the chat's side control, not a
+//  bottom sheet); long press on the reaction pill clears reactions directly,
+//  exactly like exteraless's side control.
 //
 
 import 'dart:async';
@@ -148,7 +149,7 @@ void main() {
     expect(find.byType(ChatView), findsOneWidget);
   }
 
-  testWidgets('long press opens mark-all-read for mentions and reactions', (
+  testWidgets('mention long press opens a menu, reaction long press clears', (
     tester,
   ) async {
     await openChat(tester);
@@ -182,16 +183,10 @@ void main() {
     expect(mentionPill, findsNothing);
     expect(reactionPill, findsOneWidget);
 
+    // No menu for reactions: the long press is the command.
     await tester.longPress(reactionPill);
     await tester.pumpAndSettle();
-    expect(
-      find.byKey(const ValueKey('app-anchored-menu-read-all-reactions')),
-      findsOneWidget,
-    );
-    await tester.tap(
-      find.byKey(const ValueKey('app-anchored-menu-read-all-reactions')),
-    );
-    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('app-anchored-menu')), findsNothing);
     final reactionRead = queries.lastWhere(
       (request) => request['@type'] == 'readAllChatReactions',
     );

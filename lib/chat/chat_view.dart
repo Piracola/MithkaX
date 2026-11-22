@@ -8326,8 +8326,7 @@ class _ChatViewState extends State<ChatView> {
             label: AppStrings.t(AppStringKeys.notificationMentions),
             opening: _openingUnreadMention,
             onTap: _openUnreadMention,
-            onLongPress: (anchor) =>
-                _showUnreadActivityMenu(anchor: anchor, mentions: true),
+            onLongPress: _showReadAllMentionsMenu,
           ),
         if (_vm.unreadMentionCount > 0 && _vm.unreadReactionCount > 0)
           const SizedBox(height: AppSpacing.md),
@@ -8339,8 +8338,12 @@ class _ChatViewState extends State<ChatView> {
             label: AppStrings.t(AppStringKeys.notificationReactions),
             opening: _openingUnreadReaction,
             onTap: _openUnreadReaction,
-            onLongPress: (anchor) =>
-                _showUnreadActivityMenu(anchor: anchor, mentions: false),
+            // exteraless clears reactions on the long press itself, without
+            // the read-all menu it shows for mentions.
+            onLongPress: (_) {
+              unawaited(HapticFeedback.mediumImpact());
+              unawaited(_markAllReactionsRead());
+            },
           ),
       ],
     );
@@ -8440,23 +8443,19 @@ class _ChatViewState extends State<ChatView> {
     if (mounted) setState(() => _openingUnreadReaction = false);
   }
 
-  /// The read-all menu behind a long press on an unread activity pill: one
-  /// anchored row that clears every mention / reaction at once, mirroring
-  /// exteraless's ReadAllMentionsMenu over the chat's side control.
-  Future<void> _showUnreadActivityMenu({
-    required Rect anchor,
-    required bool mentions,
-  }) => showAppAnchoredMenu(
+  /// The read-all menu behind a long press on the mention pill: one anchored
+  /// row that clears every mention, mirroring exteraless's ReadAllMentionsMenu
+  /// over the chat's side control. Reactions need no menu — that long press
+  /// clears them directly.
+  Future<void> _showReadAllMentionsMenu(Rect anchor) => showAppAnchoredMenu(
     context: context,
     anchor: anchor,
     actions: [
       AppMenuAction(
-        key: mentions ? 'read-all-mentions' : 'read-all-reactions',
+        key: 'read-all-mentions',
         label: AppStrings.t(AppStringKeys.chatListMarkAllRead),
         icon: HeroAppIcons.check,
-        onSelected: () => unawaited(
-          mentions ? _markAllMentionsRead() : _markAllReactionsRead(),
-        ),
+        onSelected: () => unawaited(_markAllMentionsRead()),
       ),
     ],
   );
