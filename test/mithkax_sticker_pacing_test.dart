@@ -40,12 +40,26 @@ Uint8List _webm({int? defaultDuration}) {
   ]);
   final track = _element(0xAE, [
     ..._element(0x86, 'V_VP9'.codeUnits),
-    if (defaultDuration != null) ..._element(0x23E383, _uint64(defaultDuration)),
+    if (defaultDuration != null)
+      ..._element(0x23E383, _uint64(defaultDuration)),
   ]);
-  final segment = _element(0x18538067, [...info, ..._element(0x1654AE6B, track)]);
+  final segment = _element(0x18538067, [
+    ...info,
+    ..._element(0x1654AE6B, track),
+  ]);
   return Uint8List.fromList([
     ..._element(0x1a45dfa3, [
-      0x42, 0x86, 0x81, 0x01, 0x42, 0x82, 0x84, 0x77, 0x65, 0x62, 0x6d,
+      0x42,
+      0x86,
+      0x81,
+      0x01,
+      0x42,
+      0x82,
+      0x84,
+      0x77,
+      0x65,
+      0x62,
+      0x6d,
     ]),
     ...segment,
   ]);
@@ -123,7 +137,10 @@ void main() {
     test('a moving clock counts forward progress', () {
       final meter = StickerPacingMeter(startPosition: Duration.zero)..start();
       for (var tick = 1; tick <= 15; tick++) {
-        meter.tick(Duration(milliseconds: (tick % 8) * 100), const Duration(milliseconds: 800));
+        meter.tick(
+          Duration(milliseconds: (tick % 8) * 100),
+          const Duration(milliseconds: 800),
+        );
       }
       expect(meter.mediaElapsed, const Duration(milliseconds: 1500));
     });
@@ -204,7 +221,10 @@ void main() {
     });
 
     test('an unlaid-out surface is not treated as visible', () {
-      expect(loopingSurfaceIsOnScreen(rect: Rect.zero, screen: screen), isFalse);
+      expect(
+        loopingSurfaceIsOnScreen(rect: Rect.zero, screen: screen),
+        isFalse,
+      );
     });
   });
 
