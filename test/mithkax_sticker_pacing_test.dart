@@ -1,111 +1,106 @@
 //
-//  Mithka X video-sticker pacing: a looping sticker must take its authored
-//  time. MDK's video-only clock runs with the presented frames on Android, so
-//  the media clock outpaces wall time by (display refresh / stream fps); the
-//  meter measures that drift and the correction cancels it.
+//  Mithka X video-sticker pacing: MDK does not give a video-only stream its
+//  authored timing — it loops at the last frame's timestamp, dropping that
+//  frame's hold, and can run at the display's frame cadence. Measured on a
+//  0.4 s, 12.5 fps sticker one loop came round in 0.34 s (18% fast) while a 3 s
+//  sticker lost only one frame per loop, which is why only short, low-frame-rate
+//  stickers were reported. Sampling the media clock cannot see it (a 0.4 s clip
+//  wraps between two of video_player's 100 ms updates), so whole passes are
+//  timed and the playback rate is nudged until one loop takes its duration.
 //
-//  Animation is gated by what is on screen, not by a fixed few: every sticker
-//  a viewport can show gets a player, and cached children scrolled out of the
-//  viewport give theirs back.
+//  The same file covers the viewport gate: a sticker only holds a native player
+//  while it is on screen.
 //
 
 import 'dart:ui' show Rect, Size;
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mithka/media/looping_media_playback.dart';
+import 'package:mithka/media/video_sticker_pacing.dart';
 
 void main() {
-  group('stickerPacingCorrection', () {
-    test('a 2.5x clock is held back to the authored duration', () {
-      expect(
-        stickerPacingCorrection(
-          mediaElapsed: const Duration(milliseconds: 3000),
-          wallElapsed: const Duration(milliseconds: 1200),
-        ),
-        closeTo(0.4, 0.001),
-      );
-    });
-
-    test('a 60 fps sticker that already runs at real time is left alone', () {
-      expect(
-        stickerPacingCorrection(
-          mediaElapsed: const Duration(milliseconds: 1500),
-          wallElapsed: const Duration(milliseconds: 1500),
-        ),
-        isNull,
-      );
-    });
-
-    test('measurement noise below the threshold is not a correction', () {
-      expect(
-        stickerPacingCorrection(
-          mediaElapsed: const Duration(milliseconds: 1610),
-          wallElapsed: const Duration(milliseconds: 1500),
-        ),
-        isNull,
-      );
-    });
-
-    test('nonsense samples are ignored', () {
-      expect(
-        stickerPacingCorrection(
-          mediaElapsed: Duration.zero,
-          wallElapsed: const Duration(milliseconds: 1500),
-        ),
-        isNull,
-      );
-      expect(
-        stickerPacingCorrection(
-          mediaElapsed: const Duration(milliseconds: 1500),
-          wallElapsed: Duration.zero,
-        ),
-        isNull,
-      );
-      // A clock that appears 1000x fast is a seek, not a playback rate.
-      expect(
-        stickerPacingCorrection(
-          mediaElapsed: const Duration(seconds: 30),
-          wallElapsed: const Duration(milliseconds: 20),
-        ),
-        isNull,
-      );
-    });
-  });
-
-  group('StickerPacingMeter', () {
-    test('credits a backwards position as the end of a loop', () {
-      final meter = StickerPacingMeter(startPosition: Duration.zero)..start();
-      const clip = Duration(seconds: 1);
-      meter
-        ..tick(const Duration(milliseconds: 500), clip)
-        ..tick(const Duration(milliseconds: 900), clip)
-        ..tick(const Duration(milliseconds: 100), clip);
-      expect(meter.mediaElapsed, const Duration(milliseconds: 1100));
-    });
-
-    test('measures several loops inside one window', () {
-      final meter = StickerPacingMeter(startPosition: Duration.zero)..start();
-      const clip = Duration(milliseconds: 800);
-      // Three loops of an 800 ms clip polled every 100 ms, as video_player
-      // reports them: the position wraps to zero at the end of each loop.
-      for (var tick = 1; tick <= 24; tick++) {
-        meter.tick(Duration(milliseconds: (tick % 8) * 100), clip);
+  group('StickerPacingController', () {
+    test('a 0.34 s pass on a 0.4 s sticker is slowed to real time', () {
+      final pacing = StickerPacingController();
+      // One window of media time: four passes of a 0.4 s clip.
+      double? rate;
+      for (var i = 0; i < 4; i++) {
+        rate = pacing.pass(
+          wall: const Duration(milliseconds: 340),
+          media: const Duration(milliseconds: 400),
+        );
       }
-      expect(meter.mediaElapsed, const Duration(milliseconds: 2400));
+      expect(rate, closeTo(0.85, 0.01));
     });
-  });
 
-  test('the sticker budget covers a full viewport of stickers', () {
-    // A sticker picker page shows a dozen or more cells at once; anything
-    // smaller is what left only the first cell of the grid animating.
-    expect(stickerPlayerPool.maximumPlayers, greaterThanOrEqualTo(20));
-    final leases = [
-      for (var i = 0; i < 12; i++) stickerPlayerPool.tryAcquire(),
-    ];
-    expect(leases, everyElement(isNotNull));
-    for (final lease in leases) {
-      lease!.release();
-    }
+    test('playback that already takes its authored time is left alone', () {
+      final pacing = StickerPacingController();
+      for (var i = 0; i < 4; i++) {
+        expect(
+          pacing.pass(
+            wall: const Duration(milliseconds: 400),
+            media: const Duration(milliseconds: 400),
+          ),
+          isNull,
+        );
+      }
+      expect(pacing.rate, 1);
+    });
+
+    test('a 4x fast clip is halved per window, never quartered', () {
+      final pacing = StickerPacingController();
+      // A window of four 0.4 s passes that each came round in 0.1 s.
+      double? rate;
+      for (var i = 0; i < 4; i++) {
+        rate = pacing.pass(
+          wall: const Duration(milliseconds: 100),
+          media: const Duration(milliseconds: 400),
+        );
+      }
+      // One step is clamped to 2x, so a wildly fast clip takes two windows.
+      expect(rate, closeTo(0.5, 0.001));
+    });
+
+    test('a stale completion right after a seek is not a pass', () {
+      final pacing = StickerPacingController();
+      for (var i = 0; i < 8; i++) {
+        expect(
+          pacing.pass(
+            wall: const Duration(milliseconds: 8),
+            media: const Duration(milliseconds: 400),
+          ),
+          isNull,
+        );
+      }
+      expect(pacing.rate, 1);
+    });
+
+    test('a pass far slower than real time never speeds playback past 1x', () {
+      final pacing = StickerPacingController();
+      double? rate;
+      for (var i = 0; i < 4; i++) {
+        rate = pacing.pass(
+          wall: const Duration(seconds: 30),
+          media: const Duration(milliseconds: 400),
+        );
+      }
+      // 1x is the authored pace; a slow backend is not asked to run faster.
+      expect(rate, isNull);
+      expect(pacing.rate, 1);
+    });
+
+    test('reset returns to real time', () {
+      final pacing = StickerPacingController();
+      for (var i = 0; i < 4; i++) {
+        pacing.pass(
+          wall: const Duration(milliseconds: 100),
+          media: const Duration(milliseconds: 400),
+        );
+      }
+      expect(pacing.rate, lessThan(1));
+      pacing.reset();
+      expect(pacing.rate, 1);
+    });
   });
 
   group('loopingSurfaceIsOnScreen', () {
@@ -189,5 +184,18 @@ void main() {
         isFalse,
       );
     });
+  });
+
+  test('the sticker budget covers a full viewport of stickers', () {
+    // A sticker picker page shows a dozen or more cells at once; anything
+    // smaller is what left only the first cell of the grid animating.
+    expect(stickerPlayerPool.maximumPlayers, greaterThanOrEqualTo(20));
+    final leases = [
+      for (var i = 0; i < 12; i++) stickerPlayerPool.tryAcquire(),
+    ];
+    expect(leases, everyElement(isNotNull));
+    for (final lease in leases) {
+      lease!.release();
+    }
   });
 }
