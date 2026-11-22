@@ -1327,6 +1327,7 @@ Future<void> _shareDraft(
     MaterialPageRoute(
       builder: (_) => ChatPickerView(
         title: AppStringKeys.topicChatShare,
+        showFolders: true,
         accountSlot: sourceChat?.accountSlot,
       ),
     ),
@@ -1913,6 +1914,7 @@ Future<void> _shareGame(
     MaterialPageRoute(
       builder: (_) => ChatPickerView(
         title: AppStringKeys.topicChatShare,
+        showFolders: true,
         accountSlot: sourceChat?.accountSlot,
       ),
     ),
