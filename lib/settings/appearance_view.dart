@@ -1825,7 +1825,7 @@ class _ChatViewQuickReactionOverlay extends StatelessWidget {
     final media = MediaQuery.of(context);
     final topSafe = media.padding.top + AppSpacing.sm;
     final bottomSafe = media.size.height - media.padding.bottom - AppSpacing.sm;
-    const barHeight = 46.0;
+    final barHeight = QuickReactionBar.heightFor(context);
     final top = anchorRect == null
         ? (media.size.height - barHeight) / 2
         : (anchorRect!.top - barHeight - AppSpacing.sm).clamp(

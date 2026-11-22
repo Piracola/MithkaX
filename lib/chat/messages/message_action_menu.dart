@@ -142,6 +142,30 @@ class MessageActionPalette {
   final Color chip;
 }
 
+/// The line box a reaction glyph occupies at [fontSize] in the style it
+/// inherits, before any layout constraint.
+///
+/// Both strips draw their emoji with the app's text style (only the size
+/// differs), so the glyph's box follows the UI font, not the emoji font: a CJK
+/// text font's line box runs 1.35–1.45em, taller than the ~1.18em the emoji
+/// itself needs. Sizing the slot on a fixed constant (34pt for a 28pt emoji)
+/// therefore clipped the glyph top and bottom — `Text` clips to the paragraph's
+/// own box once the inherited line box outgrows the slot.
+double _reactionGlyphExtent(BuildContext context, double fontSize) {
+  final style = DefaultTextStyle.of(
+    context,
+  ).style.merge(TextStyle(fontSize: fontSize));
+  final painter = TextPainter(
+    text: TextSpan(text: '😀', style: style),
+    textDirection: Directionality.of(context),
+    textScaler: TextScaler.noScaling,
+    maxLines: 1,
+  )..layout();
+  final extent = painter.height;
+  painter.dispose();
+  return extent;
+}
+
 class QuickReactionBar extends StatelessWidget {
   const QuickReactionBar({
     super.key,
@@ -151,6 +175,28 @@ class QuickReactionBar extends StatelessWidget {
   });
 
   static const maxFittedButtonCount = 10;
+  static const emojiSize = 28.0;
+  static const _horizontalPadding = 8.0;
+  static const _verticalPadding = 6.0;
+
+  /// The slot never shrinks below the size the pill was designed around; it
+  /// GROWS when the inherited line box is taller than that constant, so the
+  /// glyph is never clipped by a font the strip does not control.
+  static const _minSlotExtent = 34.0;
+
+  /// Headroom around the measured line box for raster overshoot.
+  static const _glyphSlop = 2.0;
+
+  /// One emoji slot's height for [context]'s text metrics.
+  static double _slotExtent(BuildContext context) => math.max(
+    _minSlotExtent,
+    _reactionGlyphExtent(context, emojiSize) + _glyphSlop,
+  );
+
+  /// The pill's height at [context]'s text metrics — the host places the
+  /// action menu against exactly this, so it must not be a constant either.
+  static double heightFor(BuildContext context) =>
+      _slotExtent(context) + _verticalPadding * 2;
 
   final List<QuickReactionChoice> reactions;
   final ValueChanged<QuickReactionChoice> onReaction;
@@ -160,12 +206,16 @@ class QuickReactionBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final palette = MessageActionPalette.of(context);
     final buttonCount = reactions.length + 1;
+    final slotExtent = _slotExtent(context);
     return Container(
       key: const ValueKey('quick-reaction-bar'),
       width: MessageActionMenu.widthForAvailable(
         MediaQuery.sizeOf(context).width - 24,
       ),
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+      padding: const EdgeInsets.symmetric(
+        horizontal: _horizontalPadding,
+        vertical: _verticalPadding,
+      ),
       decoration: BoxDecoration(
         color: palette.surface,
         borderRadius: BorderRadius.circular(AppRadius.xxl),
@@ -174,8 +224,9 @@ class QuickReactionBar extends StatelessWidget {
       child: LayoutBuilder(
         builder: (context, constraints) {
           final buttons = <Widget>[
-            for (final emoji in reactions) _reactionButton(emoji, palette),
-            _expandButton(palette),
+            for (final emoji in reactions)
+              _reactionButton(emoji, palette, slotExtent),
+            _expandButton(palette, slotExtent),
           ];
           if (buttonCount <= maxFittedButtonCount) {
             return Row(
@@ -195,6 +246,7 @@ class QuickReactionBar extends StatelessWidget {
   Widget _reactionButton(
     QuickReactionChoice reaction,
     MessageActionPalette palette,
+    double slotExtent,
   ) {
     return GestureDetector(
       key: ValueKey('quick-reaction-${reaction.storageValue}'),
@@ -202,32 +254,32 @@ class QuickReactionBar extends StatelessWidget {
       onTap: () => onReaction(reaction),
       child: SizedBox(
         width: 40,
-        height: 34,
+        height: slotExtent,
         child: Center(
           child: reaction.isCustom
               ? CustomEmojiView(
                   id: reaction.customEmojiId,
-                  size: 28,
+                  size: emojiSize,
                   color: palette.foreground,
                 )
               : Text(
                   reaction.emoji,
                   textScaler: TextScaler.noScaling,
-                  style: const TextStyle(fontSize: 28),
+                  style: const TextStyle(fontSize: emojiSize),
                 ),
         ),
       ),
     );
   }
 
-  Widget _expandButton(MessageActionPalette palette) {
+  Widget _expandButton(MessageActionPalette palette, double slotExtent) {
     return GestureDetector(
       key: const ValueKey('quick-reaction-expand'),
       behavior: HitTestBehavior.opaque,
       onTap: onExpand,
       child: SizedBox(
         width: 40,
-        height: 34,
+        height: slotExtent,
         child: Center(
           child: Container(
             width: 34,
@@ -267,9 +319,23 @@ class MenuReactionBar extends StatelessWidget {
   /// slots. More would either narrow the slots below a comfortable target or
   /// push the strip wider than the menu it sits on.
   static const maxReactionCount = 6;
-  static const height = 40.0;
+  static const emojiSize = 22.0;
   static const _padding = 5.0;
-  static const _emojiSize = 22.0;
+
+  /// The slot keeps the strip's designed 30pt floor and grows for an inherited
+  /// line box taller than that (see [_reactionGlyphExtent]).
+  static const _minSlotExtent = 30.0;
+  static const _glyphSlop = 2.0;
+
+  static double _slotExtent(BuildContext context) => math.max(
+    _minSlotExtent,
+    _reactionGlyphExtent(context, emojiSize) + _glyphSlop,
+  );
+
+  /// The strip's height at [context]'s text metrics. Desktop places the menu
+  /// below it by this figure, so it is measured, never assumed.
+  static double heightFor(BuildContext context) =>
+      _slotExtent(context) + _padding * 2;
 
   final List<QuickReactionChoice> reactions;
   final ValueChanged<QuickReactionChoice> onReaction;
@@ -279,9 +345,10 @@ class MenuReactionBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final palette = MessageActionPalette.of(context);
     final shown = reactions.take(maxReactionCount).toList(growable: false);
+    final slotExtent = _slotExtent(context);
     return Container(
       key: const ValueKey('menu-reaction-bar'),
-      height: height,
+      height: heightFor(context),
       padding: const EdgeInsets.symmetric(horizontal: _padding),
       decoration: BoxDecoration(
         color: palette.surface,
@@ -302,17 +369,18 @@ class MenuReactionBar extends StatelessWidget {
               child: _MenuReactionSlot(
                 key: ValueKey('menu-reaction-${reaction.storageValue}'),
                 palette: palette,
+                slotExtent: slotExtent,
                 onTap: () => onReaction(reaction),
                 child: reaction.isCustom
                     ? CustomEmojiView(
                         id: reaction.customEmojiId,
-                        size: _emojiSize,
+                        size: emojiSize,
                         color: palette.foreground,
                       )
                     : Text(
                         reaction.emoji,
                         textScaler: TextScaler.noScaling,
-                        style: const TextStyle(fontSize: _emojiSize),
+                        style: const TextStyle(fontSize: emojiSize),
                       ),
               ),
             ),
@@ -320,6 +388,7 @@ class MenuReactionBar extends StatelessWidget {
             child: _MenuReactionSlot(
               key: const ValueKey('menu-reaction-expand'),
               palette: palette,
+              slotExtent: slotExtent,
               onTap: onExpand,
               child: AppIcon(
                 HeroAppIcons.faceSmile,
@@ -340,11 +409,15 @@ class _MenuReactionSlot extends StatefulWidget {
   const _MenuReactionSlot({
     super.key,
     required this.palette,
+    required this.slotExtent,
     required this.onTap,
     required this.child,
   });
 
   final MessageActionPalette palette;
+
+  /// The glyph box the strip measured for its emoji — never a constant.
+  final double slotExtent;
   final VoidCallback onTap;
   final Widget child;
 
@@ -367,7 +440,7 @@ class _MenuReactionSlotState extends State<_MenuReactionSlot> {
         child: AnimatedContainer(
           duration: AppMotion.duration(context, AppMotion.quick),
           curve: AppMotion.standard,
-          height: MenuReactionBar.height - MenuReactionBar._padding * 2,
+          height: widget.slotExtent,
           margin: const EdgeInsets.symmetric(horizontal: 1),
           alignment: Alignment.center,
           decoration: BoxDecoration(

@@ -11877,13 +11877,13 @@ class _ChatViewState extends State<ChatView> {
         !target.isCall &&
         (reactionAvailability == null || reactionAvailability.canAdd);
     final desktopStripH = desktopStrip
-        ? MenuReactionBar.height + _menuReactionGap
+        ? MenuReactionBar.heightFor(context) + _menuReactionGap
         : 0.0;
     final reactionH = !showReactions
         ? 0.0
         : _reactionExpanded
         ? _expandedPickerSize.height
-        : 48.0;
+        : QuickReactionBar.heightFor(context);
     final preferredMenuH = actionMenu.preferredHeightFor(context);
     double reactionTop, menuTop, menuH;
     if (desktopMenu) {
