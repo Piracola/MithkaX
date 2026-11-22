@@ -242,7 +242,7 @@ void main() {
     expect(find.byType(ChatView), findsOneWidget);
   }
 
-  testWidgets('long press opens an anchored pin/edit/delete menu', (
+  testWidgets('long press opens an anchored pin/edit/close/delete menu', (
     tester,
   ) async {
     await openChat(
@@ -265,6 +265,11 @@ void main() {
       findsOneWidget,
     );
     expect(
+      find.byKey(const ValueKey('app-anchored-menu-close')),
+      findsOneWidget,
+    );
+    expect(find.text('Close topic'), findsOneWidget);
+    expect(
       find.byKey(const ValueKey('app-anchored-menu-delete')),
       findsOneWidget,
     );
@@ -284,6 +289,18 @@ void main() {
     expect(pin['forum_topic_id'], 50);
     expect(pin['is_pinned'], true);
 
+    // Closing a topic is the other management verb other clients offer here.
+    await tester.longPress(find.byKey(const ValueKey('topic-tab-50')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('app-anchored-menu-close')));
+    await tester.pumpAndSettle();
+    final close = queries.lastWhere(
+      (request) => request['@type'] == 'toggleForumTopicIsClosed',
+    );
+    expect(close['chat_id'], _forumChatId);
+    expect(close['forum_topic_id'], 50);
+    expect(close['is_closed'], true);
+
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump(const Duration(seconds: 6));
   });
@@ -302,6 +319,7 @@ void main() {
     expect(find.byKey(const ValueKey('app-anchored-menu')), findsOneWidget);
     expect(find.byKey(const ValueKey('app-anchored-menu-pin')), findsOneWidget);
     expect(find.byKey(const ValueKey('app-anchored-menu-edit')), findsNothing);
+    expect(find.byKey(const ValueKey('app-anchored-menu-close')), findsNothing);
     expect(
       find.byKey(const ValueKey('app-anchored-menu-delete')),
       findsNothing,
@@ -333,6 +351,8 @@ void main() {
       find.byKey(const ValueKey('app-anchored-menu-edit')),
       findsOneWidget,
     );
+    // TDLib's close call is supergroup-only, so a bot chat never offers it.
+    expect(find.byKey(const ValueKey('app-anchored-menu-close')), findsNothing);
     expect(
       find.byKey(const ValueKey('app-anchored-menu-delete')),
       findsOneWidget,

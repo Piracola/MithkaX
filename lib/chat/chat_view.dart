@@ -9409,7 +9409,7 @@ class _ChatViewState extends State<ChatView> {
         topic: item,
         canManage: _vm.canPinAndEditTopics,
         canDelete: _vm.canDeleteTopic(topic),
-        canClose: _vm.canManageTopics,
+        canClose: _vm.canCloseTopic(topic),
         onMarkRead: () => _markTopicRead(topic),
         onTogglePinned: () => _toggleTopicPinned(topic),
         onToggleMuted: () => _toggleTopicMuted(topic),
@@ -9451,6 +9451,17 @@ class _ChatViewState extends State<ChatView> {
           label: AppStrings.t(AppStringKeys.groupAdministrationEditTopic),
           icon: HeroAppIcons.pen,
           onSelected: () => unawaited(_editTopic(topic)),
+        ),
+      if (_vm.canCloseTopic(topic))
+        AppMenuAction(
+          key: 'close',
+          label: AppStrings.t(
+            topic.isClosed
+                ? AppStringKeys.topicChatReopenTopic
+                : AppStringKeys.topicChatCloseTopic,
+          ),
+          icon: topic.isClosed ? HeroAppIcons.eye : HeroAppIcons.lock,
+          onSelected: () => unawaited(_toggleTopicClosed(topic)),
         ),
       if (_vm.canDeleteTopic(topic))
         AppMenuAction(

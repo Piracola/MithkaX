@@ -1359,6 +1359,7 @@ class _TopicChatViewState extends State<TopicChatView> {
         topic: item,
         canManage: _canManageTopics,
         canDelete: _canDeleteTopic(topic),
+        canClose: _canManageTopics,
         onMarkRead: () => _markTopicRead(topic),
         onTogglePinned: () => _toggleTopicPinned(topic),
         onToggleMuted: () => _toggleTopicMuted(topic),

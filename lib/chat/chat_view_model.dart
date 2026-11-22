@@ -579,6 +579,12 @@ class ChatViewModel extends ChangeNotifier {
   bool creatorOfTopic(ForumTopicOption topic) =>
       meId != null && topic.creatorId == meId;
 
+  /// Whether this account may close or reopen [topic]: can_manage_topics, or
+  /// the topic's own creator (TDLib's carve-out). A chat with a bot has no
+  /// close call at all — TDLib's toggleForumTopicIsClosed is supergroup-only.
+  bool canCloseTopic(ForumTopicOption topic) =>
+      isForum && !topic.isGeneral && (canManageTopics || creatorOfTopic(topic));
+
   /// Probes whether the creator carve-out applies to [topicId]: at most 11
   /// messages and none from another user. The 12th message proves the limit
   /// is exceeded without paging further. A chat with a topics bot has no
