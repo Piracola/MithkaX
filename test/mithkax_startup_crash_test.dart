@@ -79,6 +79,55 @@ void main() {
     });
   });
 
+  group('one engine per process', () {
+    test('a real exit kills the process', () {
+      final activity = File(
+        'android/app/src/main/kotlin/x/empty/mithka/MainActivity.kt',
+      ).readAsStringSync();
+      final destroy = activity.substring(
+        activity.indexOf('override fun onDestroy'),
+      );
+      expect(
+        destroy,
+        contains('isFinishing && !isChangingConfigurations'),
+        reason: 'a configuration change must not take the process down',
+      );
+      expect(
+        destroy,
+        contains('MediaPlaybackService.isRunning'),
+        reason: 'killing the process while audio plays would cut the music',
+      );
+      expect(
+        destroy,
+        contains('android.os.Process.killProcess(android.os.Process.myPid())'),
+        reason:
+            'TDLib keeps one receive thread per PROCESS in a native static, and '
+            'a destroyed Dart VM never releases it, so a second engine in a '
+            'cached process aborts on its first td_receive (Client.cpp:285)',
+      );
+    });
+
+    test('the trace keeps the run that died', () {
+      final diagnostics = File(
+        'android/app/src/main/kotlin/x/empty/mithka/StartupDiagnostics.kt',
+      ).readAsStringSync();
+      final start = diagnostics.substring(
+        diagnostics.indexOf('fun startProcess'),
+        diagnostics.contains('fun trimIfNeeded')
+            ? diagnostics.indexOf('fun trimIfNeeded')
+            : diagnostics.length,
+      );
+      expect(
+        start.contains('writeText("")'),
+        isFalse,
+        reason:
+            'truncating on process start deletes the tail of the run that just '
+            'crashed — the only record a native abort leaves',
+      );
+      expect(start, contains('trimIfNeeded'));
+    });
+  });
+
   group('receive pump', () {
     test('the previous isolate exits before a replacement spawns', () {
       final spawn = dart.substring(

@@ -1594,6 +1594,7 @@ class MainActivity : FlutterFragmentActivity() {
 
     override fun onDestroy() {
         flutterEngineDestroyedOrdinal = flutterEngineOrdinal
+        val leavingForGood = isFinishing && !isChangingConfigurations
         StartupDiagnostics.log(
             this,
             "activity",
@@ -1602,5 +1603,27 @@ class MainActivity : FlutterFragmentActivity() {
         )
         FVideoPictureInPicturePlugin.onActivityDestroyed(this)
         super.onDestroy()
+        // One process must host ONE FlutterEngine, because TDLib's receive lock
+        // is a process-wide native static:
+        //   [Client.cpp:285] Receive must not be called simultaneously from two
+        //   different threads
+        // A finished Activity leaves the process cached, and the next launch
+        // attaches a second engine — whose Dart VM and receive isolate are new
+        // threads, while the destroyed VM never released that lock (it was
+        // blocked inside td_receive, and a native frame cannot be unwound).
+        // The second engine then aborts the whole process on its first receive,
+        // which is the "crash on the penguin page after every re-entry" report.
+        //
+        // Killing the process on a real exit makes every entry a cold start: one
+        // engine, one receiver, no stale TDLib clients, no binlog lock. Only
+        // audio playback gets to keep the process (killing it would cut music).
+        if (leavingForGood && !MediaPlaybackService.isRunning) {
+            StartupDiagnostics.log(
+                this,
+                "activity",
+                "process exit: one engine per process",
+            )
+            android.os.Process.killProcess(android.os.Process.myPid())
+        }
     }
 }

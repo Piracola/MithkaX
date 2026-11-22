@@ -28,15 +28,38 @@ object StartupDiagnostics {
 
     fun crashFile(context: Context): File = File(directory(context), "crash.log")
 
-    /** Truncates the trace whenever a NEW process starts. */
+    /**
+     * Marks the start of a new process WITHOUT dropping the previous one.
+     *
+     * A crash that aborts natively writes nothing itself, so the only record of
+     * what led to it is the tail of the run that died. Truncating here threw
+     * that tail away exactly when it was needed (the next launch overwrote the
+     * file before it could be read), so the trace is append-only and trimmed
+     * from the front once it outgrows [MAX_BYTES].
+     */
     @Synchronized
     fun startProcess(context: Context) {
         val pid = android.os.Process.myPid()
         if (tracedProcess != pid) {
             tracedProcess = pid
-            startupFile(context).writeText("")
+            trimIfNeeded(context)
             log(context, "process", "start pid=$pid")
             logPreviousExits(context)
+        }
+    }
+
+    /** Drops the oldest runs, keeping whole process sections. */
+    private fun trimIfNeeded(context: Context) {
+        val file = startupFile(context)
+        if (file.length() <= MAX_BYTES) return
+        try {
+            val lines = file.readLines()
+            val keep = lines.takeLast(MAX_BYTES.toInt() / 80)
+            val from = keep.indexOfFirst { it.contains("] process: start pid=") }
+            file.writeText((if (from >= 0) keep.drop(from) else keep).joinToString("\n"))
+            file.appendText("\n")
+        } catch (_: Throwable) {
+            file.writeText("")
         }
     }
 
@@ -82,7 +105,9 @@ object StartupDiagnostics {
     fun log(context: Context, tag: String, message: String) {
         try {
             val file = startupFile(context)
-            if (file.length() > MAX_BYTES) file.writeText("")
+            // Trim from the FRONT; wiping here would delete the very tail that
+            // explains a native abort.
+            if (file.length() > MAX_BYTES) trimIfNeeded(context)
             file.appendText(
                 "${stamp.format(Date())} [${android.os.Process.myPid()}] " +
                     "$tag: $message\n",
