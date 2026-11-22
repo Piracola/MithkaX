@@ -72,14 +72,15 @@ void _mockBridge({String current = 'mithkax_default'}) {
 int _pngColorType(String path) => File(path).readAsBytesSync()[25];
 
 /// Alpha bounds of a decoded PNG, as [left, top, right, bottom] (right/bottom
-/// exclusive). Faint antialiasing edges are ignored so the numbers describe the
-/// mark's ink, not its fringe.
-List<int> _alphaBounds(String path) {
+/// exclusive). [minAlpha] filters the soft drop shadow out (the day plate's is
+/// at most 0.28, the night plate's 0.58, while the mark itself never drops below
+/// 0.72), so the default keeps everything and 170 measures the mark's ink.
+List<int> _alphaBounds(String path, {int minAlpha = 8}) {
   final decoded = image_lib.decodePng(File(path).readAsBytesSync())!;
   var left = decoded.width, top = decoded.height, right = -1, bottom = -1;
   for (var y = 0; y < decoded.height; y++) {
     for (var x = 0; x < decoded.width; x++) {
-      if (decoded.getPixel(x, y).a > 8) {
+      if (decoded.getPixel(x, y).a > minAlpha) {
         if (x < left) left = x;
         if (y < top) top = y;
         if (x > right) right = x;
@@ -168,28 +169,27 @@ void main() {
       }
     });
 
-    test('the adaptive foreground keeps the mark at the preview\'s size', () {
-      // Android scales every 108dp layer to the icon and crops it to the
-      // visible 72dp window, so the mark must be measured against that window.
-      // The shipped maths once drew the design at 81.35% of the canvas, which
-      // put 74-78% ink inside the window — larger than the preview and outside
-      // the round mask. Design scale is 72/108: 61.1% x 63.9% ink, as on the
-      // 1024 plate (60.9% x 63.4%).
+    test('the launcher icon is the 1024 art cropped to its window', () {
+      // Android scales every 108dp layer to the icon and shows the central
+      // 72dp, so the DESIGN SQUARE has to map onto that window: the mark keeps
+      // the plate's own 60.9% x 63.4% ink and the artwork's optical centre
+      // (2.07% left of the square's centre), and the shadow stays inside the
+      // window instead of being clipped by the mask.
       for (final variant in AppIconVariant.mithkaXSection) {
         final path =
             'android/app/src/main/res/mipmap-xxxhdpi/'
             'ic_launcher_${variant.key}_foreground.png';
-        final bounds = _alphaBounds(path);
-        final width = (bounds[2] - bounds[0]) / 4;
-        final height = (bounds[3] - bounds[1]) / 4;
+        final ink = _alphaBounds(path, minAlpha: 170);
+        final width = (ink[2] - ink[0]) / 4;
+        final height = (ink[3] - ink[1]) / 4;
         expect(
           width / 72,
-          closeTo(0.61, 0.03),
+          closeTo(0.61, 0.02),
           reason: '${variant.key} ink is ${width}dp of the 72dp window',
         );
         expect(
           height / 72,
-          closeTo(0.64, 0.03),
+          closeTo(0.63, 0.02),
           reason: '${variant.key} ink is ${height}dp of the 72dp window',
         );
         // Android's safe zone: the 66dp circle inscribed in the window.
@@ -198,9 +198,17 @@ void main() {
           lessThanOrEqualTo(33),
           reason: '${variant.key} ink escapes the safe circle',
         );
-        // Optical centring: the mark's own bbox sits on the canvas centre.
-        expect((bounds[0] + bounds[2]) / 8, closeTo(54, 0.5));
-        expect((bounds[1] + bounds[3]) / 8, closeTo(54, 0.5));
+        // The artwork's optical centre, not the mark bbox on the canvas: the
+        // mark sits 21.2/1024 of the design (1.5dp of the window) to the left.
+        expect((ink[0] + ink[2]) / 8, closeTo(52.5, 0.6));
+        expect((ink[1] + ink[3]) / 8, closeTo(54.0, 0.6));
+        // The drop shadow (alpha above the mark, below it) must not reach the
+        // edge-clamp band: the design square IS the visible window.
+        final full = _alphaBounds(path);
+        expect(full[0], greaterThanOrEqualTo(72));
+        expect(full[1], greaterThanOrEqualTo(72));
+        expect(full[2], lessThanOrEqualTo(360));
+        expect(full[3], lessThanOrEqualTo(360));
       }
     });
 
