@@ -8840,6 +8840,22 @@ class _ChatInputBarState extends State<ChatInputBar>
     final relay = RichMessageBotRelay();
     var sentAny = false;
     _showRelayProgress();
+    // A relayed copy is a forward the view model never builds, so the "All"
+    // view's topic is resolved here, once for the whole burst, and handed to
+    // every copy: a rich document must not open one topic per segment.
+    RichMessageSendSegment? titledSegment;
+    for (final segment in segments) {
+      if (segment.isHtml) {
+        titledSegment = segment;
+        break;
+      }
+    }
+    final topicRef = titledSegment == null
+        ? await widget.vm.botTopicRefForSend()
+        : await widget.vm.botTopicRefForSend(
+            html: titledSegment.html,
+            blocks: titledSegment.blocks,
+          );
     try {
       for (final segment in segments) {
         if (segment.isHtml) {
@@ -8862,9 +8878,11 @@ class _ChatInputBarState extends State<ChatInputBar>
             tdClient: TdClient.shared,
             files: files,
             blocks: segment.blocks,
+            topicRef: topicRef,
             onProgress: _updateRelayProgress,
           );
           sentAny = true;
+          widget.vm.announceBotTopicRef(topicRef);
         } else {
           for (final attachment in segment.attachments) {
             await relay.sendAttachmentAndCopy(
@@ -8873,9 +8891,11 @@ class _ChatInputBarState extends State<ChatInputBar>
               currentUserId: currentUserId,
               targetChatId: widget.vm.chatId,
               tdClient: TdClient.shared,
+              topicRef: topicRef,
               onProgress: _updateRelayProgress,
             );
             sentAny = true;
+            widget.vm.announceBotTopicRef(topicRef);
           }
         }
       }

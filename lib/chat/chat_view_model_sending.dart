@@ -400,28 +400,68 @@ extension ChatViewModelSending on ChatViewModel {
   /// in which case the request is sent unscoped and the server's error stands).
   Future<int?> _scopeSendToNewBotTopic(Map<String, dynamic> request) async {
     if (!_startsBotTopicFor(request)) return null;
-    var topicId = _botTopicBurstId;
-    if (topicId == null) {
-      var creation = _botTopicCreation;
-      if (creation == null) {
-        final title = botTopicTitleForMessage(_sendRequestText(request));
-        creation = _createBotTopicForSend(
-          title.isEmpty
-              ? AppStrings.t(AppStringKeys.topicChatTopicTitle)
-              : title,
-        );
-        _botTopicCreation = creation;
-      }
-      topicId = await creation;
-      if (identical(_botTopicCreation, creation)) _botTopicCreation = null;
-      if (topicId == null) return null;
-      _botTopicBurstId = topicId;
-    }
+    final topicId = await _ensureBotTopicForSend(_sendRequestText(request));
+    if (topicId == null) return null;
     request['topic_id'] = {
       '@type': 'messageTopicForum',
       'forum_topic_id': topicId,
     };
     return topicId;
+  }
+
+  /// Whether this "All" view may start topics at all.
+  bool get _canStartBotTopic => _inBotTopicAllView && canSendMessages;
+
+  /// The topic this chat's "All" sends land in, started on first use.
+  ///
+  /// A burst — a rich document's segments, two quick taps — shares one topic,
+  /// so the burst id outlives the creation request and is returned on every
+  /// later send of this view model. A failed creation returns null and the
+  /// send goes out unscoped, leaving the server's error to speak.
+  Future<int?> _ensureBotTopicForSend(String text) async {
+    final started = _botTopicBurstId;
+    if (started != null) return started;
+    var creation = _botTopicCreation;
+    if (creation == null) {
+      final title = botTopicTitleForMessage(text);
+      creation = _createBotTopicForSend(
+        title.isEmpty ? AppStrings.t(AppStringKeys.topicChatTopicTitle) : title,
+      );
+      _botTopicCreation = creation;
+    }
+    final topicId = await creation;
+    if (identical(_botTopicCreation, creation)) _botTopicCreation = null;
+    if (topicId == null) return null;
+    _botTopicBurstId = topicId;
+    return topicId;
+  }
+
+  /// The topic a send from this chat's "All" view has to land in, for senders
+  /// that bypass the request pipeline.
+  ///
+  /// The rich-message relay bot copies its message in with a forward the view
+  /// model never builds, so the composer asks for the topic up front and hands
+  /// the ref to the relay. Returns null when this chat has no topic
+  /// destination or the creation failed: the send then stays unscoped, exactly
+  /// like a failed creation on the direct path.
+  Future<Map<String, dynamic>?> botTopicRefForSend({
+    String html = '',
+    List<Map<String, dynamic>> blocks = const [],
+  }) async {
+    if (!_canStartBotTopic) return null;
+    final topicId = await _ensureBotTopicForSend(
+      blocks.isNotEmpty
+          ? _richMessageText({'blocks': blocks})
+          : _richMessageText({'html': html}),
+    );
+    if (topicId == null) return null;
+    return {'@type': 'messageTopicForum', 'forum_topic_id': topicId};
+  }
+
+  /// Switches the transcript to the topic [botTopicRefForSend] started, once
+  /// the relayed copy landed.
+  void announceBotTopicRef(Map<String, dynamic>? topicRef) {
+    _announceStartedBotTopic(topicRef?.int64('forum_topic_id'));
   }
 
   /// Whether [request] is a new message composed in a bot topic chat's "All"
@@ -431,7 +471,7 @@ extension ChatViewModelSending on ChatViewModel {
   /// the topic of the message it answers, exactly like exteraless's interceptor
   /// skipping reply sends.
   bool _startsBotTopicFor(Map<String, dynamic> request) {
-    if (!_inBotTopicAllView || !canSendMessages) return false;
+    if (!_canStartBotTopic) return false;
     final type = request.type;
     if (type != 'sendMessage' &&
         type != 'sendMessageAlbum' &&
