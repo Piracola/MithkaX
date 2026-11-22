@@ -275,10 +275,10 @@ void main() {
       find.byKey(const ValueKey('app-anchored-menu-delete')),
       findsOneWidget,
     );
-    // The tab's own name heads the menu (the strip's label is the other).
+    // No name header: the tab under the finger already names the topic.
     expect(
       find.descendant(of: menu, matching: find.text('Announcements')),
-      findsOneWidget,
+      findsNothing,
     );
 
     await tester.tap(find.byKey(const ValueKey('app-anchored-menu-pin')));
@@ -339,6 +339,57 @@ void main() {
   // never applies there; the bot's own `allows_users_to_create_topics` flag is
   // what makes pin/edit/delete operable. The tab menu used to gate on the
   // supergroup right alone and stayed silent in these chats.
+  testWidgets('long press in the topic selector opens the same menu', (
+    tester,
+  ) async {
+    await openChat(
+      tester,
+      chatId: _forumChatId,
+      title: 'Forum Group',
+      isForum: true,
+    );
+
+    await tester.tap(find.byKey(const ValueKey('chatHeaderTopics')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('topic-selector-list')), findsOneWidget);
+
+    await tester.longPress(find.byKey(const ValueKey('topic-selector-row-50')));
+    await tester.pumpAndSettle();
+
+    final menu = find.byKey(const ValueKey('app-anchored-menu'));
+    expect(menu, findsOneWidget);
+    expect(find.byKey(const ValueKey('app-anchored-menu-pin')), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('app-anchored-menu-edit')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('app-anchored-menu-close')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('app-anchored-menu-delete')),
+      findsOneWidget,
+    );
+    // Same chrome as the tab menu: no topic name block.
+    expect(
+      find.descendant(of: menu, matching: find.text('Announcements')),
+      findsNothing,
+    );
+
+    await tester.tap(find.byKey(const ValueKey('app-anchored-menu-close')));
+    await tester.pumpAndSettle();
+    final close = queries.lastWhere(
+      (request) => request['@type'] == 'toggleForumTopicIsClosed',
+    );
+    expect(close['chat_id'], _forumChatId);
+    expect(close['forum_topic_id'], 50);
+    expect(close['is_closed'], true);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(const Duration(seconds: 6));
+  });
+
   testWidgets('a bot topic chat can pin, edit and delete its topics', (
     tester,
   ) async {

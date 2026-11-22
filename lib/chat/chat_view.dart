@@ -9422,14 +9422,21 @@ class _ChatViewState extends State<ChatView> {
     );
   }
 
-  /// The topic tab's anchored menu, the way exteraless opens ItemOptions over
-  /// a long-pressed topic tab: pin / edit / close-reopen / delete, each gated
-  /// by the rights the row menu uses. The creator deletion carve-out probes the
-  /// topic's live history before Delete can be offered; a bot topic chat has
-  /// no such probe.
+  /// The tab's long press resolves the tab to its topic row and opens the
+  /// shared menu.
   Future<void> _showTopicTabMenu(TopicNavigationItem item, Rect anchor) async {
     final topic = _topicById(item.id);
     if (topic == null) return;
+    await _showTopicMenu(topic, anchor);
+  }
+
+  /// The topic menu, the way exteraless opens ItemOptions over a long-pressed
+  /// tab or list row: pin / edit / close-reopen / delete, each gated by the
+  /// rights the row menu uses. No name header — the tab or row under the
+  /// finger already names the topic. The creator deletion carve-out probes the
+  /// topic's live history before Delete can be offered; a bot topic chat has
+  /// no such probe.
+  Future<void> _showTopicMenu(ForumTopicOption topic, Rect anchor) async {
     if (!topic.isGeneral &&
         !_vm.isBotTopicChat &&
         _vm.canDeleteForumTopics != true &&
@@ -9480,7 +9487,6 @@ class _ChatViewState extends State<ChatView> {
     await showAppAnchoredMenu(
       context: context,
       anchor: anchor,
-      header: topic.name,
       actions: actions,
     );
   }
@@ -9538,27 +9544,44 @@ class _ChatViewState extends State<ChatView> {
                 return ChatListSelectionHighlight(
                   key: ValueKey('topic-selector-row-${topic?.id ?? "all"}'),
                   selected: current,
-                  child: ListTile(
-                    leading: _forumTopicIcon(topic, all, c, current: current),
-                    title: Text(
-                      (all ? AppStringKeys.topicChatAllTopics : topic!.name)
-                          .l10n(context),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        color: current ? AppTheme.brand : c.textPrimary,
-                        fontSize: 16,
-                        fontWeight: current ? FontWeight.w600 : null,
+                  child: Builder(
+                    builder: (rowContext) => ListTile(
+                      leading: _forumTopicIcon(topic, all, c, current: current),
+                      title: Text(
+                        (all ? AppStringKeys.topicChatAllTopics : topic!.name)
+                            .l10n(context),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: current ? AppTheme.brand : c.textPrimary,
+                          fontSize: 16,
+                          fontWeight: current ? FontWeight.w600 : null,
+                        ),
                       ),
+                      // The centered sheet variant lays tiles out at a narrow
+                      // width; an unsized badge can exceed the whole row, so
+                      // wrap the trailing slot in a bounded box.
+                      trailing: _topicSelectorTrailing(topic, all, current),
+                      onTap: () {
+                        Navigator.of(sheetContext).pop();
+                        _openTopicTranscript(topic?.id);
+                      },
+                      // The same anchored menu the topic tabs open, attached
+                      // to the row rather than the tab.
+                      onLongPress: topic == null
+                          ? null
+                          : () {
+                              final box =
+                                  rowContext.findRenderObject() as RenderBox?;
+                              if (box == null || !box.hasSize) return;
+                              unawaited(
+                                _showTopicMenu(
+                                  topic,
+                                  box.localToGlobal(Offset.zero) & box.size,
+                                ),
+                              );
+                            },
                     ),
-                    // The centered sheet variant lays tiles out at a narrow
-                    // width; an unsized badge can exceed the whole row, so
-                    // wrap the trailing slot in a bounded box.
-                    trailing: _topicSelectorTrailing(topic, all, current),
-                    onTap: () {
-                      Navigator.of(sheetContext).pop();
-                      _openTopicTranscript(topic?.id);
-                    },
                   ),
                 );
               },
