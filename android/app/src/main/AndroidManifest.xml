@@ -1,9 +1,6 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
     <!-- TDLib networking -->
-    <!-- moveTaskToFront: a duplicate launch hands its intent to the live
-         instance and brings that task forward. -->
-    <uses-permission android:name="android.permission.REORDER_TASKS" />
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <!-- Required when Credential Manager signs for Telegram's web origin. -->

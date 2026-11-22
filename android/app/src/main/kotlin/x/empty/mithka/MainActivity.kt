@@ -72,45 +72,12 @@ class MainActivity : FlutterFragmentActivity() {
     private val languageIdentifier by languageIdentifierDelegate
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        // Decide BEFORE the engine exists. A second Activity in a live process
-        // is a second FlutterEngine, and TDLib's receive lock is a process-wide
-        // native static that a destroyed VM never releases — the newcomer aborts
-        // the whole process on its first td_receive (Client.cpp:285).
-        //
-        // `savedInstanceState == null` excludes a configuration change. A
-        // FINISHING sibling still counts: pressing Back and immediately tapping
-        // the icon again produces exactly that, and its engine lives until its
-        // onDestroy runs.
-        val sibling = liveInstance?.get()
-        val duplicate = savedInstanceState == null &&
-            sibling != null &&
-            sibling !== this &&
-            !sibling.isDestroyed
-        closedAsDuplicate = duplicate
-        if (!duplicate) {
-            liveInstance = java.lang.ref.WeakReference(this)
-            liveInstances += 1
-        }
-        // Let Flutter paint under the status bar and gesture/nav bar.
+        // The engine outlives the Activity (see CachedEngine), so this may be a
+        // re-attach to a Dart VM that is already running: nothing may be
+        // initialised twice, but this window's intent must still be delivered.
+        val warm = CachedEngine.isRunning
         WindowCompat.setDecorFitsSystemWindows(window, false)
         super.onCreate(savedInstanceState)
-        if (duplicate && sibling != null) {
-            StartupDiagnostics.log(
-                this,
-                "activity",
-                "duplicate instance for ${componentName?.flattenToShortString()}: " +
-                    "forwarding to the live one",
-            )
-            if (!sibling.isFinishing) {
-                // Handing an intent to a window that is already closing would
-                // run share/deep-link code against a torn-down tree.
-                sibling.receiveForwardedIntent(intent)
-                sibling.bringTaskToFront()
-            }
-            finish()
-            overridePendingTransition(0, 0)
-            return
-        }
         StartupDiagnostics.log(
             this,
             "activity",
@@ -119,8 +86,10 @@ class MainActivity : FlutterFragmentActivity() {
                 "restored=${savedInstanceState != null} task=$taskId",
         )
         requestHighestRefreshRate()
-        pendingSharePayload = parseIncomingShareIntent(intent)
-        PushServiceBridge.captureTap(this, intent)
+        if (!warm) {
+            pendingSharePayload = parseIncomingShareIntent(intent)
+            PushServiceBridge.captureTap(this, intent)
+        }
         // Telegram-family self-heal (exteraless LauncherIconController
         // .tryFixLauncherIconIfNeeded): an app update that removes the alias
         // the user had chosen can leave EVERY alias disabled — the launcher
@@ -129,6 +98,21 @@ class MainActivity : FlutterFragmentActivity() {
         // (up to 62 serialized PackageManager reads must never ride the
         // launch frames).
         Thread { ensureLauncherAliasEnabled() }.start()
+        if (warm) {
+            // Dart is already running and will never see this Activity's
+            // creation. A deep link, share or notification tap that OPENED this
+            // window has to travel the warm path instead: onNewIntent hands it
+            // to app_links, the share channel and the push bridge.
+            val incoming = intent
+            if (incoming != null && incoming.action != Intent.ACTION_MAIN) {
+                StartupDiagnostics.log(
+                    this,
+                    "activity",
+                    "warm attach with $incoming.action: forwarding to Dart",
+                )
+                onNewIntent(Intent(incoming))
+            }
+        }
     }
 
     private fun ensureLauncherAliasEnabled() {
@@ -321,25 +305,32 @@ class MainActivity : FlutterFragmentActivity() {
         )
     }
 
+    override fun provideFlutterEngine(context: Context): FlutterEngine =
+        CachedEngine.acquire(context)
+
+    override fun shouldDestroyEngineWithHost(): Boolean = false
+
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
-        if (closedAsDuplicate) {
-            // Never start the app in a duplicate: its TDLib clients would open
-            // the same binlog the live engine holds, and its receive thread
-            // aborts the process. Route it to a no-op entrypoint instead.
-            flutterEngine.navigationChannel.setInitialRoute(SIBLING_ENGINE_ROUTE)
+        // This runs on EVERY attach, and with a cached engine that is no longer
+        // the same thing as a new engine: the FlutterEngine, its plugins and
+        // Dart symbols must be set up once per engine, while the channels below
+        // capture this Activity and are re-registered on each attach.
+        //
+        // `flutterEngineOrdinal` therefore counts ENGINES, not attachments. It
+        // stays 1 for the whole process now; Dart's re-entry reclaim only ever
+        // fires if someone reverts to a per-Activity engine.
+        if (configuredEngine !== flutterEngine) {
+            configuredEngine = flutterEngine
+            flutterEngineOrdinal += 1
+            registerPlugins(flutterEngine)
+            StartupDiagnostics.log(
+                this,
+                "engine",
+                "new engine ordinal=$flutterEngineOrdinal",
+            )
+        } else {
+            StartupDiagnostics.log(this, "engine", "reattached engine")
         }
-        // This process can host more than one FlutterEngine: Android keeps a
-        // finished activity's process around, so re-entering the app (or
-        // launching it again right after SystemNavigator.pop()) attaches a NEW
-        // engine to a process whose previous engine already created native
-        // TDLib clients. Dart reads this counter to tell that re-entry from a
-        // cold start and to reclaim the previous engine's clients.
-        flutterEngineOrdinal += 1
-        StartupDiagnostics.log(
-            this,
-            "engine",
-            "configureFlutterEngine ordinal=$flutterEngineOrdinal",
-        )
         // TEMPORARY: read/clear the device-side startup trace. Remove with
         // StartupDiagnostics once the icon-switch crash is understood.
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "mithka/diagnostics")
@@ -364,7 +355,6 @@ class MainActivity : FlutterFragmentActivity() {
                 }
             }
         webProxyBridge = WebProxyBridge(this, flutterEngine.dartExecutor.binaryMessenger)
-        registerPlugins(flutterEngine)
         pushBridge = PushServiceBridge(
             this,
             flutterEngine.dartExecutor.binaryMessenger,
@@ -1037,15 +1027,10 @@ class MainActivity : FlutterFragmentActivity() {
         @Volatile
         private var flutterEngineOrdinal = 0
 
-        /// The instance that currently owns this process' engine.
-        private var liveInstance: java.lang.ref.WeakReference<MainActivity>? = null
-
-        /// Activities of this process that currently own an engine.
-        private var liveInstances = 0
-
-        /// Dart returns from `main()` when the initial route is this: the window
-        /// is a duplicate and must not create TDLib state.
-        const val SIBLING_ENGINE_ROUTE = "/mithka-sibling-engine"
+        /// The engine this Activity configured last: plugins and the engine
+        /// ordinal are engine-scoped, while `configureFlutterEngine` runs on
+        /// every attach.
+        private var configuredEngine: FlutterEngine? = null
 
         /// Highest ordinal whose Activity has been destroyed. A new engine may
         /// be created while the previous one is still tearing down (a config
@@ -1645,30 +1630,7 @@ class MainActivity : FlutterFragmentActivity() {
         super.cleanUpFlutterEngine(flutterEngine)
     }
 
-    /// True when this instance closed itself because another instance already
-    /// owns the process: it must not take the process (and that engine) down.
-    private var closedAsDuplicate = false
-
-    /// Hands [incoming] to the live instance exactly like a warm launch.
-    private fun receiveForwardedIntent(incoming: Intent?) {
-        if (incoming == null) return
-        runOnUiThread { onNewIntent(Intent(incoming)) }
-    }
-
-    private fun bringTaskToFront() {
-        try {
-            val manager = getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
-            manager.moveTaskToFront(taskId, 0)
-        } catch (error: Throwable) {
-            StartupDiagnostics.log(this, "activity", "moveTaskToFront failed: $error")
-        }
-    }
-
     override fun onDestroy() {
-        flutterEngineDestroyedOrdinal = flutterEngineOrdinal
-        if (liveInstance?.get() === this) liveInstance = null
-        if (!closedAsDuplicate) liveInstances -= 1
-        val leavingForGood = isFinishing && !isChangingConfigurations
         StartupDiagnostics.log(
             this,
             "activity",
@@ -1677,29 +1639,10 @@ class MainActivity : FlutterFragmentActivity() {
         )
         FVideoPictureInPicturePlugin.onActivityDestroyed(this)
         super.onDestroy()
-        // One process must host ONE FlutterEngine, because TDLib's receive lock
-        // is a process-wide native static:
-        //   [Client.cpp:285] Receive must not be called simultaneously from two
-        //   different threads
-        // A finished Activity leaves the process cached, and the next launch
-        // attaches a second engine — whose Dart VM and receive isolate are new
-        // threads, while the destroyed VM never released that lock (it was
-        // blocked inside td_receive, and a native frame cannot be unwound).
-        // The second engine then aborts the whole process on its first receive,
-        // which is the "crash on the penguin page after every re-entry" report.
-        //
-        // Killing the process on a real exit makes every entry a cold start: one
-        // engine, one receiver, no stale TDLib clients, no binlog lock. Only
-        // audio playback gets to keep the process (killing it would cut music).
-        // Only the LAST engine may take the process down: a secondary one that
-        // closes while another instance is still alive must leave it running.
-        if (leavingForGood && liveInstances <= 0 && !MediaPlaybackService.isRunning) {
-            StartupDiagnostics.log(
-                this,
-                "activity",
-                "process exit: one engine per process",
-            )
-            android.os.Process.killProcess(android.os.Process.myPid())
-        }
+        // The engine (and with it TDLib) belongs to the process, so a finished
+        // Activity is NOT an exit: the next launch re-attaches this engine and
+        // resumes. Killing the process here would take the live engine down and
+        // make the following tap land in a dying process with no window to show
+        // — the "fast Back then reopen does nothing" report.
     }
 }

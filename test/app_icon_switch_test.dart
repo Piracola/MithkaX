@@ -418,11 +418,17 @@ void main() {
       );
       expect(
         kt.contains('flutterEngineDestroyedOrdinal = flutterEngineOrdinal'),
-        isTrue,
+        isFalse,
         reason:
-            'without the destroyed marker a config-change recreate looks like '
-            'a re-entry whose previous engine is gone, and the reclaim would '
-            'close a live session',
+            'the engine belongs to the process now: a finished Activity must '
+            'not claim that engine died, or the next attach would treat the '
+            'still-live session as reclaimable',
+      );
+      expect(
+        kt.contains(
+          'override fun shouldDestroyEngineWithHost(): Boolean = false',
+        ),
+        isTrue,
       );
       expect(kt.contains('private var flutterEngineOrdinal = 0'), isTrue);
       expect(

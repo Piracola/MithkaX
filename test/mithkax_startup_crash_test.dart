@@ -80,35 +80,8 @@ void main() {
     });
   });
 
-  group('one engine per process', () {
-    test('a real exit kills the process', () {
-      final activity = File(
-        'android/app/src/main/kotlin/x/empty/mithka/MainActivity.kt',
-      ).readAsStringSync();
-      final destroy = activity.substring(
-        activity.indexOf('override fun onDestroy'),
-      );
-      expect(
-        destroy,
-        contains('isFinishing && !isChangingConfigurations'),
-        reason: 'a configuration change must not take the process down',
-      );
-      expect(
-        destroy,
-        contains('MediaPlaybackService.isRunning'),
-        reason: 'killing the process while audio plays would cut the music',
-      );
-      expect(
-        destroy,
-        contains('android.os.Process.killProcess(android.os.Process.myPid())'),
-        reason:
-            'TDLib keeps one receive thread per PROCESS in a native static, and '
-            'a destroyed Dart VM never releases it, so a second engine in a '
-            'cached process aborts on its first td_receive (Client.cpp:285)',
-      );
-    });
-
-    test('the trace keeps the run that died', () {
+  group('the trace keeps the run that died', () {
+    test('it survives the next launch', () {
       final diagnostics = File(
         'android/app/src/main/kotlin/x/empty/mithka/StartupDiagnostics.kt',
       ).readAsStringSync();
@@ -129,8 +102,9 @@ void main() {
     });
   });
 
-  group('duplicate launches', () {
+  group('one engine per process', () {
     test('a live sibling engine is never treated as a re-entry', () {
+      // Backstop for anyone who reverts to a per-Activity engine.
       const sibling = ProcessEngineState(ordinal: 2);
       expect(sibling.hasLiveSiblingEngine, isTrue);
       expect(sibling.mayReclaimPreviousEngine, isFalse);
@@ -138,121 +112,69 @@ void main() {
       const reentry = ProcessEngineState(ordinal: 2, destroyedOrdinal: 1);
       expect(reentry.hasLiveSiblingEngine, isFalse);
       expect(reentry.mayReclaimPreviousEngine, isTrue);
-
-      const cold = ProcessEngineState();
-      expect(cold.hasLiveSiblingEngine, isFalse);
-      expect(cold.mayReclaimPreviousEngine, isFalse);
     });
 
-    test('notification taps use the enabled launcher component', () {
-      final notifier = File(
-        'android/app/src/main/kotlin/x/empty/mithka/PushFallbackNotifier.kt',
+    test('the engine outlives the Activity', () {
+      final activity = File(
+        'android/app/src/main/kotlin/x/empty/mithka/MainActivity.kt',
       ).readAsStringSync();
+      expect(activity, contains('CachedEngine.acquire(context)'));
       expect(
-        notifier.contains('Intent(app, MainActivity::class.java)'),
+        activity,
+        contains('override fun shouldDestroyEngineWithHost(): Boolean = false'),
+        reason:
+            'a per-Activity engine cannot survive Back, and a process cannot '
+            'host two engines: the second one aborts on td_receive',
+      );
+      expect(
+        activity.contains('killProcess'),
         isFalse,
         reason:
-            'the alias target is a DIFFERENT component than the running alias, '
-            'so the tap starts a second Activity — and a second engine',
+            'a finished Activity is not an exit — killing the process here '
+            'takes the live engine down and the next tap lands in a dying '
+            'process with no window to show',
       );
-      expect(notifier, contains('AppEntry.intent(app)'));
     });
 
-    test('a duplicate is decided before the engine exists', () {
+    test('a warm attach does not re-initialise the engine', () {
       final activity = File(
         'android/app/src/main/kotlin/x/empty/mithka/MainActivity.kt',
       ).readAsStringSync();
-      final create = activity.substring(
-        activity.indexOf('override fun onCreate(savedInstanceState'),
-        activity.indexOf('private fun ensureLauncherAliasEnabled'),
-      );
-      expect(create, contains('savedInstanceState == null'));
-      expect(
-        create.indexOf('val duplicate ='),
-        lessThan(create.indexOf('super.onCreate(savedInstanceState)')),
-        reason:
-            'configureFlutterEngine runs inside super.onCreate and must already '
-            'know this window is a duplicate',
+      final configure = activity.substring(
+        activity.indexOf('override fun configureFlutterEngine'),
+        activity.indexOf('webProxyBridge = WebProxyBridge'),
       );
       expect(
-        create,
-        contains('sibling.receiveForwardedIntent(intent)'),
-        reason: 'the deep link or share must not be lost with the duplicate',
+        configure,
+        contains('if (configuredEngine !== flutterEngine)'),
+        reason: 'plugins and the ordinal are engine-scoped, attach is not',
       );
-      expect(
-        create,
-        contains('if (!sibling.isFinishing) {'),
-        reason:
-            'a finishing sibling must not receive the intent: its tree is '
-            'torn down',
-      );
-      // A finishing sibling still owns an engine: Back + an immediate icon tap
-      // produces exactly that, and it must not start a second engine.
-      final check = create.substring(
-        create.indexOf('val duplicate ='),
-        create.indexOf('closedAsDuplicate = duplicate'),
-      );
-      expect(check.contains('isFinishing'), isFalse);
       expect(
         activity,
-        contains('flutterEngine.navigationChannel.setInitialRoute('),
-        reason:
-            'Dart must be kept out of a duplicate window entirely: its TDLib '
-            'clients would fight the live engine for the binlog and its receive '
-            'thread would abort the process',
+        contains('private var configuredEngine: FlutterEngine?'),
       );
+      final guard = configure.substring(
+        configure.indexOf('if (configuredEngine !== flutterEngine)'),
+      );
+      expect(guard, contains('registerPlugins(flutterEngine)'));
     });
 
-    test('only the last engine may kill the process', () {
+    test('a warm window still delivers its intent', () {
       final activity = File(
         'android/app/src/main/kotlin/x/empty/mithka/MainActivity.kt',
       ).readAsStringSync();
+      expect(activity, contains('val warm = CachedEngine.isRunning'));
       expect(
         activity,
-        contains('if (leavingForGood && liveInstances <= 0'),
-        reason:
-            'a secondary window closing must never take the process (and the '
-            'engine the user is looking at) down with it',
+        contains('if (!warm) {\n            pendingSharePayload'),
+        reason: 'a warm window must not re-parse what onNewIntent will deliver',
       );
-      expect(activity, contains('if (!closedAsDuplicate) liveInstances -= 1'));
-    });
-
-    test('the duplicate route is the same string on both sides', () {
-      expect(siblingEngineRoute, '/mithka-sibling-engine');
-      final activity = File(
-        'android/app/src/main/kotlin/x/empty/mithka/MainActivity.kt',
-      ).readAsStringSync();
       expect(
         activity,
-        contains('const val SIBLING_ENGINE_ROUTE = "$siblingEngineRoute"'),
-      );
-      final main = File('lib/main.dart').readAsStringSync();
-      expect(
-        main
-            .substring(main.indexOf('Future<void> main('))
-            .contains('defaultRouteName == siblingEngineRoute'),
-        isTrue,
-        reason: 'main() must bail out before anything creates TDLib state',
-      );
-    });
-
-    test('Dart refuses to boot a second engine in a live process', () {
-      final main = File('lib/main.dart').readAsStringSync();
-      final bootstrap = main.substring(
-        main.indexOf('Future<void> _bootstrapAndRunApp'),
-      );
-      expect(bootstrap, contains('hasLiveSiblingEngine'));
-      expect(
-        bootstrap,
-        contains('SystemNavigator.pop()'),
+        contains("incoming.action != Intent.ACTION_MAIN"),
         reason:
-            'nothing may create TDLib state before the check: the second '
-            'engine aborts the process on its first td_receive',
-      );
-      expect(
-        bootstrap.indexOf('hasLiveSiblingEngine'),
-        lessThan(bootstrap.indexOf('AuthManager()..start()')),
-        reason: 'AuthManager starts TDLib; the guard must come first',
+            'deep links, shares and notification taps opened a new window while '
+            'Dart is already running; only MAIN has nothing to deliver',
       );
     });
   });
