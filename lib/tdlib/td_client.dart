@@ -319,12 +319,30 @@ class TdClient {
 
   // Receive isolate management — stored as fields so we can restart on resume.
   ReceivePort? _receivePort;
-  StreamSubscription<dynamic>? _receiveSub;
   Isolate? _receiveIsolate;
   Future<void>? _receiveIsolateExited;
   final Set<Future<void>> _receiveIsolateExitFutures = {};
   int _receiveIsolateGeneration = 0;
   bool _receiveIsolateDead = false;
+
+  /// Port the receive isolate listens on for a cooperative shutdown request.
+  SendPort? _receiveControl;
+
+  /// Cancels the parent-side subscription of [_receivePort].
+  StreamSubscription<dynamic>? _receiveSubCancel;
+
+  /// Serialises [spawn]/[retire] so two callers cannot both spawn.
+  Future<void>? _receiveSpawnOperation;
+
+  /// Set when a stop was requested before the isolate announced its control
+  /// port, so the request is replayed instead of being lost.
+  bool _receiveStopRequested = false;
+
+  /// Clients that already received setTdlibParameters. TDLib rejects a second
+  /// one with "Unexpected setTdlibParameters", and the startup path used to
+  /// send three to the same client because both the activation path and the
+  /// waitTdlibParameters push reach here.
+  final Set<int> _parametersSent = {};
 
   // Request/response correlation, keyed by the "@extra" we attach.
   final Map<String, _PendingRequest> _pending = {};
@@ -617,7 +635,9 @@ class TdClient {
     if (kDebugMode) {
       _startDebugReceivePump();
     } else {
-      _spawnReceiveIsolate();
+      // The spawn retires the previous isolate first and may wait for it to
+      // leave td_receive, so the reclaim below must not run beside it.
+      await _spawnReceiveIsolate();
     }
 
     // Android can attach a SECOND FlutterEngine to a process whose previous
@@ -756,12 +776,73 @@ class TdClient {
     }
   }
 
-  void _spawnReceiveIsolate() {
+  /// Retires the current receive isolate without ever letting two threads call
+  /// `td_receive` at the same time.
+  ///
+  /// TDLib treats `td_receive` as single-threaded for the whole process
+  /// (`TdReceiver::receive` in Client.cpp does `LOG(FATAL)` when its lock is
+  /// already held). The isolate spends most of its life BLOCKED inside that
+  /// call for up to a second, and `Isolate.kill(immediate)` cannot unwind a
+  /// native frame — so killing it and spawning a replacement straight away
+  /// starts a second receiver while the first is still inside TDLib, and the
+  /// process aborts. Ask it to stop and wait for it to leave the loop instead.
+  Future<bool> _retireReceiveIsolate() async {
+    final control = _receiveControl;
+    final exited = _receiveIsolateExited;
+    _receiveControl = null;
+    final port = _receivePort;
+    _receivePort = null;
+    await _receiveSubCancel?.cancel();
+    _receiveSubCancel = null;
+    control?.send(_tdReceiveStopCommand);
+    // Unsubscribe only after the stop request is out: the port is what carries
+    // the isolate's last events.
+    port?.close();
+    if (exited == null) {
+      _receiveIsolate = null;
+      return true;
+    }
+    try {
+      await exited.timeout(const Duration(milliseconds: 2500));
+      _receiveIsolate = null;
+      return true;
+    } on TimeoutException {
+      // It is wedged in the native call. Killing it cannot unwind that frame,
+      // but nothing else will make progress, and starting a replacement on top
+      // of a live receiver aborts the process, so take the safer failure: no
+      // pump rather than a double one.
+      debugPrint('🔑 [Mithka] receive isolate ignored the stop request');
+      StartupTrace.log('tdlib', 'receive isolate ignored the stop request');
+      _receiveIsolate?.kill(priority: Isolate.immediate);
+      _receiveIsolate = null;
+      return false;
+    }
+  }
+
+  Future<void> _spawnReceiveIsolate() {
+    // Serialise: two overlapping calls would each retire and then spawn, and
+    // the second spawn would run beside the first replacement.
+    final existing = _receiveSpawnOperation;
+    if (existing != null) return existing;
+    late final Future<void> operation;
+    operation = _spawnReceiveIsolateLocked().whenComplete(() {
+      if (identical(_receiveSpawnOperation, operation)) {
+        _receiveSpawnOperation = null;
+      }
+    });
+    _receiveSpawnOperation = operation;
+    return operation;
+  }
+
+  Future<void> _spawnReceiveIsolateLocked() async {
     final generation = ++_receiveIsolateGeneration;
-    _receiveIsolate?.kill(priority: Isolate.immediate);
-    _receiveIsolate = null;
-    _receivePort?.close();
-    unawaited(_receiveSub?.cancel());
+    // Only one thread may ever sit in td_receive for this PROCESS: TDLib aborts
+    // on a second one (Client.cpp TdReceiver::receive). The retire waits for the
+    // previous isolate to leave the loop, and this pair of lines is what proves
+    // the ordering when a device trace is the only evidence available.
+    final retired = await _retireReceiveIsolate();
+    StartupTrace.log('tdlib', 'receive spawn gen=$generation retired=$retired');
+    if (generation != _receiveIsolateGeneration) return;
 
     final port = ReceivePort();
     final exitPort = ReceivePort();
@@ -780,6 +861,7 @@ class TdClient {
     _receiveIsolateExited = exitFuture;
     late final StreamSubscription<dynamic> exitSubscription;
     exitSubscription = exitPort.listen((_) {
+      StartupTrace.log('tdlib', 'receive exited gen=$generation');
       if (!exited.isCompleted) exited.complete();
       unawaited(exitSubscription.cancel());
       exitPort.close();
@@ -811,7 +893,19 @@ class TdClient {
             exitPort.close();
           }),
     );
-    _receiveSub = port.listen((message) {
+    _receiveSubCancel = port.listen((message) {
+      // The isolate announces the port it listens on for cooperative shutdown.
+      if (message is Map<String, dynamic> &&
+          message['@type'] == _tdReceiveReadyType) {
+        final control = message['control'];
+        if (control is SendPort) {
+          _receiveControl = control;
+          StartupTrace.log('tdlib', 'receive ready gen=$generation');
+          // A stop requested between spawn and readiness must not be lost.
+          if (_receiveStopRequested) control.send(_tdReceiveStopCommand);
+        }
+        return;
+      }
       // The isolate batches events into one list; the terminal fatal notice is
       // still sent on its own so it can't sit behind a partial batch.
       if (message is List) {
@@ -974,28 +1068,12 @@ class TdClient {
     _debugReceiveTimer?.cancel();
     _debugReceiveTimer = null;
 
-    final receiveSubscription = _receiveSub;
-    _receiveSub = null;
-    await receiveSubscription?.cancel();
-    _receivePort?.close();
-    _receivePort = null;
-
-    final exits = Set<Future<void>>.of(_receiveIsolateExitFutures);
-    final isolate = _receiveIsolate;
-    ++_receiveIsolateGeneration;
-    isolate?.kill(priority: Isolate.immediate);
-    if (exits.isEmpty) {
-      _receiveIsolate = null;
-      return true;
-    }
-    try {
-      await Future.wait(exits).timeout(const Duration(seconds: 3));
-      _receiveIsolate = null;
-      _receiveIsolateExited = null;
-      return true;
-    } on TimeoutException {
-      return false;
-    }
+    _receiveStopRequested = true;
+    final stopped = await _retireReceiveIsolate();
+    _receiveStopRequested = false;
+    if (!stopped) return false;
+    _receiveIsolateExited = null;
+    return true;
   }
 
   // MARK: - Account management
@@ -2084,6 +2162,7 @@ class TdClient {
     if (object.type == 'updateAuthorizationState' &&
         object.obj('authorization_state')?.type == 'authorizationStateClosed') {
       StartupTrace.log('tdlib', 'authorizationStateClosed client=$clientId');
+      _parametersSent.remove(clientId);
       _webProxyCarriers?.closeClient(clientId);
       TdUserIndex.shared.clearSlot(slot);
       ForumTopicIndex.shared.clearSlot(slot);
@@ -2111,6 +2190,9 @@ class TdClient {
     // fire-and-forget) has no handler and used to vanish. It is the one signal
     // that explains a launch that never leaves the loading page.
     if (object.type == 'error' && extra == null) {
+      // A rejected setTdlibParameters leaves the client in the same state, so
+      // let the next waitTdlibParameters push retry it.
+      _parametersSent.remove(clientId);
       StartupTrace.log(
         'tdlib',
         'unsolicited error client=$clientId code=${object.integer('code')} '
@@ -2257,6 +2339,9 @@ class TdClient {
     if (_botApiBackendForClient.containsKey(clientId)) return;
     final slot = _slotForClient[clientId];
     if (slot == null) return;
+    // Exactly once per client: TDLib treats a repeat as an error, and every
+    // repeat used to surface as an unhandled "Unexpected setTdlibParameters".
+    if (!_parametersSent.add(clientId)) return;
 
     final dbDir = _databaseDirectory(slot);
     final filesDir = Platform.isAndroid && DownloadStorage.currentRoot != null
@@ -2809,6 +2894,17 @@ void _receiveEntry(SendPort toMain) {
     return;
   }
 
+  // A port the owner can use to ask for a cooperative shutdown. Killing an
+  // isolate that is blocked inside td_receive cannot unwind the native frame,
+  // and a second receiver entering TDLib alongside it aborts the whole process,
+  // so the loop is left through this flag instead.
+  final commands = ReceivePort();
+  var stopRequested = false;
+  commands.listen((message) {
+    if (message == _tdReceiveStopCommand) stopRequested = true;
+  });
+  toMain.send({'@type': _tdReceiveReadyType, 'control': commands.sendPort});
+
   // One port message per event costs the main isolate one event-loop turn each,
   // and a login sync emits thousands back to back. Batching removes that fixed
   // overhead. The batch is deliberately SMALL: a large one only converts cost
@@ -2828,7 +2924,7 @@ void _receiveEntry(SendPort toMain) {
       ..reset();
   }
 
-  while (true) {
+  while (!stopRequested) {
     Object? event;
     try {
       // Only block when nothing is buffered — a partial batch must not wait a
@@ -2837,6 +2933,7 @@ void _receiveEntry(SendPort toMain) {
     } catch (e) {
       flush();
       toMain.send({'@type': '_tdReceiveFatal', 'error': e.toString()});
+      commands.close();
       return;
     }
     if (event == null) {
@@ -2855,4 +2952,9 @@ void _receiveEntry(SendPort toMain) {
       flush();
     }
   }
+  flush();
+  commands.close();
 }
+
+const String _tdReceiveReadyType = '_tdReceiveReady';
+const String _tdReceiveStopCommand = 'stop';

@@ -24,17 +24,30 @@ import androidx.core.content.ContextCompat
  * also the fallback so a self-hosted setup still receives messages.
  */
 class PushKeepAliveService : Service() {
-    private var foregroundRequirementSatisfied = false
-
     override fun onCreate() {
         super.onCreate()
         isRunning = true
         createChannels()
-        goForeground()
+        StartupDiagnostics.log(this, "push", "keep-alive service created")
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        goForeground()
+        // EVERY startForegroundService() delivery arms its own five-second
+        // timer, and only a startForeground() reached from THAT delivery
+        // cancels it (ActiveServices.setServiceForegroundInnerLocked clears
+        // SERVICE_FOREGROUND_TIMEOUT_MSG and r.fgRequired when startForeground
+        // runs). The previous `foregroundRequirementSatisfied` latch answered
+        // the first delivery and then skipped every later one, so the next
+        // timer stayed armed until the system threw
+        // ForegroundServiceDidNotStartInTimeException on the main thread and
+        // killed the process — the crash on the loading page.
+        if (!goForeground("onStartCommand")) {
+            // A startForeground() that threw (permission, declared type, or a
+            // background start that is not allowed) leaves the timer armed.
+            // Only taking the service down cancels it.
+            stopSelf(startId)
+            return START_NOT_STICKY
+        }
         return START_STICKY
     }
 
@@ -55,29 +68,28 @@ class PushKeepAliveService : Service() {
 
     override fun onBind(intent: Intent?): IBinder? = null
 
-    private fun goForeground() {
+    /// Enters the foreground for the start currently being handled.
+    ///
+    /// Returns false only when the platform refused the transition, in which
+    /// case the caller must take the service down: staying alive without ever
+    /// reaching startForeground() is what the system punishes five seconds
+    /// later.
+    private fun goForeground(reason: String): Boolean {
         val resident = PushServiceStore.resident(this)
         val channelId = if (resident) CHANNEL_VISIBLE else CHANNEL_QUIET
         val notification = buildNotification(channelId, resident)
+        val entered = enterForeground(notification, reason)
+        isForeground = entered && resident
         if (!resident) {
-            // A foreground service may not drop its notification while it is
-            // foreground. Enter foreground just long enough to satisfy
-            // startForegroundService(), then leave foreground and remove the
-            // notification: the service keeps running (START_STICKY + alarm),
-            // but the user no longer sees a resident entry. Repeated
-            // onStartCommand calls must not re-post it.
-            if (!foregroundRequirementSatisfied) {
-                foregroundRequirementSatisfied = enterForeground(notification)
-            }
+            // Leaving the foreground is allowed once startForeground() has
+            // satisfied this delivery: the service keeps running (START_STICKY
+            // + alarm), the resident entry disappears.
             stopForegroundCompat()
-            isForeground = false
-            return
         }
-        if (!enterForeground(notification)) return
-        isForeground = true
+        return entered
     }
 
-    private fun enterForeground(notification: Notification): Boolean {
+    private fun enterForeground(notification: Notification, reason: String): Boolean {
         try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
                 startForeground(
@@ -91,6 +103,11 @@ class PushKeepAliveService : Service() {
             return true
         } catch (error: Throwable) {
             android.util.Log.w(TAG, "Failed to enter foreground", error)
+            StartupDiagnostics.log(
+                this,
+                "push",
+                "startForeground failed ($reason): $error",
+            )
             isForeground = false
             return false
         }
@@ -199,6 +216,11 @@ class PushKeepAliveService : Service() {
 
         fun start(context: Context) {
             try {
+                StartupDiagnostics.log(
+                    context,
+                    "push",
+                    "startForegroundService requested from ${android.os.Process.myPid()}",
+                )
                 ContextCompat.startForegroundService(
                     context.applicationContext,
                     Intent(context.applicationContext, PushKeepAliveService::class.java),
