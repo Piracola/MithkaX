@@ -9395,8 +9395,10 @@ class _ChatViewState extends State<ChatView> {
     if (topic == null) return;
     // The creator deletion carve-out depends on the topic's live history
     // (at most 11 messages, none from other users), so probe before the menu
-    // is offered. Rights-based eligibility is already known synchronously.
+    // is offered. Rights-based eligibility is already known synchronously, and
+    // a bot topic chat offers Delete without the probe.
     if (!topic.isGeneral &&
+        !_vm.isBotTopicChat &&
         _vm.canDeleteForumTopics != true &&
         _vm.creatorOfTopic(topic)) {
       await _vm.ensureTopicCreatorDeletable(topic.id);
@@ -9421,13 +9423,15 @@ class _ChatViewState extends State<ChatView> {
   }
 
   /// The topic tab's anchored menu, the way exteraless opens ItemOptions over
-  /// a long-pressed topic tab: pin / edit / delete, each gated by the rights
-  /// the row menu uses. The creator deletion carve-out probes the topic's
-  /// live history before Delete can be offered.
+  /// a long-pressed topic tab: pin / edit / close-reopen / delete, each gated
+  /// by the rights the row menu uses. The creator deletion carve-out probes the
+  /// topic's live history before Delete can be offered; a bot topic chat has
+  /// no such probe.
   Future<void> _showTopicTabMenu(TopicNavigationItem item, Rect anchor) async {
     final topic = _topicById(item.id);
     if (topic == null) return;
     if (!topic.isGeneral &&
+        !_vm.isBotTopicChat &&
         _vm.canDeleteForumTopics != true &&
         _vm.creatorOfTopic(topic)) {
       await _vm.ensureTopicCreatorDeletable(topic.id);

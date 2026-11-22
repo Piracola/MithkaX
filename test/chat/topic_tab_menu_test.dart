@@ -125,12 +125,14 @@ void main() {
                 return {
                   '@type': 'forumTopics',
                   'topics': [
+                    // Started by the bot account on purpose: Telegram still
+                    // offers Delete on every topic of a bot topic chat.
                     _topic(
                       900,
                       'Releases',
                       chatId: _botChatId,
                       lastMessageId: 9000,
-                      creatorId: 1,
+                      creatorId: 9,
                     ),
                   ],
                   'total_count': 1,
@@ -366,6 +368,21 @@ void main() {
     expect(pin['chat_id'], _botChatId);
     expect(pin['forum_topic_id'], 900);
     expect(pin['is_pinned'], true);
+
+    // Delete is offered without the supergroup creator probe, so it must also
+    // reach the server from here.
+    await tester.longPress(find.byKey(const ValueKey('topic-tab-900')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('app-anchored-menu-delete')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('app-confirm-dialog')), findsOneWidget);
+    await tester.tap(find.text('Delete'));
+    await tester.pumpAndSettle();
+    final delete = queries.lastWhere(
+      (request) => request['@type'] == 'deleteForumTopic',
+    );
+    expect(delete['chat_id'], _botChatId);
+    expect(delete['forum_topic_id'], 900);
 
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump(const Duration(seconds: 6));

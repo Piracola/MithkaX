@@ -565,15 +565,23 @@ class ChatViewModel extends ChangeNotifier {
   /// sufficient. Cleared on topic traffic so the next menu open re-probes.
   final Map<int, bool> _creatorDeletableTopicIds = {};
 
-  /// Whether this account may delete [topic] through the rights model, and —
-  /// for the creator carve-out — the probed history limits. can_manage_topics
-  /// grants management, not deletion; only can_delete_messages does.
-  bool canDeleteTopic(ForumTopicOption topic) =>
-      !topic.isGeneral &&
-      (canDeleteForumTopics ||
-          (meId != null &&
-              topic.creatorId == meId &&
-              (_creatorDeletableTopicIds[topic.id] ?? false)));
+  /// Whether this account may delete [topic]. can_manage_topics grants
+  /// management, not deletion; only can_delete_messages does. Otherwise the
+  /// topic's creator may delete it while it holds at most 11 messages and
+  /// none from other users (probed, see [ensureTopicCreatorDeletable]).
+  ///
+  /// In a chat with a topics bot Telegram offers Delete on every topic —
+  /// tdesktop's `ForumTopic::canDelete` returns true for bot peers — and
+  /// leaves the check to the server, which only refuses topics the user
+  /// didn't start. The history probe must not gate that: bot replies count
+  /// as other users' messages and would hide the row for every real topic.
+  bool canDeleteTopic(ForumTopicOption topic) {
+    if (topic.isGeneral) return false;
+    if (canDeleteForumTopics) return true;
+    if (isBotTopicChat) return true;
+    return creatorOfTopic(topic) &&
+        (_creatorDeletableTopicIds[topic.id] ?? false);
+  }
 
   /// Whether [topic] was created by this account.
   bool creatorOfTopic(ForumTopicOption topic) =>
@@ -587,13 +595,10 @@ class ChatViewModel extends ChangeNotifier {
 
   /// Probes whether the creator carve-out applies to [topicId]: at most 11
   /// messages and none from another user. The 12th message proves the limit
-  /// is exceeded without paging further. A chat with a topics bot has no
-  /// General topic and no administrator rights, but deletion still runs
-  /// through TDLib's creator carve-out, so the probe applies there too.
+  /// is exceeded without paging further. Supergroups only: a chat with a
+  /// topics bot offers Delete without this probe (see [canDeleteTopic]).
   Future<bool> ensureTopicCreatorDeletable(int topicId) async {
-    if ((!isForum && !supportsBotTopics) || topicId == generalForumTopicId) {
-      return false;
-    }
+    if (!isForum || topicId == generalForumTopicId) return false;
     if (_creatorDeletableTopicIds.containsKey(topicId)) {
       return _creatorDeletableTopicIds[topicId]!;
     }
@@ -675,6 +680,10 @@ class ChatViewModel extends ChangeNotifier {
   bool get canPinAndEditTopics => canManageTopics || botTopicsManageable;
 
   bool get supportsTopics => isForum || supportsBotTopics;
+
+  /// A private chat with a topics-enabled bot: no supergroup rights exist
+  /// there, so topic actions follow the bot's own capabilities.
+  bool get isBotTopicChat => supportsBotTopics && !isForum;
 
   bool forumTopicsLoading = false;
 
