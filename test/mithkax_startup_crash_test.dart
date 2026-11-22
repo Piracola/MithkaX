@@ -20,6 +20,7 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mithka/platform/process_engine.dart';
 
 void main() {
   final service = File(
@@ -125,6 +126,80 @@ void main() {
             'crashed — the only record a native abort leaves',
       );
       expect(start, contains('trimIfNeeded'));
+    });
+  });
+
+  group('duplicate launches', () {
+    test('a live sibling engine is never treated as a re-entry', () {
+      const sibling = ProcessEngineState(ordinal: 2);
+      expect(sibling.hasLiveSiblingEngine, isTrue);
+      expect(sibling.mayReclaimPreviousEngine, isFalse);
+
+      const reentry = ProcessEngineState(ordinal: 2, destroyedOrdinal: 1);
+      expect(reentry.hasLiveSiblingEngine, isFalse);
+      expect(reentry.mayReclaimPreviousEngine, isTrue);
+
+      const cold = ProcessEngineState();
+      expect(cold.hasLiveSiblingEngine, isFalse);
+      expect(cold.mayReclaimPreviousEngine, isFalse);
+    });
+
+    test('notification taps use the enabled launcher component', () {
+      final notifier = File(
+        'android/app/src/main/kotlin/x/empty/mithka/PushFallbackNotifier.kt',
+      ).readAsStringSync();
+      expect(
+        notifier.contains('Intent(app, MainActivity::class.java)'),
+        isFalse,
+        reason:
+            'the alias target is a DIFFERENT component than the running alias, '
+            'so the tap starts a second Activity — and a second engine',
+      );
+      expect(notifier, contains('AppEntry.intent(app)'));
+    });
+
+    test('a duplicate instance forwards and closes', () {
+      final activity = File(
+        'android/app/src/main/kotlin/x/empty/mithka/MainActivity.kt',
+      ).readAsStringSync();
+      final create = activity.substring(
+        activity.indexOf('override fun onCreate(savedInstanceState'),
+        activity.indexOf('private fun ensureLauncherAliasEnabled'),
+      );
+      expect(create, contains('savedInstanceState == null'));
+      expect(
+        create,
+        contains('sibling.receiveForwardedIntent(intent)'),
+        reason: 'the deep link or share must not be lost with the duplicate',
+      );
+      expect(create, contains('closedAsDuplicate = true'));
+      expect(
+        activity,
+        contains('leavingForGood && !closedAsDuplicate'),
+        reason:
+            'a duplicate closing must not kill the process out from under the '
+            'engine the user is actually using',
+      );
+    });
+
+    test('Dart refuses to boot a second engine in a live process', () {
+      final main = File('lib/main.dart').readAsStringSync();
+      final bootstrap = main.substring(
+        main.indexOf('Future<void> _bootstrapAndRunApp'),
+      );
+      expect(bootstrap, contains('hasLiveSiblingEngine'));
+      expect(
+        bootstrap,
+        contains('SystemNavigator.pop()'),
+        reason:
+            'nothing may create TDLib state before the check: the second '
+            'engine aborts the process on its first td_receive',
+      );
+      expect(
+        bootstrap.indexOf('hasLiveSiblingEngine'),
+        lessThan(bootstrap.indexOf('AuthManager()..start()')),
+        reason: 'AuthManager starts TDLib; the guard must come first',
+      );
     });
   });
 

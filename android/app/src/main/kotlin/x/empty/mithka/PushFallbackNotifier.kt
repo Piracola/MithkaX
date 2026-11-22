@@ -37,7 +37,11 @@ object PushFallbackNotifier {
         }
         ensureChannel(app)
         val parsed = parse(app, payload)
-        val intent = Intent(app, MainActivity::class.java).apply {
+        // MUST be the enabled launcher component, not MainActivity: naming the
+        // alias target starts a second Activity (and a second FlutterEngine) in
+        // a process that already has one, and TDLib aborts on a second receive
+        // thread (Client.cpp:285).
+        val intent = AppEntry.intent(app).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
             parsed.tapPayload?.let {
                 putExtra(PushServiceBridge.EXTRA_TAP_PAYLOAD, it)

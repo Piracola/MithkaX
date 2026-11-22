@@ -115,7 +115,12 @@ class ExternalLinksPlugin(
             .queryIntentActivities(intent, PackageManager.MATCH_DEFAULT_ONLY)
             .filter { it.activityInfo.packageName == own }
             .map { ComponentName(own, it.activityInfo.name) }
-            .ifEmpty { listOf(ComponentName(own, MainActivity::class.java.name)) }
+            .ifEmpty {
+                val launch = AppEntry.intent(activity).component
+                listOf(
+                    launch ?: ComponentName(own, MainActivity::class.java.name),
+                )
+            }
             .toTypedArray()
         val chooser = Intent.createChooser(intent, null)
             .putExtra(Intent.EXTRA_EXCLUDE_COMPONENTS, ownComponents)

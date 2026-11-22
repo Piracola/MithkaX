@@ -1,5 +1,6 @@
 package x.empty.mithka
 
+import android.app.ActivityManager
 import android.content.ClipData
 import android.content.ClipDescription
 import android.content.ClipboardManager
@@ -74,12 +75,44 @@ class MainActivity : FlutterFragmentActivity() {
         // Let Flutter paint under the status bar and gesture/nav bar.
         WindowCompat.setDecorFitsSystemWindows(window, false)
         super.onCreate(savedInstanceState)
+        // A second Activity in a live process means a second FlutterEngine, and
+        // TDLib's receive lock is a process-wide native static that a destroyed
+        // VM never releases — the second engine aborts the process on its first
+        // td_receive (Client.cpp:285). Any launch path can do this (a deep link
+        // or share targeting MainActivity while an icon alias is running, a
+        // notification built from the base class, the recents entry of a task
+        // created under a previous alias), so the duplicate is closed here:
+        // hand its intent to the instance the user already has and finish.
+        //
+        // A configuration change never qualifies: it restores state, so
+        // savedInstanceState is non-null.
+        val sibling = liveInstance?.get()
+        val duplicate = savedInstanceState == null &&
+            sibling != null &&
+            sibling !== this &&
+            !sibling.isFinishing &&
+            !sibling.isDestroyed
+        if (duplicate && sibling != null) {
+            StartupDiagnostics.log(
+                this,
+                "activity",
+                "duplicate instance for ${componentName?.flattenToShortString()}: " +
+                    "forwarding to the live one",
+            )
+            sibling.receiveForwardedIntent(intent)
+            sibling.bringTaskToFront()
+            closedAsDuplicate = true
+            finish()
+            overridePendingTransition(0, 0)
+            return
+        }
+        liveInstance = java.lang.ref.WeakReference(this)
         StartupDiagnostics.log(
             this,
             "activity",
             "onCreate component=${componentName?.flattenToShortString()} " +
                 "action=${intent?.action} flags=0x${intent?.flags?.toString(16)} " +
-                "restored=${savedInstanceState != null} task=${taskId}",
+                "restored=${savedInstanceState != null} task=$taskId",
         )
         requestHighestRefreshRate()
         pendingSharePayload = parseIncomingShareIntent(intent)
@@ -994,6 +1027,9 @@ class MainActivity : FlutterFragmentActivity() {
         @Volatile
         private var flutterEngineOrdinal = 0
 
+        /// The instance that currently owns this process' engine.
+        private var liveInstance: java.lang.ref.WeakReference<MainActivity>? = null
+
         /// Highest ordinal whose Activity has been destroyed. A new engine may
         /// be created while the previous one is still tearing down (a config
         /// change re-creates the Activity before the old onDestroy returns), so
@@ -1592,8 +1628,28 @@ class MainActivity : FlutterFragmentActivity() {
         super.cleanUpFlutterEngine(flutterEngine)
     }
 
+    /// True when this instance closed itself because another instance already
+    /// owns the process: it must not take the process (and that engine) down.
+    private var closedAsDuplicate = false
+
+    /// Hands [incoming] to the live instance exactly like a warm launch.
+    private fun receiveForwardedIntent(incoming: Intent?) {
+        if (incoming == null) return
+        runOnUiThread { onNewIntent(Intent(incoming)) }
+    }
+
+    private fun bringTaskToFront() {
+        try {
+            val manager = getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
+            manager.moveTaskToFront(taskId, 0)
+        } catch (error: Throwable) {
+            StartupDiagnostics.log(this, "activity", "moveTaskToFront failed: $error")
+        }
+    }
+
     override fun onDestroy() {
         flutterEngineDestroyedOrdinal = flutterEngineOrdinal
+        if (liveInstance?.get() === this) liveInstance = null
         val leavingForGood = isFinishing && !isChangingConfigurations
         StartupDiagnostics.log(
             this,
@@ -1617,7 +1673,7 @@ class MainActivity : FlutterFragmentActivity() {
         // Killing the process on a real exit makes every entry a cold start: one
         // engine, one receiver, no stale TDLib clients, no binlog lock. Only
         // audio playback gets to keep the process (killing it would cut music).
-        if (leavingForGood && !MediaPlaybackService.isRunning) {
+        if (leavingForGood && !closedAsDuplicate && !MediaPlaybackService.isRunning) {
             StartupDiagnostics.log(
                 this,
                 "activity",

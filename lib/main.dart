@@ -74,6 +74,7 @@ import 'notifications/push_device_registrar.dart';
 import 'platform/application_exit_coordinator.dart';
 import 'platform/firebase_configuration.dart';
 import 'platform/ohos_support.dart';
+import 'platform/process_engine.dart';
 import 'platform/system_ui.dart';
 import 'pro/mithka_pro_service.dart';
 import 'security/local_app_lock_controller.dart';
@@ -208,6 +209,30 @@ Future<void> main(List<String> arguments) async {
 }
 
 Future<void> _bootstrapAndRunApp() async {
+  // Backstop for the one thing that can abort the whole process: a second
+  // FlutterEngine in this process. TDLib's receive lock is a process-wide
+  // native static, and the engine that owned it cannot release it after its VM
+  // is destroyed, so the newcomer's first `td_receive` hits
+  //   [Client.cpp:285] Receive must not be called simultaneously...
+  // Native already turns a duplicate launch into `onNewIntent` on the live
+  // instance; this closes the window before it does, and covers every launch
+  // path (deep links, shares, launcher aliases, recents entries).
+  if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
+    final engine = await processEngineState();
+    if (engine.hasLiveSiblingEngine) {
+      // A configuration change creates this engine before the old Activity's
+      // onDestroy returns; give that beat a moment before deciding.
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+      if ((await processEngineState()).hasLiveSiblingEngine) {
+        StartupTrace.log(
+          'app',
+          'second engine in a live process: closing this window',
+        );
+        await SystemNavigator.pop();
+        return;
+      }
+    }
+  }
   // Register before AuthManager starts TDLib. Flutter's macOS delegate waits
   // for this cancelable exit response, so even a very early Quit drains native
   // clients before AppKit unloads libtdjson.

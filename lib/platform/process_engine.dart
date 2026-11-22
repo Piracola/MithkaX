@@ -35,6 +35,17 @@ class ProcessEngineState {
   /// closing those clients cannot pull a live session out from under its VM.
   bool get mayReclaimPreviousEngine =>
       ordinal > 1 && destroyedOrdinal >= ordinal - 1;
+
+  /// True when an earlier Activity of this process is still alive, i.e. this is
+  /// a SECOND engine beside a running one rather than a re-entry.
+  ///
+  /// That must never reach TDLib: `td_receive` is guarded by one process-wide
+  /// lock, the previous engine already holds it, and the newcomer's first call
+  /// aborts the process (Client.cpp:285). A configuration change looks the same
+  /// for a few milliseconds because this engine is created before the previous
+  /// Activity's onDestroy returns, so callers re-read before acting.
+  bool get hasLiveSiblingEngine =>
+      ordinal > 1 && destroyedOrdinal < ordinal - 1;
 }
 
 /// Reads the host's engine bookkeeping. Answers "cold start, nothing to
