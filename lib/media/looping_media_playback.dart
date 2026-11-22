@@ -230,6 +230,56 @@ void disableLoopingMediaAudioTracks(VideoPlayerController controller) {
   }
 }
 
+/// How far the media clock of a looping video sticker ran ahead of the wall
+/// clock, expressed as the playback-rate multiplier that brings it back to real
+/// time. Null when the clip already runs at its authored pace, or when the
+/// sample cannot be trusted.
+double? stickerPacingCorrection({
+  required Duration mediaElapsed,
+  required Duration wallElapsed,
+}) {
+  final wall = wallElapsed.inMicroseconds;
+  final media = mediaElapsed.inMicroseconds;
+  if (wall <= 0 || media <= 0) return null;
+  final rate = media / wall;
+  if (!rate.isFinite || rate < 1.2 || rate > 10) return null;
+  final correction = 1 / rate;
+  return correction.clamp(0.1, 1.0);
+}
+
+/// Accumulates the media clock of one looping player, across loop wraps, so it
+/// can be compared with the wall clock.
+///
+/// Sampling cannot resolve a clip that loops faster than two position updates
+/// (a 0.4 s sticker does), which is why short stickers are paced from the frame
+/// duration in their header and this meter is only used for longer loops.
+class StickerPacingMeter {
+  StickerPacingMeter({required Duration startPosition})
+    : _position = startPosition;
+
+  Duration _position = Duration.zero;
+  Duration _media = Duration.zero;
+  final Stopwatch _wall = Stopwatch();
+
+  Duration get mediaElapsed => _media;
+  Duration get wallElapsed => _wall.elapsed;
+
+  void start() {
+    _media = Duration.zero;
+    _wall
+      ..reset()
+      ..start();
+  }
+
+  /// Feeds one position sample. A wrap adds the rest of the clip, so a moving
+  /// clock is measured no matter how many loops fit inside the window.
+  void tick(Duration position, Duration clipDuration) {
+    final delta = position - _position;
+    _media += delta.isNegative ? (clipDuration - _position) + position : delta;
+    _position = position;
+  }
+}
+
 /// Video decoder override for muted looping WebM (Telegram video stickers),
 /// by [platform].
 ///

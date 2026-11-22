@@ -15,7 +15,7 @@ import 'package:video_player/video_player.dart';
 import '../../components/photo_avatar.dart';
 import '../../media/looping_media_playback.dart';
 import '../../media/video_playback_reporting.dart';
-import '../../media/video_sticker_pacing.dart';
+import '../../media/webm_frame_rate.dart';
 import '../../tdlib/td_client.dart';
 import '../../tdlib/td_image_loader.dart';
 import '../../tdlib/td_models.dart';
@@ -68,8 +68,28 @@ class _VideoStickerViewState extends State<VideoStickerView>
   VideoPlayerController? _initializingController;
   VideoPlaybackDiagnostics? _playbackDiagnostics;
   Timer? _loopReplayTimer;
-  final StickerPacingController _pacing = StickerPacingController();
-  DateTime? _passStartedAt;
+  StickerPacingMeter? _pacing;
+  Timer? _pacingReassert;
+  double _pacingSpeed = 1;
+  int _pacingPasses = 0;
+
+  /// A measurement window long enough to average out video_player's 100 ms
+  /// position polling, short enough that one sped-up loop is all the user sees.
+  static const _pacingWindow = Duration(milliseconds: 1500);
+  static const _maxPacingPasses = 3;
+
+  /// Below this loop period a wrap falls between two position samples and the
+  /// measured rate aliases back to 1.0, so short stickers are paced from the
+  /// frame duration in their header instead.
+  static const _minMeasurableLoop = Duration(milliseconds: 600);
+
+  /// MDK can drop the playback rate when its own loop restarts, so the rate is
+  /// re-asserted while the sticker plays. Cheap, and invisible when the backend
+  /// keeps it.
+  static const _pacingReassertInterval = Duration(milliseconds: 250);
+
+  static final Map<String, Duration?> _frameDurationCache =
+      <String, Duration?>{};
 
   /// Keeps a sticker alive across a short overscroll instead of tearing its
   /// decoder down and rebuilding it on the way back.
@@ -177,7 +197,9 @@ class _VideoStickerViewState extends State<VideoStickerView>
       _loadedLocalPath = widget.file.localPath;
       _loadedSlot = slot;
       _fallbackOnly = false;
-      _pacing.reset();
+      _pacing = null;
+      _pacingSpeed = 1;
+      _pacingPasses = 0;
     }
     if (!_fallbackOnly &&
         _controller == null &&
@@ -277,12 +299,12 @@ class _VideoStickerViewState extends State<VideoStickerView>
       viewType: c.viewType,
     );
     try {
-      // The loop is driven from the value listener rather than by the backend:
-      // a completed pass is the only moment the clip's real duration can be
-      // measured, and re-applying the playback rate there survives a backend
-      // that resets it when the media loops. Setting the flag before prepare is
-      // what fvp honours (wang-bin/fvp#394).
-      await c.setLooping(false);
+      // Looping stays with the backend: seeking to zero on every pass showed a
+      // corrupted frame at the seam (a blocky black-and-white frame users read
+      // as a QR code). MDK (via fvp) may ignore a loop flag applied after the
+      // media is prepared (wang-bin/fvp#394), so record it first; a backend that
+      // still completes the clip is replayed from the value listener.
+      await c.setLooping(true);
       await c.initialize();
       diagnostics.initialized(value: c.value);
       await c.setVolume(0);
@@ -318,8 +340,10 @@ class _VideoStickerViewState extends State<VideoStickerView>
       _initializingController = null;
     }
     _loadPending = false;
-    _pacing.reset();
-    _markStickerPassStart();
+    _pacing = null;
+    _pacingSpeed = 1;
+    _pacingPasses = 0;
+    unawaited(_startStickerPacing(c, path));
     c.addListener(() {
       if (!_ownsAttempt(generation, ref, slot)) return;
       final value = c.value;
@@ -331,10 +355,12 @@ class _VideoStickerViewState extends State<VideoStickerView>
         diagnostics.reportTerminal();
         return;
       }
-      // A completed pass is the loop boundary: the clip is paused on its last
-      // frame and a video sticker must loop forever. Time it, then replay.
+      _measureStickerPacing(c);
+      // A backend that ignored setLooping completes the clip once and stops on
+      // its last frame; a video sticker must loop forever. Replay it after
+      // video_player's own completed handler has parked it, or the wrap flashes
+      // the last frame.
       if (value.isCompleted && !value.isPlaying) {
-        _recordStickerPass(c);
         _loopReplayTimer ??= Timer(_loopReplayDelay, () {
           _loopReplayTimer = null;
           unawaited(_replayCompletedSticker(c, generation, ref, slot));
@@ -345,36 +371,76 @@ class _VideoStickerViewState extends State<VideoStickerView>
     widget.onReady?.call();
   }
 
-  /// One frame at 60 Hz: enough to keep the last frame from flashing at a wrap
-  /// without adding a pause the eye would catch. The pacing controller measures
-  /// loop-to-loop time, so whatever this costs is compensated for.
-  static const _loopReplayDelay = Duration(milliseconds: 8);
+  static const _loopReplayDelay = Duration(milliseconds: 50);
 
-  void _markStickerPassStart() {
-    _passStartedAt = DateTime.now();
+  /// Holds a video sticker at its authored pace.
+  ///
+  /// MDK stops a video-only clip at its last frame's timestamp, so that frame's
+  /// hold is dropped every loop: 25% of a five-frame 0.4 s sticker, 1% of a
+  /// three-second one — which is why only short, low-frame-rate stickers were
+  /// reported racing. The header states the frame duration, so the rate is
+  /// known before the first loop instead of being measured.
+  Future<void> _startStickerPacing(VideoPlayerController c, String path) async {
+    final frameDuration = await _frameDurationOf(path);
+    final rate = stickerTailCorrection(
+      duration: c.value.duration,
+      frameDuration: frameDuration,
+    );
+    if (!mounted || !identical(_controller, c)) return;
+    if (rate != null) {
+      _pacingSpeed = rate;
+      await _applyStickerPacing(c, rate);
+    }
+    if (!mounted || !identical(_controller, c)) return;
+    _pacing = StickerPacingMeter(startPosition: c.value.position)..start();
+    _startPacingReassert(c);
   }
 
-  /// Times one loop and nudges the playback rate towards the clip's authored
-  /// duration.
-  ///
-  /// Sampling the media clock cannot see a short sticker's drift — a 0.4 s clip
-  /// wraps several times between two of video_player's 100 ms position updates
-  /// — and MDK plays a video-only stream without its authored timing anyway: it
-  /// loops at the last frame's timestamp, dropping that frame's hold, which is
-  /// 18% of a five-frame sticker but 1% of a three-second one. Timing whole
-  /// passes is exact for both, and re-applying the rate here also undoes a
-  /// backend that resets it when the media restarts.
-  void _recordStickerPass(VideoPlayerController c) {
-    final startedAt = _passStartedAt;
-    if (startedAt == null) return;
-    final now = DateTime.now();
-    _passStartedAt = now;
-    final next = _pacing.pass(
-      wall: now.difference(startedAt),
-      media: c.value.duration,
+  /// MDK drops the rate when its own loop restarts on some platforms; re-assert
+  /// it so the second loop is as correct as the first.
+  void _startPacingReassert(VideoPlayerController c) {
+    _pacingReassert?.cancel();
+    _pacingReassert = Timer.periodic(_pacingReassertInterval, (_) {
+      if (!mounted || !identical(_controller, c) || c.value.hasError) return;
+      if (!c.value.isPlaying || _pacingSpeed >= 0.999) return;
+      unawaited(_applyStickerPacing(c, _pacingSpeed));
+    });
+  }
+
+  static Future<Duration?> _frameDurationOf(String path) async {
+    if (_frameDurationCache.containsKey(path)) {
+      return _frameDurationCache[path];
+    }
+    Duration? frameDuration;
+    try {
+      frameDuration = webmFrameDuration(await File(path).readAsBytes());
+    } catch (_) {
+      frameDuration = null;
+    }
+    return _frameDurationCache[path] = frameDuration;
+  }
+
+  /// Refines the rate for clips long enough to measure. Short stickers cannot
+  /// be sampled — a wrap falls between two position updates — and keep the rate
+  /// derived from their header.
+  void _measureStickerPacing(VideoPlayerController c) {
+    final pacing = _pacing;
+    if (pacing == null || _pacingPasses >= _maxPacingPasses) return;
+    final value = c.value;
+    if (!value.isPlaying || value.hasError) return;
+    final loopMicros = value.duration.inMicroseconds / _pacingSpeed;
+    if (loopMicros < _minMeasurableLoop.inMicroseconds) return;
+    pacing.tick(value.position, value.duration);
+    if (pacing.wallElapsed < _pacingWindow) return;
+    final correction = stickerPacingCorrection(
+      mediaElapsed: pacing.mediaElapsed,
+      wallElapsed: pacing.wallElapsed,
     );
-    if (next == null) return;
-    unawaited(_applyStickerPacing(c, next));
+    _pacing = StickerPacingMeter(startPosition: value.position)..start();
+    _pacingPasses++;
+    if (correction == null) return;
+    _pacingSpeed = (_pacingSpeed * correction).clamp(0.1, 1.0);
+    unawaited(_applyStickerPacing(c, _pacingSpeed));
   }
 
   Future<void> _applyStickerPacing(
@@ -405,7 +471,9 @@ class _VideoStickerViewState extends State<VideoStickerView>
     try {
       await controller.seekTo(Duration.zero);
       await controller.play();
-      _markStickerPassStart();
+      _pacing = StickerPacingMeter(startPosition: controller.value.position)
+        ..start();
+      _startPacingReassert(controller);
     } catch (_) {
       // A failed replay leaves the last frame up; the next reconcile retries.
     }
@@ -469,8 +537,11 @@ class _VideoStickerViewState extends State<VideoStickerView>
     _loadPending = false;
     _loopReplayTimer?.cancel();
     _loopReplayTimer = null;
-    _passStartedAt = null;
-    _pacing.reset();
+    _pacingReassert?.cancel();
+    _pacingReassert = null;
+    _pacing = null;
+    _pacingSpeed = 1;
+    _pacingPasses = 0;
     final controller = _controller;
     final initializingController = _initializingController;
     final lease = _lease;
@@ -531,6 +602,7 @@ class _VideoStickerViewState extends State<VideoStickerView>
 
   @override
   void dispose() {
+    _pacingReassert?.cancel();
     _scrollPosition?.removeListener(_scheduleVisibilityCheck);
     _scrollPosition = null;
     WidgetsBinding.instance.removeObserver(this);

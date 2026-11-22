@@ -1,105 +1,131 @@
 //
-//  Mithka X video-sticker pacing: MDK does not give a video-only stream its
-//  authored timing — it loops at the last frame's timestamp, dropping that
-//  frame's hold, and can run at the display's frame cadence. Measured on a
-//  0.4 s, 12.5 fps sticker one loop came round in 0.34 s (18% fast) while a 3 s
-//  sticker lost only one frame per loop, which is why only short, low-frame-rate
-//  stickers were reported. Sampling the media clock cannot see it (a 0.4 s clip
-//  wraps between two of video_player's 100 ms updates), so whole passes are
-//  timed and the playback rate is nudged until one loop takes its duration.
+//  Mithka X video-sticker pacing: MDK stops a video-only clip at its last
+//  frame's timestamp, so that frame's hold is dropped every loop — 25% of a
+//  five-frame 0.4 s sticker, 1% of a three-second one, which is why only short,
+//  low-frame-rate stickers were reported racing. The rate comes out of the WebM
+//  header instead of from sampling, because a 0.4 s clip wraps between two of
+//  video_player's 100 ms position updates.
 //
 //  The same file covers the viewport gate: a sticker only holds a native player
 //  while it is on screen.
 //
 
+import 'dart:typed_data';
 import 'dart:ui' show Rect, Size;
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mithka/media/looping_media_playback.dart';
-import 'package:mithka/media/video_sticker_pacing.dart';
+import 'package:mithka/media/webm_frame_rate.dart';
+
+/// A minimal EBML element: id bytes, a one-byte size, then the payload.
+Uint8List _element(int id, List<int> payload) {
+  final idBytes = <int>[];
+  var remaining = id;
+  while (remaining > 0) {
+    idBytes.insert(0, remaining & 0xff);
+    remaining >>= 8;
+  }
+  return Uint8List.fromList([...idBytes, 0x80 | payload.length, ...payload]);
+}
+
+Uint8List _uint64(int value) => Uint8List.fromList([
+  for (var shift = 56; shift >= 0; shift -= 8) (value >> shift) & 0xff,
+]);
+
+/// Telegram (and ffmpeg) put the frame duration on the track, not in Info.
+Uint8List _webm({int? defaultDuration}) {
+  final info = _element(0x1549A966, [
+    // TimecodeScale: 1 ms.
+    ..._element(0x2AD7B1, [0x0f, 0x42, 0x40]),
+  ]);
+  final track = _element(0xAE, [
+    ..._element(0x86, 'V_VP9'.codeUnits),
+    if (defaultDuration != null) ..._element(0x23E383, _uint64(defaultDuration)),
+  ]);
+  final segment = _element(0x18538067, [...info, ..._element(0x1654AE6B, track)]);
+  return Uint8List.fromList([
+    ..._element(0x1a45dfa3, [
+      0x42, 0x86, 0x81, 0x01, 0x42, 0x82, 0x84, 0x77, 0x65, 0x62, 0x6d,
+    ]),
+    ...segment,
+  ]);
+}
 
 void main() {
-  group('StickerPacingController', () {
-    test('a 0.34 s pass on a 0.4 s sticker is slowed to real time', () {
-      final pacing = StickerPacingController();
-      // One window of media time: four passes of a 0.4 s clip.
-      double? rate;
-      for (var i = 0; i < 4; i++) {
-        rate = pacing.pass(
-          wall: const Duration(milliseconds: 340),
-          media: const Duration(milliseconds: 400),
-        );
-      }
-      expect(rate, closeTo(0.85, 0.01));
+  group('webmFrameDuration', () {
+    test('reads an 80 ms frame from a 12.5 fps header', () {
+      expect(
+        webmFrameDuration(_webm(defaultDuration: 80000000)),
+        const Duration(milliseconds: 80),
+      );
     });
 
-    test('playback that already takes its authored time is left alone', () {
-      final pacing = StickerPacingController();
-      for (var i = 0; i < 4; i++) {
-        expect(
-          pacing.pass(
-            wall: const Duration(milliseconds: 400),
-            media: const Duration(milliseconds: 400),
-          ),
-          isNull,
-        );
-      }
-      expect(pacing.rate, 1);
+    test('a header without DefaultDuration reports nothing', () {
+      expect(webmFrameDuration(_webm()), isNull);
     });
 
-    test('a 4x fast clip is halved per window, never quartered', () {
-      final pacing = StickerPacingController();
-      // A window of four 0.4 s passes that each came round in 0.1 s.
-      double? rate;
-      for (var i = 0; i < 4; i++) {
-        rate = pacing.pass(
-          wall: const Duration(milliseconds: 100),
-          media: const Duration(milliseconds: 400),
-        );
-      }
-      // One step is clamped to 2x, so a wildly fast clip takes two windows.
-      expect(rate, closeTo(0.5, 0.001));
+    test('garbage is not mistaken for a header', () {
+      expect(webmFrameDuration(Uint8List.fromList([1, 2, 3])), isNull);
+      expect(webmFrameDuration(Uint8List(0)), isNull);
+    });
+  });
+
+  group('stickerTailCorrection', () {
+    test('a five-frame 0.4 s sticker plays at 0.8x', () {
+      expect(
+        stickerTailCorrection(
+          duration: const Duration(milliseconds: 400),
+          frameDuration: const Duration(milliseconds: 80),
+        ),
+        closeTo(0.8, 0.001),
+      );
     });
 
-    test('a stale completion right after a seek is not a pass', () {
-      final pacing = StickerPacingController();
-      for (var i = 0; i < 8; i++) {
-        expect(
-          pacing.pass(
-            wall: const Duration(milliseconds: 8),
-            media: const Duration(milliseconds: 400),
-          ),
-          isNull,
-        );
-      }
-      expect(pacing.rate, 1);
+    test('a three-second sticker is barely touched', () {
+      expect(
+        stickerTailCorrection(
+          duration: const Duration(seconds: 3),
+          frameDuration: const Duration(milliseconds: 33),
+        ),
+        closeTo(0.989, 0.001),
+      );
     });
 
-    test('a pass far slower than real time never speeds playback past 1x', () {
-      final pacing = StickerPacingController();
-      double? rate;
-      for (var i = 0; i < 4; i++) {
-        rate = pacing.pass(
-          wall: const Duration(seconds: 30),
-          media: const Duration(milliseconds: 400),
-        );
-      }
-      // 1x is the authored pace; a slow backend is not asked to run faster.
-      expect(rate, isNull);
-      expect(pacing.rate, 1);
+    test('an unknown frame duration leaves the clip alone', () {
+      expect(
+        stickerTailCorrection(
+          duration: const Duration(milliseconds: 400),
+          frameDuration: null,
+        ),
+        isNull,
+      );
     });
 
-    test('reset returns to real time', () {
-      final pacing = StickerPacingController();
-      for (var i = 0; i < 4; i++) {
-        pacing.pass(
-          wall: const Duration(milliseconds: 100),
-          media: const Duration(milliseconds: 400),
-        );
+    test('a header claiming a frame longer than the clip is ignored', () {
+      expect(
+        stickerTailCorrection(
+          duration: const Duration(milliseconds: 400),
+          frameDuration: const Duration(milliseconds: 400),
+        ),
+        isNull,
+      );
+      expect(
+        stickerTailCorrection(
+          duration: const Duration(milliseconds: 100),
+          frameDuration: const Duration(milliseconds: 50),
+        ),
+        isNull,
+      );
+    });
+  });
+
+  group('StickerPacingMeter', () {
+    test('a moving clock counts forward progress', () {
+      final meter = StickerPacingMeter(startPosition: Duration.zero)..start();
+      for (var tick = 1; tick <= 15; tick++) {
+        meter.tick(Duration(milliseconds: (tick % 8) * 100), const Duration(milliseconds: 800));
       }
-      expect(pacing.rate, lessThan(1));
-      pacing.reset();
-      expect(pacing.rate, 1);
+      expect(meter.mediaElapsed, const Duration(milliseconds: 1500));
     });
   });
 
@@ -154,7 +180,6 @@ void main() {
         isTrue,
       );
       expect(visibility.isOnScreen, isFalse);
-      // Still out of view: no repeated reconcile work on every scroll tick.
       expect(
         visibility.update(
           rect: const Rect.fromLTWH(0, -600, 160, 160),
@@ -179,10 +204,7 @@ void main() {
     });
 
     test('an unlaid-out surface is not treated as visible', () {
-      expect(
-        loopingSurfaceIsOnScreen(rect: Rect.zero, screen: screen),
-        isFalse,
-      );
+      expect(loopingSurfaceIsOnScreen(rect: Rect.zero, screen: screen), isFalse);
     });
   });
 
