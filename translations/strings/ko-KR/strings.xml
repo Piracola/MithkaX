@@ -4096,9 +4096,4 @@
     <string name="mithkaxChannelPostForwards">{value1}회 전달</string>
     <string name="mithkaxDeleteTopic">주제 삭제</string>
     <string name="mithkaxReadAllFailed">읽음으로 표시하지 못했습니다</string>
-    <string name="mithkaxStartupDiagnosticsTitle">시작 진단</string>
-    <string name="mithkaxStartupDiagnosticsDescription">임시 기능: 최근 실행 추적과 처리되지 않은 예외를 기록해 아이콘 변경 후 콜드 스타트 충돌을 확인합니다.</string>
-    <string name="mithkaxStartupDiagnosticsCopy">모두 복사</string>
-    <string name="mithkaxStartupDiagnosticsClear">지우기</string>
-    <string name="mithkaxStartupDiagnosticsEmpty">기록 없음</string>
 </resources>

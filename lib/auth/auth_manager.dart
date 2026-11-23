@@ -10,7 +10,6 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:mithka/l10n/app_localizations.dart';
 import 'package:mithka/notifications/scope_notification_settings.dart';
-import '../app/startup_trace.dart';
 import '../chat/admin/chat_members_cache.dart';
 import '../config/secrets.dart';
 import '../settings/api_credentials_config.dart';
@@ -674,7 +673,6 @@ class AuthManager extends ChangeNotifier {
       if (same) return;
     }
     _step = step;
-    StartupTrace.log('auth', 'step=${step.runtimeType}');
     notifyListeners();
   }
 

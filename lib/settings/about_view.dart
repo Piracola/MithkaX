@@ -19,7 +19,6 @@ import '../theme/app_theme.dart';
 import '../update/update_checker.dart';
 import 'developer_mode_controller.dart';
 import 'feedback_report_view.dart';
-import 'startup_diagnostics_view.dart';
 
 class AboutView extends StatefulWidget {
   const AboutView({super.key, this.showBackButton = true});
@@ -149,27 +148,6 @@ class _AboutViewState extends State<AboutView> {
                 ),
               ],
             ),
-          ),
-          const SizedBox(height: 30),
-          SettingsCard.rows(
-            rows: [
-              // TEMPORARY: device-side startup trace reader for the
-              // icon-switch cold-start crash (no adb on the test phone).
-              // Remove with StartupDiagnosticsView.
-              SettingsRow(
-                leading: const SettingsLeadingIcon(
-                  icon: HeroAppIcons.documentDuplicate,
-                ),
-                title: AppStrings.t(
-                  AppStringKeys.mithkaxStartupDiagnosticsTitle,
-                ),
-                onTap: () => Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (_) => const StartupDiagnosticsView(),
-                  ),
-                ),
-              ),
-            ],
           ),
           const SizedBox(height: AppSpacing.section),
           SettingsCard.rows(

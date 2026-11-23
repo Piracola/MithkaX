@@ -80,28 +80,6 @@ void main() {
     });
   });
 
-  group('the trace keeps the run that died', () {
-    test('it survives the next launch', () {
-      final diagnostics = File(
-        'android/app/src/main/kotlin/x/empty/mithka/StartupDiagnostics.kt',
-      ).readAsStringSync();
-      final start = diagnostics.substring(
-        diagnostics.indexOf('fun startProcess'),
-        diagnostics.contains('fun trimIfNeeded')
-            ? diagnostics.indexOf('fun trimIfNeeded')
-            : diagnostics.length,
-      );
-      expect(
-        start.contains('writeText("")'),
-        isFalse,
-        reason:
-            'truncating on process start deletes the tail of the run that just '
-            'crashed — the only record a native abort leaves',
-      );
-      expect(start, contains('trimIfNeeded'));
-    });
-  });
-
   group('one engine per process', () {
     test('a live sibling engine is never treated as a re-entry', () {
       // Backstop for anyone who reverts to a per-Activity engine.

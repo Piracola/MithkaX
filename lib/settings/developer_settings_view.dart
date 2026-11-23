@@ -12,7 +12,6 @@ import '../components/ui_components.dart';
 import '../l10n/app_localizations.dart';
 import '../theme/app_theme.dart';
 import 'api_credentials_view.dart';
-import 'startup_diagnostics_view.dart';
 
 class DeveloperSettingsView extends StatelessWidget {
   const DeveloperSettingsView({super.key});
@@ -29,19 +28,6 @@ class DeveloperSettingsView extends StatelessWidget {
         children: [
           SettingsCard.rows(
             rows: [
-              SettingsRow(
-                title: AppStrings.t(
-                  AppStringKeys.mithkaxStartupDiagnosticsTitle,
-                ),
-                leading: const SettingsLeadingIcon(
-                  icon: HeroAppIcons.documentDuplicate,
-                ),
-                onTap: () => Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (_) => const StartupDiagnosticsView(),
-                  ),
-                ),
-              ),
               SettingsRow(
                 title: AppStrings.t(AppStringKeys.apiCredentialsTitle),
                 value: AppStrings.t(

@@ -4096,9 +4096,4 @@
     <string name="mithkaxChannelPostForwards">{value1} 次轉發</string>
     <string name="mithkaxDeleteTopic">刪除主題</string>
     <string name="mithkaxReadAllFailed">標示為已讀失敗</string>
-    <string name="mithkaxStartupDiagnosticsTitle">啟動診斷</string>
-    <string name="mithkaxStartupDiagnosticsDescription">臨時功能：記錄最近一次啟動的軌跡與未捕獲異常，用於定位換圖示後冷啟動閃退。</string>
-    <string name="mithkaxStartupDiagnosticsCopy">複製全部</string>
-    <string name="mithkaxStartupDiagnosticsClear">清除</string>
-    <string name="mithkaxStartupDiagnosticsEmpty">暫無記錄</string>
 </resources>

@@ -85,13 +85,6 @@ class MainActivity : FlutterFragmentActivity() {
         CachedEngine.acquire(this)
         WindowCompat.setDecorFitsSystemWindows(window, false)
         super.onCreate(savedInstanceState)
-        StartupDiagnostics.log(
-            this,
-            "activity",
-            "onCreate component=${componentName?.flattenToShortString()} " +
-                "action=${intent?.action} flags=0x${intent?.flags?.toString(16)} " +
-                "restored=${savedInstanceState != null} task=$taskId",
-        )
         requestHighestRefreshRate()
         if (!warm) {
             pendingSharePayload = parseIncomingShareIntent(intent)
@@ -112,11 +105,6 @@ class MainActivity : FlutterFragmentActivity() {
             // to app_links, the share channel and the push bridge.
             val incoming = intent
             if (incoming != null && incoming.action != Intent.ACTION_MAIN) {
-                StartupDiagnostics.log(
-                    this,
-                    "activity",
-                    "warm attach with $incoming.action: forwarding to Dart",
-                )
                 onNewIntent(Intent(incoming))
             }
         }
@@ -137,11 +125,6 @@ class MainActivity : FlutterFragmentActivity() {
             val primordialState = packageManager.getComponentEnabledSetting(
                 primordialDefaultAlias,
             )
-            StartupDiagnostics.log(
-                this,
-                "alias",
-                "self-heal primordialState=$primordialState",
-            )
             if (primordialState == PackageManager.COMPONENT_ENABLED_STATE_DEFAULT ||
                 primordialState == PackageManager.COMPONENT_ENABLED_STATE_ENABLED
             ) {
@@ -152,24 +135,17 @@ class MainActivity : FlutterFragmentActivity() {
                     ComponentName(packageName, className),
                 )
                 if (state == PackageManager.COMPONENT_ENABLED_STATE_ENABLED) {
-                    StartupDiagnostics.log(
-                        this,
-                        "alias",
-                        "self-heal live=$className",
-                    )
                     return
                 }
             }
             // Nothing is live: re-root the launcher at the shipped default so this
             // launch already resolves, and the home screen gets its icon back.
-            StartupDiagnostics.log(this, "alias", "self-heal: nothing live, re-rooting")
             packageManager.setComponentEnabledSetting(
                 primordialDefaultAlias,
                 PackageManager.COMPONENT_ENABLED_STATE_ENABLED,
                 PackageManager.DONT_KILL_APP,
             )
         } catch (error: Exception) {
-            StartupDiagnostics.log(this, "alias", "self-heal failed: $error")
             Log.w("MainActivity", "Could not repair the launcher alias", error)
         }
     }
@@ -201,11 +177,6 @@ class MainActivity : FlutterFragmentActivity() {
                     "ic_launcher_" + current.replace('-', '_')
                 }
                 val iconRes = resources.getIdentifier(resName, "mipmap", packageName)
-                StartupDiagnostics.log(
-                    this,
-                    "recents",
-                    "updateTaskDescription current=$current resource=$resName id=$iconRes",
-                )
                 runOnUiThread {
                     val taskDescription =
                         android.app.ActivityManager.TaskDescription("Mithka X", iconRes, 0)
@@ -338,38 +309,8 @@ class MainActivity : FlutterFragmentActivity() {
             configuredEngine = flutterEngine
             flutterEngineOrdinal += 1
             registerPlugins(flutterEngine)
-            StartupDiagnostics.log(
-                this,
-                "engine",
-                "new engine ordinal=$flutterEngineOrdinal",
-            )
-        } else {
-            StartupDiagnostics.log(this, "engine", "reattached engine")
         }
         CachedEngine.noteAttach()
-        // TEMPORARY: read/clear the device-side startup trace. Remove with
-        // StartupDiagnostics once the icon-switch crash is understood.
-        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "mithka/diagnostics")
-            .setMethodCallHandler { call, result ->
-                when (call.method) {
-                    "log" -> {
-                        val args = call.arguments as? Map<*, *>
-                        StartupDiagnostics.log(
-                            this,
-                            args?.get("tag") as? String ?: "dart",
-                            args?.get("message") as? String ?: "",
-                        )
-                        result.success(null)
-                    }
-                    "read" -> result.success(StartupDiagnostics.read(this))
-                    "clear" -> {
-                        StartupDiagnostics.clear(this)
-                        StartupDiagnostics.log(this, "process", "trace cleared")
-                        result.success(null)
-                    }
-                    else -> result.notImplemented()
-                }
-            }
         webProxyBridge = WebProxyBridge(this, flutterEngine.dartExecutor.binaryMessenger)
         pushBridge = PushServiceBridge(
             this,
@@ -479,15 +420,8 @@ class MainActivity : FlutterFragmentActivity() {
                     // the loading page keeps painting and the Dart future just
                     // resolves a few ms later.
                     "currentIcon" -> Thread {
-                        val startedAt = System.currentTimeMillis()
                         try {
                             val current = currentLauncherIcon()
-                            StartupDiagnostics.log(
-                                this@MainActivity,
-                                "icon",
-                                "currentIcon=$current " +
-                                    "in ${System.currentTimeMillis() - startedAt}ms",
-                            )
                             runOnUiThread { result.success(current) }
                         } catch (e: Exception) {
                             runOnUiThread {
@@ -523,20 +457,8 @@ class MainActivity : FlutterFragmentActivity() {
                         // launcher. A background thread keeps the switch UI
                         // (and its result callback) off that lock.
                         Thread {
-                            val startedAt = System.currentTimeMillis()
                             try {
-                                StartupDiagnostics.log(
-                                    this@MainActivity,
-                                    "icon",
-                                    "setIcon start name=$name ordinal=$flutterEngineOrdinal",
-                                )
                                 setLauncherIcon(name)
-                                StartupDiagnostics.log(
-                                    this@MainActivity,
-                                    "icon",
-                                    "setIcon done name=$name " +
-                                        "in ${System.currentTimeMillis() - startedAt}ms",
-                                )
                                 runOnUiThread {
                                     result.success(null)
                                     // The alias just went live: refresh the recents
@@ -1721,12 +1643,6 @@ class MainActivity : FlutterFragmentActivity() {
     }
 
     override fun onDestroy() {
-        StartupDiagnostics.log(
-            this,
-            "activity",
-            "onDestroy finishing=$isFinishing " +
-                "changingConfig=$isChangingConfigurations ordinal=$flutterEngineOrdinal",
-        )
         FVideoPictureInPicturePlugin.onActivityDestroyed(this)
         // Back out of the app finishes this window anyway.
         if (isFinishing) applyPendingLauncherIcon(closeTask = false)

@@ -4113,9 +4113,4 @@
     <string name="mithkaxChannelPostForwards">{value1} reenvíos</string>
     <string name="mithkaxDeleteTopic">Eliminar tema</string>
     <string name="mithkaxReadAllFailed">No se pudo marcar como leído</string>
-    <string name="mithkaxStartupDiagnosticsTitle">Diagnóstico de inicio</string>
-    <string name="mithkaxStartupDiagnosticsDescription">Temporal: registra el último arranque y las excepciones no capturadas para diagnosticar el cierre inesperado al iniciar tras cambiar el icono.</string>
-    <string name="mithkaxStartupDiagnosticsCopy">Copiar todo</string>
-    <string name="mithkaxStartupDiagnosticsClear">Borrar</string>
-    <string name="mithkaxStartupDiagnosticsEmpty">Sin registros</string>
 </resources>

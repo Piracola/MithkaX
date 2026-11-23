@@ -28,7 +28,6 @@ class PushKeepAliveService : Service() {
         super.onCreate()
         isRunning = true
         createChannels()
-        StartupDiagnostics.log(this, "push", "keep-alive service created")
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -103,11 +102,6 @@ class PushKeepAliveService : Service() {
             return true
         } catch (error: Throwable) {
             android.util.Log.w(TAG, "Failed to enter foreground", error)
-            StartupDiagnostics.log(
-                this,
-                "push",
-                "startForeground failed ($reason): $error",
-            )
             isForeground = false
             return false
         }
@@ -216,11 +210,6 @@ class PushKeepAliveService : Service() {
 
         fun start(context: Context) {
             try {
-                StartupDiagnostics.log(
-                    context,
-                    "push",
-                    "startForegroundService requested from ${android.os.Process.myPid()}",
-                )
                 ContextCompat.startForegroundService(
                     context.applicationContext,
                     Intent(context.applicationContext, PushKeepAliveService::class.java),

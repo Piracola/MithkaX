@@ -47,7 +47,6 @@
 
     <application
         android:label="Mithka X"
-        android:name=".MithkaApplication"
         android:icon="@mipmap/ic_launcher_mithkax_default"
         android:theme="@style/LaunchTheme"
         android:allowBackup="true"

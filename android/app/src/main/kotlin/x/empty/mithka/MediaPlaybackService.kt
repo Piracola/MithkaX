@@ -34,21 +34,10 @@ class MediaPlaybackService : Service() {
         } else {
             startForeground(NowPlayingPlugin.NOTIFICATION_ID, notification)
         }
-        isRunning = true
         return START_NOT_STICKY
     }
 
-    override fun onDestroy() {
-        isRunning = false
-        super.onDestroy()
-    }
-
     companion object {
-        /// True while audio is playing in the background. The app kills its own
-        /// process on exit (one engine per process), which must not cut music.
-        @Volatile
-        var isRunning: Boolean = false
-
         fun start(context: Context) {
             val intent = Intent(context, MediaPlaybackService::class.java)
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {

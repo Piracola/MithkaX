@@ -4113,9 +4113,4 @@
     <string name="mithkaxChannelPostForwards">{value1} Weiterleitungen</string>
     <string name="mithkaxDeleteTopic">Thema löschen</string>
     <string name="mithkaxReadAllFailed">Als gelesen markieren fehlgeschlagen</string>
-    <string name="mithkaxStartupDiagnosticsTitle">Startdiagnose</string>
-    <string name="mithkaxStartupDiagnosticsDescription">Vorübergehend: zeichnet den letzten Startverlauf und nicht abgefangene Ausnahmen auf, um den Absturz beim Kaltstart nach einem Icon-Wechsel zu finden.</string>
-    <string name="mithkaxStartupDiagnosticsCopy">Alles kopieren</string>
-    <string name="mithkaxStartupDiagnosticsClear">Leeren</string>
-    <string name="mithkaxStartupDiagnosticsEmpty">Noch keine Aufzeichnung</string>
 </resources>

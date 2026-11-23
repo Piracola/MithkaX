@@ -25,7 +25,6 @@ import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../app/diagnostic_breadcrumbs.dart';
-import '../app/startup_trace.dart';
 import '../bot_api/bot_api_account.dart';
 import '../bot_api/bot_api_client.dart';
 import '../bot_api/bot_api_endpoint_config.dart';
@@ -655,12 +654,6 @@ class TdClient {
     // returns, and closing a live session's clients would kill a VM still
     // using them.
     final engineState = await processEngineState();
-    StartupTrace.log(
-      'tdlib',
-      'engineOrdinal=${engineState.ordinal} '
-          'destroyed=${engineState.destroyedOrdinal} '
-          'reclaim=${engineState.mayReclaimPreviousEngine}',
-    );
     if (kDebugMode || engineState.mayReclaimPreviousEngine) {
       await _reclaimStaleEngineClients();
     }
@@ -812,7 +805,6 @@ class TdClient {
       // of a live receiver aborts the process, so take the safer failure: no
       // pump rather than a double one.
       debugPrint('🔑 [Mithka] receive isolate ignored the stop request');
-      StartupTrace.log('tdlib', 'receive isolate ignored the stop request');
       _receiveIsolate?.kill(priority: Isolate.immediate);
       _receiveIsolate = null;
       return false;
@@ -838,10 +830,8 @@ class TdClient {
     final generation = ++_receiveIsolateGeneration;
     // Only one thread may ever sit in td_receive for this PROCESS: TDLib aborts
     // on a second one (Client.cpp TdReceiver::receive). The retire waits for the
-    // previous isolate to leave the loop, and this pair of lines is what proves
-    // the ordering when a device trace is the only evidence available.
-    final retired = await _retireReceiveIsolate();
-    StartupTrace.log('tdlib', 'receive spawn gen=$generation retired=$retired');
+    // previous isolate to leave its loop before a replacement spawns.
+    await _retireReceiveIsolate();
     if (generation != _receiveIsolateGeneration) return;
 
     final port = ReceivePort();
@@ -861,7 +851,6 @@ class TdClient {
     _receiveIsolateExited = exitFuture;
     late final StreamSubscription<dynamic> exitSubscription;
     exitSubscription = exitPort.listen((_) {
-      StartupTrace.log('tdlib', 'receive exited gen=$generation');
       if (!exited.isCompleted) exited.complete();
       unawaited(exitSubscription.cancel());
       exitPort.close();
@@ -900,7 +889,6 @@ class TdClient {
         final control = message['control'];
         if (control is SendPort) {
           _receiveControl = control;
-          StartupTrace.log('tdlib', 'receive ready gen=$generation');
           // A stop requested between spawn and readiness must not be lost.
           if (_receiveStopRequested) control.send(_tdReceiveStopCommand);
         }
@@ -2161,7 +2149,6 @@ class TdClient {
 
     if (object.type == 'updateAuthorizationState' &&
         object.obj('authorization_state')?.type == 'authorizationStateClosed') {
-      StartupTrace.log('tdlib', 'authorizationStateClosed client=$clientId');
       _parametersSent.remove(clientId);
       _webProxyCarriers?.closeClient(clientId);
       TdUserIndex.shared.clearSlot(slot);
@@ -2182,22 +2169,14 @@ class TdClient {
         object.type == 'updateAuthorizationState' &&
         object.obj('authorization_state')?.type ==
             'authorizationStateWaitTdlibParameters') {
-      StartupTrace.log('tdlib', 'waitTdlibParameters client=$clientId');
       _sendParameters(clientId);
     }
 
-    // TEMPORARY: an error object without our "@extra" (setTdlibParameters is
-    // fire-and-forget) has no handler and used to vanish. It is the one signal
-    // that explains a launch that never leaves the loading page.
+    // setTdlibParameters is fire-and-forget, so a rejection arrives without our
+    // "@extra" and no handler would see it: drop the once-only guard so the
+    // next waitTdlibParameters pushes it again.
     if (object.type == 'error' && extra == null) {
-      // A rejected setTdlibParameters leaves the client in the same state, so
-      // let the next waitTdlibParameters push retry it.
       _parametersSent.remove(clientId);
-      StartupTrace.log(
-        'tdlib',
-        'unsolicited error client=$clientId code=${object.integer('code')} '
-            'message="${object.str('message')}"',
-      );
     }
     // TDLib answers "Request aborted" (500) for a request queued against a
     // client it no longer has: the client is gone, so a reclaim waiter for it
@@ -2289,7 +2268,6 @@ class TdClient {
         .where((id) => id > 0)
         .toList();
     if (ids == null || ids.isEmpty) {
-      StartupTrace.log('tdlib', 'reclaim: no stale ids');
       return;
     }
     final waiters = <Future<void>>[
@@ -2303,7 +2281,6 @@ class TdClient {
       '🔑 [Mithka] closing TDLib clients left by the previous engine: '
       '${ids.join(', ')}',
     );
-    StartupTrace.log('tdlib', 'reclaim: closing stale ids ${ids.join(',')}');
     try {
       // Every id answers one way or the other: authorizationStateClosed when a
       // live previous engine finishes closing, or "Request aborted" when TDLib
@@ -2315,13 +2292,11 @@ class TdClient {
       debugPrint(
         '🔑 [Mithka] stale TDLib clients did not confirm close in time',
       );
-      StartupTrace.log('tdlib', 'reclaim: close timed out');
     }
     for (final id in ids) {
       _clientClosedWaiters.remove(id);
     }
     await _prefs.remove(_liveClientIdsKey);
-    StartupTrace.log('tdlib', 'reclaim: done');
   }
 
   Future<void> _persistLiveClientIds() {
@@ -2347,10 +2322,6 @@ class TdClient {
     final filesDir = Platform.isAndroid && DownloadStorage.currentRoot != null
         ? DownloadStorage.filesDirectory(DownloadStorage.currentRoot!, slot)
         : '$dbDir/files';
-    StartupTrace.log(
-      'tdlib',
-      'setTdlibParameters client=$clientId slot=$slot db=$dbDir',
-    );
     final api = ApiCredentialsConfig.fromPrefs(_prefs);
     final useCustomApi = api.isUsable;
 
