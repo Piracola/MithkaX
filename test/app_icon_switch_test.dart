@@ -114,11 +114,11 @@ void main() {
     });
   });
 
-  group('post-switch exit on Android', () {
-    // The user restarts into the new icon: after a successful switch the app
-    // exits (SystemNavigator.pop) so the next open is a clean cold start
-    // showing the new icon. The old moveToBack "step aside" behaviour is
-    // gone — the process dies instead of staying alive in the background.
+  group('post-switch behaviour on Android', () {
+    // The app no longer exits after a switch: native defers the alias change
+    // while this window's task is based on an alias it would disable, applies
+    // it when the user leaves and retires the task then. The old moveToBack
+    // "step aside" behaviour is gone too.
     test('a successful Android switch no longer steps aside', () async {
       final calls = <String>[];
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
@@ -249,6 +249,57 @@ void main() {
         write,
         greaterThan(worker),
         reason: 'the 61 component writes must run on the worker thread',
+      );
+    });
+
+    test('an icon switch is deferred while its task uses another alias', () {
+      // Android finishes every task based on an alias that gets disabled, so
+      // the switch waits until the user leaves the app instead of closing it
+      // in their face (upstream a5facdfd8). MithkaX's primordial default alias
+      // lives outside launcherAliases() and must count as a base alias too.
+      expect(
+        kt.contains('private const val PENDING_LAUNCHER_ICON = "pending"'),
+        isTrue,
+      );
+      expect(kt.contains('private fun applyPendingLauncherIcon('), isTrue);
+      expect(
+        kt.contains(
+          'val baseAliases = aliases.values + '
+          'primordialDefaultAlias.className',
+        ),
+        isTrue,
+        reason:
+            'a task opened from the shipped default alias is just as '
+            'closeable as one on any other alias',
+      );
+      expect(kt.contains('baseAliases.contains(base.className)'), isTrue);
+      expect(
+        kt.contains(
+          'if (leftByUser && !isInPictureInPictureMode && '
+          '!isChangingConfigurations)',
+        ),
+        isTrue,
+        reason:
+            'the deferred switch lands when the user leaves, but never '
+            'during PiP or a configuration change',
+      );
+      expect(kt.contains('finishAndRemoveTask()'), isTrue);
+      expect(
+        kt.contains(
+          'if (isFinishing) applyPendingLauncherIcon(closeTask = false)',
+        ),
+        isTrue,
+        reason: 'Back must still apply the choice without double-finishing',
+      );
+      final dart = File(
+        'lib/settings/app_icon_controller.dart',
+      ).readAsStringSync();
+      expect(
+        dart.contains('SystemNavigator.pop'),
+        isFalse,
+        reason:
+            'Dart must not close the app after a switch any more: the '
+            'native deferral is what keeps it alive',
       );
     });
 

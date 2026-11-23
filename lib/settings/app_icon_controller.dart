@@ -911,10 +911,9 @@ class AppIconController extends ChangeNotifier {
   bool get supported => _supported;
   bool get loading => _loading;
 
-  /// True until the user's first explicit icon choice lands. Android closes
-  /// the app exactly once — when the manifest-enabled launcher alias is first
-  /// disabled at runtime; the picker shows the notice below the standard
-  /// choices until then.
+  /// True until the user's first explicit icon choice lands. Android applies
+  /// such a switch when the user leaves the app (see MainActivity's
+  /// `applyPendingLauncherIcon`), so nothing here closes or restarts it.
   bool get firstChangePending => supported && !_everChoseExplicitly;
 
   Future<void> initialize() async {
@@ -965,16 +964,10 @@ class AppIconController extends ChangeNotifier {
       if (_disposed) return false;
       if (isCurrent(next)) return true;
       await _channel.invokeMethod<void>('setIcon', {'name': next.key});
-      // Exit so the user restarts into the new icon. The switch itself
-      // already landed on the launcher; killing the process makes the change
-      // complete instead of leaving the old task covering the new icon.
-      if (_platform == TargetPlatform.android) {
-        try {
-          await SystemNavigator.pop();
-        } catch (_) {
-          // If the pop cannot be delivered, the switch itself still succeeded.
-        }
-      }
+      // No exit on Android: native defers the alias switch while this window's
+      // task is based on an alias it would disable, applies it when the user
+      // leaves (Home/Recents) and retires the task then, so the next open is a
+      // clean start on the new icon without the app closing in front of anyone.
       _variant = next;
       _retainedUnknownState = null;
       _everChoseExplicitly = true;

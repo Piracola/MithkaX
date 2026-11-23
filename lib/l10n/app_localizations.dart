@@ -132,7 +132,6 @@ abstract final class AppStringKeys {
   static const appIconBackgroundNeutral = 'appIconBackgroundNeutral';
   static const appIconBackgroundPinkPurple = 'appIconBackgroundPinkPurple';
   static const appIconBackgroundTelegramBlue = 'appIconBackgroundTelegramBlue';
-  static const appIconFirstChangeNote = 'appIconFirstChangeNote';
   static const appIconFreeHeading = 'appIconFreeHeading';
   static const appIconLetterMNeutral = 'appIconLetterMNeutral';
   static const appIconLetterMPinkPurple = 'appIconLetterMPinkPurple';

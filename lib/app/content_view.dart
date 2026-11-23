@@ -22,6 +22,7 @@ import '../components/vip_badge.dart';
 import '../l10n/app_localizations.dart';
 import '../platform/adaptive_platform.dart';
 import '../profile/emoji_status_picker.dart';
+import '../settings/app_icon_controller.dart';
 import '../settings/desktop_hotkey_controller.dart';
 import '../theme/app_motion.dart';
 import '../theme/app_theme.dart';
@@ -924,11 +925,41 @@ class _DesktopTitleBarProfilePopup extends StatelessWidget {
   }
 }
 
+/// The screen shown while the session starts.
+///
+/// The shipped default keeps the brand gradient with the transparent penguin,
+/// which is the mark Mithka X opens with. Any other chosen icon is drawn the
+/// way the icon picker draws it, centred on the app background over a 24 pt
+/// spinner in the tertiary text colour: a standard icon as a 160 pt tile with
+/// 36 pt corners, a penguin as its 192 pt background-free art. Android 12+
+/// opens the app with the chosen icon on that same background.
 class SplashView extends StatelessWidget {
   const SplashView({super.key});
 
+  /// The icon the user chose, or null for the shipped default (and before any
+  /// choice is known, or where no icon controller is provided).
+  static AppIconVariant? _chosenIcon(BuildContext context) {
+    final AppIconVariant? current;
+    try {
+      current = context.select<AppIconController, AppIconVariant?>(
+        (icons) => icons.currentVariant,
+      );
+    } on ProviderNotFoundException {
+      return null;
+    }
+    // Upstream's defaultIcon and MithkaX's own shipped mark both draw the
+    // brand screen; only an icon chosen away from them is drawn as itself.
+    return current == null ||
+            current == AppIconVariant.defaultIcon ||
+            current == AppIconVariant.mithkaxDefault
+        ? null
+        : current;
+  }
+
   @override
   Widget build(BuildContext context) {
+    final chosen = _chosenIcon(context);
+    if (chosen != null) return _chosenIconSplash(context, chosen);
     return DecoratedBox(
       decoration: BoxDecoration(gradient: AppTheme.brandGradient),
       child: const Center(
@@ -950,6 +981,56 @@ class SplashView extends StatelessWidget {
               child: CircularProgressIndicator(
                 strokeWidth: 2.5,
                 valueColor: AlwaysStoppedAnimation(Colors.white),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _chosenIconSplash(BuildContext context, AppIconVariant icon) {
+    final c = context.colors;
+    final brightness = Theme.of(context).brightness;
+    final pixelArt = icon.freeMotif == AppIconFreeMotif.pixelPenguin;
+    // Only the picker artwork ships on every platform; the full launcher PNGs
+    // are bundled for the macOS Dock alone. It is 256 px, so it decodes as is:
+    // upscaling it at decode time would blur the pixel penguin's edges.
+    final Widget art = icon.isStandard
+        ? ClipRRect(
+            borderRadius: BorderRadius.circular(AppMetric.splashIconRadius),
+            child: Image.asset(
+              icon.standardPickerAsset(brightness),
+              width: AppMetric.splashIconSize,
+              height: AppMetric.splashIconSize,
+              fit: BoxFit.cover,
+              filterQuality: pixelArt
+                  ? FilterQuality.none
+                  : FilterQuality.medium,
+            ),
+          )
+        // Penguins and the retired icons have background-free art, drawn at
+        // the default penguin's 192 pt.
+        : Image.asset(
+            icon.pickerAsset,
+            width: AppMetric.splashPenguinSize,
+            height: AppMetric.splashPenguinSize,
+            fit: BoxFit.contain,
+          );
+    return ColoredBox(
+      color: c.background,
+      child: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            KeyedSubtree(key: ValueKey('splash-icon-${icon.key}'), child: art),
+            const SizedBox(height: AppSpacing.lg + AppSpacing.sm),
+            SizedBox(
+              width: AppMetric.splashSpinnerSize,
+              height: AppMetric.splashSpinnerSize,
+              child: CircularProgressIndicator(
+                strokeWidth: 2.5,
+                valueColor: AlwaysStoppedAnimation(c.textTertiary),
               ),
             ),
           ],

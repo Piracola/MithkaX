@@ -488,21 +488,8 @@ class _AppIconSettingsViewState extends State<AppIconSettingsView> {
                           .toList(),
                       columns,
                     ),
-                    // Android closes the app exactly once — when the shipped
-                    // (manifest-enabled) launcher alias is disabled by the
-                    // user's first explicit choice. Every later switch runs
-                    // through manifest-disabled aliases and stays alive.
-                    // Warn once, before that first switch, not after.
-                    // iOS/macOS never close the app for an icon change.
-                    if (controller.firstChangePending &&
-                        !kIsWeb &&
-                        defaultTargetPlatform == TargetPlatform.android) ...[
-                      const SizedBox(height: 8),
-                      const SettingsNote(
-                        key: ValueKey('app-icon-first-change-note'),
-                        text: AppStringKeys.appIconFirstChangeNote,
-                      ),
-                    ],
+                    // Android applies a deferred icon switch when the user
+                    // leaves the app, so no restart notice is needed any more.
                     if (controller.supported &&
                         controller.supporterAvailable &&
                         icons.any((icon) => icon.requiresSupporter)) ...[
