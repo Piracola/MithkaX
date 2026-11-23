@@ -51,6 +51,7 @@ import 'chat/admin/group_remark_controller.dart';
 import 'chat/chat_view.dart';
 import 'chat/chat_view_model.dart';
 import 'chat/favorite_sticker_store.dart';
+import 'chat/group_scheduled_deletion.dart';
 import 'chat/links_search/link_preview_fixer.dart';
 import 'chat/media/music_player_controller.dart';
 import 'chat/messages/gift_tint.dart';
@@ -323,6 +324,9 @@ Future<void> _bootstrapAndRunApp() async {
   LocalPinStore.shared.initialize(prefs);
   // Same shape for sticker favorites beyond the server cap.
   FavoriteStickerStore.shared.initialize(prefs);
+  // Client-side auto-delete for groups without a server-side timer; reloads
+  // whatever became due while the app was not running.
+  GroupScheduledDeletionController.shared.initialize(prefs);
   // Preload Telegram blocked-user list so chat filters have data right away.
   unawaited(BlockedUserService.shared.loadBlockedUsers());
   // Firebase + analytics + Sentry tags are several platform-channel round
@@ -738,6 +742,7 @@ class _MithkaAppState extends State<MithkaApp> with WidgetsBindingObserver {
         KeywordBlocker.shared.initialize(widget.prefs);
         HiddenSenderStore.shared.initialize(widget.prefs);
         CountryMessageFilter.shared.initialize(widget.prefs);
+        GroupScheduledDeletionController.shared.initialize(widget.prefs);
         if (allowTelegramTosViolations) {
           GhostModeController.shared.initialize(widget.prefs);
           MessageHistorySettings.shared.initialize(widget.prefs);

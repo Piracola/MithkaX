@@ -4105,4 +4105,14 @@
     <string name="mithkaxHapticsSection">バイブレーション</string>
     <string name="mithkaxHapticsTitle">振動フィードバック</string>
     <string name="mithkaxHapticsHint">タップ・長押し・操作の確認時に振動します。システムの触覚フィードバックがオフでも動作します。</string>
+    <string name="mithkaxScheduledDeleteTitle">定時削除</string>
+    <string name="mithkaxScheduledDeleteEnable">グループのメッセージを自動削除</string>
+    <string name="mithkaxScheduledDeleteDescription">「メッセージの自動削除」が無効なグループにのみ適用されます。プライベートチャットとチャンネルには適用されません。</string>
+    <string name="mithkaxScheduledDeleteDuration">削除するタイミング</string>
+    <string name="mithkaxScheduledDeleteNote">これらのグループで送信したメッセージは、選択した時間の後に全員から削除されます。オフにすると、まだ実行されていない削除はキャンセルされます。</string>
+    <string name="mithkaxScheduledDeleteOneHour">1時間</string>
+    <string name="mithkaxScheduledDeleteOneDay">1日</string>
+    <string name="mithkaxScheduledDeleteThreeDays">3日</string>
+    <string name="mithkaxScheduledDeleteOneWeek">1週間</string>
+    <string name="mithkaxScheduledDeleteOneMonth">1か月</string>
 </resources>

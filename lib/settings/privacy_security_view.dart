@@ -12,6 +12,7 @@ import 'package:flutter/material.dart';
 import 'package:mithka/l10n/app_localizations.dart';
 import 'package:provider/provider.dart';
 import '../auth/telegram_passkey_service.dart';
+import '../chat/group_scheduled_deletion.dart';
 import '../components/app_icons.dart';
 import '../components/toast.dart';
 import '../components/ui_components.dart';
@@ -27,6 +28,7 @@ import 'kept_messages_settings_view.dart';
 import 'passkeys_view.dart';
 import 'privacy_detail_views.dart';
 import 'privacy_rule_options.dart';
+import 'scheduled_deletion_view.dart';
 import 'sensitive_content_controller.dart';
 
 class PrivacySecurityView extends StatefulWidget {
@@ -38,6 +40,8 @@ class PrivacySecurityView extends StatefulWidget {
 
 class _PrivacySecurityViewState extends State<PrivacySecurityView> {
   final TdClient _client = TdClient.shared;
+  final GroupScheduledDeletionController _scheduledDeletion =
+      GroupScheduledDeletionController.shared;
   final Map<String, String> _ruleValue = {};
   final Map<String, int> _ruleRevision = {};
   StreamSubscription<Map<String, dynamic>>? _updates;
@@ -107,14 +111,20 @@ class _PrivacySecurityViewState extends State<PrivacySecurityView> {
     _activeSlotChanges = _client.subscribeActiveSlotChanges().listen(
       _handleActiveSlotChanged,
     );
+    _scheduledDeletion.addListener(_handleScheduledDeletionChanged);
     unawaited(_load());
   }
 
   @override
   void dispose() {
+    _scheduledDeletion.removeListener(_handleScheduledDeletionChanged);
     unawaited(_updates?.cancel());
     unawaited(_activeSlotChanges?.cancel());
     super.dispose();
+  }
+
+  void _handleScheduledDeletionChanged() {
+    if (mounted) setState(() {});
   }
 
   void _handleUpdate(Map<String, dynamic> update) {
@@ -222,6 +232,17 @@ class _PrivacySecurityViewState extends State<PrivacySecurityView> {
   Future<void> _open(Widget screen) =>
       Navigator.of(context).push(MaterialPageRoute(builder: (_) => screen));
 
+  /// Trailing label of the scheduled-deletion row: the chosen delay while the
+  /// feature is on, blank while it is off.
+  String get _scheduledDeletionValue {
+    if (!_scheduledDeletion.enabled) return '';
+    return AppStrings.t(
+      GroupScheduledDeletionController.durationLabelKey(
+        _scheduledDeletion.durationSeconds,
+      ),
+    );
+  }
+
   Future<void> _setSensitiveContentEnabled(bool value) async {
     try {
       await SensitiveContentController.shared.setEnabled(value);
@@ -308,6 +329,12 @@ class _PrivacySecurityViewState extends State<PrivacySecurityView> {
               AppStringKeys.chatInfoAutoDeleteMessages,
               '',
               () => _open(const AutoDeleteView()),
+            ),
+            _Row(
+              HeroAppIcons.clock,
+              AppStrings.t(AppStringKeys.mithkaxScheduledDeleteTitle),
+              _scheduledDeletionValue,
+              () => _open(const ScheduledDeletionSettingsView()),
             ),
             // Compile-time gated: the row (and the whole ghost-mode surface
             // behind it) does not exist in builds without the ToS define.

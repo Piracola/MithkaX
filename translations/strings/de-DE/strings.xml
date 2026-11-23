@@ -4122,4 +4122,14 @@
     <string name="mithkaxHapticsSection">Vibration</string>
     <string name="mithkaxHapticsTitle">Vibrationsfeedback</string>
     <string name="mithkaxHapticsHint">Vibriert bei Tippen, langem Drücken und Bestätigungen, auch wenn die Touch-Vibration des Systems aus ist.</string>
+    <string name="mithkaxScheduledDeleteTitle">Geplantes Löschen</string>
+    <string name="mithkaxScheduledDeleteEnable">Meine Gruppennachrichten automatisch löschen</string>
+    <string name="mithkaxScheduledDeleteDescription">Gilt nur für Gruppen, in denen „Nachrichten automatisch löschen“ nicht aktiviert ist. Private Chats und Kanäle sind nicht betroffen.</string>
+    <string name="mithkaxScheduledDeleteDuration">Löschen nach</string>
+    <string name="mithkaxScheduledDeleteNote">In diesen Gruppen gesendete Nachrichten werden nach der gewählten Zeit für alle gelöscht. Wenn du diese Option deaktivierst, werden ausstehende Löschungen abgebrochen.</string>
+    <string name="mithkaxScheduledDeleteOneHour">1 Stunde</string>
+    <string name="mithkaxScheduledDeleteOneDay">1 Tag</string>
+    <string name="mithkaxScheduledDeleteThreeDays">3 Tage</string>
+    <string name="mithkaxScheduledDeleteOneWeek">1 Woche</string>
+    <string name="mithkaxScheduledDeleteOneMonth">1 Monat</string>
 </resources>

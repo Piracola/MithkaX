@@ -767,6 +767,8 @@ class _SettingsViewState extends State<SettingsView> {
           'devices',
           'passkeys',
           'delete account',
+          'scheduled deletion',
+          'auto-delete',
         ],
       ),
       _SettingsDestination(

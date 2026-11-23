@@ -25,6 +25,7 @@ import '../chat/composer/rich_message_bot_relay.dart';
 import '../chat/composer/rich_message_source.dart';
 import '../chat/composer/rich_text_composer_view.dart';
 import '../chat/composer/scheduled_messages_view.dart';
+import '../chat/group_scheduled_deletion.dart';
 import '../chat/links_search/link_preview_fixer.dart';
 import '../chat/media/audio_search_view.dart';
 import '../chat/media/music_player_controller.dart';
@@ -234,6 +235,12 @@ class _DesktopUtilityWindowAppState extends State<DesktopUtilityWindowApp> {
       ..addListener(_handleHiddenSendersChanged);
     CountryMessageFilter.shared.initialize(widget.prefs);
     MusicPlayerController.shared.initialize(widget.prefs);
+    // Settings-only seed for the scheduled-deletion page this window hosts;
+    // the deletion queue itself runs in the main engine's process.
+    GroupScheduledDeletionController.shared.initialize(
+      widget.prefs,
+      startScheduler: false,
+    );
     // Telegram §1.4 surfaces reached from a utility window (chat info's kept
     // messages row and per-chat recording switch): these singletons are
     // process-wide and this window runs in its own process, so without the

@@ -4105,4 +4105,14 @@
     <string name="mithkaxHapticsSection">진동</string>
     <string name="mithkaxHapticsTitle">진동 피드백</string>
     <string name="mithkaxHapticsHint">탭, 길게 누르기, 동작 확인 시 진동합니다. 시스템의 터치 진동이 꺼져 있어도 동작합니다.</string>
+    <string name="mithkaxScheduledDeleteTitle">예약 삭제</string>
+    <string name="mithkaxScheduledDeleteEnable">그룹 메시지 자동 삭제</string>
+    <string name="mithkaxScheduledDeleteDescription">'메시지 자동 삭제'가 꺼져 있는 그룹에만 적용됩니다. 개인 채팅과 채널에는 적용되지 않습니다.</string>
+    <string name="mithkaxScheduledDeleteDuration">삭제 시점</string>
+    <string name="mithkaxScheduledDeleteNote">이 그룹에서 보낸 메시지는 선택한 시간이 지나면 모든 사람에게서 삭제됩니다. 끄면 아직 실행되지 않은 삭제가 취소됩니다.</string>
+    <string name="mithkaxScheduledDeleteOneHour">1시간</string>
+    <string name="mithkaxScheduledDeleteOneDay">1일</string>
+    <string name="mithkaxScheduledDeleteThreeDays">3일</string>
+    <string name="mithkaxScheduledDeleteOneWeek">1주</string>
+    <string name="mithkaxScheduledDeleteOneMonth">1개월</string>
 </resources>

@@ -440,6 +440,20 @@ abstract final class AppStringKeys {
   static const mithkaxChannelPostForwards = 'mithkaxChannelPostForwards';
   static const mithkaxDeleteTopic = 'mithkaxDeleteTopic';
   static const mithkaxReadAllFailed = 'mithkaxReadAllFailed';
+  static const mithkaxScheduledDeleteTitle = 'mithkaxScheduledDeleteTitle';
+  static const mithkaxScheduledDeleteEnable = 'mithkaxScheduledDeleteEnable';
+  static const mithkaxScheduledDeleteDescription =
+      'mithkaxScheduledDeleteDescription';
+  static const mithkaxScheduledDeleteDuration =
+      'mithkaxScheduledDeleteDuration';
+  static const mithkaxScheduledDeleteNote = 'mithkaxScheduledDeleteNote';
+  static const mithkaxScheduledDeleteOneHour = 'mithkaxScheduledDeleteOneHour';
+  static const mithkaxScheduledDeleteOneDay = 'mithkaxScheduledDeleteOneDay';
+  static const mithkaxScheduledDeleteThreeDays =
+      'mithkaxScheduledDeleteThreeDays';
+  static const mithkaxScheduledDeleteOneWeek = 'mithkaxScheduledDeleteOneWeek';
+  static const mithkaxScheduledDeleteOneMonth =
+      'mithkaxScheduledDeleteOneMonth';
   static const addMembersDone = 'addMembersDone';
   static const addMembersDoneWithCount = 'addMembersDoneWithCount';
   static const addMembersInviteMembersTitle = 'addMembersInviteMembersTitle';
