@@ -440,7 +440,11 @@ class _ChatFolderManagementViewState extends State<ChatFolderManagementView> {
       child: Row(
         children: [
           _dragHandle(index),
-          AppIcon(HeroAppIcons.folder, size: 23, color: AppTheme.brand),
+          ChatFolderIcon(
+            folder.draft.iconName,
+            size: 23,
+            color: AppTheme.brand,
+          ),
           const SizedBox(width: AppSpacing.md),
           Expanded(
             child: GestureDetector(

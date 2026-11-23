@@ -2513,7 +2513,7 @@ class _ChatListViewState extends State<ChatListView>
     if (folderMode == ChatFolderDisplayMode.hidden && !_model.isAllFilter) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted && !_model.isAllFilter) {
-          _model.selectFilter(_model.filters.first);
+          _model.selectAllFilter();
         }
       });
     }

@@ -257,7 +257,16 @@ class ChatListViewModel extends ChangeNotifier {
 
   /// Whether the selected filter is "All" although "All" is not offered.
   bool get selectionHiddenByFilterPreference =>
-      _selectedFilter.isAll && !filters.first.isAll;
+      _selectedFilter.isAll && !filters.any((filter) => filter.isAll);
+
+  /// "All chats" lives in [_filters] at `main_chat_list_position`, which is
+  /// not necessarily the first slot. Internal fallbacks that mean the whole
+  /// account must find it by kind, not by index.
+  ChatFilterOption get _allFilter => _filters.firstWhere(
+    (filter) => filter.isAll,
+    orElse: () =>
+        const ChatFilterOption(title: AppStringKeys.topicChatAllFilter),
+  );
 
   void selectFirstVisibleFilterIfHidden() {
     if (selectionHiddenByFilterPreference) selectFilter(filters.first);
@@ -550,9 +559,7 @@ class ChatListViewModel extends ChangeNotifier {
         object.objects('chat_folders') ??
         object.objects('chat_folder_infos') ??
         const <Map<String, dynamic>>[];
-    final folders = <ChatFilterOption>[
-      const ChatFilterOption(title: AppStringKeys.topicChatAllFilter),
-    ];
+    final folders = <ChatFilterOption>[];
     for (final folder in raw) {
       final id = folder.integer('id') ?? folder.integer('chat_folder_id');
       if (id == null) continue;
@@ -574,17 +581,25 @@ class ChatListViewModel extends ChangeNotifier {
         ),
       );
     }
+    // `main_chat_list_position` places the whole-account list among the
+    // folders; `reorderChatFolders` carries it separately from the id order.
+    // Prepending "All" here ignored it, so moving it in the order sheet
+    // snapped back to the first tab on the update that followed the save.
+    folders.insert(
+      (object.integer('main_chat_list_position') ?? 0).clamp(0, folders.length),
+      const ChatFilterOption(title: AppStringKeys.topicChatAllFilter),
+    );
     _filters = folders;
     if (_selectedFilter.folderId != null &&
         !_filters.any((f) => f.folderId == _selectedFilter.folderId)) {
-      _selectedFilter = _filters.first;
+      _selectedFilter = _allFilter;
       _loadChats(_pageSize);
       _prefetchMainChats();
       _resort();
     }
     _selectedFilter = _filters.firstWhere(
       (filter) => filter.folderId == _selectedFilter.folderId,
-      orElse: () => _filters.first,
+      orElse: () => _allFilter,
     );
     if (selectionHiddenByFilterPreference) {
       selectFilter(filters.first);
@@ -650,7 +665,7 @@ class ChatListViewModel extends ChangeNotifier {
 
   void selectAllFilter() {
     if (_selectedFilter.isAll) return;
-    _selectedFilter = _filters.first;
+    _selectedFilter = _allFilter;
     _loadChats(_pageSize);
     _prefetchMainChats();
     _resort();

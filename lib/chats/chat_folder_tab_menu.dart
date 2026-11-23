@@ -9,6 +9,7 @@
 import 'package:flutter/material.dart';
 import 'package:mithka/l10n/app_localizations.dart';
 import '../components/app_icons.dart';
+import '../components/chat_folder_icons.dart';
 import '../components/toast.dart';
 import '../settings/chat_folder_service.dart';
 import '../theme/app_motion.dart';
@@ -204,11 +205,11 @@ class _ChatFolderReorderSheetState extends State<ChatFolderReorderSheet> {
                   final key = folder == null
                       ? 'chat-folder-order-main'
                       : 'chat-folder-order-${folder.id}';
-                  return ReorderableDragStartListener(
+                  return _reorderRow(
+                    context,
+                    folder,
                     key: ValueKey(key),
                     index: index,
-                    enabled: !_saving,
-                    child: _reorderRow(context, folder),
                   );
                 },
               ),
@@ -248,9 +249,20 @@ class _ChatFolderReorderSheetState extends State<ChatFolderReorderSheet> {
     child: child,
   );
 
-  Widget _reorderRow(BuildContext context, ChatFolderRecord? folder) {
+  /// The row itself is not a drag source: wrapping the whole row in a
+  /// [ReorderableDragStartListener] made every touch on the list start a
+  /// reorder, so a long folder list could not be scrolled to the folders
+  /// below the fold. Only the grip starts the drag; the rest of the row
+  /// stays available to the scroll view.
+  Widget _reorderRow(
+    BuildContext context,
+    ChatFolderRecord? folder, {
+    required int index,
+    Key? key,
+  }) {
     final c = context.colors;
     return Container(
+      key: key,
       height: 52,
       margin: const EdgeInsets.only(bottom: 6),
       padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -260,10 +272,20 @@ class _ChatFolderReorderSheetState extends State<ChatFolderReorderSheet> {
       ),
       child: Row(
         children: [
-          AppIcon(HeroAppIcons.bars, size: 19, color: c.textTertiary),
-          const SizedBox(width: 10),
-          AppIcon(
-            folder == null ? HeroAppIcons.inbox : HeroAppIcons.folder,
+          ReorderableDragStartListener(
+            index: index,
+            enabled: !_saving,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(0, 8, 12, 8),
+              child: AppIcon(
+                HeroAppIcons.bars,
+                size: 19,
+                color: c.textTertiary,
+              ),
+            ),
+          ),
+          ChatFolderIcon(
+            folder == null ? 'All' : folder.draft.iconName,
             size: 21,
             color: folder == null ? AppTheme.brand : c.textSecondary,
           ),
