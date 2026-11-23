@@ -390,6 +390,35 @@ void main() {
     await tester.pump(const Duration(seconds: 6));
   });
 
+  // The tab menu shared the default 8px control gap, which under a tab strip
+  // reads as floating below the bar. A strip passes a tighter gap so the menu
+  // hugs its bottom edge.
+  testWidgets('the tab menu hugs the strip', (tester) async {
+    await openChat(
+      tester,
+      chatId: _forumChatId,
+      title: 'Forum Group',
+      isForum: true,
+    );
+
+    final tab = find.byKey(const ValueKey('topic-tab-50'));
+    final tabRect = tester.getRect(tab);
+    await tester.longPress(tab);
+    await tester.pumpAndSettle();
+
+    final menuRect = tester.getRect(
+      find.byKey(const ValueKey('app-anchored-menu')),
+    );
+    expect(
+      menuRect.top - tabRect.bottom,
+      closeTo(AppSpacing.xs, 1),
+      reason: 'the menu hugs the strip instead of floating below it',
+    );
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(const Duration(seconds: 6));
+  });
+
   // A long press on a selector row used to anchor the menu to the row's box,
   // so it always opened at the row's own left edge and bottom — nowhere near a
   // finger pressed at the row's other end. The menu has to hang off the press

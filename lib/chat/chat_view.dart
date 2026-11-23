@@ -9422,11 +9422,12 @@ class _ChatViewState extends State<ChatView> {
   }
 
   /// The tab's long press resolves the tab to its topic row and opens the
-  /// shared menu.
+  /// shared menu. A tab strip is a bar the menu belongs to, so the menu hugs
+  /// its bottom edge instead of hanging the default gap below it.
   Future<void> _showTopicTabMenu(TopicNavigationItem item, Rect anchor) async {
     final topic = _topicById(item.id);
     if (topic == null) return;
-    await _showTopicMenu(topic, anchor);
+    await _showTopicMenu(topic, anchor, gap: AppSpacing.xs);
   }
 
   /// The topic menu, the way exteraless opens ItemOptions over a long-pressed
@@ -9435,7 +9436,11 @@ class _ChatViewState extends State<ChatView> {
   /// finger already names the topic. The creator deletion carve-out probes the
   /// topic's live history before Delete can be offered; a bot topic chat has
   /// no such probe.
-  Future<void> _showTopicMenu(ForumTopicOption topic, Rect anchor) async {
+  Future<void> _showTopicMenu(
+    ForumTopicOption topic,
+    Rect anchor, {
+    double gap = 8,
+  }) async {
     if (!topic.isGeneral &&
         !_vm.isBotTopicChat &&
         _vm.canDeleteForumTopics != true &&
@@ -9487,6 +9492,7 @@ class _ChatViewState extends State<ChatView> {
       context: context,
       anchor: anchor,
       actions: actions,
+      gap: gap,
     );
   }
 

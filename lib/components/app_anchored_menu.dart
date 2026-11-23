@@ -80,11 +80,16 @@ Offset appAnchoredMenuOriginFor({
   required Size viewport,
   required Size menuSize,
   double margin = 8,
+  double? gap,
 }) {
+  // [margin] keeps the menu off the viewport edges; [gap] is the distance to
+  // the pressed control itself, so a caller can hug a tab strip without also
+  // pinning the menu to the screen edge.
+  final controlGap = gap ?? margin;
   final maxLeft = math.max(margin, viewport.width - menuSize.width - margin);
   final left = anchor.left.clamp(margin, maxLeft).toDouble();
-  final belowTop = anchor.bottom + margin;
-  final aboveTop = anchor.top - margin - menuSize.height;
+  final belowTop = anchor.bottom + controlGap;
+  final aboveTop = anchor.top - controlGap - menuSize.height;
   final double top;
   if (belowTop + menuSize.height <= viewport.height - margin) {
     top = belowTop;
@@ -109,6 +114,7 @@ Future<void> showAppAnchoredMenu({
   required Rect anchor,
   required List<AppMenuAction> actions,
   String? header,
+  double gap = 8,
 }) {
   if (actions.isEmpty) return Future<void>.value();
   final overlay = Overlay.of(context, rootOverlay: true);
@@ -131,6 +137,7 @@ Future<void> showAppAnchoredMenu({
   late final AppAnchoredMenuPopup menu;
   menu = AppAnchoredMenuPopup(
     anchor: anchorInOverlay,
+    gap: gap,
     header: header,
     actions: actions,
     onDismissed: () {
@@ -157,10 +164,15 @@ class AppAnchoredMenuPopup extends StatefulWidget {
     required this.actions,
     required this.onDismissed,
     this.header,
+    this.gap = 8,
   });
 
   /// The pressed control's rect in the enclosing overlay's coordinates.
   final Rect anchor;
+
+  /// Distance from the control to the menu's near edge. A tab strip passes a
+  /// tighter gap so its menu hugs the bar instead of floating below it.
+  final double gap;
 
   /// Optional caption naming the surface the menu acts on.
   final String? header;
@@ -265,6 +277,7 @@ class _AppAnchoredMenuPopupState extends State<AppAnchoredMenuPopup>
           anchor: widget.anchor,
           viewport: viewport,
           menuSize: menuSize,
+          gap: widget.gap,
         );
         // The menu grows from the corner nearest the pressed control,
         // matching exteraless's pivotX/pivotY on the control-adjacent corner:
