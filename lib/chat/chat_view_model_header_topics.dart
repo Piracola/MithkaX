@@ -1317,6 +1317,14 @@ extension ChatViewModelHeaderTopics on ChatViewModel {
   /// the send / membership / join flags the chat UI reads, plus the topic
   /// moderation rights the forum topic list gates its actions on.
   void _applyGroupStatus(Map<String, dynamic>? status) {
+    // A channel direct messages chat is a monoforum: it has no membership to
+    // hold — each subscriber's conversation lives in their own topic, and
+    // TDLib reports the current user as "left" until that topic exists. Write
+    // access follows the parent channel (ChatManager::have_input_peer_channel
+    // grants Write while the channel is readable), so treating the status like
+    // an ordinary left group paints a join prompt over a chat that already
+    // accepts the user's messages.
+    final directMessagesChat = isDirectMessagesGroup;
     switch (status?.type) {
       case 'chatMemberStatusCreator':
         canDeleteMessagesBySender = true;
@@ -1353,10 +1361,18 @@ extension ChatViewModelHeaderTopics on ChatViewModel {
           sendDisabledReason = AppStrings.t(AppStringKeys.chatYouAreMuted);
         }
       case 'chatMemberStatusLeft':
-        isMember = false;
-        canSendMessages = false;
-        canSendVoiceNotes = false;
-        canJoin = true;
+        if (directMessagesChat) {
+          // Opened before the user ever wrote there: sending is already
+          // allowed and the server files the message in their own topic.
+          isMember = true;
+          canJoin = false;
+          canSendMessages = _chatCanSend;
+        } else {
+          isMember = false;
+          canSendMessages = false;
+          canSendVoiceNotes = false;
+          canJoin = true;
+        }
       case 'chatMemberStatusBanned':
         isMember = false;
         canSendMessages = false;
