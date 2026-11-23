@@ -1096,11 +1096,16 @@
     <string name="advancedUnlimitedFavoritesAbout">Telegramの上限を超えてステッカーをお気に入りに保存。超過分はこの端末のみに保存され、同期されません。</string>
     <string name="chatListMarkUnread">未読にする</string>
     <string name="chatListMarkAllRead">すべて既読にする</string>
+    <string name="chatListRemoveFromFolder">フォルダから削除</string>
     <string name="chatListSelectAll">すべて選択</string>
     <string name="chatListSelectedCountValue1">{value1} 件のチャットを選択中</string>
     <string name="chatListNoChats">チャットはまだありません</string>
     <string name="chatListScanQrCode">QRコードをスキャン</string>
+    <string name="chatListAddToFolder">フォルダに追加</string>
     <string name="chatListArchive">アーカイブ</string>
+    <string name="chatListBlockUser">ユーザーをブロック</string>
+    <string name="chatListBlockUserDescription">相手のメッセージはすべてのチャットで表示されなくなります。後で「プライバシーとセキュリティ」からブロックを解除できます。</string>
+    <string name="chatListBlockUserDone">ユーザーをブロックしました</string>
     <string name="chatListUnarchive">アーカイブを解除</string>
     <string name="chatListUnpin">ピン留めを解除</string>
     <string name="chatLoadingTopics">トピックを読み込み中</string>

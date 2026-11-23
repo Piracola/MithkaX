@@ -15,6 +15,7 @@ import '../app/performance_metrics.dart';
 import '../communities/community_models.dart';
 import '../notifications/notification_settings_payload.dart';
 import '../notifications/scope_notification_settings.dart';
+import '../settings/chat_folder_service.dart';
 import '../settings/hidden_sender_store.dart';
 import '../settings/keyword_blocker.dart';
 import '../tdlib/chat_membership.dart';
@@ -2038,6 +2039,147 @@ class ChatListViewModel extends ChangeNotifier {
     });
   }
 
+  // MARK: - Edit-mode batch actions
+
+  /// Marks [chats] unread — the edit-mode counterpart of [markChatsRead].
+  ///
+  /// The command only runs in this direction when nothing in the selection is
+  /// unread (a mixed selection marks read), so no chat loses an unread count.
+  void markChatsUnread(Iterable<ChatSummary> chats) {
+    var changed = false;
+    for (final chat in chats) {
+      if (chat.isMarkedUnread) continue;
+      markUnread(chat);
+      _mutate(chat.id, (s) => s.isMarkedUnread = true);
+      changed = true;
+    }
+    if (changed) _refreshBadges();
+  }
+
+  /// Clears the history of [chats] for this account, leaving every chat in the
+  /// list. Returns how many were cleared; a chat whose history this account may
+  /// not delete is skipped rather than aborting the batch.
+  Future<int> clearHistoryForChats(Iterable<ChatSummary> chats) async {
+    var cleared = 0;
+    for (final chat in chats) {
+      try {
+        if (chat.isSavedMessages) {
+          await clearSavedMessages(chat);
+        } else {
+          await clearChatHistoryForSelf(chatId: chat.id, query: _chatListQuery);
+        }
+        cleared++;
+      } on ChatRemovalUnavailable {
+        continue;
+      }
+    }
+    return cleared;
+  }
+
+  /// Deletes [chats] from this account's list, one row at a time. Each row
+  /// walks the same capability policy as the single-row delete, and one
+  /// stubborn chat must not abort the rest.
+  Future<void> deleteChatsForSelection(Iterable<ChatSummary> chats) async {
+    for (final chat in chats) {
+      try {
+        final isSavedMessages = await resolveIsSavedMessages(chat);
+        if (isSavedMessages == null) continue;
+        if (isSavedMessages) {
+          await clearSavedMessages(chat);
+          continue;
+        }
+        final capabilities = await deleteCapabilities(chat);
+        if (!capabilities.canDelete) continue;
+        await deleteChat(chat);
+      } catch (_) {
+        continue;
+      }
+    }
+  }
+
+  /// Whether [chat] is pinned inside the Archive list. The archive is its own
+  /// TDLib chat list, so its pin is never the main list's [ChatSummary.isPinned].
+  bool isPinnedInArchive(ChatSummary chat) => chat.archivePinned;
+
+  /// Pins/unpins [chat] in the archive list itself, the archive page's
+  /// counterpart of [togglePin].
+  void toggleArchivePin(ChatSummary chat) {
+    final newValue = !chat.archivePinned;
+    _mutate(chat.id, (s) => s.archivePinned = newValue);
+    _resort();
+    _chatListQuery({
+      '@type': 'toggleChatIsPinned',
+      'chat_list': {'@type': 'chatListArchive'},
+      'chat_id': chat.id,
+      'is_pinned': newValue,
+    }).catchError((Object error) async {
+      _mutate(chat.id, (s) => s.archivePinned = !newValue);
+      try {
+        final raw = await _chatListQuery({
+          '@type': 'getChat',
+          'chat_id': chat.id,
+        });
+        final fresh = TDParse.chat(raw);
+        if (fresh != null) _map[chat.id] = fresh;
+      } catch (_) {}
+      notice = _pinErrorNotice(error);
+      _resort();
+      return <String, dynamic>{};
+    });
+  }
+
+  /// Adds [chats] to [folderId]'s explicit inclusions, dropping them from its
+  /// exclusions so a rule-hidden chat becomes visible there again.
+  Future<void> addChatsToFolder(
+    int folderId,
+    Iterable<ChatSummary> chats,
+  ) async {
+    final ids = {for (final chat in chats) chat.id};
+    if (ids.isEmpty) return;
+    final raw = await _chatListQuery({
+      '@type': 'getChatFolder',
+      'chat_folder_id': folderId,
+    });
+    final draft = ChatFolderDraft.fromRaw(raw);
+    await _editFolder(
+      folderId,
+      draft.copyWith(
+        includedChatIds: {...draft.includedChatIds, ...ids},
+        excludedChatIds: {...draft.excludedChatIds}..removeAll(ids),
+      ),
+    );
+  }
+
+  /// Removes [chats] from [folderId]. A chat that only matched by rule becomes
+  /// an explicit exclusion, or the rule would put it straight back.
+  Future<void> removeChatsFromFolder(
+    int folderId,
+    Iterable<ChatSummary> chats,
+  ) async {
+    final ids = {for (final chat in chats) chat.id};
+    if (ids.isEmpty) return;
+    final raw = await _chatListQuery({
+      '@type': 'getChatFolder',
+      'chat_folder_id': folderId,
+    });
+    final draft = ChatFolderDraft.fromRaw(raw);
+    await _editFolder(
+      folderId,
+      draft.copyWith(
+        includedChatIds: {...draft.includedChatIds}..removeAll(ids),
+        excludedChatIds: {...draft.excludedChatIds, ...ids},
+        pinnedChatIds: {...draft.pinnedChatIds}..removeAll(ids),
+      ),
+    );
+  }
+
+  Future<void> _editFolder(int folderId, ChatFolderDraft draft) =>
+      _chatListQuery({
+        '@type': 'editChatFolder',
+        'chat_folder_id': folderId,
+        'folder': draft.toRequest(),
+      });
+
   void clearNotice() {
     if (_disposed) return;
     notice = null;
@@ -2412,10 +2554,10 @@ class ChatListViewModel extends ChangeNotifier {
           }
         });
       case 'chatListArchive':
-        _mutate(
-          id,
-          (s) => s.archiveOrder = position.int64('order') ?? s.archiveOrder,
-        );
+        _mutate(id, (s) {
+          s.archiveOrder = position.int64('order') ?? s.archiveOrder;
+          s.archivePinned = position.boolean('is_pinned') ?? s.archivePinned;
+        });
       case 'chatListFolder':
         final folderId = list?.integer('chat_folder_id');
         if (folderId == null) return;
@@ -2841,11 +2983,14 @@ class ChatListViewModel extends ChangeNotifier {
     _filtered = const [];
     final visible = all;
     _archived = visible.where((c) => c.archiveOrder > 0).toList()
-      ..sort(
-        (a, b) => a.archiveOrder != b.archiveOrder
+      ..sort((a, b) {
+        if (a.archivePinned != b.archivePinned) {
+          return a.archivePinned ? -1 : 1;
+        }
+        return a.archiveOrder != b.archiveOrder
             ? b.archiveOrder.compareTo(a.archiveOrder)
-            : b.date.compareTo(a.date),
-      );
+            : b.date.compareTo(a.date);
+      });
     _chats = _projectChats(_selectedFilter.folderId, visible);
     _refreshFolderUnreadCounts();
     _invalidateEntriesCaches();

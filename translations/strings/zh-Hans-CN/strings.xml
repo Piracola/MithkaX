@@ -1096,11 +1096,16 @@
     <string name="advancedUnlimitedFavoritesAbout">收藏超过 Telegram 数量上限的贴纸，多出的部分只保存在本设备，不会同步。</string>
     <string name="chatListMarkUnread">标为未读</string>
     <string name="chatListMarkAllRead">全部标为已读</string>
+    <string name="chatListRemoveFromFolder">从文件夹移除</string>
     <string name="chatListSelectAll">全选</string>
     <string name="chatListSelectedCountValue1">已选择 {value1} 个聊天</string>
     <string name="chatListNoChats">还没有聊天</string>
     <string name="chatListScanQrCode">扫描二维码</string>
+    <string name="chatListAddToFolder">添加到文件夹</string>
     <string name="chatListArchive">归档</string>
+    <string name="chatListBlockUser">屏蔽用户</string>
+    <string name="chatListBlockUserDescription">对方的消息将在所有聊天中隐藏，之后可在「隐私与安全性」中解除屏蔽。</string>
+    <string name="chatListBlockUserDone">已屏蔽该用户</string>
     <string name="chatListUnarchive">取消归档</string>
     <string name="chatListUnpin">取消置顶</string>
     <string name="chatLoadingTopics">正在加载话题</string>

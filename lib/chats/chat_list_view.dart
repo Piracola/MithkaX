@@ -33,6 +33,7 @@ import '../chat/links_search/link_handler.dart';
 import '../chat/stickers/custom_emoji.dart';
 import '../communities/community_models.dart';
 import '../communities/community_view.dart';
+import '../components/anchored_menu_overlay.dart';
 import '../components/app_anchored_menu.dart';
 import '../components/app_confirm_dialog.dart';
 import '../components/app_icons.dart';
@@ -68,6 +69,8 @@ import 'chat_list_view_model.dart';
 import 'chat_removal_actions.dart';
 import 'chat_row_metrics.dart';
 import 'chat_row_view.dart';
+import 'chat_selection_actions.dart';
+import 'chat_selection_header.dart';
 import 'filtered_chats_view.dart';
 import 'local_folder_order_store.dart';
 import 'qr_scanner_view.dart';
@@ -553,22 +556,13 @@ class ChatListSelectionHighlight extends StatelessWidget {
 /// Live archive-list data handed to the adaptive shell when Archived Chats
 /// should replace only the list pane.
 ///
-/// The chat list remains mounted behind that pane, so [chatsProvider] and
-/// [updates] continue to expose current archive contents while it is open.
+/// The chat list remains mounted behind that pane, so the model keeps
+/// exposing current archive contents — and the pane's edit mode drives the
+/// same batch commands (unarchive, mute, delete, read, folders) the list does.
 class ArchivedChatListSelection {
-  const ArchivedChatListSelection({
-    required this.chatsProvider,
-    required this.updates,
-    required this.onClearUnread,
-    this.onUnarchive,
-    this.onToggleMute,
-  });
+  const ArchivedChatListSelection({required this.model});
 
-  final List<ChatSummary> Function() chatsProvider;
-  final Listenable updates;
-  final ValueChanged<ChatSummary> onClearUnread;
-  final ValueChanged<ChatSummary>? onUnarchive;
-  final ValueChanged<ChatSummary>? onToggleMute;
+  final ChatListViewModel model;
 }
 
 bool chatListPreviewSupportsQuickReply(ChatSummary chat) =>
@@ -1298,7 +1292,11 @@ class _ChatListViewState extends State<ChatListView>
   double _dragProxyTop = 0;
   double _dragProxyHeight = 0;
   double _dragProxyOriginTop = 0;
-  bool _selectionOverflowOpen = false;
+
+  /// The edit-mode bar, keyed so "Add to folder" can hang its folder picker
+  /// off the overflow button.
+  final GlobalKey<ChatSelectionHeaderState> _selectionHeaderKey =
+      GlobalKey<ChatSelectionHeaderState>();
 
   static const double _refreshPullThreshold = 72;
 
@@ -2576,7 +2574,6 @@ class _ChatListViewState extends State<ChatListView>
         _filterMenuOverlay(
           visible: folderMode == ChatFolderDisplayMode.menu && _showFilterMenu,
         ),
-        _selectionOverflowOverlay(),
       ],
     );
     // Wrapping conditionally would swap the subtree root between modes and
@@ -2996,246 +2993,141 @@ class _ChatListViewState extends State<ChatListView>
   );
 
   /// The edit-mode header (exteraless's dialog action mode bar): close button,
-  /// selection count, and direct commands — pin, mute, archive, delete — plus
-  /// an overflow column for the less frequent read/select-all.
+  /// selection count, direct commands — pin, mute, archive, delete — and the
+  /// overflow column exteraless keeps the rest of the dialog actions in.
   ///
-  /// Sits in the same slot as [_header], with the same chrome padding and a
-  /// content row exactly one hit-target tall, so entering edit mode does not
-  /// shift the list beneath it. exteraless keeps one ActionBar height for both
-  /// states the same way.
+  /// The bar itself is [ChatSelectionHeader], shared with the archive page so
+  /// both lists enter the same control height and draw the same 24px glyphs.
   Widget _selectionHeader() {
-    final c = context.colors;
     final chats = _selectedChats;
     final hasSelection = chats.isNotEmpty;
     final allPinned = _selectionAllPinnedInList(chats);
     final allMuted = hasSelection && chats.every((chat) => chat.isMuted);
-    final hitTarget = AppMetric.chatHeaderHitTarget();
-    return Container(
-      key: const ValueKey('chat-list-selection-header'),
-      color: c.listHeaderTint,
-      padding: headerChromePaddingOf(context),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.md,
-          vertical: AppSpacing.md + AppSpacing.xxs,
-        ),
-        child: SizedBox(
-          height: hitTarget,
-          child: Row(
-            children: [
-              AppInteractiveSurface(
-                key: const ValueKey('chat-list-close-selection'),
-                semanticLabel: AppStringKeys.countryPickerCancel.l10n(context),
-                onTap: _exitSelectionMode,
-                borderRadius: BorderRadius.circular(AppRadius.sm),
-                child: SizedBox(
-                  width: hitTarget,
-                  height: hitTarget,
-                  child: Center(
-                    child: AppIcon(
-                      HeroAppIcons.chevronLeft,
-                      size: AppIconSize.nav,
-                      color: c.textPrimary,
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(width: AppSpacing.md),
-              Expanded(
-                child: Text(
-                  '${_selectedChatIds.length}',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: AppTextSize.bodyLarge,
-                    fontWeight: FontWeight.w600,
-                    color: c.textPrimary,
-                    decoration: TextDecoration.none,
-                  ),
-                ),
-              ),
-              _selectionHeaderCommand(
-                key: const ValueKey('chat-list-selection-pin'),
-                label: AppStrings.t(
-                  allPinned
-                      ? AppStringKeys.chatListUnpin
-                      : AppStringKeys.chatInfoPin,
-                ),
-                icon: HeroAppIcons.pin,
-                onTap: _selectionTogglePin,
-              ),
-              _selectionHeaderCommand(
-                key: const ValueKey('chat-list-selection-mute'),
-                label: AppStrings.t(
-                  allMuted ? AppStringKeys.chatUnmute : AppStringKeys.callMute,
-                ),
-                icon: allMuted ? HeroAppIcons.bell : HeroAppIcons.bellSlash,
-                onTap: _selectionToggleMute,
-              ),
-              _selectionHeaderCommand(
-                key: const ValueKey('chat-list-selection-archive'),
-                label: AppStrings.t(AppStringKeys.chatListArchive),
-                icon: HeroAppIcons.archiveBox,
-                onTap: _selectionArchive,
-              ),
-              _selectionHeaderCommand(
-                key: const ValueKey('chat-list-selection-delete'),
-                label: AppStrings.t(AppStringKeys.chatDelete),
-                icon: HeroAppIcons.trash,
-                destructive: true,
-                onTap: () => unawaited(_selectionDelete()),
-              ),
-              _selectionOverflowButton(),
-            ],
+    final anyUnread = chats.any(
+      (chat) => chat.unreadCount > 0 || chat.isMarkedUnread,
+    );
+    final folders = [
+      for (final filter in _model.filters)
+        if (!filter.isAll && filter.folderId != null) filter,
+    ];
+    return ChatSelectionHeader(
+      key: _selectionHeaderKey,
+      count: _selectedChatIds.length,
+      onClose: _exitSelectionMode,
+      commands: [
+        ChatSelectionCommand(
+          id: 'pin',
+          label: AppStrings.t(
+            allPinned ? AppStringKeys.chatListUnpin : AppStringKeys.chatInfoPin,
           ),
+          icon: HeroAppIcons.pin,
+          onTap: _selectionTogglePin,
         ),
-      ),
+        ChatSelectionCommand(
+          id: 'mute',
+          label: AppStrings.t(
+            allMuted ? AppStringKeys.chatUnmute : AppStringKeys.callMute,
+          ),
+          icon: allMuted ? HeroAppIcons.bell : HeroAppIcons.bellSlash,
+          onTap: _selectionToggleMute,
+        ),
+        ChatSelectionCommand(
+          id: 'archive',
+          label: AppStrings.t(AppStringKeys.chatListArchive),
+          icon: HeroAppIcons.archiveBox,
+          onTap: _selectionArchive,
+        ),
+        ChatSelectionCommand(
+          id: 'delete',
+          label: AppStrings.t(AppStringKeys.chatDelete),
+          icon: HeroAppIcons.trash,
+          destructive: true,
+          onTap: () => unawaited(_selectionDelete()),
+        ),
+      ],
+      overflow: [
+        ChatSelectionCommand(
+          id: 'read',
+          label: AppStrings.t(
+            anyUnread
+                ? AppStringKeys.channelDirectMessagesMarkRead
+                : AppStringKeys.chatListMarkUnread,
+          ),
+          icon: anyUnread ? HeroAppIcons.circleCheck : HeroAppIcons.eyeSlash,
+          onTap: _selectionToggleRead,
+        ),
+        ChatSelectionCommand(
+          id: 'clear-history',
+          label: AppStrings.t(AppStringKeys.chatInfoClearHistory),
+          icon: HeroAppIcons.circleMinus,
+          onTap: () => unawaited(_selectionClearHistory()),
+        ),
+        if (chatSelectionAllBlockable(chats))
+          ChatSelectionCommand(
+            id: 'block',
+            label: AppStrings.t(AppStringKeys.chatListBlockUser),
+            icon: HeroAppIcons.ban,
+            destructive: true,
+            onTap: () => unawaited(_selectionBlockUsers()),
+          ),
+        if (folders.isNotEmpty)
+          ChatSelectionCommand(
+            id: 'add-to-folder',
+            label: AppStrings.t(AppStringKeys.chatListAddToFolder),
+            icon: HeroAppIcons.folder,
+            onTap: _selectionAddToFolder,
+          ),
+        if (_model.selectedFilter.folderId != null)
+          ChatSelectionCommand(
+            id: 'remove-from-folder',
+            label: AppStrings.t(AppStringKeys.chatListRemoveFromFolder),
+            icon: HeroAppIcons.folder,
+            onTap: () => unawaited(_selectionRemoveFromFolder()),
+          ),
+        ChatSelectionCommand(
+          id: 'select-all',
+          label: AppStrings.t(AppStringKeys.chatListSelectAll),
+          icon: HeroAppIcons.check,
+          onTap: _selectAllVisible,
+        ),
+      ],
     );
   }
 
-  Widget _selectionHeaderCommand({
-    required Key key,
-    required String label,
-    required AppIconData icon,
-    required VoidCallback onTap,
-    bool destructive = false,
-  }) {
-    final c = context.colors;
-    final hitTarget = AppMetric.chatHeaderHitTarget();
-    return AppInteractiveSurface(
-      key: key,
-      semanticLabel: label,
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(AppRadius.sm),
-      child: SizedBox(
-        width: hitTarget,
-        height: hitTarget,
-        child: Center(
-          child: AppIcon(
-            icon,
-            size: AppIconSize.toolbar,
-            color: destructive ? AppTheme.tagRed : c.textPrimary,
-          ),
-        ),
-      ),
-    );
+  void _selectionToggleRead() {
+    final chats = _selectedChats;
+    if (chats.isEmpty) return;
+    toggleChatSelectionRead(_model, chats);
+    _exitSelectionMode();
   }
 
-  Widget _selectionOverflowButton() {
-    final c = context.colors;
-    final hitTarget = AppMetric.chatHeaderHitTarget();
-    return AppInteractiveSurface(
-      key: const ValueKey('chat-list-selection-overflow'),
-      semanticLabel: AppStringKeys.chatMenu.l10n(context),
-      onTap: () => setState(() => _selectionOverflowOpen = true),
-      borderRadius: BorderRadius.circular(AppRadius.sm),
-      child: SizedBox(
-        width: hitTarget,
-        height: hitTarget,
-        child: Center(
-          child: AppIcon(
-            HeroAppIcons.ellipsisVertical,
-            size: AppIconSize.toolbar,
-            color: c.textPrimary,
-          ),
-        ),
-      ),
-    );
+  Future<void> _selectionClearHistory() async {
+    final chats = _selectedChats;
+    if (chats.isEmpty) return;
+    final cleared = await clearChatSelectionHistory(context, _model, chats);
+    if (mounted && cleared) _exitSelectionMode();
   }
 
-  /// The overflow column opens as the same anchored popup the plus and folder
-  /// menus use (exteraless's ic_ab_other opens an ActionBarPopupWindowLayout,
-  /// not a dialog), hugging its labels instead of spanning the screen.
-  Widget _selectionOverflowOverlay() {
-    return _AnimatedAnchoredMenuOverlay(
-      visible: _selectionMode && _selectionOverflowOpen,
-      top: MediaQuery.paddingOf(context).top + 48,
-      onDismiss: () => setState(() => _selectionOverflowOpen = false),
-      child: _selectionOverflowMenu(),
-    );
+  Future<void> _selectionBlockUsers() async {
+    final chats = _selectedChats;
+    if (chats.isEmpty) return;
+    final blocked = await blockChatSelection(context, chats);
+    if (mounted && blocked) _exitSelectionMode();
   }
 
-  Widget _selectionOverflowMenu() {
-    final c = context.colors;
-    Widget row({
-      required Key key,
-      required String label,
-      required AppIconData icon,
-      required VoidCallback onTap,
-    }) => AppInteractiveSurface(
-      key: key,
-      semanticLabel: label,
-      onTap: () {
-        setState(() => _selectionOverflowOpen = false);
-        onTap();
-      },
-      borderRadius: BorderRadius.circular(AppRadius.md),
-      child: SizedBox(
-        height: AppMetric.popupMenuRowHeight(),
-        child: Padding(
-          padding: EdgeInsets.symmetric(horizontal: AppMetric.popupMenuInset()),
-          child: Row(
-            children: [
-              AppIcon(
-                icon,
-                size: AppMetric.popupMenuIconSlot(),
-                color: c.textPrimary,
-              ),
-              const SizedBox(width: AppSpacing.lg),
-              Expanded(
-                child: Text(
-                  label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: AppMetric.popupMenuTextSize(),
-                    fontWeight: FontWeight.w500,
-                    color: c.textPrimary,
-                    decoration: TextDecoration.none,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-    // Same width the plus and folder popups draw at, so the three anchored
-    // menus read as one family.
-    return Container(
-      key: const ValueKey('chat-list-selection-overflow-menu'),
-      width: AppMetric.popupMenuWidth(),
-      decoration: BoxDecoration(
-        color: c.card,
-        borderRadius: BorderRadius.circular(AppRadius.card),
-        border: Border.all(color: c.divider, width: 0.75),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.15),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          row(
-            key: const ValueKey('chat-list-selection-overflow-mark-read'),
-            label: AppStrings.t(AppStringKeys.chatListMarkAllRead),
-            icon: HeroAppIcons.circleCheck,
-            onTap: _selectionMarkRead,
-          ),
-          row(
-            key: const ValueKey('chat-list-selection-overflow-select-all'),
-            label: AppStrings.t(AppStringKeys.chatListSelectAll),
-            icon: HeroAppIcons.check,
-            onTap: _selectAllVisible,
-          ),
-        ],
-      ),
-    );
+  void _selectionAddToFolder() {
+    final chats = _selectedChats;
+    if (chats.isEmpty) return;
+    final anchor = _selectionHeaderKey.currentState?.overflowButtonRect();
+    _exitSelectionMode();
+    unawaited(addChatSelectionToFolder(context, _model, chats, anchor: anchor));
+  }
+
+  Future<void> _selectionRemoveFromFolder() async {
+    final chats = _selectedChats;
+    if (chats.isEmpty) return;
+    _exitSelectionMode();
+    await removeChatSelectionFromFolder(context, _model, chats);
   }
 
   Widget _chatFolderTabs() {
@@ -4547,7 +4439,6 @@ class _ChatListViewState extends State<ChatListView>
     _selectionEntryGestureDown = false;
     setState(() {
       _selectionMode = false;
-      _selectionOverflowOpen = false;
       _selectedChatIds.clear();
     });
   }
@@ -4618,49 +4509,11 @@ class _ChatListViewState extends State<ChatListView>
     _exitSelectionMode();
   }
 
-  void _selectionMarkRead() {
-    final chats = _selectedChats;
-    if (chats.isEmpty) return;
-    _model.markChatsRead(chats);
-    _exitSelectionMode();
-  }
-
   Future<void> _selectionDelete() async {
     final chats = _selectedChats;
     if (chats.isEmpty) return;
-    final confirmed = await showAppConfirmDialog(
-      context,
-      title: AppStringKeys.chatListDeleteChatQuestion,
-      message: AppStrings.t(AppStringKeys.chatListSelectedCountValue1, {
-        'value1': '${chats.length}',
-      }),
-      confirmText: AppStringKeys.chatDelete.l10n(context),
-      destructive: true,
-    );
-    if (!mounted || !confirmed) return;
-    _exitSelectionMode();
-    for (final chat in chats) {
-      unawaited(_deleteSelectedChat(chat));
-    }
-  }
-
-  /// Single-chat leg of the batch delete: each row walks the same two-step
-  /// capability policy. Groups and channels leave (self scope), everything
-  /// else deletes for self — the row-level toasts already cover singles.
-  Future<void> _deleteSelectedChat(ChatSummary chat) async {
-    try {
-      final isSavedMessages = await _model.resolveIsSavedMessages(chat);
-      if (isSavedMessages == null) return;
-      if (isSavedMessages) {
-        await _model.clearSavedMessages(chat);
-        return;
-      }
-      final capabilities = await _model.deleteCapabilities(chat);
-      if (!capabilities.canDelete) return;
-      await _model.deleteChat(chat);
-    } catch (_) {
-      // A batch must not abort on one stubborn row.
-    }
+    final deleted = await deleteChatSelection(context, _model, chats);
+    if (mounted && deleted) _exitSelectionMode();
   }
 
   Future<void> _confirmDeleteChat(ChatSummary chat) async {
@@ -4746,27 +4599,11 @@ class _ChatListViewState extends State<ChatListView>
   void _openArchivedChats() {
     final onOpenArchived = widget.onOpenArchived;
     if (onOpenArchived != null) {
-      onOpenArchived(
-        ArchivedChatListSelection(
-          chatsProvider: () => _model.archived,
-          updates: _model,
-          onClearUnread: _model.markRead,
-          onUnarchive: _model.unarchive,
-          onToggleMute: _model.toggleMute,
-        ),
-      );
+      onOpenArchived(ArchivedChatListSelection(model: _model));
       return;
     }
     Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => LiveArchivedChatsView(
-          updates: _model,
-          chatsProvider: () => _model.archived,
-          onClearUnread: _model.markRead,
-          onUnarchive: _model.unarchive,
-          onToggleMute: _model.toggleMute,
-        ),
-      ),
+      MaterialPageRoute(builder: (_) => LiveArchivedChatsView(model: _model)),
     );
   }
 
@@ -4790,7 +4627,7 @@ class _ChatListViewState extends State<ChatListView>
   // MARK: - "+" dropdown
 
   Widget _plusMenuOverlay({required bool visible}) {
-    return _AnimatedAnchoredMenuOverlay(
+    return AnchoredMenuOverlay(
       visible: visible,
       top: MediaQuery.paddingOf(context).top + 48,
       onDismiss: () => setState(() => _showPlusMenu = false),
@@ -4804,7 +4641,7 @@ class _ChatListViewState extends State<ChatListView>
   }
 
   Widget _filterMenuOverlay({required bool visible}) {
-    return _AnimatedAnchoredMenuOverlay(
+    return AnchoredMenuOverlay(
       visible: visible,
       top: MediaQuery.paddingOf(context).top + 48,
       onDismiss: () => setState(() => _showFilterMenu = false),
@@ -4903,127 +4740,6 @@ class _DesktopTitleBarPlusMenuOverlay extends StatelessWidget {
           ),
         ),
       ],
-    );
-  }
-}
-
-/// Keeps anchored menus mounted through their reverse animation so the
-/// barrier, hit testing, and menu surface leave as one coherent motion.
-class _AnimatedAnchoredMenuOverlay extends StatefulWidget {
-  const _AnimatedAnchoredMenuOverlay({
-    required this.visible,
-    required this.top,
-    required this.onDismiss,
-    required this.child,
-  });
-
-  final bool visible;
-  final double top;
-  final VoidCallback onDismiss;
-  final Widget child;
-
-  @override
-  State<_AnimatedAnchoredMenuOverlay> createState() =>
-      _AnimatedAnchoredMenuOverlayState();
-}
-
-class _AnimatedAnchoredMenuOverlayState
-    extends State<_AnimatedAnchoredMenuOverlay>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _controller = AnimationController(
-    vsync: this,
-    duration: AppMotion.responsive,
-    reverseDuration: AppMotion.quick,
-    value: widget.visible ? 1 : 0,
-  );
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    _syncDuration();
-    if (AppMotion.isReduced(context)) {
-      _controller.value = widget.visible ? 1 : 0;
-    }
-  }
-
-  @override
-  void didUpdateWidget(covariant _AnimatedAnchoredMenuOverlay oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    _syncDuration();
-    if (oldWidget.visible == widget.visible) return;
-    if (AppMotion.isReduced(context)) {
-      _controller.value = widget.visible ? 1 : 0;
-    } else if (widget.visible) {
-      _controller.forward();
-    } else {
-      _controller.reverse();
-    }
-  }
-
-  void _syncDuration() {
-    _controller.duration = AppMotion.duration(context, AppMotion.responsive);
-    _controller.reverseDuration = AppMotion.duration(context, AppMotion.quick);
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Positioned.fill(
-      child: AnimatedBuilder(
-        animation: _controller,
-        child: widget.child,
-        builder: (context, child) {
-          if (_controller.isDismissed) return const SizedBox.shrink();
-          final progress = AppMotion.emphasized.transform(_controller.value);
-          return IgnorePointer(
-            ignoring: _controller.value == 0,
-            child: ExcludeSemantics(
-              excluding: _controller.value == 0,
-              child: Stack(
-                children: [
-                  Positioned.fill(
-                    child: GestureDetector(
-                      behavior: HitTestBehavior.opaque,
-                      onTap: widget.onDismiss,
-                      child: ColoredBox(
-                        color: Colors.black.withValues(
-                          alpha: 0.12 * _controller.value,
-                        ),
-                      ),
-                    ),
-                  ),
-                  Padding(
-                    padding: EdgeInsets.only(top: widget.top, right: 10),
-                    child: Align(
-                      alignment: Alignment.topRight,
-                      child: GestureDetector(
-                        behavior: HitTestBehavior.opaque,
-                        onTap: () {},
-                        child: Opacity(
-                          opacity: progress,
-                          child: Transform.translate(
-                            offset: Offset(0, -8 * (1 - progress)),
-                            child: Transform.scale(
-                              alignment: Alignment.topRight,
-                              scale: 0.94 + 0.06 * progress,
-                              child: child,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          );
-        },
-      ),
     );
   }
 }

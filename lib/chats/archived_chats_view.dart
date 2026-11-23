@@ -7,20 +7,25 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:mithka/l10n/app_localizations.dart';
 import 'package:mithka/platform/app_haptics.dart';
+
 import '../app/app_navigator.dart';
 import '../app/ipad_window_chrome.dart';
 import '../chat/chat_view.dart';
-import '../components/app_confirm_dialog.dart';
 import '../components/app_icons.dart';
 import '../components/app_interactive_surface.dart';
 import '../components/desktop_row_actions.dart';
-import '../components/ui_components.dart';
+import '../platform/adaptive_platform.dart';
+import '../platform/system_ui.dart';
 import '../tdlib/td_models.dart';
 import '../theme/app_theme.dart';
 import 'chat_list_view.dart' show ChatListSelectionHighlight;
+import 'chat_list_view_model.dart';
 import 'chat_row_view.dart';
+import 'chat_selection_actions.dart';
+import 'chat_selection_header.dart';
 
 class ArchivedChatsRow extends StatelessWidget {
   const ArchivedChatsRow({
@@ -76,49 +81,32 @@ class ArchivedChatsRow extends StatelessWidget {
   }
 }
 
-/// [ArchivedChatsView] kept in step with the chat list model.
+/// [ArchivedChatsView] bound to the live chat-list model.
 ///
-/// The view itself renders the list it is handed, which suits the split layout
-/// because that pane rebuilds whenever its owner does. A pushed route has no
-/// such owner: clearing a row's badge updates the model, but the route kept
-/// rendering the snapshot it was built with, so the counter only disappeared
-/// when the screen was reopened.
+/// The split layout swaps only the list pane and leaves the chat list mounted
+/// behind it, while a pushed route owns the whole screen; both read the same
+/// model, so an unarchive (or a cleared badge) lands in either presentation.
 class LiveArchivedChatsView extends StatelessWidget {
   const LiveArchivedChatsView({
     super.key,
-    required this.updates,
-    required this.chatsProvider,
-    this.onClearUnread,
-    this.onUnarchive,
-    this.onToggleMute,
+    required this.model,
     this.onBack,
     this.onChatSelected,
     this.selectedChatId,
   });
 
-  final Listenable updates;
-  final List<ChatSummary> Function() chatsProvider;
-  final ValueChanged<ChatSummary>? onClearUnread;
-  final ValueChanged<ChatSummary>? onUnarchive;
-  final ValueChanged<ChatSummary>? onToggleMute;
+  final ChatListViewModel model;
   final VoidCallback? onBack;
   final ValueChanged<ChatSummary>? onChatSelected;
   final int? selectedChatId;
 
   @override
-  Widget build(BuildContext context) {
-    return ListenableBuilder(
-      listenable: updates,
-      builder: (context, _) => ArchivedChatsView(
-        chats: chatsProvider(),
-        onClearUnread: onClearUnread,
-        onUnarchive: onUnarchive,
-        onBack: onBack,
-        onChatSelected: onChatSelected,
-        selectedChatId: selectedChatId,
-      ),
-    );
-  }
+  Widget build(BuildContext context) => ArchivedChatsView(
+    model: model,
+    onBack: onBack,
+    onChatSelected: onChatSelected,
+    selectedChatId: selectedChatId,
+  );
 }
 
 /// The archived list, with the same long-press edit mode exteraless gives its
@@ -128,18 +116,12 @@ class LiveArchivedChatsView extends StatelessWidget {
 class ArchivedChatsView extends StatefulWidget {
   const ArchivedChatsView({
     super.key,
-    required this.chats,
-    this.onClearUnread,
-    this.onUnarchive,
-    this.onToggleMute,
+    required this.model,
     this.onBack,
     this.onChatSelected,
     this.selectedChatId,
   });
-  final List<ChatSummary> chats;
-  final ValueChanged<ChatSummary>? onClearUnread;
-  final ValueChanged<ChatSummary>? onUnarchive;
-  final ValueChanged<ChatSummary>? onToggleMute;
+  final ChatListViewModel model;
   final VoidCallback? onBack;
   final ValueChanged<ChatSummary>? onChatSelected;
   final int? selectedChatId;
@@ -150,11 +132,49 @@ class ArchivedChatsView extends StatefulWidget {
 
 class _ArchivedChatsViewState extends State<ArchivedChatsView> {
   final Set<int> _selectedChatIds = {};
+  final GlobalKey<ChatSelectionHeaderState> _selectionHeaderKey =
+      GlobalKey<ChatSelectionHeaderState>();
 
   bool get _selectionMode => _selectedChatIds.isNotEmpty;
 
+  List<ChatSummary> get _chats => widget.model.archived;
+
   List<ChatSummary> get _selectedChats =>
-      widget.chats.where((chat) => _selectedChatIds.contains(chat.id)).toList();
+      _chats.where((chat) => _selectedChatIds.contains(chat.id)).toList();
+
+  @override
+  void initState() {
+    super.initState();
+    widget.model.addListener(_handleModelChanged);
+  }
+
+  @override
+  void didUpdateWidget(covariant ArchivedChatsView oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.model == widget.model) return;
+    oldWidget.model.removeListener(_handleModelChanged);
+    widget.model.addListener(_handleModelChanged);
+  }
+
+  @override
+  void dispose() {
+    widget.model.removeListener(_handleModelChanged);
+    super.dispose();
+  }
+
+  /// The archive can empty out from under an open edit mode (a batch
+  /// unarchive); a selection that no longer exists must not keep the bar up.
+  void _handleModelChanged() {
+    if (!mounted) return;
+    if (_selectionMode) {
+      final alive = _chats.map((chat) => chat.id).toSet();
+      if (!_selectedChatIds.any(alive.contains)) {
+        setState(_selectedChatIds.clear);
+        return;
+      }
+    }
+    setState(() {});
+  }
 
   void _beginSelection(ChatSummary chat) {
     unawaited(AppHaptics.mediumImpact());
@@ -169,6 +189,14 @@ class _ArchivedChatsViewState extends State<ArchivedChatsView> {
     if (!_selectedChatIds.add(chat.id)) _selectedChatIds.remove(chat.id);
   });
 
+  void _selectAllVisible() {
+    setState(() {
+      for (final chat in _chats) {
+        _selectedChatIds.add(chat.id);
+      }
+    });
+  }
+
   void _runOverSelection(void Function(ChatSummary chat) action) {
     final chats = _selectedChats;
     _exitSelection();
@@ -178,22 +206,38 @@ class _ArchivedChatsViewState extends State<ArchivedChatsView> {
   }
 
   Future<void> _deleteSelection() async {
-    final count = _selectedChats.length;
-    if (count == 0) return;
-    final confirmed = await showAppConfirmDialog(
+    final chats = _selectedChats;
+    if (chats.isEmpty) return;
+    final deleted = await deleteChatSelection(context, widget.model, chats);
+    if (mounted && deleted) _exitSelection();
+  }
+
+  Future<void> _clearHistorySelection() async {
+    final chats = _selectedChats;
+    if (chats.isEmpty) return;
+    final cleared = await clearChatSelectionHistory(
       context,
-      title: AppStringKeys.chatListDeleteChatQuestion,
-      message: AppStrings.t(AppStringKeys.chatListSelectedCountValue1, {
-        'value1': '$count',
-      }),
-      confirmText: AppStringKeys.chatDelete.l10n(context),
-      destructive: true,
+      widget.model,
+      chats,
     );
-    if (!confirmed) return;
-    // exteraless's archive delete only clears the archive's own rows; the
-    // host owns the actual removal, and clearing read state is not it.
-    final onUnarchive = widget.onUnarchive;
-    _runOverSelection((chat) => onUnarchive?.call(chat));
+    if (mounted && cleared) _exitSelection();
+  }
+
+  Future<void> _blockSelection() async {
+    final chats = _selectedChats;
+    if (chats.isEmpty) return;
+    final blocked = await blockChatSelection(context, chats);
+    if (mounted && blocked) _exitSelection();
+  }
+
+  void _addToFolderSelection() {
+    final chats = _selectedChats;
+    if (chats.isEmpty) return;
+    final anchor = _selectionHeaderKey.currentState?.overflowButtonRect();
+    _exitSelection();
+    unawaited(
+      addChatSelectionToFolder(context, widget.model, chats, anchor: anchor),
+    );
   }
 
   @override
@@ -210,134 +254,207 @@ class _ArchivedChatsViewState extends State<ArchivedChatsView> {
         body: Column(
           children: [
             if (selectionMode) _selectionHeader(context) else _normalHeader(),
-            Expanded(
-              child: ListView.builder(
-                padding: EdgeInsets.zero,
-                itemCount: widget.chats.length,
-                itemBuilder: (context, i) {
-                  final chat = widget.chats[i];
-                  return _ArchivedChatSwipeRow(
-                    key: ValueKey(chat.id),
-                    chat: chat,
-                    selected: chat.id == widget.selectedChatId,
-                    selectionTint: _selectedChatIds.contains(chat.id),
-                    onTap: () => selectionMode
-                        ? _toggleSelected(chat)
-                        : _openChat(context, chat),
-                    onLongPress: () => selectionMode
-                        ? _toggleSelected(chat)
-                        : _beginSelection(chat),
-                    onClearUnread: () => widget.onClearUnread?.call(chat),
-                    onUnarchive: widget.onUnarchive == null
-                        ? null
-                        : () => widget.onUnarchive!(chat),
-                  );
-                },
-              ),
-            ),
+            Expanded(child: _chatsList(context, selectionMode: selectionMode)),
           ],
         ),
       ),
     );
   }
 
-  Widget _normalHeader() => NavHeader(
-    title: AppStrings.t(AppStringKeys.archivedChatsGroupAssistant),
-    onBack: widget.onBack ?? () => Navigator.of(context).pop(),
-  );
+  Widget _chatsList(BuildContext context, {required bool selectionMode}) {
+    final chats = _chats;
+    return ListView.builder(
+      padding: EdgeInsets.zero,
+      itemCount: chats.length,
+      itemBuilder: (context, i) {
+        final chat = chats[i];
+        return _ArchivedChatSwipeRow(
+          key: ValueKey(chat.id),
+          chat: chat,
+          selected: chat.id == widget.selectedChatId,
+          selectionTint: _selectedChatIds.contains(chat.id),
+          onTap: () =>
+              selectionMode ? _toggleSelected(chat) : _openChat(context, chat),
+          onLongPress: () =>
+              selectionMode ? _toggleSelected(chat) : _beginSelection(chat),
+          onClearUnread: () => widget.model.markRead(chat),
+          onUnarchive: () => widget.model.unarchive(chat),
+        );
+      },
+    );
+  }
 
-  /// Same command bar as the main list's edit mode, trimmed to the archive's
-  /// own actions: unarchive replaces pin (an archive row cannot pin), mute
-  /// and delete stay, read moves to the overflow column.
-  Widget _selectionHeader(BuildContext context) {
+  /// The archive's own header, pinned to the chat list's height.
+  ///
+  /// The archive is a chat list, not a settings subpage: exteraless draws the
+  /// same ActionBar there as on the main list. A stock NavHeader is 28pt
+  /// shorter, so opening edit mode shoved the list down and the two screens
+  /// read as different surfaces. Same chrome padding, same hit-target row,
+  /// same fill as the chat list's header — only the title differs.
+  Widget _normalHeader() {
     final c = context.colors;
-    final chats = _selectedChats;
-    final allMuted = chats.isNotEmpty && chats.every((chat) => chat.isMuted);
-    Widget command({
-      required Key key,
-      required String label,
-      required AppIconData icon,
-      required VoidCallback onTap,
-      bool destructive = false,
-    }) => AppInteractiveSurface(
-      key: key,
-      semanticLabel: label,
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(AppRadius.sm),
-      child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.md),
-        child: AppIcon(
-          icon,
-          size: AppIconSize.lg,
-          color: destructive ? AppTheme.tagRed : c.textPrimary,
+    final pointerDense = isDesktopTargetPlatform();
+    final title = AppStrings.t(AppStringKeys.archivedChatsGroupAssistant);
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: systemUiOverlayStyleForSurface(c.listHeaderTint),
+      child: Container(
+        key: const ValueKey('archived-chats-header'),
+        color: c.listHeaderTint,
+        padding: headerChromePaddingOf(context),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.md,
+            vertical: AppSpacing.md + AppSpacing.xxs,
+          ),
+          child: SizedBox(
+            height: AppMetric.chatHeaderHitTarget(),
+            child: Row(
+              children: [
+                AppInteractiveSurface(
+                  key: const ValueKey('archived-chats-back'),
+                  semanticLabel: AppStringKeys.navigationBack.l10n(context),
+                  onTap: widget.onBack ?? () => Navigator.of(context).pop(),
+                  borderRadius: BorderRadius.circular(AppRadius.sm),
+                  child: SizedBox(
+                    width: AppMetric.chatHeaderHitTarget(),
+                    height: AppMetric.chatHeaderHitTarget(),
+                    child: Center(
+                      child: AppIcon(
+                        HeroAppIcons.chevronLeft,
+                        size: pointerDense ? AppIconSize.lg : AppIconSize.nav,
+                        color: c.textPrimary,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: AppSpacing.md),
+                Expanded(
+                  child: Text(
+                    title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: pointerDense
+                        ? AppTextStyle.bodyLarge(
+                            c.textPrimary,
+                            weight: AppTextWeight.medium,
+                          )
+                        : AppTextStyle.title(c.textPrimary),
+                  ),
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     );
-    return Container(
-      key: const ValueKey('chat-list-selection-header'),
-      color: c.listHeaderTint,
-      padding: headerChromePaddingOf(context),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.md,
-          vertical: AppSpacing.sm,
+  }
+
+  /// The same command bar the main list shows (one shared widget, so the two
+  /// are the same height and draw the same glyphs), carrying the archive's own
+  /// actions: unarchive and the archive list's pin sit where the main list has
+  /// archive and pin.
+  Widget _selectionHeader(BuildContext context) {
+    final chats = _selectedChats;
+    final allPinned =
+        chats.isNotEmpty && chats.every(widget.model.isPinnedInArchive);
+    final allMuted = chats.isNotEmpty && chats.every((chat) => chat.isMuted);
+    final anyUnread = chats.any(
+      (chat) => chat.unreadCount > 0 || chat.isMarkedUnread,
+    );
+    final folders = [
+      for (final filter in widget.model.filters)
+        if (!filter.isAll && filter.folderId != null) filter,
+    ];
+    return ChatSelectionHeader(
+      key: _selectionHeaderKey,
+      count: _selectedChatIds.length,
+      onClose: _exitSelection,
+      commands: [
+        ChatSelectionCommand(
+          id: 'unarchive',
+          label: AppStrings.t(AppStringKeys.chatListUnarchive),
+          icon: HeroAppIcons.inbox,
+          onTap: () =>
+              _runOverSelection((chat) => widget.model.unarchive(chat)),
         ),
-        child: Row(
-          children: [
-            AppInteractiveSurface(
-              key: const ValueKey('chat-list-close-selection'),
-              semanticLabel: AppStringKeys.countryPickerCancel.l10n(context),
-              onTap: _exitSelection,
-              borderRadius: BorderRadius.circular(AppRadius.sm),
-              child: Padding(
-                padding: const EdgeInsets.all(AppSpacing.sm),
-                child: AppIcon(
-                  HeroAppIcons.xmark,
-                  size: AppIconSize.lg,
-                  color: c.textPrimary,
-                ),
-              ),
-            ),
-            const SizedBox(width: AppSpacing.xs),
-            Expanded(
-              child: Text(
-                '${_selectedChatIds.length}',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontSize: AppTextSize.bodyLarge,
-                  fontWeight: FontWeight.w600,
-                  color: c.textPrimary,
-                  decoration: TextDecoration.none,
-                ),
-              ),
-            ),
-            command(
-              key: const ValueKey('chat-list-selection-unarchive'),
-              label: AppStrings.t(AppStringKeys.chatListUnarchive),
-              icon: HeroAppIcons.inbox,
-              onTap: () =>
-                  _runOverSelection((chat) => widget.onUnarchive?.call(chat)),
-            ),
-            command(
-              key: const ValueKey('chat-list-selection-mute'),
-              label: AppStrings.t(
-                allMuted ? AppStringKeys.chatUnmute : AppStringKeys.callMute,
-              ),
-              icon: allMuted ? HeroAppIcons.bell : HeroAppIcons.bellSlash,
-              onTap: () =>
-                  _runOverSelection((chat) => widget.onToggleMute?.call(chat)),
-            ),
-            command(
-              key: const ValueKey('chat-list-selection-delete'),
-              label: AppStrings.t(AppStringKeys.chatDelete),
-              icon: HeroAppIcons.trash,
-              destructive: true,
-              onTap: () => unawaited(_deleteSelection()),
-            ),
-          ],
+        ChatSelectionCommand(
+          id: 'pin',
+          label: AppStrings.t(
+            allPinned ? AppStringKeys.chatListUnpin : AppStringKeys.chatInfoPin,
+          ),
+          icon: HeroAppIcons.pin,
+          onTap: () {
+            final pin = !allPinned;
+            _runOverSelection((chat) {
+              if (widget.model.isPinnedInArchive(chat) != pin) {
+                widget.model.toggleArchivePin(chat);
+              }
+            });
+          },
         ),
-      ),
+        ChatSelectionCommand(
+          id: 'mute',
+          label: AppStrings.t(
+            allMuted ? AppStringKeys.chatUnmute : AppStringKeys.callMute,
+          ),
+          icon: allMuted ? HeroAppIcons.bell : HeroAppIcons.bellSlash,
+          onTap: () {
+            final mute = !allMuted;
+            _runOverSelection((chat) {
+              if (chat.isMuted != mute) widget.model.toggleMute(chat);
+            });
+          },
+        ),
+        ChatSelectionCommand(
+          id: 'delete',
+          label: AppStrings.t(AppStringKeys.chatDelete),
+          icon: HeroAppIcons.trash,
+          destructive: true,
+          onTap: () => unawaited(_deleteSelection()),
+        ),
+      ],
+      overflow: [
+        ChatSelectionCommand(
+          id: 'read',
+          label: AppStrings.t(
+            anyUnread
+                ? AppStringKeys.channelDirectMessagesMarkRead
+                : AppStringKeys.chatListMarkUnread,
+          ),
+          icon: anyUnread ? HeroAppIcons.circleCheck : HeroAppIcons.eyeSlash,
+          onTap: () {
+            toggleChatSelectionRead(widget.model, chats);
+            _exitSelection();
+          },
+        ),
+        ChatSelectionCommand(
+          id: 'clear-history',
+          label: AppStrings.t(AppStringKeys.chatInfoClearHistory),
+          icon: HeroAppIcons.circleMinus,
+          onTap: () => unawaited(_clearHistorySelection()),
+        ),
+        if (chatSelectionAllBlockable(chats))
+          ChatSelectionCommand(
+            id: 'block',
+            label: AppStrings.t(AppStringKeys.chatListBlockUser),
+            icon: HeroAppIcons.ban,
+            destructive: true,
+            onTap: () => unawaited(_blockSelection()),
+          ),
+        if (folders.isNotEmpty)
+          ChatSelectionCommand(
+            id: 'add-to-folder',
+            label: AppStrings.t(AppStringKeys.chatListAddToFolder),
+            icon: HeroAppIcons.folder,
+            onTap: _addToFolderSelection,
+          ),
+        ChatSelectionCommand(
+          id: 'select-all',
+          label: AppStrings.t(AppStringKeys.chatListSelectAll),
+          icon: HeroAppIcons.check,
+          onTap: _selectAllVisible,
+        ),
+      ],
     );
   }
 

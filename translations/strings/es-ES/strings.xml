@@ -1097,11 +1097,16 @@
     <string name="advancedUnlimitedFavoritesAbout">Guarda más stickers favoritos que el límite de Telegram. Los extra solo permanecen en este dispositivo.</string>
     <string name="chatListMarkUnread">Marcar como no leído</string>
     <string name="chatListMarkAllRead">Marcar todo como leído</string>
+    <string name="chatListRemoveFromFolder">Quitar de la carpeta</string>
     <string name="chatListSelectAll">Seleccionar todo</string>
     <string name="chatListSelectedCountValue1">{value1} chats seleccionados</string>
     <string name="chatListNoChats">Aún no hay chats</string>
     <string name="chatListScanQrCode">Escanear código QR</string>
+    <string name="chatListAddToFolder">Añadir a carpeta</string>
     <string name="chatListArchive">Archivar</string>
+    <string name="chatListBlockUser">Bloquear usuario</string>
+    <string name="chatListBlockUserDescription">Sus mensajes se ocultarán en todos los chats. Puedes desbloquearlo más tarde en Privacidad y seguridad.</string>
+    <string name="chatListBlockUserDone">Usuario bloqueado</string>
     <string name="chatListUnarchive">Desarchivar</string>
     <string name="chatListUnpin">Desfijar</string>
     <string name="chatLoadingTopics">Cargando temas</string>

@@ -1096,11 +1096,16 @@
     <string name="advancedUnlimitedFavoritesAbout">Telegram 한도를 초과해 스티커를 즐겨찾기에 저장. 초과분은 이 기기에만 저장되며 동기화되지 않습니다.</string>
     <string name="chatListMarkUnread">읽지 않음으로 표시</string>
     <string name="chatListMarkAllRead">모두 읽음으로 표시</string>
+    <string name="chatListRemoveFromFolder">폴더에서 제거</string>
     <string name="chatListSelectAll">모두 선택</string>
     <string name="chatListSelectedCountValue1">채팅 {value1}개 선택됨</string>
     <string name="chatListNoChats">아직 채팅이 없습니다</string>
     <string name="chatListScanQrCode">QR 코드 스캔</string>
+    <string name="chatListAddToFolder">폴더에 추가</string>
     <string name="chatListArchive">보관</string>
+    <string name="chatListBlockUser">사용자 차단</string>
+    <string name="chatListBlockUserDescription">상대방의 메시지가 모든 채팅에서 숨겨집니다. 나중에 '개인정보 및 보안'에서 차단을 해제할 수 있습니다.</string>
+    <string name="chatListBlockUserDone">사용자를 차단했습니다</string>
     <string name="chatListUnarchive">보관 해제</string>
     <string name="chatListUnpin">고정 해제</string>
     <string name="chatLoadingTopics">주제 불러오는 중</string>

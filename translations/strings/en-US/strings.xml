@@ -1097,11 +1097,16 @@
     <string name="advancedUnlimitedFavoritesAbout">Keep more than the Telegram limit of favorited stickers. Extras stay on this device only and won't sync.</string>
     <string name="chatListMarkUnread">Mark as unread</string>
     <string name="chatListMarkAllRead">Mark all as read</string>
+    <string name="chatListRemoveFromFolder">Remove from folder</string>
     <string name="chatListSelectAll">Select all</string>
     <string name="chatListSelectedCountValue1">{value1} chats selected</string>
     <string name="chatListNoChats">No chats yet</string>
     <string name="chatListScanQrCode">Scan QR Code</string>
+    <string name="chatListAddToFolder">Add to folder</string>
     <string name="chatListArchive">Archive</string>
+    <string name="chatListBlockUser">Block user</string>
+    <string name="chatListBlockUserDescription">Their messages will be hidden in all chats. You can unblock them later in Privacy &amp; Security.</string>
+    <string name="chatListBlockUserDone">User blocked</string>
     <string name="chatListUnarchive">Unarchive</string>
     <string name="chatListUnpin">Unpin</string>
     <string name="chatLoadingTopics">Loading topics</string>

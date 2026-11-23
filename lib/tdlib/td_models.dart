@@ -560,6 +560,7 @@ class ChatSummary {
     this.isPinned = false,
     this.isVerified = false,
     this.archiveOrder = 0,
+    this.archivePinned = false,
     this.isMarkedUnread = false,
     this.draftText = '',
     this.peerUserId,
@@ -601,6 +602,10 @@ class ChatSummary {
   bool isPinned;
   bool isVerified;
   int archiveOrder; // > 0 when the chat is in the Archive list
+
+  /// Pinned inside the Archive list. TDLib keeps one pin state per chat list,
+  /// so an archived chat's pin is its own — never the main list's [isPinned].
+  bool archivePinned;
   bool isMarkedUnread; // "标为未读" with no unread count
   String draftText; // unsent draft; shown as "[草稿]" prefix when non-empty
   int? peerUserId; // private/secret chat peer, used for chat-list identity UI

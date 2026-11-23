@@ -30,6 +30,15 @@ void main() {
           return switch (request['@type']) {
             'getMe' => {'@type': 'user', 'id': 1, 'first_name': 'Test'},
             'getConnectionState' => {'@type': 'connectionStateReady'},
+            // History cleanup re-reads the chat's own permissions.
+            'getChat' => {
+              '@type': 'chat',
+              'id': request['chat_id'],
+              'title': 'Chat ${request['chat_id']}',
+              'type': {'@type': 'chatTypePrivate', 'user_id': 7},
+              'can_be_deleted_only_for_self': true,
+              'can_be_deleted_for_all_users': false,
+            },
             _ => {'@type': 'ok'},
           };
         },
@@ -168,6 +177,82 @@ void main() {
       );
       await tester.pumpAndSettle();
       expect(find.text('2'), findsWidgets);
+      await _dispose(tester);
+    },
+    variant: TargetPlatformVariant.only(TargetPlatform.android),
+  );
+
+  testWidgets(
+    'overflow clear history confirms and clears without leaving the list',
+    (tester) async {
+      await pumpChatList(tester, updates);
+      final bodyCenter = rowBodyCenter(tester, 'Chat 1');
+      await tester.startGesture(bodyCenter);
+      await tester.pump(kLongPressTimeout);
+      await tester.pumpAndSettle();
+      await tester.tap(
+        find.byKey(const ValueKey('chat-list-selection-overflow')),
+      );
+      await tester.pumpAndSettle();
+      sent.clear();
+      await tester.tap(
+        find.byKey(
+          const ValueKey('chat-list-selection-overflow-clear-history'),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('app-confirm-dialog')), findsOneWidget);
+      await tester.tap(find.text('Confirm clear'));
+      await tester.pumpAndSettle();
+      final clears = sent
+          .where((r) => r['@type'] == 'deleteChatHistory')
+          .toList();
+      expect(clears, hasLength(1));
+      expect(clears.single['chat_id'], 101);
+      expect(
+        clears.single['remove_from_chat_list'],
+        isFalse,
+        reason: 'clearing history keeps the chat in the list',
+      );
+      await _dispose(tester);
+    },
+    variant: TargetPlatformVariant.only(TargetPlatform.android),
+  );
+
+  testWidgets(
+    'overflow block confirms once and blocks every selected user',
+    (tester) async {
+      await pumpChatList(tester, updates);
+      final bodyCenter = rowBodyCenter(tester, 'Chat 1');
+      await tester.startGesture(bodyCenter);
+      await tester.pump(kLongPressTimeout);
+      await tester.pumpAndSettle();
+      await tester.tapAt(rowBodyCenter(tester, 'Chat 2'));
+      await tester.pumpAndSettle();
+      await tester.tap(
+        find.byKey(const ValueKey('chat-list-selection-overflow')),
+      );
+      await tester.pumpAndSettle();
+      expect(
+        find.byKey(const ValueKey('chat-list-selection-overflow-block')),
+        findsOneWidget,
+        reason: 'both rows are private conversations, so block is offered',
+      );
+      sent.clear();
+      await tester.tap(
+        find.byKey(const ValueKey('chat-list-selection-overflow-block')),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Block user').last);
+      await tester.pumpAndSettle();
+      final blocks = sent
+          .where((r) => r['@type'] == 'setMessageSenderBlockList')
+          .toList();
+      expect(blocks, hasLength(2));
+      expect(blocks.map((r) => (r['sender_id'] as Map)['user_id']).toSet(), {
+        7,
+        8,
+      });
       await _dispose(tester);
     },
     variant: TargetPlatformVariant.only(TargetPlatform.android),

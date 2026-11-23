@@ -1097,11 +1097,16 @@
     <string name="advancedUnlimitedFavoritesAbout">Mehr Sticker favorisieren, als das Telegram-Limit erlaubt. Zusätzliche bleiben nur auf diesem Gerät und werden nicht synchronisiert.</string>
     <string name="chatListMarkUnread">Als ungelesen markieren</string>
     <string name="chatListMarkAllRead">Alle als gelesen markieren</string>
+    <string name="chatListRemoveFromFolder">Aus Ordner entfernen</string>
     <string name="chatListSelectAll">Alle auswählen</string>
     <string name="chatListSelectedCountValue1">{value1} Chats ausgewählt</string>
     <string name="chatListNoChats">Noch keine Chats</string>
     <string name="chatListScanQrCode">QR-Code scannen</string>
+    <string name="chatListAddToFolder">Zu Ordner hinzufügen</string>
     <string name="chatListArchive">Archivieren</string>
+    <string name="chatListBlockUser">Nutzer blockieren</string>
+    <string name="chatListBlockUserDescription">Ihre Nachrichten werden in allen Chats ausgeblendet. Du kannst die Blockierung später unter „Datenschutz und Sicherheit“ aufheben.</string>
+    <string name="chatListBlockUserDone">Nutzer blockiert</string>
     <string name="chatListUnarchive">Archivierung aufheben</string>
     <string name="chatListUnpin">Lösen</string>
     <string name="chatLoadingTopics">Themen werden geladen</string>
