@@ -43,6 +43,11 @@ Map<String, dynamic> _chat(
 void main() {
   final updates = StreamController<Map<String, dynamic>>.broadcast();
   final haptics = <MethodCall>[];
+  // The app's own haptics bridge (Android) — when it is present the tick
+  // never reaches Flutter's platform channel, so the test has to listen to
+  // both delivery paths and count the tick once.
+  const appHaptics = MethodChannel('mithka/haptics');
+  final appTicks = <MethodCall>[];
   setUpAll(() {
     TdClient.shared.configureProxy(
       TdClientProxyTransport(
@@ -61,8 +66,15 @@ void main() {
           haptics.add(call);
           return null;
         });
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(appHaptics, (call) async {
+          appTicks.add(call);
+          return null;
+        });
   });
   tearDownAll(() async {
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(appHaptics, null);
     await TdClient.shared.closeProxy();
     await updates.close();
   });
@@ -117,9 +129,13 @@ void main() {
       final firstRow = tester.getTopLeft(find.text('Chat 991')).dy;
       final gesture = await tester.startGesture(Offset(200, firstRow + 60));
       await tester.pump(const Duration(milliseconds: 40));
-      for (var i = 0; i < 10; i++) {
-        await gesture.moveBy(const Offset(0, 40));
-        await tester.pump(const Duration(milliseconds: 16));
+      // A deliberate pull, the way the reference client measures one: 600 px
+      // of finger travel over 240 ms. Under the archive parallax that is the
+      // ~85% row reveal the latch waits for, and the pull outlasts the 200 ms
+      // minimum pulling time.
+      for (var i = 0; i < 12; i++) {
+        await gesture.moveBy(const Offset(0, 50));
+        await tester.pump(const Duration(milliseconds: 20));
       }
       await gesture.up();
       await tester.pumpAndSettle();
@@ -129,18 +145,22 @@ void main() {
         findsOneWidget,
         reason: 'fixture must mount the pull-down archive slot',
       );
-      expect(haptics, isNotEmpty, reason: 'the reveal must fire a haptic');
-      final hapticCalls = haptics
-          .where((c) => c.method == 'HapticFeedback.vibrate')
-          .toList();
+      final ticks = <Object?>[
+        ...appTicks.where((c) => c.method == 'vibrate').map((c) => c.arguments),
+        ...haptics
+            .where((c) => c.method == 'HapticFeedback.vibrate')
+            .map((c) => c.arguments),
+      ];
       expect(
-        hapticCalls.length,
+        ticks.length,
         1,
-        reason: 'exactly one haptic when the archive reveal latches',
+        reason:
+            'exactly one tick when the archive reveal latches, whichever '
+            'haptics path the platform is on',
       );
       expect(
-        hapticCalls.single.arguments,
-        'HapticFeedbackType.mediumImpact',
+        ticks.single,
+        anyOf('medium', 'HapticFeedbackType.mediumImpact'),
         reason:
             'the reveal uses KEYBOARD_TAP strength (mediumImpact) — the '
             'CLOCK_TICK selection haptic is too faint to feel mid-gesture',

@@ -124,6 +124,94 @@ Future<void> _dispose(WidgetTester tester) async {
   await tester.pump(const Duration(seconds: 6));
 }
 
+/// Fixed metrics for one top-edge pull frame.
+ScrollMetrics _pullMetrics(double pixels) => FixedScrollMetrics(
+  minScrollExtent: 0,
+  maxScrollExtent: 5000,
+  pixels: pixels,
+  viewportDimension: 844,
+  axisDirection: AxisDirection.down,
+  devicePixelRatio: 3,
+);
+
+/// A pull must travel much farther than the row it reveals: the reference
+/// client multiplies the finger delta by `startPullParallax − endPullParallax ·
+/// k` (0.45 at rest, 0.20 once the row is fully out), and that damping is what
+/// makes the gesture stop feeling like a hair trigger.
+void _archivePullParallaxTests() {
+  const rowHeight = 72.0;
+  const physics = ChatListArchivePullPhysics(rowHeight: rowHeight);
+
+  // A finger delta of +40 is the *pull*: the position subtracts the value
+  // this returns from `pixels`, so a damped positive result is what makes the
+  // list move less than the finger.
+  test('top-edge pull is damped to the reference parallax', () {
+    expect(
+      physics.applyPhysicsToUserOffset(_pullMetrics(0), 40),
+      moreOrLessEquals(40 * kArchivePullStartParallax),
+      reason: 'a pull that starts at rest moves 45% of the finger travel',
+    );
+    expect(
+      physics.applyPhysicsToUserOffset(_pullMetrics(-rowHeight / 2), 40),
+      moreOrLessEquals(
+        40 * (kArchivePullStartParallax - kArchivePullEndParallax * 0.5),
+      ),
+      reason: 'damping grows as half the row is out',
+    );
+    expect(
+      physics.applyPhysicsToUserOffset(_pullMetrics(-rowHeight), 40),
+      moreOrLessEquals(40 * 0.2),
+      reason: 'a fully revealed row damps the pull down to 20%',
+    );
+    expect(
+      physics.applyPhysicsToUserOffset(_pullMetrics(-rowHeight * 3), 40),
+      moreOrLessEquals(40 * 0.2),
+      reason: 'beyond a row the parallax keeps its floor instead of vanishing',
+    );
+  });
+
+  test('only the pull at the top edge is damped', () {
+    expect(
+      physics.applyPhysicsToUserOffset(_pullMetrics(120), 40),
+      moreOrLessEquals(40),
+      reason: 'a pull inside the content is plain scrolling',
+    );
+    expect(
+      physics.applyPhysicsToUserOffset(_pullMetrics(0), -40),
+      moreOrLessEquals(-40),
+      reason: 'an upward drag from the top is untouched by the parallax',
+    );
+    expect(
+      physics.applyPhysicsToUserOffset(_pullMetrics(120), -40),
+      moreOrLessEquals(-40),
+      reason: 'scrolling forward is never damped',
+    );
+  });
+
+  test('archive reveal waits for the reference snap height', () {
+    expect(
+      chatListShouldRevealPullDownArchive(pullOffset: 40, rowHeight: 72),
+      isFalse,
+      reason: '55% of a row is the old hair-trigger threshold',
+    );
+    expect(
+      chatListShouldRevealPullDownArchive(pullOffset: 60, rowHeight: 72),
+      isFalse,
+      reason: '83% of a row is still short of SNAP_HEIGHT',
+    );
+    expect(
+      chatListShouldRevealPullDownArchive(pullOffset: 62, rowHeight: 72),
+      isTrue,
+      reason: '86% of a row crosses the reference snap height',
+    );
+    expect(
+      chatListShouldRevealPullDownArchive(pullOffset: 0, rowHeight: 0),
+      isFalse,
+      reason: 'an unmeasured row height never arms the reveal',
+    );
+  });
+}
+
 void main() {
   final updates = StreamController<Map<String, dynamic>>.broadcast();
   setUpAll(() {
@@ -144,6 +232,8 @@ void main() {
     await TdClient.shared.closeProxy();
     await updates.close();
   });
+
+  group('archive pull physics', _archivePullParallaxTests);
 
   testWidgets(
     'no archive: top pull does not rubber-band the chat list',
