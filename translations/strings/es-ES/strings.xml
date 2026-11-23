@@ -4113,6 +4113,7 @@
     <string name="mithkaxChannelPostForwards">{value1} reenvíos</string>
     <string name="mithkaxDeleteTopic">Eliminar tema</string>
     <string name="mithkaxReadAllFailed">No se pudo marcar como leído</string>
+    <string name="mithkaxAndroidShareFailed">No se pudo leer el archivo compartido</string>
     <string name="mithkaxHapticsSection">Vibración</string>
     <string name="mithkaxHapticsTitle">Respuesta con vibración</string>
     <string name="mithkaxHapticsHint">Vibra al tocar, mantener pulsado y confirmar acciones, incluso con la vibración táctil del sistema desactivada.</string>

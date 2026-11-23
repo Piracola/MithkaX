@@ -384,6 +384,7 @@ abstract final class AppStringKeys {
   static const mithkaProTitle = 'mithkaProTitle';
   static const mithkaProYearly = 'mithkaProYearly';
 
+  static const mithkaxAndroidShareFailed = 'mithkaxAndroidShareFailed';
   static const mithkaxHapticsSection = 'mithkaxHapticsSection';
   static const mithkaxHapticsTitle = 'mithkaxHapticsTitle';
   static const mithkaxHapticsHint = 'mithkaxHapticsHint';

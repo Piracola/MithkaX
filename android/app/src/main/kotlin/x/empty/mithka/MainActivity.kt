@@ -63,7 +63,6 @@ class MainActivity : FlutterFragmentActivity() {
     private var haptics: HapticsPlugin? = null
     private var mediaDropChannel: MethodChannel? = null
     private var shareIntentChannel: MethodChannel? = null
-    private var pendingSharePayload: Map<String, Any?>? = null
     private var acceptingImageDrop = false
     private var fullscreenSystemUi = false
 
@@ -88,7 +87,7 @@ class MainActivity : FlutterFragmentActivity() {
         super.onCreate(savedInstanceState)
         requestHighestRefreshRate()
         if (!warm) {
-            pendingSharePayload = parseIncomingShareIntent(intent)
+            incomingSharePayload = parseIncomingShareIntent(intent)
             PushServiceBridge.captureTap(this, intent)
         }
         // Telegram-family self-heal (exteraless LauncherIconController
@@ -809,9 +808,11 @@ class MainActivity : FlutterFragmentActivity() {
         shareIntentChannel?.setMethodCallHandler { call, result ->
             when (call.method) {
                 "initial" -> {
-                    val payload = pendingSharePayload
-                    pendingSharePayload = null
-                    result.success(payload)
+                    // Deliberately non-consuming: a delivery that landed before
+                    // Dart registered its handler is recovered by the next
+                    // poll (MainTabView asks again on every mount), and Dart
+                    // drops duplicates by the payload id.
+                    result.success(incomingSharePayload)
                 }
                 "copyFiles" -> {
                     val uris = (call.arguments as? List<*>)
@@ -820,7 +821,16 @@ class MainActivity : FlutterFragmentActivity() {
                         ?.take(MAX_SHARED_FILES)
                         ?: emptyList()
                     Thread {
-                        val files = copySharedFiles(uris)
+                        // A result MUST always come back: Dart awaits this
+                        // reply, and a bare thread dying on a provider
+                        // SecurityException would leave the share intake
+                        // waiting for the life of the process.
+                        val files = try {
+                            copySharedFiles(uris)
+                        } catch (error: Throwable) {
+                            Log.w("Mithka", "Unable to copy shared files", error)
+                            emptyList()
+                        }
                         runOnUiThread { result.success(files) }
                     }.start()
                 }
@@ -843,7 +853,7 @@ class MainActivity : FlutterFragmentActivity() {
         val payload = parseIncomingShareIntent(intent) ?: return
         // Keep a copy for the initial() handshake as well. The payload id lets
         // Dart de-duplicate it if both paths race during a warm start.
-        pendingSharePayload = payload
+        incomingSharePayload = payload
         runOnUiThread {
             shareIntentChannel?.invokeMethod("share", payload)
         }
@@ -884,27 +894,36 @@ class MainActivity : FlutterFragmentActivity() {
         val copied = mutableListOf<Map<String, Any?>>()
         for (uriString in uriStrings) {
             val uri = runCatching { Uri.parse(uriString) }.getOrNull() ?: continue
-            val mimeType = contentResolver.getType(uri)
-                ?: "application/octet-stream"
-            val displayName = contentResolver.query(
-                uri,
-                arrayOf(OpenableColumns.DISPLAY_NAME),
-                null,
-                null,
-                null,
-            )?.use { cursor ->
-                if (cursor.moveToFirst()) cursor.getString(0) else null
-            }
-            val fileName = sharedFileName(displayName, mimeType)
-            val destination = File(
-                cacheDir,
-                "mithka-share-${System.nanoTime()}-$fileName",
-            )
+            var destination: File? = null
             try {
+                // getType/query read the PROVIDER: a provider can refuse the
+                // grant or throw while the sending app is being torn down. That
+                // failure belongs to this one file, not to the whole batch.
+                val mimeType = contentResolver.getType(uri)
+                    ?: "application/octet-stream"
+                val displayName = contentResolver.query(
+                    uri,
+                    arrayOf(OpenableColumns.DISPLAY_NAME),
+                    null,
+                    null,
+                    null,
+                )?.use { cursor ->
+                    if (cursor.moveToFirst()) cursor.getString(0) else null
+                }
+                val fileName = sharedFileName(displayName, mimeType)
+                val file = File(
+                    cacheDir,
+                    "mithka-share-${System.nanoTime()}-$fileName",
+                )
+                destination = file
                 val input = contentResolver.openInputStream(uri)
-                if (input == null) continue
+                if (input == null) {
+                    file.delete()
+                    destination = null
+                    continue
+                }
                 input.use {
-                    destination.outputStream().use { output ->
+                    file.outputStream().use { output ->
                         val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
                         var copiedBytes = 0L
                         while (true) {
@@ -919,12 +938,12 @@ class MainActivity : FlutterFragmentActivity() {
                     }
                 }
                 copied += mapOf(
-                    "path" to destination.absolutePath,
+                    "path" to file.absolutePath,
                     "fileName" to fileName,
                     "mimeType" to mimeType,
                 )
             } catch (error: Exception) {
-                destination.delete()
+                destination?.delete()
                 Log.w("Mithka", "Unable to copy shared file", error)
             }
         }
@@ -983,6 +1002,18 @@ class MainActivity : FlutterFragmentActivity() {
 
         /** A launcher icon chosen while its switch would close this window. */
         private const val PENDING_LAUNCHER_ICON = "pending"
+
+        /**
+         * The share that opened this process's current window.
+         *
+         * Process-wide on purpose: a warm attach creates a NEW Activity for the
+         * share (the running window sits on an icon alias, a different
+         * component), and the Dart side that answers `initial` may belong to an
+         * engine that was started by the previous Activity. Dart drops
+         * duplicates by the payload id, so re-reading it is safe.
+         */
+        @Volatile
+        private var incomingSharePayload: Map<String, Any?>? = null
     }
 
     private fun handleMediaDragEvent(event: DragEvent): Boolean {

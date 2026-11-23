@@ -4096,6 +4096,7 @@
     <string name="mithkaxChannelPostForwards">{value1} 次转发</string>
     <string name="mithkaxDeleteTopic">删除话题</string>
     <string name="mithkaxReadAllFailed">标为已读失败</string>
+    <string name="mithkaxAndroidShareFailed">无法读取分享的文件</string>
     <string name="mithkaxHapticsSection">震动</string>
     <string name="mithkaxHapticsTitle">震动反馈</string>
     <string name="mithkaxHapticsHint">点击、长按和操作确认时震动；系统关闭触感反馈时也会生效。</string>

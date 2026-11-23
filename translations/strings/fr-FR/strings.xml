@@ -4113,6 +4113,7 @@
     <string name="mithkaxChannelPostForwards">{value1} transferts</string>
     <string name="mithkaxDeleteTopic">Supprimer le sujet</string>
     <string name="mithkaxReadAllFailed">Impossible de marquer comme lu</string>
+    <string name="mithkaxAndroidShareFailed">Impossible de lire le fichier partagé</string>
     <string name="mithkaxHapticsSection">Vibration</string>
     <string name="mithkaxHapticsTitle">Retour vibrant</string>
     <string name="mithkaxHapticsHint">Vibre au toucher, à l'appui long et aux confirmations, même si la vibration tactile du système est désactivée.</string>

@@ -4096,6 +4096,7 @@
     <string name="mithkaxChannelPostForwards">{value1} 回転送</string>
     <string name="mithkaxDeleteTopic">トピックを削除</string>
     <string name="mithkaxReadAllFailed">既読にできませんでした</string>
+    <string name="mithkaxAndroidShareFailed">共有されたファイルを読み取れませんでした</string>
     <string name="mithkaxHapticsSection">バイブレーション</string>
     <string name="mithkaxHapticsTitle">振動フィードバック</string>
     <string name="mithkaxHapticsHint">タップ・長押し・操作の確認時に振動します。システムの触覚フィードバックがオフでも動作します。</string>

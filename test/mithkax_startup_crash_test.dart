@@ -171,7 +171,7 @@ void main() {
       expect(activity, contains('val warm = CachedEngine.isWarm'));
       expect(
         activity,
-        contains('if (!warm) {\n            pendingSharePayload'),
+        contains('if (!warm) {\n            incomingSharePayload'),
         reason: 'a warm window must not re-parse what onNewIntent will deliver',
       );
       expect(

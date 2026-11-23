@@ -34,6 +34,7 @@ import '../communities/community_view.dart';
 import '../components/app_icons.dart';
 import '../components/app_interactive_surface.dart';
 import '../components/drawer_controller.dart' as dc;
+import '../components/toast.dart';
 import '../components/ui_components.dart';
 import '../config/build_flags.dart';
 import '../contacts/contacts_view.dart';
@@ -59,6 +60,7 @@ import '../theme/theme_controller.dart';
 import '../update/update_checker.dart';
 import 'account_picker_sheet.dart';
 import 'adaptive_split_layout.dart';
+import 'android_share_intake.dart';
 import 'app_navigator.dart';
 import 'bottom_bar_layout.dart';
 import 'chat_deep_link_controller.dart';
@@ -159,7 +161,12 @@ abstract class _MainRootViewState<T extends StatefulWidget> extends State<T> {
   bool? _wasUsingSplitSelection;
   DesktopHotkeyRegistration? _newChatHotkeyRegistration;
   final _androidShareIntent = AndroidShareIntentController.shared;
-  bool _presentingAndroidShare = false;
+  late final AndroidShareIntake _androidShareIntake = AndroidShareIntake(
+    pickChat: _pickAndroidShareChat,
+    sendText: _sendAndroidShareText,
+    sendFiles: _sendAndroidShareFiles,
+    reportFailure: _reportAndroidShareFailure,
+  );
 
   @override
   void initState() {
@@ -174,8 +181,7 @@ abstract class _MainRootViewState<T extends StatefulWidget> extends State<T> {
       _androidShareIntent.addListener(_handleAndroidShareIntentChanged);
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
-        unawaited(_androidShareIntent.start());
-        unawaited(_presentPendingAndroidShare());
+        unawaited(_startAndroidShareIntake());
       });
     }
     if (isDesktopTargetPlatform()) {
@@ -277,104 +283,104 @@ abstract class _MainRootViewState<T extends StatefulWidget> extends State<T> {
   void _handleAndroidShareIntentChanged() {
     if (!mounted || !_androidShareIntent.hasPending) return;
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) unawaited(_presentPendingAndroidShare());
+      if (mounted) unawaited(_androidShareIntake.presentPending(context));
     });
   }
 
-  Future<void> _presentPendingAndroidShare() async {
-    if (!mounted || !_androidShareIntent.supported || _presentingAndroidShare) {
+  /// The platform keeps the share that opened this window, so asking again here
+  /// recovers a delivery that landed before this surface (or this Dart handler)
+  /// existed. `start()` is idempotent and keeps the pending payload.
+  Future<void> _startAndroidShareIntake() async {
+    await _androidShareIntent.start();
+    if (!mounted) return;
+    await _androidShareIntake.presentPending(context);
+  }
+
+  Future<ChatSummary?> _pickAndroidShareChat(BuildContext context) {
+    return Navigator.of(context, rootNavigator: true).push<ChatSummary>(
+      MaterialPageRoute(
+        builder: (_) => const ChatPickerView(
+          title: AppStringKeys.topicChatShare,
+          showFolders: true,
+        ),
+      ),
+    );
+  }
+
+  Future<void> _sendAndroidShareText(
+    BuildContext context,
+    ChatSummary chat,
+    String text,
+  ) async {
+    await TdClient.shared.query(
+      setTextChatDraftRequest(
+        chatId: chat.id,
+        formattedText: {'@type': 'formattedText', 'text': text},
+        date: DateTime.now().millisecondsSinceEpoch ~/ 1000,
+      ),
+    );
+    if (!context.mounted) return;
+    await openChatFromCurrentWindow(
+      context,
+      chatId: chat.id,
+      title: chat.title,
+    );
+  }
+
+  Future<void> _sendAndroidShareFiles(
+    BuildContext context,
+    ChatSummary chat,
+    List<AndroidSharedFile> files,
+    String caption,
+  ) async {
+    final attachments = [
+      for (final file in files)
+        OutgoingAttachment(
+          path: file.path,
+          kind: file.attachmentKind,
+          fileName: file.fileName,
+        ),
+    ];
+    final preview = await Navigator.of(context, rootNavigator: true)
+        .push<MediaSendPreviewResult>(
+          MaterialPageRoute(
+            fullscreenDialog: true,
+            builder: (_) => MediaSendPreviewView(
+              attachments: attachments,
+              initialCaption: caption,
+            ),
+          ),
+        );
+    if (!context.mounted || preview == null || preview.attachments.isEmpty) {
       return;
     }
-    final payload = _androidShareIntent.takePending();
-    if (payload == null) return;
-    _presentingAndroidShare = true;
-    final copiedPaths = <String>[];
-    try {
-      final sharedFiles = await _androidShareIntent.copyFiles(payload.uris);
-      copiedPaths.addAll(sharedFiles.map((file) => file.path));
-      if (!mounted) return;
-      if (sharedFiles.isEmpty && payload.text.trim().isEmpty) return;
-
-      final picked = await Navigator.of(context, rootNavigator: true)
-          .push<ChatSummary>(
-            MaterialPageRoute(
-              builder: (_) => const ChatPickerView(
-                title: AppStringKeys.topicChatShare,
-                showFolders: true,
-              ),
-            ),
-          );
-      if (!mounted || picked == null) return;
-
-      if (sharedFiles.isEmpty) {
-        await TdClient.shared.query(
-          setTextChatDraftRequest(
-            chatId: picked.id,
-            formattedText: {'@type': 'formattedText', 'text': payload.text},
-            date: DateTime.now().millisecondsSinceEpoch ~/ 1000,
-          ),
-        );
-        if (!mounted) return;
-        await openChatFromCurrentWindow(
-          context,
-          chatId: picked.id,
-          title: picked.title,
-        );
-        return;
-      }
-
-      final attachments = [
-        for (final file in sharedFiles)
-          OutgoingAttachment(
-            path: file.path,
-            kind: file.attachmentKind,
-            fileName: file.fileName,
-          ),
-      ];
-      final preview = await Navigator.of(context, rootNavigator: true)
-          .push<MediaSendPreviewResult>(
-            MaterialPageRoute(
-              fullscreenDialog: true,
-              builder: (_) => MediaSendPreviewView(
-                attachments: attachments,
-                initialCaption: payload.text,
-              ),
-            ),
-          );
-      if (!mounted || preview == null || preview.attachments.isEmpty) return;
-      // Read the switch before the await below: the caption is plain text, so
-      // 盘古之白 has no entities to move.
-      final spaceCaption = context.read<ThemeController>().panguOnSend;
-      final resolved = await resolveAttachmentListDimensions(
-        preview.attachments,
-      );
-      final spacedCaption = spaceCaption
-          ? PanguSpacing.transformUnannotated(preview.caption).text
-          : preview.caption;
-      final requests = buildAttachmentSendRequests(
-        chatId: picked.id,
-        attachments: resolved,
-        caption: spacedCaption,
-        sendConfiguration: preview.sendConfiguration,
-      );
-      for (final request in requests) {
-        await TdClient.shared.query(request);
-      }
-      if (!mounted) return;
-      await openChatFromCurrentWindow(
-        context,
-        chatId: picked.id,
-        title: picked.title,
-      );
-    } finally {
-      await _androidShareIntent.deleteFiles(copiedPaths);
-      _presentingAndroidShare = false;
-      if (mounted && _androidShareIntent.hasPending) {
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (mounted) unawaited(_presentPendingAndroidShare());
-        });
-      }
+    // Read the switch before the await below: the caption is plain text, so
+    // 盘古之白 has no entities to move.
+    final spaceCaption = context.read<ThemeController>().panguOnSend;
+    final resolved = await resolveAttachmentListDimensions(preview.attachments);
+    final spacedCaption = spaceCaption
+        ? PanguSpacing.transformUnannotated(preview.caption).text
+        : preview.caption;
+    final requests = buildAttachmentSendRequests(
+      chatId: chat.id,
+      attachments: resolved,
+      caption: spacedCaption,
+      sendConfiguration: preview.sendConfiguration,
+    );
+    for (final request in requests) {
+      await TdClient.shared.query(request);
     }
+    if (!context.mounted) return;
+    await openChatFromCurrentWindow(
+      context,
+      chatId: chat.id,
+      title: chat.title,
+    );
+  }
+
+  void _reportAndroidShareFailure(BuildContext context) {
+    if (!context.mounted) return;
+    showToast(context, AppStringKeys.mithkaxAndroidShareFailed);
   }
 
   void _runChatListHotkey(VoidCallback action) {
