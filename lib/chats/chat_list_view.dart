@@ -69,6 +69,7 @@ import 'chat_removal_actions.dart';
 import 'chat_row_metrics.dart';
 import 'chat_row_view.dart';
 import 'filtered_chats_view.dart';
+import 'local_folder_order_store.dart';
 import 'qr_scanner_view.dart';
 import 'search_view.dart';
 
@@ -2038,6 +2039,17 @@ class _ChatListViewState extends State<ChatListView>
       query: (request) => client.queryTo(request, clientId),
     );
     final update = client.latestChatFoldersUpdate;
+    final accounts = context.read<AccountStore?>();
+    final userId = _meId ?? accounts?.activeUserId;
+    // Only a server Premium account may set the main list's position; the
+    // local-premium switch stands in for it on this device. With neither,
+    // the sheet keeps All chats pinned and shows a lock instead of a grip.
+    final canMoveMainList =
+        LocalPremium.shared.enabled ||
+        (accounts?.activeSummary?.isPremium ?? false);
+    final serverPosition = update?.integer('main_chat_list_position') ?? 0;
+    final mainListPosition =
+        LocalFolderOrderStore.shared.positionFor(userId) ?? serverPosition;
     try {
       var folders = await service.load(update);
       if (!mounted || client.activeClientId != clientId) return;
@@ -2059,8 +2071,12 @@ class _ChatListViewState extends State<ChatListView>
       await showChatFolderReorderSheet(
         context: context,
         folders: folders,
-        mainListPosition: update?.integer('main_chat_list_position') ?? 0,
+        mainListPosition: mainListPosition,
         service: service,
+        canMoveMainList: canMoveMainList,
+        onMainListPositionSaved: (position) {
+          LocalFolderOrderStore.shared.setPosition(userId, position);
+        },
         // The sheet outlives this surface; a save after the account changed
         // would write the old folder order into the replacement account.
         canSave: () => mounted && client.activeClientId == clientId,

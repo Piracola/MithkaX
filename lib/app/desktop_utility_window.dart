@@ -32,6 +32,7 @@ import '../chat/media/shared_media_view.dart';
 import '../chat/media/video_playback_preferences.dart';
 import '../chat/stickers/chat_sticker_packs_view.dart';
 import '../chats/chat_folder_tag_controller.dart';
+import '../chats/local_folder_order_store.dart';
 import '../chats/search_view.dart';
 import '../components/confirm_dialog.dart';
 import '../components/toast.dart';
@@ -247,6 +248,7 @@ class _DesktopUtilityWindowAppState extends State<DesktopUtilityWindowApp> {
       // would read wrong and write nothing.
       GhostModeController.shared.initialize(widget.prefs);
       LocalPremium.shared.initialize(widget.prefs);
+      LocalFolderOrderStore.shared.initialize(widget.prefs);
     }
     _autoDownload.initialize(widget.prefs);
     _notificationPreferences.initialize(widget.prefs);

@@ -25,6 +25,7 @@ import '../tdlib/td_user_index.dart';
 import 'chat_delete_policy.dart';
 import 'chat_list_preview.dart';
 import 'chat_removal_actions.dart';
+import 'local_folder_order_store.dart';
 import 'local_pin_store.dart';
 
 class ChatFilterOption {
@@ -106,6 +107,9 @@ class ChatListViewModel extends ChangeNotifier {
     // refill after an account switch) before the list first appears, and any
     // snapshot parsed before that moment may hold a stale mute state.
     ScopeNotificationSettings.shared.addListener(_handleScopeSettingsChange);
+    // A locally simulated Premium moves the main list without a server
+    // update; the tab strip follows the store directly.
+    LocalFolderOrderStore.shared.addListener(_handleLocalFolderOrderChange);
   }
 
   List<ChatSummary> _chats = [];
@@ -458,6 +462,9 @@ class ChatListViewModel extends ChangeNotifier {
     if (_disposed) return;
     if (_meId == value) return;
     _meId = value;
+    // The local folder order is keyed by the Telegram user id, so the first
+    // snapshot that arrives before getMe must be re-read once it is known.
+    _loadFilters();
     final store = LocalPinStore.shared;
     // Device-only pins are account-scoped, so the store follows the account
     // exactly like the list's other per-account state. Another live list may
@@ -487,6 +494,7 @@ class ChatListViewModel extends ChangeNotifier {
     // Also strands any bulk read whose requests are still in flight.
     _bulkReadGeneration++;
     LocalPinStore.shared.removeListener(_handleLocalPinStoreChange);
+    LocalFolderOrderStore.shared.removeListener(_handleLocalFolderOrderChange);
     ScopeNotificationSettings.shared.removeListener(_handleScopeSettingsChange);
     _sub?.cancel();
     _sub = null;
@@ -554,6 +562,14 @@ class ChatListViewModel extends ChangeNotifier {
     if (cached != null) _applyChatFolders(cached);
   }
 
+  void _handleLocalFolderOrderChange() {
+    if (_disposed) return;
+    // Re-run the cached update so the tab strip reflects the device's chosen
+    // main-list position (or the server's again after the switch is turned
+    // off) without waiting for TDLib to send another snapshot.
+    _loadFilters();
+  }
+
   void _applyChatFolders(Map<String, dynamic> object) {
     final raw =
         object.objects('chat_folders') ??
@@ -585,8 +601,15 @@ class ChatListViewModel extends ChangeNotifier {
     // folders; `reorderChatFolders` carries it separately from the id order.
     // Prepending "All" here ignored it, so moving it in the order sheet
     // snapped back to the first tab on the update that followed the save.
+    //
+    // A local-premium position never reaches TDLib — it clamps the field to 0
+    // for a non-Premium account — so the device's own store wins when it has
+    // one. With the switch off [positionFor] answers null and the server's
+    // value is used untouched.
+    final serverPosition = object.integer('main_chat_list_position') ?? 0;
+    final localPosition = LocalFolderOrderStore.shared.positionFor(_meId);
     folders.insert(
-      (object.integer('main_chat_list_position') ?? 0).clamp(0, folders.length),
+      (localPosition ?? serverPosition).clamp(0, folders.length),
       const ChatFilterOption(title: AppStringKeys.topicChatAllFilter),
     );
     _filters = folders;

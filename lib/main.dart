@@ -57,6 +57,7 @@ import 'chat/media/music_player_controller.dart';
 import 'chat/messages/gift_tint.dart';
 import 'chat/stickers/animated_sticker_view.dart';
 import 'chats/chat_folder_tag_controller.dart';
+import 'chats/local_folder_order_store.dart';
 import 'chats/local_pin_store.dart';
 import 'components/drawer_controller.dart' as dc;
 import 'config/build_flags.dart';
@@ -316,6 +317,7 @@ Future<void> _bootstrapAndRunApp() async {
   if (allowTelegramTosViolations) {
     MessageHistorySettings.shared.initialize(prefs);
     LocalPremium.shared.initialize(prefs);
+    LocalFolderOrderStore.shared.initialize(prefs);
     MessageHistoryStore.shared.initialize(prefs);
     unawaited(MessageHistoryStore.shared.ensureLoaded());
     MessageHistoryStore.shared.startObserving();

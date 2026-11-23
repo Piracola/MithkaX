@@ -27,6 +27,8 @@ Future<void> showChatFolderReorderSheet({
   required int mainListPosition,
   required ChatFolderService service,
   bool Function()? canSave,
+  bool canMoveMainList = true,
+  ValueChanged<int>? onMainListPositionSaved,
 }) => showAppModalSheet<void>(
   context: context,
   isScrollControlled: true,
@@ -36,6 +38,8 @@ Future<void> showChatFolderReorderSheet({
     mainListPosition: mainListPosition,
     service: service,
     canSave: canSave,
+    canMoveMainList: canMoveMainList,
+    onMainListPositionSaved: onMainListPositionSaved,
   ),
 );
 
@@ -51,11 +55,24 @@ class ChatFolderReorderSheet extends StatefulWidget {
     required this.mainListPosition,
     required this.service,
     this.canSave,
+    this.canMoveMainList = true,
+    this.onMainListPositionSaved,
   });
 
   final List<ChatFolderRecord> folders;
   final int mainListPosition;
   final ChatFolderService service;
+
+  /// Whether the main list may be moved at all. Only a Premium account may
+  /// set `main_chat_list_position`, so without the server entitlement or the
+  /// local-premium overlay the "All chats" row is pinned and carries no drag
+  /// grip — the sheet must not offer an edit the account cannot save.
+  final bool canMoveMainList;
+
+  /// Called after a successful save with the newly chosen main-list position.
+  /// The chat list uses this to remember a local-premium position, which
+  /// TDLib will have clamped back to 0.
+  final ValueChanged<int>? onMainListPositionSaved;
 
   /// Checked immediately before every save. The sheet outlives the surface
   /// that opened it, so a run must not write into an account that has since
@@ -74,7 +91,7 @@ class _ChatFolderReorderSheetState extends State<ChatFolderReorderSheet> {
   @override
   void initState() {
     super.initState();
-    _mainListPosition = widget.mainListPosition;
+    _mainListPosition = widget.canMoveMainList ? widget.mainListPosition : 0;
     _entries = folderOrderEntries(widget.folders, _mainListPosition);
   }
 
@@ -84,7 +101,12 @@ class _ChatFolderReorderSheetState extends State<ChatFolderReorderSheet> {
     if (_saving || oldIndex == newIndex) return;
     final previousEntries = _entries;
     final previousPosition = _mainListPosition;
-    final result = reorderFolderEntries(_entries, oldIndex, newIndex);
+    final result = reorderFolderEntries(
+      _entries,
+      oldIndex,
+      newIndex,
+      moveMainList: widget.canMoveMainList,
+    );
     setState(() {
       _entries = folderOrderEntries(
         result.folders,
@@ -110,6 +132,9 @@ class _ChatFolderReorderSheetState extends State<ChatFolderReorderSheet> {
         result.folders.map((folder) => folder.id).toList(),
         result.mainChatListPosition,
       );
+      if (widget.canMoveMainList) {
+        widget.onMainListPositionSaved?.call(result.mainChatListPosition);
+      }
     } catch (error) {
       if (!mounted) return;
       setState(() {
@@ -272,18 +297,31 @@ class _ChatFolderReorderSheetState extends State<ChatFolderReorderSheet> {
       ),
       child: Row(
         children: [
-          ReorderableDragStartListener(
-            index: index,
-            enabled: !_saving,
-            child: Padding(
+          if (folder == null && !widget.canMoveMainList)
+            // Non-Premium: All chats is a fixed row. A lock instead of the
+            // grip says why it cannot be dragged.
+            Padding(
               padding: const EdgeInsets.fromLTRB(0, 8, 12, 8),
               child: AppIcon(
-                HeroAppIcons.bars,
+                HeroAppIcons.lock,
                 size: 19,
                 color: c.textTertiary,
               ),
+            )
+          else
+            ReorderableDragStartListener(
+              key: ValueKey('chat-folder-order-grip-${folder?.id ?? 'main'}'),
+              index: index,
+              enabled: !_saving,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(0, 8, 12, 8),
+                child: AppIcon(
+                  HeroAppIcons.bars,
+                  size: 19,
+                  color: c.textTertiary,
+                ),
+              ),
             ),
-          ),
           ChatFolderIcon(
             folder == null ? 'All' : folder.draft.iconName,
             size: 21,
