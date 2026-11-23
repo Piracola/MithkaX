@@ -46,7 +46,17 @@ Uint8List _webm({int? alphaMode}) {
   ]);
   return Uint8List.fromList([
     ..._element(0x1a45dfa3, [
-      0x42, 0x86, 0x81, 0x01, 0x42, 0x82, 0x84, 0x77, 0x65, 0x62, 0x6d,
+      0x42,
+      0x86,
+      0x81,
+      0x01,
+      0x42,
+      0x82,
+      0x84,
+      0x77,
+      0x65,
+      0x62,
+      0x6d,
     ]),
     ...segment,
   ]);
@@ -147,7 +157,10 @@ void main() {
     });
 
     test('an unlaid-out surface is not treated as visible', () {
-      expect(loopingSurfaceIsOnScreen(rect: Rect.zero, screen: screen), isFalse);
+      expect(
+        loopingSurfaceIsOnScreen(rect: Rect.zero, screen: screen),
+        isFalse,
+      );
     });
   });
 
