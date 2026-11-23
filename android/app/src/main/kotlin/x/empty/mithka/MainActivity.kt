@@ -60,6 +60,7 @@ class MainActivity : FlutterFragmentActivity() {
     private var nowPlaying: NowPlayingPlugin? = null
     private var externalLinks: ExternalLinksPlugin? = null
     private var pushBridge: PushServiceBridge? = null
+    private var haptics: HapticsPlugin? = null
     private var mediaDropChannel: MethodChannel? = null
     private var shareIntentChannel: MethodChannel? = null
     private var pendingSharePayload: Map<String, Any?>? = null
@@ -316,6 +317,9 @@ class MainActivity : FlutterFragmentActivity() {
             this,
             flutterEngine.dartExecutor.binaryMessenger,
         )
+        // Re-created per attach: the tick is drawn on THIS window's decor view.
+        haptics?.dispose()
+        haptics = HapticsPlugin(this, flutterEngine.dartExecutor.binaryMessenger)
         downloadStorage = DownloadStoragePlugin(
             this,
             flutterEngine.dartExecutor.binaryMessenger,

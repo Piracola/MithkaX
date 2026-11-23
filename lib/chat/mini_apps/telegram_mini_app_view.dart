@@ -13,6 +13,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:mithka/l10n/app_localizations.dart';
+import 'package:mithka/platform/app_haptics.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:webview_flutter/webview_flutter.dart';
@@ -1918,17 +1919,17 @@ class _TelegramMiniAppViewState extends State<TelegramMiniAppView>
   Future<void> _triggerHaptic(Map<String, dynamic> data) {
     return switch (data['type']) {
       'impact' => switch (data['impact_style']) {
-        'light' => HapticFeedback.lightImpact(),
-        'heavy' || 'rigid' => HapticFeedback.heavyImpact(),
-        'soft' => HapticFeedback.selectionClick(),
-        _ => HapticFeedback.mediumImpact(),
+        'light' => AppHaptics.lightImpact(),
+        'heavy' || 'rigid' => AppHaptics.heavyImpact(),
+        'soft' => AppHaptics.selectionClick(),
+        _ => AppHaptics.mediumImpact(),
       },
       'notification' => switch (data['notification_type']) {
-        'error' => HapticFeedback.vibrate(),
-        'warning' => HapticFeedback.mediumImpact(),
-        _ => HapticFeedback.lightImpact(),
+        'error' => AppHaptics.vibrate(),
+        'warning' => AppHaptics.mediumImpact(),
+        _ => AppHaptics.lightImpact(),
       },
-      _ => HapticFeedback.selectionClick(),
+      _ => AppHaptics.selectionClick(),
     };
   }
 

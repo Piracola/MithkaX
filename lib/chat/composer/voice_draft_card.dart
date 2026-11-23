@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_sound/flutter_sound.dart';
 import 'package:mithka/l10n/app_localizations.dart';
+import 'package:mithka/platform/app_haptics.dart';
 import '../../components/app_icons.dart';
 import '../../components/app_interactive_surface.dart';
 import '../../media/media_metadata.dart';
@@ -777,7 +778,7 @@ class _ComposerVoiceDraftCardState extends State<ComposerVoiceDraftCard> {
         behavior: HitTestBehavior.opaque,
         excludeFromSemantics: true,
         onHorizontalDragStart: (_) {
-          unawaited(HapticFeedback.selectionClick());
+          unawaited(AppHaptics.selectionClick());
           draft.beginTrim();
           setState(() {
             _dragging = handle;

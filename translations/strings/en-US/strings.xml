@@ -4113,4 +4113,7 @@
     <string name="mithkaxChannelPostForwards">{value1} forwards</string>
     <string name="mithkaxDeleteTopic">Delete topic</string>
     <string name="mithkaxReadAllFailed">Failed to mark as read</string>
+    <string name="mithkaxHapticsSection">Vibration</string>
+    <string name="mithkaxHapticsTitle">Vibration feedback</string>
+    <string name="mithkaxHapticsHint">Ticks on taps, long presses and confirmations, even when system touch vibration is off.</string>
 </resources>

@@ -4096,4 +4096,7 @@
     <string name="mithkaxChannelPostForwards">{value1}회 전달</string>
     <string name="mithkaxDeleteTopic">주제 삭제</string>
     <string name="mithkaxReadAllFailed">읽음으로 표시하지 못했습니다</string>
+    <string name="mithkaxHapticsSection">진동</string>
+    <string name="mithkaxHapticsTitle">진동 피드백</string>
+    <string name="mithkaxHapticsHint">탭, 길게 누르기, 동작 확인 시 진동합니다. 시스템의 터치 진동이 꺼져 있어도 동작합니다.</string>
 </resources>

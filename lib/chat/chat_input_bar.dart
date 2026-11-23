@@ -24,6 +24,7 @@ import 'package:latlong2/latlong.dart';
 import 'package:logger/logger.dart' show Level;
 import 'package:mithka/components/app_text_selection_toolbar.dart';
 import 'package:mithka/l10n/app_localizations.dart';
+import 'package:mithka/platform/app_haptics.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:provider/provider.dart';
@@ -2429,12 +2430,12 @@ class _ChatInputBarState extends State<ChatInputBar>
     // A live recording keeps its status line; the failed action (pause or
     // resume) leaves the recording as it was, so only the haptic reports it.
     if (_recording) {
-      unawaited(HapticFeedback.heavyImpact());
+      unawaited(AppHaptics.heavyImpact());
       return;
     }
     if (_voiceInlineError == error) return;
     setState(() => _voiceInlineError = error);
-    unawaited(HapticFeedback.heavyImpact());
+    unawaited(AppHaptics.heavyImpact());
   }
 
   void _clearVoiceInlineError() {
@@ -2540,7 +2541,7 @@ class _ChatInputBarState extends State<ChatInputBar>
     }
     if (_voiceDisposed || !mounted) return;
     setState(() => _recording = true);
-    unawaited(HapticFeedback.mediumImpact());
+    unawaited(AppHaptics.mediumImpact());
     await _recProgress?.cancel();
     final clock = VoiceRecordingClock();
     _recProgress = r.onProgress?.listen((event) {
@@ -11510,7 +11511,7 @@ class _ChatInputBarState extends State<ChatInputBar>
   void _mediaTileLongPressHaptic() {
     final platform = Theme.of(context).platform;
     if (platform == TargetPlatform.android || platform == TargetPlatform.iOS) {
-      unawaited(HapticFeedback.selectionClick());
+      unawaited(AppHaptics.selectionClick());
     }
   }
 

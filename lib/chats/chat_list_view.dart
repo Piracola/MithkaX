@@ -14,8 +14,8 @@ import 'dart:ui' as ui;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart' show HapticFeedback;
 import 'package:mithka/l10n/app_localizations.dart';
+import 'package:mithka/platform/app_haptics.dart';
 import 'package:provider/provider.dart';
 import '../app/adaptive_split_layout.dart';
 import '../app/app_navigator.dart';
@@ -1438,7 +1438,7 @@ class _ChatListViewState extends State<ChatListView>
         // crosses the snap threshold and the archive becomes showable.
         // mediumImpact() maps to KEYBOARD_TAP on Android — selectionClick's
         // CLOCK_TICK is too faint to feel mid-gesture on many devices.
-        unawaited(HapticFeedback.mediumImpact());
+        unawaited(AppHaptics.mediumImpact());
         setState(() {
           _archiveRevealed = true;
           _leadingControlsDismissed = false;
@@ -4173,7 +4173,7 @@ class _ChatListViewState extends State<ChatListView>
         _dragProxyOriginTop = localTop;
         _dragProxyHeight = size.height;
       });
-      unawaited(HapticFeedback.mediumImpact());
+      unawaited(AppHaptics.mediumImpact());
     };
   }
 
@@ -4200,7 +4200,7 @@ class _ChatListViewState extends State<ChatListView>
     // KEYBOARD_TAP strength on Android — selectionClick maps to CLOCK_TICK,
     // which most devices render as barely there and the system touch-vibration
     // toggle silences outright.
-    unawaited(HapticFeedback.mediumImpact());
+    unawaited(AppHaptics.mediumImpact());
     setState(() {});
   }
 
@@ -4520,7 +4520,7 @@ class _ChatListViewState extends State<ChatListView>
   /// Long-press on a row's body: enter edit mode with that chat selected.
   void _beginSelectionMode(ChatSummary chat) {
     if (_openSwipeChat != null) setState(() => _openSwipeChat = null);
-    unawaited(HapticFeedback.mediumImpact());
+    unawaited(AppHaptics.mediumImpact());
     setState(() {
       _selectionMode = true;
       _pendingSelectionModeChatId = chat.id;

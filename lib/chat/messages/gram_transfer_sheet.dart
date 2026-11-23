@@ -14,6 +14,7 @@ import 'package:flutter/semantics.dart';
 import 'package:flutter/services.dart';
 import 'package:mithka/l10n/app_localizations.dart';
 import 'package:mithka/l10n/gram_amount.dart';
+import 'package:mithka/platform/app_haptics.dart';
 import '../../components/app_icons.dart';
 import '../../components/toast.dart';
 import '../../tdlib/td_client.dart';
@@ -197,7 +198,7 @@ class _GramTransferSheetState extends State<GramTransferSheet> {
   }
 
   Future<void> _copy(String value) async {
-    unawaited(HapticFeedback.selectionClick());
+    unawaited(AppHaptics.selectionClick());
     var copied = true;
     try {
       await Clipboard.setData(ClipboardData(text: value));

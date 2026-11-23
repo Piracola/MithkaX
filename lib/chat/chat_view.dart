@@ -15,6 +15,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:mithka/l10n/app_localizations.dart';
+import 'package:mithka/platform/app_haptics.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../app/active_conversation.dart';
@@ -8341,7 +8342,7 @@ class _ChatViewState extends State<ChatView> {
             // exteraless clears reactions on the long press itself, without
             // the read-all menu it shows for mentions.
             onLongPress: (_) {
-              unawaited(HapticFeedback.mediumImpact());
+              unawaited(AppHaptics.mediumImpact());
               unawaited(_markAllReactionsRead());
             },
           ),

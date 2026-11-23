@@ -3,6 +3,7 @@ import 'dart:io';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:mithka/platform/app_haptics.dart';
 import 'package:provider/provider.dart';
 import '../auth/account_store.dart';
 import '../components/app_icons.dart';
@@ -847,7 +848,7 @@ class _CredentialChallengeState extends State<_CredentialChallenge> {
       _pin = '';
       _error = result.error;
     });
-    if (result.error != null) unawaited(HapticFeedback.vibrate());
+    if (result.error != null) unawaited(AppHaptics.vibrate());
   }
 
   void _addDigit(int digit) {
@@ -856,7 +857,7 @@ class _CredentialChallengeState extends State<_CredentialChallenge> {
         _pin.length >= LocalAppLockController.pinLength) {
       return;
     }
-    unawaited(HapticFeedback.selectionClick());
+    unawaited(AppHaptics.selectionClick());
     setState(() {
       _error = null;
       _pin += '$digit';
@@ -869,7 +870,7 @@ class _CredentialChallengeState extends State<_CredentialChallenge> {
 
   void _deleteDigit() {
     if (_busy || widget.biometricPending || _pin.isEmpty) return;
-    unawaited(HapticFeedback.selectionClick());
+    unawaited(AppHaptics.selectionClick());
     setState(() {
       _error = null;
       _pin = _pin.substring(0, _pin.length - 1);
@@ -879,7 +880,7 @@ class _CredentialChallengeState extends State<_CredentialChallenge> {
   Future<void> _submitGesture(List<int> pattern) async {
     if (pattern.length < LocalAppLockController.minimumGestureNodes) {
       setState(() => _error = AppStringKeys.appLockGestureTooShort);
-      unawaited(HapticFeedback.vibrate());
+      unawaited(AppHaptics.vibrate());
       return;
     }
     await _submit(pattern.join(','));
@@ -1139,7 +1140,7 @@ class _GesturePatternPadState extends State<GesturePatternPad> {
       _selected.add(intermediate);
     }
     _selected.add(nearest);
-    unawaited(HapticFeedback.selectionClick());
+    unawaited(AppHaptics.selectionClick());
     setState(() {});
   }
 

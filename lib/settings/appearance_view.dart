@@ -32,6 +32,7 @@ import '../components/app_interactive_surface.dart';
 import '../components/toast.dart';
 import '../components/ui_components.dart';
 import '../platform/adaptive_platform.dart';
+import '../platform/app_haptics.dart';
 import '../platform/system_ui.dart';
 import '../tdlib/td_models.dart';
 import '../theme/app_motion.dart';
@@ -121,6 +122,25 @@ class AppearanceView extends StatelessWidget {
                   icon: HeroAppIcons.wandMagicSparkles,
                 ),
                 onChanged: (value) => theme.liquidGlassBottomBar = value,
+              ),
+            ],
+          ),
+          // One switch for every tick in the app. The row listens to the store
+          // itself: the page only watches ThemeController, so a plain
+          // StatelessWidget row would paint the old state after a tap.
+          SettingsSection(
+            titleKey: AppStringKeys.mithkaxHapticsSection,
+            rows: [
+              ListenableBuilder(
+                listenable: AppHaptics.shared,
+                builder: (context, _) => SettingsSwitchRow(
+                  key: const ValueKey('settings-haptics'),
+                  title: AppStringKeys.mithkaxHapticsTitle,
+                  subtitle: AppStringKeys.mithkaxHapticsHint,
+                  value: AppHaptics.shared.enabled,
+                  leading: const SettingsLeadingIcon(icon: HeroAppIcons.flash),
+                  onChanged: AppHaptics.shared.setEnabled,
+                ),
               ),
             ],
           ),

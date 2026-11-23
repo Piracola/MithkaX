@@ -7,8 +7,8 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart' show HapticFeedback;
 import 'package:mithka/l10n/app_localizations.dart';
+import 'package:mithka/platform/app_haptics.dart';
 import '../app/app_navigator.dart';
 import '../app/ipad_window_chrome.dart';
 import '../chat/chat_view.dart';
@@ -157,7 +157,7 @@ class _ArchivedChatsViewState extends State<ArchivedChatsView> {
       widget.chats.where((chat) => _selectedChatIds.contains(chat.id)).toList();
 
   void _beginSelection(ChatSummary chat) {
-    unawaited(HapticFeedback.mediumImpact());
+    unawaited(AppHaptics.mediumImpact());
     setState(() => _selectedChatIds.add(chat.id));
   }
 

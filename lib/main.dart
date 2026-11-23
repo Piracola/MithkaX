@@ -72,6 +72,7 @@ import 'notifications/in_app_notification_banner.dart';
 import 'notifications/notification_controller.dart';
 import 'notifications/notification_preferences.dart';
 import 'notifications/push_device_registrar.dart';
+import 'platform/app_haptics.dart';
 import 'platform/application_exit_coordinator.dart';
 import 'platform/firebase_configuration.dart';
 import 'platform/ohos_support.dart';
@@ -295,6 +296,7 @@ Future<void> _bootstrapAndRunApp() async {
   KeywordBlocker.shared.initialize(prefs);
   LinkPreviewFixer.shared.initialize(prefs);
   HiddenSenderStore.shared.initialize(prefs);
+  AppHaptics.shared.initialize(prefs);
   CountryMessageFilter.shared.initialize(prefs);
   // Compile-time gated: reads persisted ghost-mode prefs and pushes the
   // `online` TDLib option only in opted-in self-built binaries.

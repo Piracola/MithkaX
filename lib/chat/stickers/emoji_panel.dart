@@ -23,7 +23,7 @@ import 'dart:math' as math;
 import 'dart:ui' show PointerDeviceKind;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
+import 'package:mithka/platform/app_haptics.dart';
 import '../../components/app_icons.dart';
 import '../../l10n/app_localizations.dart';
 import '../../theme/app_motion.dart';
@@ -529,7 +529,7 @@ class _EmojiPanelCellState extends State<EmojiPanelCell>
   void _fireHaptic() {
     final platform = Theme.of(context).platform;
     if (platform == TargetPlatform.android || platform == TargetPlatform.iOS) {
-      unawaited(HapticFeedback.selectionClick());
+      unawaited(AppHaptics.selectionClick());
     }
   }
 

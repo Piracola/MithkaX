@@ -14,6 +14,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:mithka/l10n/app_localizations.dart';
+import 'package:mithka/platform/app_haptics.dart';
 import 'package:provider/provider.dart';
 import '../app/desktop_image_preview_window.dart';
 import '../app/ipad_window_chrome.dart';
@@ -514,7 +515,7 @@ class _ProfileDetailViewState extends State<ProfileDetailView> {
   Future<void> _copyValue(String value) async {
     final text = value.trim();
     if (text.isEmpty) return;
-    unawaited(HapticFeedback.mediumImpact());
+    unawaited(AppHaptics.mediumImpact());
     var copied = true;
     try {
       await Clipboard.setData(ClipboardData(text: text));

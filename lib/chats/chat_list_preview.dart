@@ -1,8 +1,8 @@
 import 'dart:async';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:mithka/l10n/app_localizations.dart';
+import 'package:mithka/platform/app_haptics.dart';
 import 'package:provider/provider.dart';
 import '../chat/admin/group_remark_controller.dart';
 import '../chat/messages/message_bubble.dart';
@@ -127,7 +127,7 @@ Future<void> showChatListPreview(
   ChatPreviewAccounts accounts = _tdChatPreviewAccounts,
   bool? pinned,
 }) async {
-  unawaited(HapticFeedback.mediumImpact());
+  unawaited(AppHaptics.mediumImpact());
   final owner = accounts.pinActiveOwner();
   final reduceMotion = AppMotion.isReduced(context);
   final route = RawDialogRoute<ChatListPreviewAction>(

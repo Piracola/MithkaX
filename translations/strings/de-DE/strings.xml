@@ -4113,4 +4113,7 @@
     <string name="mithkaxChannelPostForwards">{value1} Weiterleitungen</string>
     <string name="mithkaxDeleteTopic">Thema löschen</string>
     <string name="mithkaxReadAllFailed">Als gelesen markieren fehlgeschlagen</string>
+    <string name="mithkaxHapticsSection">Vibration</string>
+    <string name="mithkaxHapticsTitle">Vibrationsfeedback</string>
+    <string name="mithkaxHapticsHint">Vibriert bei Tippen, langem Drücken und Bestätigungen, auch wenn die Touch-Vibration des Systems aus ist.</string>
 </resources>
