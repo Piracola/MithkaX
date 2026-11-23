@@ -1,13 +1,14 @@
 //
-//  Mithka X video-sticker pacing: MDK stops a video-only clip at its last
-//  frame's timestamp, so that frame's hold is dropped every loop — 25% of a
-//  five-frame 0.4 s sticker, 1% of a three-second one, which is why only short,
-//  low-frame-rate stickers were reported racing. The rate comes out of the WebM
-//  header instead of from sampling, because a 0.4 s clip wraps between two of
-//  video_player's 100 ms position updates.
+//  Mithka X video stickers: which player a file gets, and where a looping
+//  sticker may hold a native player.
 //
-//  The same file covers the viewport gate: a sticker only holds a native player
-//  while it is on screen.
+//  MDK (fvp) loops a video-only clip at its last frame's timestamp instead of
+//  the container duration, dropping that frame's hold every pass — 25% of a
+//  five-frame 0.4 s sticker, 1% of a three-second one, which is why only short,
+//  low-frame-rate stickers were reported as racing. None of that is fixable
+//  from the playback rate (MDK compounds the rate at every loop restart), so a
+//  sticker without alpha is routed to the platform player, which loops it at
+//  its authored duration. The header's AlphaMode decides.
 //
 
 import 'dart:typed_data';
@@ -15,7 +16,7 @@ import 'dart:ui' show Rect, Size;
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mithka/media/looping_media_playback.dart';
-import 'package:mithka/media/webm_frame_rate.dart';
+import 'package:mithka/media/webm_header.dart';
 
 /// A minimal EBML element: id bytes, a one-byte size, then the payload.
 Uint8List _element(int id, List<int> payload) {
@@ -28,108 +29,46 @@ Uint8List _element(int id, List<int> payload) {
   return Uint8List.fromList([...idBytes, 0x80 | payload.length, ...payload]);
 }
 
-Uint8List _uint64(int value) => Uint8List.fromList([
-  for (var shift = 56; shift >= 0; shift -= 8) (value >> shift) & 0xff,
-]);
-
-/// Telegram (and ffmpeg) put the frame duration on the track, not in Info.
-Uint8List _webm({int? defaultDuration}) {
-  final info = _element(0x1549A966, [
-    // TimecodeScale: 1 ms.
-    ..._element(0x2AD7B1, [0x0f, 0x42, 0x40]),
-  ]);
+/// Telegram's stickers put AlphaMode on the track's video element.
+Uint8List _webm({int? alphaMode}) {
   final track = _element(0xAE, [
     ..._element(0x86, 'V_VP9'.codeUnits),
-    if (defaultDuration != null)
-      ..._element(0x23E383, _uint64(defaultDuration)),
+    ..._element(0xE0, [
+      ..._element(0xB0, [0x02, 0x00]),
+      if (alphaMode != null) ..._element(0x53C0, [alphaMode]),
+    ]),
   ]);
   final segment = _element(0x18538067, [
-    ...info,
+    ..._element(0x1549A966, [
+      ..._element(0x2AD7B1, [0x0f, 0x42, 0x40]),
+    ]),
     ..._element(0x1654AE6B, track),
   ]);
   return Uint8List.fromList([
     ..._element(0x1a45dfa3, [
-      0x42,
-      0x86,
-      0x81,
-      0x01,
-      0x42,
-      0x82,
-      0x84,
-      0x77,
-      0x65,
-      0x62,
-      0x6d,
+      0x42, 0x86, 0x81, 0x01, 0x42, 0x82, 0x84, 0x77, 0x65, 0x62, 0x6d,
     ]),
     ...segment,
   ]);
 }
 
 void main() {
-  group('webmFrameDuration', () {
-    test('reads an 80 ms frame from a 12.5 fps header', () {
-      expect(
-        webmFrameDuration(_webm(defaultDuration: 80000000)),
-        const Duration(milliseconds: 80),
-      );
+  group('webmHasAlpha', () {
+    test('AlphaMode 1 on the video track means the sticker has alpha', () {
+      expect(webmHasAlpha(_webm(alphaMode: 1)), isTrue);
     });
 
-    test('a header without DefaultDuration reports nothing', () {
-      expect(webmFrameDuration(_webm()), isNull);
+    test('a track without AlphaMode has none', () {
+      expect(webmHasAlpha(_webm()), isFalse);
     });
 
-    test('garbage is not mistaken for a header', () {
-      expect(webmFrameDuration(Uint8List.fromList([1, 2, 3])), isNull);
-      expect(webmFrameDuration(Uint8List(0)), isNull);
-    });
-  });
-
-  group('stickerTailCorrection', () {
-    test('a five-frame 0.4 s sticker plays at 0.8x', () {
-      expect(
-        stickerTailCorrection(
-          duration: const Duration(milliseconds: 400),
-          frameDuration: const Duration(milliseconds: 80),
-        ),
-        closeTo(0.8, 0.001),
-      );
+    test('AlphaMode 0 is not alpha', () {
+      expect(webmHasAlpha(_webm(alphaMode: 0)), isFalse);
     });
 
-    test('a three-second sticker is barely touched', () {
-      expect(
-        stickerTailCorrection(
-          duration: const Duration(seconds: 3),
-          frameDuration: const Duration(milliseconds: 33),
-        ),
-        closeTo(0.989, 0.001),
-      );
-    });
-
-    test('an unknown frame duration leaves the clip alone', () {
-      expect(
-        stickerTailCorrection(
-          duration: const Duration(milliseconds: 400),
-          frameDuration: null,
-        ),
-        isNull,
-      );
-    });
-
-    test('a header claiming a frame longer than the clip is ignored', () {
-      expect(
-        stickerTailCorrection(
-          duration: const Duration(milliseconds: 400),
-          frameDuration: const Duration(milliseconds: 400),
-        ),
-        isNull,
-      );
-      expect(
-        stickerTailCorrection(
-          duration: const Duration(milliseconds: 100),
-          frameDuration: const Duration(milliseconds: 50),
-        ),
-        isNull,
-      );
+    test('garbage is not mistaken for an alpha sticker', () {
+      expect(webmHasAlpha(Uint8List.fromList([1, 2, 3])), isFalse);
+      expect(webmHasAlpha(Uint8List(0)), isFalse);
     });
   });
 
@@ -208,10 +147,7 @@ void main() {
     });
 
     test('an unlaid-out surface is not treated as visible', () {
-      expect(
-        loopingSurfaceIsOnScreen(rect: Rect.zero, screen: screen),
-        isFalse,
-      );
+      expect(loopingSurfaceIsOnScreen(rect: Rect.zero, screen: screen), isFalse);
     });
   });
 

@@ -93,6 +93,9 @@ dependencies:
   # video_player that decodes VP8/VP9 transparent WebM (Telegram video stickers) —
   # replaces the old ffmpeg_kit→WebP transcode.
   video_player: ^2.14.0
+  # Routing Android video per file needs the platform interface in application
+  # code, not only in tests.
+  video_player_platform_interface: any
   # Reusable player controls, scrub previews, and independent desktop windows.
   f_videoplayer:
     git:
@@ -191,7 +194,6 @@ dev_dependencies:
   # Generates iOS/Android launcher icons from the Drachma app icon.
   flutter_launcher_icons: ^0.14.1
 
-  video_player_platform_interface: any
   camera_platform_interface: any
 dependency_overrides:
   fvp:

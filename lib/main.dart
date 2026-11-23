@@ -64,6 +64,7 @@ import 'history/message_history_settings.dart';
 import 'history/message_history_store.dart';
 import 'l10n/app_locale_controller.dart';
 import 'l10n/app_localizations.dart';
+import 'media/android_webm_route.dart';
 import 'media/looping_media_playback.dart';
 import 'media/video_playback_reporting.dart';
 import 'media/video_view_compatibility.dart';
@@ -359,7 +360,7 @@ bool _shouldUseFvp() {
 void _initializeVideoBackend({bool installGlobalLogHandler = true}) {
   try {
     if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
-      FVideoFvpBackend.ensureAndroidAlphaWebmDecoderInitialized();
+      installAndroidWebmRoute();
       return;
     }
     if (!_shouldUseFvp()) return;

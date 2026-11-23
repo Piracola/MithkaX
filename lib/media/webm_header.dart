@@ -1,17 +1,19 @@
 //
-//  webm_frame_rate.dart
+//  webm_header.dart
 //
-//  Reads the nominal frame duration out of a WebM header.
+//  Just enough EBML parsing to tell the two kinds of Telegram video sticker
+//  apart.
 //
-//  MDK loops a video-only clip at the last frame's timestamp instead of at the
-//  container duration, so that frame's hold time is dropped every loop: a
-//  0.4 s, five-frame sticker (80 ms frames) comes round in 0.32 s — 25% fast —
-//  while a three-second, 72-frame sticker loses the same single frame and looks
-//  right. That is why only short, low-frame-rate stickers were reported racing.
+//  An alpha sticker carries AlphaMode = 1 on its video track and only decodes
+//  with MDK's software decoder, which loops a video-only clip at its last
+//  frame's timestamp — dropping that frame's hold every pass, 25% of a
+//  five-frame 0.4 s sticker but 1% of a three-second one, which is why only
+//  short, low-frame-rate stickers were reported as racing.
 //
-//  Slow playback down by played/duration and the frames are stretched to fill
-//  the authored duration instead. The header states the frame duration
-//  outright: Segment > Tracks > TrackEntry > DefaultDuration.
+//  A sticker without alpha has no such constraint: the platform player decodes
+//  it and loops it at the container duration, so it needs none of MDK's
+//  workarounds. Reading AlphaMode is what lets the app route each file to the
+//  player that handles it correctly.
 //
 
 import 'dart:typed_data';
@@ -20,38 +22,18 @@ const int _segmentId = 0x18538067;
 const int _infoId = 0x1549A966;
 const int _tracksId = 0x1654AE6B;
 const int _trackEntryId = 0xAE;
-const int _defaultDurationId = 0x23E383;
+const int _videoId = 0xE0;
+const int _alphaModeId = 0x53C0;
 
-/// The track's nominal frame duration, or null when the header states none.
-Duration? webmFrameDuration(Uint8List bytes) {
-  final defaults = <int>[];
-  _walk(bytes, 0, bytes.length, 0, defaults);
-  for (final nanoseconds in defaults) {
-    if (nanoseconds >= 1000) return Duration(microseconds: nanoseconds ~/ 1000);
-  }
-  return null;
+/// Whether the file's video track declares an alpha channel.
+bool webmHasAlpha(Uint8List bytes) {
+  final seen = <int>[];
+  _walk(bytes, 0, bytes.length, 0, seen);
+  return seen.contains(_alphaModeId);
 }
 
-/// The playback rate that gives [duration] back to a clip MDK stops at
-/// `duration - frameDuration`. Null when the clip is long enough that losing a
-/// frame does not matter, or when the numbers cannot be trusted.
-double? stickerTailCorrection({
-  required Duration duration,
-  required Duration? frameDuration,
-}) {
-  if (frameDuration == null || frameDuration <= Duration.zero) return null;
-  if (duration <= Duration.zero || frameDuration >= duration) return null;
-  final played = duration.inMicroseconds - frameDuration.inMicroseconds;
-  final rate = played / duration.inMicroseconds;
-  // A single frame is at most a fifth of a sticker; anything more is a header
-  // that cannot be trusted.
-  if (rate < 0.8) return null;
-  if (rate > 0.995) return null;
-  return rate;
-}
-
-void _walk(Uint8List bytes, int start, int end, int depth, List<int> defaults) {
-  if (depth > 4) return;
+void _walk(Uint8List bytes, int start, int end, int depth, List<int> alpha) {
+  if (depth > 5) return;
   final cursor = _Cursor(bytes, start, end);
   while (cursor.offset < end) {
     final id = cursor.readId();
@@ -68,10 +50,11 @@ void _walk(Uint8List bytes, int start, int end, int depth, List<int> defaults) {
       case _infoId:
       case _tracksId:
       case _trackEntryId:
-        _walk(bytes, payloadStart, payloadEnd, depth + 1, defaults);
-      case _defaultDurationId:
+      case _videoId:
+        _walk(bytes, payloadStart, payloadEnd, depth + 1, alpha);
+      case _alphaModeId:
         final value = _readUint(bytes, payloadStart, payloadEnd);
-        if (value != null) defaults.add(value);
+        if (value == 1) alpha.add(_alphaModeId);
     }
     if (payloadEnd <= payloadStart) return;
     cursor.offset = payloadEnd;

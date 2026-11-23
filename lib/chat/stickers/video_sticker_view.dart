@@ -15,7 +15,6 @@ import 'package:video_player/video_player.dart';
 import '../../components/photo_avatar.dart';
 import '../../media/looping_media_playback.dart';
 import '../../media/video_playback_reporting.dart';
-import '../../media/webm_frame_rate.dart';
 import '../../tdlib/td_client.dart';
 import '../../tdlib/td_image_loader.dart';
 import '../../tdlib/td_models.dart';
@@ -68,9 +67,6 @@ class _VideoStickerViewState extends State<VideoStickerView>
   VideoPlayerController? _initializingController;
   VideoPlaybackDiagnostics? _playbackDiagnostics;
   Timer? _loopReplayTimer;
-
-  static final Map<String, Duration?> _frameDurationCache =
-      <String, Duration?>{};
 
   /// Keeps a sticker alive across a short overscroll instead of tearing its
   /// decoder down and rebuilding it on the way back.
@@ -292,13 +288,6 @@ class _VideoStickerViewState extends State<VideoStickerView>
         await _disposeInitializingLoad(c, lease);
         return;
       }
-      // MDK takes the playback rate when playback starts: a rate set while a
-      // looping clip is already running is ignored, which put the sticker back
-      // at its racing pace. Set it before play.
-      final rate = await _stickerPlaybackRate(c, path);
-      if (rate != null && _ownsLoad(generation, ref, slot, lease)) {
-        await _applyStickerPacing(c, rate);
-      }
       await c.play();
     } catch (error) {
       final ownsCurrentSource = _ownsLoad(generation, ref, slot, lease);
@@ -352,49 +341,6 @@ class _VideoStickerViewState extends State<VideoStickerView>
   }
 
   static const _loopReplayDelay = Duration(milliseconds: 50);
-
-  /// Holds a video sticker at its authored pace.
-  ///
-  /// MDK stops a video-only clip at its last frame's timestamp, so that frame's
-  /// hold is dropped every loop: 25% of a five-frame 0.4 s sticker, 1% of a
-  /// three-second one — which is why only short, low-frame-rate stickers were
-  /// reported racing. The header states the frame duration, so the rate is
-  /// known before the first loop instead of being measured.
-  Future<double?> _stickerPlaybackRate(
-    VideoPlayerController c,
-    String path,
-  ) async {
-    final frameDuration = await _frameDurationOf(path);
-    return stickerTailCorrection(
-      duration: c.value.duration,
-      frameDuration: frameDuration,
-    );
-  }
-
-  static Future<Duration?> _frameDurationOf(String path) async {
-    if (_frameDurationCache.containsKey(path)) {
-      return _frameDurationCache[path];
-    }
-    Duration? frameDuration;
-    try {
-      frameDuration = webmFrameDuration(await File(path).readAsBytes());
-    } catch (_) {
-      frameDuration = null;
-    }
-    return _frameDurationCache[path] = frameDuration;
-  }
-
-  Future<void> _applyStickerPacing(
-    VideoPlayerController c,
-    double speed,
-  ) async {
-    try {
-      await c.setPlaybackSpeed(speed);
-      debugPrint('video sticker pacing: playback rate $speed');
-    } catch (_) {
-      // Backends without rate control keep their own pacing.
-    }
-  }
 
   Future<void> _replayCompletedSticker(
     VideoPlayerController controller,
