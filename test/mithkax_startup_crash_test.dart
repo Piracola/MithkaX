@@ -118,7 +118,34 @@ void main() {
       final activity = File(
         'android/app/src/main/kotlin/x/empty/mithka/MainActivity.kt',
       ).readAsStringSync();
-      expect(activity, contains('CachedEngine.acquire(context)'));
+      expect(activity, contains('CachedEngine.acquire(this)'));
+      expect(
+        activity,
+        contains('override fun getCachedEngineId(): String = CachedEngine.ID'),
+        reason:
+            'a cached engine id is what stops FlutterFragment from owning (and '
+            'destroying) the engine, and what keeps detachFromFlutterEngine() '
+            'from throwing when a second Activity attaches',
+      );
+      final cached = File(
+        'android/app/src/main/kotlin/x/empty/mithka/CachedEngine.kt',
+      ).readAsStringSync();
+      final acquire = cached.substring(
+        cached.indexOf('fun acquire(context: Context)'),
+      );
+      expect(acquire, contains('FlutterEngineCache.getInstance()'));
+      expect(
+        acquire,
+        contains('cache.put(ID, engine)'),
+        reason: 'the fragment resolves the engine by id from the cache',
+      );
+      expect(
+        acquire,
+        contains('engine.dartExecutor.executeDartEntrypoint('),
+        reason:
+            'the host skips doInitialFlutterViewRun for cached engines, so the '
+            'entrypoint would never run without this',
+      );
       expect(
         activity,
         contains('override fun shouldDestroyEngineWithHost(): Boolean = false'),
@@ -163,7 +190,7 @@ void main() {
       final activity = File(
         'android/app/src/main/kotlin/x/empty/mithka/MainActivity.kt',
       ).readAsStringSync();
-      expect(activity, contains('val warm = CachedEngine.isRunning'));
+      expect(activity, contains('val warm = CachedEngine.isWarm'));
       expect(
         activity,
         contains('if (!warm) {\n            pendingSharePayload'),

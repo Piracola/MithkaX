@@ -75,7 +75,11 @@ class MainActivity : FlutterFragmentActivity() {
         // The engine outlives the Activity (see CachedEngine), so this may be a
         // re-attach to a Dart VM that is already running: nothing may be
         // initialised twice, but this window's intent must still be delivered.
-        val warm = CachedEngine.isRunning
+        val warm = CachedEngine.isWarm
+        // The cached engine has to exist BEFORE the fragment resolves it: with a
+        // cached id the fragment never creates (or destroys) one, which is what
+        // keeps it alive across Activities.
+        CachedEngine.acquire(this)
         WindowCompat.setDecorFitsSystemWindows(window, false)
         super.onCreate(savedInstanceState)
         StartupDiagnostics.log(
@@ -305,8 +309,8 @@ class MainActivity : FlutterFragmentActivity() {
         )
     }
 
-    override fun provideFlutterEngine(context: Context): FlutterEngine =
-        CachedEngine.acquire(context)
+    /** Flutter's supported way to keep one engine for the whole process. */
+    override fun getCachedEngineId(): String = CachedEngine.ID
 
     override fun shouldDestroyEngineWithHost(): Boolean = false
 
@@ -331,6 +335,7 @@ class MainActivity : FlutterFragmentActivity() {
         } else {
             StartupDiagnostics.log(this, "engine", "reattached engine")
         }
+        CachedEngine.noteAttach()
         // TEMPORARY: read/clear the device-side startup trace. Remove with
         // StartupDiagnostics once the icon-switch crash is understood.
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "mithka/diagnostics")
