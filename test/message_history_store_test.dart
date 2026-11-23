@@ -466,9 +466,11 @@ void main() {
       });
       // The copy runs off the update chain; wait for it deterministically
       // instead of counting microtask pumps.
+      // The copy lands on the I/O thread: a fixed count of zero-delay turns
+      // runs out on a loaded CI machine, so give it a real-time budget.
       for (var i = 0; i < 100; i++) {
         if ((store.entry(11, 400)?.mediaPath ?? '').isNotEmpty) break;
-        await Future<void>.delayed(Duration.zero);
+        await Future<void>.delayed(const Duration(milliseconds: 10));
       }
       final entry = store.entry(11, 400)!;
       expect(entry.kindKey, 'historyKindPhoto');
@@ -508,9 +510,10 @@ void main() {
         },
       },
     });
+    // Same real-time budget as the photo case above.
     for (var i = 0; i < 100; i++) {
       if ((store.entry(11, 402)?.mediaPath ?? '').isNotEmpty) break;
-      await Future<void>.delayed(Duration.zero);
+      await Future<void>.delayed(const Duration(milliseconds: 10));
     }
     final entry = store.entry(11, 402)!;
     expect(entry.kindKey, 'historyKindAudio');
@@ -564,14 +567,14 @@ void main() {
           copiedPath = files.single;
           break;
         }
-        await Future<void>.delayed(Duration.zero);
+        await Future<void>.delayed(const Duration(milliseconds: 10));
       }
       expect(copiedPath, isNotNull, reason: 'the copy never started');
 
       store.removeAccount(_accountA);
       copyGate.complete();
       for (var i = 0; i < 100; i++) {
-        await Future<void>.delayed(Duration.zero);
+        await Future<void>.delayed(const Duration(milliseconds: 10));
       }
       expect(store.entryCount, 0);
       expect(
