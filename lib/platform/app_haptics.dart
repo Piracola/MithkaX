@@ -3,12 +3,12 @@
 //
 //  Every vibration the interface emits goes through here.
 //
-//  Flutter's `HapticFeedback` ends in `View.performHapticFeedback`, which the
-//  system touch-vibration switch silences and which is only as strong as the
-//  platform's key-tick constant. exteraless vibrates the `Vibrator` itself with
-//  Telegram's own waveforms, so it always fires and hits much harder; the
-//  Android shell of this bridge ports those waveforms (`HapticsPlugin.kt`),
-//  amplitudes included.
+//  Flutter's `HapticFeedback` ends in `View.performHapticFeedback` with no
+//  flags, so the system touch-vibration switch silences it. The Android shell
+//  of this bridge fires the same platform effect with both ignore flags — the
+//  call exteraless makes for its own interface — and answers whether it
+//  actually fired; when it did not, the tick falls back to Flutter's channel
+//  instead of disappearing.
 //
 //  The one preference in [AppHaptics] is the app-wide switch: with it off
 //  nothing is sent to either channel, so no surface can buzz on its own.
@@ -20,9 +20,10 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-/// What a tick should feel like, named after the reference client's effects.
-/// `light`/`medium`/`heavy` are 7 ms impacts at 65/145/255 amplitude,
-/// `selection` is a 1 ms 65 tap and `vibrate` is the two-burst error pattern.
+/// What a tick should feel like. Android strength comes from the platform
+/// constants: `light`/`selection` are a key tap, `medium` a long press (the
+/// reference client's interface tick), `heavy` a confirmation thump and
+/// `vibrate` a rejection buzz.
 enum AppHapticKind { light, medium, heavy, selection, vibrate }
 
 /// App-wide haptics: the on/off switch plus the delivery path.
@@ -33,8 +34,8 @@ class AppHaptics extends ChangeNotifier {
 
   static const _enabledKey = 'mithka.haptics.enabled.v1';
 
-  /// Carries the tick to the Android shell, which plays the reference
-  /// client's waveform through the Vibrator.
+  /// Carries the tick to the Android shell, which fires the platform haptic
+  /// with the ignore flags and reports whether it landed.
   static const MethodChannel channel = MethodChannel('mithka/haptics');
 
   SharedPreferences? _prefs;
@@ -64,8 +65,9 @@ class AppHaptics extends ChangeNotifier {
     if (!_enabled) return;
     if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
       try {
-        await channel.invokeMethod<void>('vibrate', kind.name);
-        return;
+        if (await channel.invokeMethod<bool>('vibrate', kind.name) ?? false) {
+          return;
+        }
       } on MissingPluginException {
         // No native shell (tests, an engine built before this bridge).
       } on PlatformException {

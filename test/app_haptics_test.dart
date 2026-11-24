@@ -123,6 +123,20 @@ void main() {
     debugDefaultTargetPlatformOverride = null;
   });
 
+  test('a refused native tick falls back to the framework channel', () async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.android;
+    messenger.setMockMethodCallHandler(
+      AppHaptics.channel,
+      (call) async => false,
+    );
+    AppHaptics.shared.initialize(await SharedPreferences.getInstance());
+
+    await AppHaptics.mediumImpact();
+    expect(frameworkCalls, hasLength(1));
+    expect(frameworkCalls.single.arguments, 'HapticFeedbackType.mediumImpact');
+    debugDefaultTargetPlatformOverride = null;
+  });
+
   test('no surface bypasses the wrapper', () {
     final offenders = <String>[];
     for (final entity in Directory('lib').listSync(recursive: true)) {
@@ -139,36 +153,27 @@ void main() {
     );
   });
 
-  test('the Android shell plays the reference waveforms', () {
+  test('the Android shell fires the reference tick, not a waveform', () {
     final source = File(
       'android/app/src/main/kotlin/x/empty/mithka/HapticsPlugin.kt',
     ).readAsStringSync();
-    // BotWebViewVibrationEffect's tables, amplitudes included: a 7 ms 145
-    // medium impact is what the reference client feels like, and a plain
-    // performHapticFeedback tick is far weaker.
+    // exteraless's interface tick is performHapticFeedback(LONG_PRESS) with
+    // the ignore flags; a raw waveform of a few ms is dropped by some HALs,
+    // which is why it may not be the primary path again.
+    expect(source, contains('performHapticFeedback(constant, FLAGS)'));
+    expect(source, contains('FLAG_IGNORE_VIEW_SETTING'));
+    expect(source, contains('FLAG_IGNORE_GLOBAL_SETTING'));
+    // The ladder itself: key tap for the light ticks, a long press for the
+    // interface tick, and the API 30 thump/buzz above it.
     expect(
       source,
-      contains('Spec(longArrayOf(7), intArrayOf(145), longArrayOf(70))'),
+      contains('"light", "selection" -> HapticFeedbackConstants.KEYBOARD_TAP'),
     );
-    expect(
-      source,
-      contains('Spec(longArrayOf(7), intArrayOf(65), longArrayOf(60))'),
-    );
-    expect(
-      source,
-      contains('Spec(longArrayOf(7), intArrayOf(255), longArrayOf(80))'),
-    );
-    expect(
-      source,
-      contains('Spec(longArrayOf(1), intArrayOf(65), longArrayOf(30))'),
-    );
-    expect(
-      source,
-      contains('VibrationEffect.createWaveform(timings, amplitudes, -1)'),
-    );
-    expect(source, contains('hasAmplitudeControl()'));
+    expect(source, contains('else -> HapticFeedbackConstants.LONG_PRESS'));
+    expect(source, contains('HapticFeedbackConstants.CONFIRM'));
+    expect(source, contains('HapticFeedbackConstants.REJECT'));
+    expect(source, contains('VibrationEffect.createOneShot'));
     expect(source, contains('const val CHANNEL = "mithka/haptics"'));
-    expect(source, isNot(contains('performHapticFeedback(')));
     final manifest = File(
       'android/app/src/main/AndroidManifest.xml',
     ).readAsStringSync();
