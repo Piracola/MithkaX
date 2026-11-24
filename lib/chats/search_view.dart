@@ -1565,6 +1565,7 @@ class _SearchViewState extends State<SearchView> {
   List<ChatSummary> _recentChats = const [];
   final Map<int, ChatSummary> _recentChatCache = {};
   bool _historyLoaded = false;
+  int? _historyUserId;
   int _historyGeneration = 0;
 
   @override
@@ -1610,7 +1611,15 @@ class _SearchViewState extends State<SearchView> {
 
   Future<void> _loadHistory() async {
     final generation = ++_historyGeneration;
-    final ids = await _history.load(_accountUserId);
+    final userId = _accountUserId;
+    if (userId != _historyUserId) {
+      // Chat ids are account-scoped; a resolved summary from another account
+      // must never be drawn as this one's history row.
+      _historyUserId = userId;
+      _recentChatCache.clear();
+      _recentChats = const [];
+    }
+    final ids = await _history.load(userId);
     if (!mounted || generation != _historyGeneration) return;
     final missing = [
       for (final id in ids)
