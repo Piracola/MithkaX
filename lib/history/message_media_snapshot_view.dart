@@ -121,6 +121,13 @@ class _MediaSnapshotViewState extends State<MediaSnapshotView> {
           availableWidth: math.max(1, available),
           maxHeight: widget.maxHeight,
         );
+        // Decode at the painted size: a kept full-size photo can be tens of
+        // megapixels, and the bubble only ever shows a few hundred pixels.
+        final dpr = MediaQuery.of(context).devicePixelRatio;
+        final cacheWidth = (geometry.frameSize.width * dpr).round().clamp(
+          1,
+          2048,
+        );
         return SizedBox(
           width: geometry.frameSize.width,
           height: geometry.frameSize.height,
@@ -130,6 +137,7 @@ class _MediaSnapshotViewState extends State<MediaSnapshotView> {
               File(widget.path),
               key: ValueKey('history-media-${widget.path}'),
               fit: BoxFit.contain,
+              cacheWidth: cacheWidth,
               errorBuilder: (_, _, _) => _fallbackLabel(context),
             ),
           ),
