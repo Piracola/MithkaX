@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mithka/chats/archived_chats_view.dart';
 import 'package:mithka/chats/chat_list_view.dart';
 import 'package:mithka/l10n/app_localizations.dart';
 import 'package:mithka/tdlib/td_client.dart';
@@ -187,7 +188,8 @@ void main() {
   );
 
   testWidgets(
-    'scrolling up collapses the archive row and the search row in one animation',
+    'scrolling up carries the revealed archive row and the search row out as '
+    'list content',
     (tester) async {
       await _pumpFolderPager(
         tester,
@@ -201,20 +203,32 @@ void main() {
       await tester.pump();
       await tester.pumpAndSettle();
 
-      // Reveal the pull-down archive row.
-      final firstRow = tester.getTopLeft(find.text('Chat 991')).dy;
+      // Reveal the pull-down archive row the deliberate way: past 85% of a
+      // row AND past the reference client's 200ms minimum pulling time.
+      final firstRow = tester.getTopLeft(find.text('Chat 999')).dy;
       var gesture = await tester.startGesture(Offset(200, firstRow + 60));
-      await tester.pump(const Duration(milliseconds: 40));
-      for (var i = 0; i < 10; i++) {
-        await gesture.moveBy(const Offset(0, 40));
+      await tester.pump(const Duration(milliseconds: 16));
+      for (var i = 0; i < 8; i++) {
+        await gesture.moveBy(const Offset(0, 50));
         await tester.pump(const Duration(milliseconds: 16));
       }
+      await tester.pump(const Duration(milliseconds: 200));
+      await gesture.moveBy(const Offset(0, 8));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 240));
       await gesture.up();
       await tester.pumpAndSettle();
       expect(
         find.byType(ChatListPullDownArchiveSlot),
         findsOneWidget,
         reason: 'fixture must mount the pull-down archive slot',
+      );
+      expect(
+        find.byType(ArchivedChatsRow),
+        findsOneWidget,
+        reason:
+            'the pull must reveal the archive row before the departure can '
+            'be measured',
       );
       // The pill is a list row; once the archive reveal collapsed the layout
       // the search row may already sit offscreen — jump back to the top where
@@ -243,61 +257,92 @@ void main() {
       );
       final searchTop = tester.getTopLeft(searchFinder).dy;
 
-      // Scroll up a little: the archive row slides out from under the search
-      // row while the search row holds its place.
-      gesture = await tester.startGesture(Offset(200, firstRow + 60));
+      // Scroll up: both leading rows are ordinary list items now, so the
+      // search row moves with the finger instead of being held in place while
+      // a collapse animation runs.
+      gesture = await tester.startGesture(
+        Offset(200, tester.getTopLeft(find.text('Chat 999')).dy + 30),
+      );
       await tester.pump(const Duration(milliseconds: 40));
       for (var i = 0; i < 4; i++) {
         await gesture.moveBy(const Offset(0, -20));
         await tester.pump(const Duration(milliseconds: 16));
       }
-      // The collapse fires at half a row of travel (~36px at this fixture's
-      // row height), which this drag has passed. Both rows now leave in ONE
-      // shared 180ms animation — no stall between them.
-      final slotElement = find
-          .byType(ChatListPullDownArchiveSlot)
-          .evaluate()
-          .single;
-      final slot = (slotElement.widget as ChatListPullDownArchiveSlot);
       expect(
-        slot.visible,
-        isFalse,
+        _chatListPixels(tester),
+        greaterThan(0),
         reason:
-            'by now the revealed archive row has started collapsing '
-            '(travel is past half a row)',
+            'forward scrolling moves the list — it does not collapse the '
+            'leading rows and hand the offset back to the top',
       );
-      // Mid-animation on the shared clock: the search row is already leaving
-      // with the archive row instead of being held in place.
-      await tester.pump(const Duration(milliseconds: 60));
-      final midTop = searchFinder.evaluate().isEmpty
+      final movedSearchTop = searchFinder.evaluate().isEmpty
           ? double.negativeInfinity
           : tester.getTopLeft(searchFinder).dy;
       expect(
-        midTop,
+        movedSearchTop,
         lessThan(searchTop - 0.5),
         reason:
-            'the search row departs in the same animation as the archive '
-            'row — no stall between them',
+            'the search row scrolls out with the content; it is not held in '
+            'place through the archive departure',
       );
-      // By the end of the shared clock the compensation has returned the
-      // offset to the top and the first chat row sits fully visible at the
-      // top of the viewport — not half-clipped by leftover offset.
-      await tester.pump(const Duration(milliseconds: 200));
-      expect(_chatListPixels(tester), moreOrLessEquals(0, epsilon: 1));
-      final firstChatTop = tester.getTopLeft(find.text('Chat 999')).dy;
-      // The folder strip's bottom edge (~108) plus the list's top padding
-      // (~13.5) is where a fully visible first row starts. Leftover
-      // un-compensated offset clipped it mid-row before the fix; a premature
-      // latch release pushed it down further.
+
+      // Keep scrolling until the archive row leaves the viewport: the item is
+      // dropped there, exactly like the reference adapter drops it on
+      // `firstVisibleItemPosition != 0`. Dropping removes the row's height
+      // from the sliver above the viewport, so that same frame hands it back
+      // to the scroll offset — the offset steps BACK instead of continuing
+      // forward, and the chats stay put.
+      var guard = 0;
+      double? dropOffsetDelta;
+      while (guard++ < 60) {
+        final before = _chatListPixels(tester);
+        await gesture.moveBy(const Offset(0, -20));
+        await tester.pump(const Duration(milliseconds: 16));
+        final after = _chatListPixels(tester);
+        if (find.byType(ArchivedChatsRow).evaluate().isEmpty) {
+          dropOffsetDelta = after - before;
+          break;
+        }
+      }
       expect(
-        firstChatTop,
-        moreOrLessEquals(121.5, epsilon: 3),
+        dropOffsetDelta,
+        isNotNull,
         reason:
-            'after the collapse the first chat row is fully at the top, not '
-            'half-clipped',
+            'the revealed archive row is an ordinary item: scrolling it out '
+            'of the viewport drops it',
+      );
+      expect(
+        dropOffsetDelta!,
+        lessThan(-5),
+        reason:
+            'the drop hands the removed row height back to the offset in the '
+            'same frame; a row that is merely scrolled off-screen would leave '
+            'the offset moving forward',
+      );
+      expect(
+        _chatListPixels(tester),
+        greaterThan(0),
+        reason:
+            'the list keeps its scroll offset through the drop — nothing '
+            'collapses back to the top',
       );
       await gesture.up();
       await tester.pumpAndSettle();
+
+      // Back at the top the search row scrolls in again; the archive row does
+      // not — it has to be pulled out afresh.
+      await tester.dragFrom(const Offset(200, 300), const Offset(0, 600));
+      await tester.pumpAndSettle();
+      expect(
+        find.byKey(const ValueKey('chat-list-inline-search')),
+        findsOneWidget,
+        reason: 'the search row is ordinary content and returns with the top',
+      );
+      expect(
+        find.byType(ArchivedChatsRow),
+        findsNothing,
+        reason: 'a dropped archive row is only restored by a new pull',
+      );
       await _dispose(tester);
     },
     variant: TargetPlatformVariant.only(TargetPlatform.android),
