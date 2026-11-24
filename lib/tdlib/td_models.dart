@@ -242,6 +242,7 @@ enum RichMessageBlockKind {
   photo,
   video,
   voiceNote,
+  document,
   collage,
   slideshow,
   table,
@@ -285,6 +286,7 @@ class RichMessageBlock {
     this.videoDuration = 0,
     this.music,
     this.voice,
+    this.document,
     this.hasSpoiler = false,
     this.tableRows = const [],
     this.mathExpression,
@@ -345,6 +347,7 @@ class RichMessageBlock {
     int videoDuration = 0,
     MessageMusic? music,
     MessageVoice? voice,
+    MessageDocument? document,
     bool hasSpoiler = false,
     String caption = '',
     List<MessageTextEntity> captionEntities = const [],
@@ -357,6 +360,7 @@ class RichMessageBlock {
          videoDuration: videoDuration,
          music: music,
          voice: voice,
+         document: document,
          hasSpoiler: hasSpoiler,
          caption: caption,
          captionEntities: captionEntities,
@@ -433,6 +437,7 @@ class RichMessageBlock {
   final int videoDuration;
   final MessageMusic? music;
   final MessageVoice? voice;
+  final MessageDocument? document;
   final bool hasSpoiler;
 
   final List<List<RichMessageTableCell>> tableRows;
@@ -2419,9 +2424,11 @@ abstract final class TDParse {
       'thinking' => 'pageBlockThinking',
       'divider' => 'pageBlockDivider',
       'anchor' => 'pageBlockAnchor',
-      'button_row' => 'pageBlockButtonRow',
+      'button_row' || 'buttons' => 'pageBlockButtonRow',
       'list' => 'pageBlockList',
       'blockquote' || 'block_quote' => 'pageBlockBlockQuote',
+      'expandable_blockquote' ||
+      'expandable_block_quote' => 'pageBlockExpandableBlockQuote',
       'pullquote' || 'pull_quote' => 'pageBlockPullQuote',
       'table' => 'pageBlockTable',
       'mathematical_expression' => 'pageBlockMathematicalExpression',
@@ -2429,6 +2436,7 @@ abstract final class TDParse {
       'video' => 'pageBlockVideo',
       'animation' => 'pageBlockAnimation',
       'audio' => 'pageBlockAudio',
+      'document' => 'pageBlockDocument',
       'voice_note' => 'pageBlockVoiceNote',
       'map' => 'pageBlockMap',
       'collage' => 'pageBlockCollage',
@@ -2624,6 +2632,8 @@ abstract final class TDParse {
         );
       case 'pageBlockBlockQuote':
       case 'RichBlockBlockQuotation':
+      case 'pageBlockExpandableBlockQuote':
+      case 'RichBlockExpandableBlockQuotation':
         final credit = _richBlockText(block['credit']);
         return RichMessageBlock.container(
           kind: RichMessageBlockKind.blockQuote,
@@ -2706,6 +2716,23 @@ abstract final class TDParse {
         return RichMessageBlock.media(
           kind: RichMessageBlockKind.voiceNote,
           voice: voice,
+          caption: caption.text,
+          captionEntities: caption.entities,
+        );
+      case 'pageBlockDocument':
+      case 'RichBlockDocument':
+        // A rich message's attachments arrive as `pageBlockDocument` blocks;
+        // without this case the whole block was dropped and the file never
+        // appeared in the transcript.
+        final document = mediaAttachment({
+          '@type': 'messageDocument',
+          'document': block['document'],
+        }).document;
+        if (document == null) return null;
+        final caption = _richBlockCaption(block['caption']);
+        return RichMessageBlock.media(
+          kind: RichMessageBlockKind.document,
+          document: document,
           caption: caption.text,
           captionEntities: caption.entities,
         );
@@ -3376,6 +3403,7 @@ abstract final class TDParse {
       case 'pageBlockList':
         _appendPageBlockList(builder, block.objects('items'));
       case 'pageBlockBlockQuote':
+      case 'pageBlockExpandableBlockQuote':
         _appendPageBlocks(builder, block.objects('blocks'));
         _appendCredit(builder, block.obj('credit'));
         builder.entity(start, 'textEntityTypeBlockQuote');
@@ -3390,6 +3418,15 @@ abstract final class TDParse {
       case 'pageBlockVoiceNote':
       case 'pageBlockEmbedded':
         _appendCaption(builder, block.obj('caption'));
+      case 'pageBlockDocument':
+        // The preview/notification text of a captioned attachment is its
+        // caption; an uncaptioned file still names itself instead of leaving
+        // the chat list row empty.
+        _appendCaption(builder, block.obj('caption'));
+        if (builder.length == start) {
+          final name = block.obj('document')?.str('file_name') ?? '';
+          if (name.isNotEmpty) builder.write(name);
+        }
       case 'pageBlockMap':
       case 'richBlockMap':
       case 'RichBlockMap':

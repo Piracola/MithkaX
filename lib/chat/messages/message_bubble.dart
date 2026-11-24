@@ -2832,6 +2832,21 @@ class _MessageBubbleState extends State<_ScopedMessageBubble>
     };
   }
 
+  /// A `pageBlockDocument` attachment of a rich message. Rich messages carry
+  /// their files inside the block tree instead of as a `messageDocument`
+  /// content, so the block renders through the same file card as a standalone
+  /// document — same glyph, download ring and [FileDetailView] tap target.
+  Widget _richDocumentBlock(RichMessageBlock block, bool outgoing) {
+    if (block.document == null) {
+      return _richMissingMedia(HeroAppIcons.file, outgoing);
+    }
+    // The selection layer would otherwise claim the tap; every interactive
+    // rich block (media, buttons) opts out of selection the same way.
+    return SelectionContainer.disabled(
+      child: _fileAlbumCard(<ChatMessage>[_richMediaMessage(block)], outgoing),
+    );
+  }
+
   Widget _richPhotoBlock(RichMessageBlock block, bool outgoing) {
     final image = block.image;
     if (image == null) return _richMissingMedia(HeroAppIcons.image, outgoing);

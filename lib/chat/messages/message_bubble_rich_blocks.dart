@@ -71,6 +71,7 @@ extension _MessageBubbleRichBlocks on _MessageBubbleState {
       RichMessageBlockKind.photo ||
       RichMessageBlockKind.video ||
       RichMessageBlockKind.voiceNote => _richMediaBlock(block, outgoing),
+      RichMessageBlockKind.document => _richDocumentBlock(block, outgoing),
       RichMessageBlockKind.collage => _richCollageBlock(block, outgoing),
       RichMessageBlockKind.slideshow => _richSlideshowBlock(block, outgoing),
       RichMessageBlockKind.table => _richTableBlock(block, outgoing),
@@ -161,6 +162,7 @@ extension _MessageBubbleRichBlocks on _MessageBubbleState {
       RichMessageBlockKind.animation => 'messageAnimation',
       RichMessageBlockKind.audio => 'messageAudio',
       RichMessageBlockKind.voiceNote => 'messageVoiceNote',
+      RichMessageBlockKind.document => 'messageDocument',
       _ => 'messageRichMessage',
     };
     return ChatMessage(
@@ -168,6 +170,7 @@ extension _MessageBubbleRichBlocks on _MessageBubbleState {
       chatId: message.chatId,
       isOutgoing: message.isOutgoing,
       text: block.caption.trim().isEmpty ? '' : block.caption,
+      textEntities: block.captionEntities,
       date: message.date,
       contentType: contentType,
       image: block.image,
@@ -177,6 +180,7 @@ extension _MessageBubbleRichBlocks on _MessageBubbleState {
       videoDuration: block.videoDuration,
       music: block.music,
       voice: block.voice,
+      document: block.document,
     );
   }
 }
