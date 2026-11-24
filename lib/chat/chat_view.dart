@@ -7402,6 +7402,15 @@ class _ChatViewState extends State<ChatView> {
                                         _withTopicNavigation(
                                           Column(
                                             children: [
+                                              // The chat-level translation bar
+                                              // belongs to the transcript, not
+                                              // the header (search and selection
+                                              // swap the header out, so it hides
+                                              // with them).
+                                              if (_showsChatTranslationPanel &&
+                                                  !searching &&
+                                                  !_isSelecting)
+                                                _chatTranslationPanel(),
                                               Expanded(
                                                 child: _transcriptLayer(
                                                   searchPane: searchPane,
@@ -7502,7 +7511,6 @@ class _ChatViewState extends State<ChatView> {
           isLoading: _vm.forumTopicsLoading && _vm.forumTopics.isEmpty,
           onLongPress: _showTopicTabMenu,
         ),
-        if (_showsChatTranslationPanel) _chatTranslationPanel(),
         Expanded(child: child),
       ],
     );
