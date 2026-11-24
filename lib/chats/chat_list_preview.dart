@@ -127,7 +127,7 @@ Future<void> showChatListPreview(
   ChatPreviewAccounts accounts = _tdChatPreviewAccounts,
   bool? pinned,
 }) async {
-  unawaited(AppHaptics.mediumImpact());
+  unawaited(AppHaptics.longPress());
   final owner = accounts.pinActiveOwner();
   final reduceMotion = AppMotion.isReduced(context);
   final route = RawDialogRoute<ChatListPreviewAction>(

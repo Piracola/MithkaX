@@ -848,7 +848,7 @@ class _CredentialChallengeState extends State<_CredentialChallenge> {
       _pin = '';
       _error = result.error;
     });
-    if (result.error != null) unawaited(AppHaptics.vibrate());
+    if (result.error != null) unawaited(AppHaptics.error());
   }
 
   void _addDigit(int digit) {
@@ -857,7 +857,7 @@ class _CredentialChallengeState extends State<_CredentialChallenge> {
         _pin.length >= LocalAppLockController.pinLength) {
       return;
     }
-    unawaited(AppHaptics.selectionClick());
+    unawaited(AppHaptics.tap());
     setState(() {
       _error = null;
       _pin += '$digit';
@@ -870,7 +870,7 @@ class _CredentialChallengeState extends State<_CredentialChallenge> {
 
   void _deleteDigit() {
     if (_busy || widget.biometricPending || _pin.isEmpty) return;
-    unawaited(AppHaptics.selectionClick());
+    unawaited(AppHaptics.tap());
     setState(() {
       _error = null;
       _pin = _pin.substring(0, _pin.length - 1);
@@ -880,7 +880,7 @@ class _CredentialChallengeState extends State<_CredentialChallenge> {
   Future<void> _submitGesture(List<int> pattern) async {
     if (pattern.length < LocalAppLockController.minimumGestureNodes) {
       setState(() => _error = AppStringKeys.appLockGestureTooShort);
-      unawaited(AppHaptics.vibrate());
+      unawaited(AppHaptics.error());
       return;
     }
     await _submit(pattern.join(','));
@@ -1140,7 +1140,7 @@ class _GesturePatternPadState extends State<GesturePatternPad> {
       _selected.add(intermediate);
     }
     _selected.add(nearest);
-    unawaited(AppHaptics.selectionClick());
+    unawaited(AppHaptics.tap());
     setState(() {});
   }
 

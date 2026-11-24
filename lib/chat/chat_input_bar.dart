@@ -2430,12 +2430,12 @@ class _ChatInputBarState extends State<ChatInputBar>
     // A live recording keeps its status line; the failed action (pause or
     // resume) leaves the recording as it was, so only the haptic reports it.
     if (_recording) {
-      unawaited(AppHaptics.heavyImpact());
+      unawaited(AppHaptics.error());
       return;
     }
     if (_voiceInlineError == error) return;
     setState(() => _voiceInlineError = error);
-    unawaited(AppHaptics.heavyImpact());
+    unawaited(AppHaptics.error());
   }
 
   void _clearVoiceInlineError() {
@@ -2541,7 +2541,7 @@ class _ChatInputBarState extends State<ChatInputBar>
     }
     if (_voiceDisposed || !mounted) return;
     setState(() => _recording = true);
-    unawaited(AppHaptics.mediumImpact());
+    unawaited(AppHaptics.tap());
     await _recProgress?.cancel();
     final clock = VoiceRecordingClock();
     _recProgress = r.onProgress?.listen((event) {
@@ -11506,12 +11506,12 @@ class _ChatInputBarState extends State<ChatInputBar>
     }
   }
 
-  /// Long-press haptic matching the emoji cell's pattern: a light selection
-  /// tick on touch platforms only.
+  /// Long-press haptic matching the reference client's long-press tick, on
+  /// touch platforms only.
   void _mediaTileLongPressHaptic() {
     final platform = Theme.of(context).platform;
     if (platform == TargetPlatform.android || platform == TargetPlatform.iOS) {
-      unawaited(AppHaptics.selectionClick());
+      unawaited(AppHaptics.longPress());
     }
   }
 

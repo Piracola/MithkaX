@@ -1917,19 +1917,21 @@ class _TelegramMiniAppViewState extends State<TelegramMiniAppView>
   }
 
   Future<void> _triggerHaptic(Map<String, dynamic> data) {
+    // A bot asks for an impact style; the app only has the reference client's
+    // three ticks, so the lighter styles share its key tap, the harder ones its
+    // long press, and an error keeps the double buzz.
     return switch (data['type']) {
       'impact' => switch (data['impact_style']) {
-        'light' => AppHaptics.lightImpact(),
-        'heavy' || 'rigid' => AppHaptics.heavyImpact(),
-        'soft' => AppHaptics.selectionClick(),
-        _ => AppHaptics.mediumImpact(),
+        'light' || 'soft' => AppHaptics.tap(),
+        'heavy' || 'rigid' => AppHaptics.longPress(),
+        _ => AppHaptics.longPress(),
       },
       'notification' => switch (data['notification_type']) {
-        'error' => AppHaptics.vibrate(),
-        'warning' => AppHaptics.mediumImpact(),
-        _ => AppHaptics.lightImpact(),
+        'error' => AppHaptics.error(),
+        'warning' => AppHaptics.longPress(),
+        _ => AppHaptics.tap(),
       },
-      _ => AppHaptics.selectionClick(),
+      _ => AppHaptics.tap(),
     };
   }
 

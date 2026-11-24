@@ -8350,7 +8350,7 @@ class _ChatViewState extends State<ChatView> {
             // exteraless clears reactions on the long press itself, without
             // the read-all menu it shows for mentions.
             onLongPress: (_) {
-              unawaited(AppHaptics.mediumImpact());
+              unawaited(AppHaptics.longPress());
               unawaited(_markAllReactionsRead());
             },
           ),

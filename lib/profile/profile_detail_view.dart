@@ -515,7 +515,7 @@ class _ProfileDetailViewState extends State<ProfileDetailView> {
   Future<void> _copyValue(String value) async {
     final text = value.trim();
     if (text.isEmpty) return;
-    unawaited(AppHaptics.mediumImpact());
+    unawaited(AppHaptics.tap());
     var copied = true;
     try {
       await Clipboard.setData(ClipboardData(text: text));

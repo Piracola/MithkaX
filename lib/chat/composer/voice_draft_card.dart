@@ -778,7 +778,7 @@ class _ComposerVoiceDraftCardState extends State<ComposerVoiceDraftCard> {
         behavior: HitTestBehavior.opaque,
         excludeFromSemantics: true,
         onHorizontalDragStart: (_) {
-          unawaited(AppHaptics.selectionClick());
+          unawaited(AppHaptics.longPress());
           draft.beginTrim();
           setState(() {
             _dragging = handle;

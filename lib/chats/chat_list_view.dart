@@ -1795,11 +1795,10 @@ class _ChatListViewState extends State<ChatListView>
   /// Latches the archive row open.
   ///
   /// The reference client fires a KEYBOARD_TAP haptic the moment the pull
-  /// passes its snap height and the archive becomes showable; mediumImpact()
-  /// is that same KEYBOARD_TAP on Android, while selectionClick's CLOCK_TICK
-  /// is too faint to feel mid-gesture on many devices.
+  /// passes its snap height and the archive becomes showable — the same
+  /// `performHapticFeedback(KEYBOARD_TAP)` this `tap()` sends.
   void _revealPullDownArchive() {
-    unawaited(AppHaptics.mediumImpact());
+    unawaited(AppHaptics.tap());
     setState(() {
       _archiveRevealed = true;
       _archiveDropInstant = false;
@@ -4389,7 +4388,7 @@ class _ChatListViewState extends State<ChatListView>
         _dragProxyOriginTop = localTop;
         _dragProxyHeight = size.height;
       });
-      unawaited(AppHaptics.mediumImpact());
+      unawaited(AppHaptics.longPress());
     };
   }
 
@@ -4413,10 +4412,9 @@ class _ChatListViewState extends State<ChatListView>
     final projected = index + (_dragSlotsById[chat.id] ?? 0) + slots;
     if (projected < 0 || projected >= band.length) return;
     _dragSlotsById[chat.id] = (_dragSlotsById[chat.id] ?? 0) + slots;
-    // KEYBOARD_TAP strength on Android — selectionClick maps to CLOCK_TICK,
-    // which most devices render as barely there and the system touch-vibration
-    // toggle silences outright.
-    unawaited(AppHaptics.mediumImpact());
+    // The same KEYBOARD_TAP the reference client fires while a drag crosses
+    // rows — its ItemTouchHelper tick, not a clock tick.
+    unawaited(AppHaptics.tap());
     setState(() {});
   }
 
@@ -4736,7 +4734,7 @@ class _ChatListViewState extends State<ChatListView>
   /// Long-press on a row's body: enter edit mode with that chat selected.
   void _beginSelectionMode(ChatSummary chat) {
     if (_openSwipeChat != null) setState(() => _openSwipeChat = null);
-    unawaited(AppHaptics.mediumImpact());
+    unawaited(AppHaptics.longPress());
     setState(() {
       _selectionMode = true;
       _pendingSelectionModeChatId = chat.id;

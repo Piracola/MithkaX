@@ -2,10 +2,10 @@
 //  app_haptics_test.dart
 //
 //  The app-wide vibration switch and the Android delivery path: every tick is
-//  gated by the switch, Android turns a tick into the native `vibrate` call
-//  (which re-delivers it with the "ignore the system setting" flags), and any
-//  other platform — or an engine without the native bridge — falls back to
-//  Flutter's own haptics channel.
+//  gated by the switch, Android turns the reference client's three ticks into
+//  the native `vibrate` call (which fires `performHapticFeedback` with the
+//  "ignore the system setting" flags), and any other platform — or an engine
+//  without the native bridge — falls back to Flutter's own haptics channel.
 //
 
 import 'dart:io';
@@ -53,26 +53,42 @@ void main() {
       AppHaptics.shared.initialize(await SharedPreferences.getInstance());
 
       expect(AppHaptics.shared.enabled, isTrue);
-      await AppHaptics.mediumImpact();
+      await AppHaptics.longPress();
 
       expect(nativeCalls, hasLength(1));
       expect(nativeCalls.single.method, 'vibrate');
-      expect(nativeCalls.single.arguments, 'medium');
+      expect(nativeCalls.single.arguments, 'longPress');
       expect(frameworkCalls, isEmpty);
       debugDefaultTargetPlatformOverride = null;
     },
   );
 
+  test('the three ticks keep the reference names', () async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.android;
+    AppHaptics.shared.initialize(await SharedPreferences.getInstance());
+
+    await AppHaptics.tap();
+    await AppHaptics.longPress();
+    await AppHaptics.error();
+
+    expect(nativeCalls.map((call) => call.arguments).toList(), [
+      'tap',
+      'longPress',
+      'error',
+    ]);
+    debugDefaultTargetPlatformOverride = null;
+  });
+
   test('the switch stops both delivery paths', () async {
     debugDefaultTargetPlatformOverride = TargetPlatform.android;
     AppHaptics.shared.initialize(await SharedPreferences.getInstance());
     AppHaptics.shared.setEnabled(false);
-    await AppHaptics.heavyImpact();
+    await AppHaptics.error();
     expect(nativeCalls, isEmpty);
     expect(frameworkCalls, isEmpty);
 
     debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
-    await AppHaptics.selectionClick();
+    await AppHaptics.tap();
     expect(nativeCalls, isEmpty);
     expect(frameworkCalls, isEmpty);
     debugDefaultTargetPlatformOverride = null;
@@ -100,14 +116,11 @@ void main() {
     debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
     AppHaptics.shared.initialize(await SharedPreferences.getInstance());
 
-    await AppHaptics.selectionClick();
+    await AppHaptics.tap();
     expect(nativeCalls, isEmpty);
     expect(frameworkCalls, hasLength(1));
     expect(frameworkCalls.single.method, 'HapticFeedback.vibrate');
-    expect(
-      frameworkCalls.single.arguments,
-      'HapticFeedbackType.selectionClick',
-    );
+    expect(frameworkCalls.single.arguments, 'HapticFeedbackType.lightImpact');
     debugDefaultTargetPlatformOverride = null;
   });
 
@@ -116,10 +129,10 @@ void main() {
     messenger.setMockMethodCallHandler(AppHaptics.channel, null);
     AppHaptics.shared.initialize(await SharedPreferences.getInstance());
 
-    await AppHaptics.lightImpact();
+    await AppHaptics.longPress();
     expect(nativeCalls, isEmpty);
     expect(frameworkCalls, hasLength(1));
-    expect(frameworkCalls.single.arguments, 'HapticFeedbackType.lightImpact');
+    expect(frameworkCalls.single.arguments, 'HapticFeedbackType.heavyImpact');
     debugDefaultTargetPlatformOverride = null;
   });
 
@@ -131,9 +144,10 @@ void main() {
     );
     AppHaptics.shared.initialize(await SharedPreferences.getInstance());
 
-    await AppHaptics.mediumImpact();
+    await AppHaptics.error();
     expect(frameworkCalls, hasLength(1));
-    expect(frameworkCalls.single.arguments, 'HapticFeedbackType.mediumImpact');
+    // Flutter's vibrate() sends the method with no argument at all.
+    expect(frameworkCalls.single.arguments, isNull);
     debugDefaultTargetPlatformOverride = null;
   });
 
@@ -142,9 +156,12 @@ void main() {
     for (final entity in Directory('lib').listSync(recursive: true)) {
       if (entity is! File || !entity.path.endsWith('.dart')) continue;
       if (entity.path.endsWith('lib/platform/app_haptics.dart')) continue;
-      if (entity.readAsStringSync().contains('HapticFeedback')) {
-        offenders.add(entity.path);
-      }
+      // Comments may name the framework API; only real calls count.
+      final code = entity
+          .readAsLinesSync()
+          .where((line) => !line.trimLeft().startsWith('//'))
+          .join('\n');
+      if (code.contains('HapticFeedback')) offenders.add(entity.path);
     }
     expect(
       offenders,
@@ -153,25 +170,24 @@ void main() {
     );
   });
 
-  test('the Android shell fires the reference tick, not a waveform', () {
+  test('the Android shell fires the reference constants, not a waveform', () {
     final source = File(
       'android/app/src/main/kotlin/x/empty/mithka/HapticsPlugin.kt',
     ).readAsStringSync();
-    // exteraless's interface tick is performHapticFeedback(LONG_PRESS) with
-    // the ignore flags; a raw waveform of a few ms is dropped by some HALs,
-    // which is why it may not be the primary path again.
+    // The reference client fires exactly two constants for its interface, and
+    // both ignore flags keep them alive with the system switch off. A raw
+    // waveform of a few ms is dropped by some HALs and once left the whole app
+    // silent, so it must stay a fallback only.
     expect(source, contains('performHapticFeedback(constant, FLAGS)'));
     expect(source, contains('FLAG_IGNORE_VIEW_SETTING'));
     expect(source, contains('FLAG_IGNORE_GLOBAL_SETTING'));
-    // The ladder itself: key tap for the light ticks, a long press for the
-    // interface tick, and the API 30 thump/buzz above it.
     expect(
       source,
-      contains('"light", "selection" -> HapticFeedbackConstants.KEYBOARD_TAP'),
+      contains('"longPress", "error" -> HapticFeedbackConstants.LONG_PRESS'),
     );
-    expect(source, contains('else -> HapticFeedbackConstants.LONG_PRESS'));
-    expect(source, contains('HapticFeedbackConstants.CONFIRM'));
-    expect(source, contains('HapticFeedbackConstants.REJECT'));
+    expect(source, contains('else -> HapticFeedbackConstants.KEYBOARD_TAP'));
+    expect(source, isNot(contains('HapticFeedbackConstants.CONFIRM')));
+    expect(source, isNot(contains('HapticFeedbackConstants.REJECT')));
     expect(source, contains('VibrationEffect.createOneShot'));
     expect(source, contains('const val CHANNEL = "mithka/haptics"'));
     final manifest = File(

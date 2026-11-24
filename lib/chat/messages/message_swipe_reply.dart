@@ -119,7 +119,7 @@ class MessageSwipeReplyController {
       if (_tickArmed) {
         _tickArmed = false;
         _tickCount++;
-        unawaited(AppHaptics.selectionClick());
+        unawaited(AppHaptics.tap());
       }
     } else {
       // Dragging back out re-arms it, so a second attempt ticks again.

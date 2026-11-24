@@ -456,7 +456,7 @@ class NotificationController with WidgetsBindingObserver, ChangeNotifier {
         unawaited(SystemSound.play(SystemSoundType.alert));
       }
       if (_notificationPreferences.inAppVibrate) {
-        unawaited(AppHaptics.mediumImpact());
+        unawaited(AppHaptics.longPress());
       }
       return;
     }

@@ -413,7 +413,7 @@ class _ContentSizeSliderState extends State<ContentSizeSlider> {
       _lastDragIndex = index;
     }
     if (current != index) {
-      unawaited(AppHaptics.selectionClick());
+      unawaited(AppHaptics.tap());
     }
     widget.onChanged(contentSizePresets[index]);
   }

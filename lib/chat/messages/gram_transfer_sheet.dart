@@ -198,7 +198,7 @@ class _GramTransferSheetState extends State<GramTransferSheet> {
   }
 
   Future<void> _copy(String value) async {
-    unawaited(AppHaptics.selectionClick());
+    unawaited(AppHaptics.tap());
     var copied = true;
     try {
       await Clipboard.setData(ClipboardData(text: value));

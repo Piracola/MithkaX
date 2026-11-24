@@ -529,7 +529,7 @@ class _EmojiPanelCellState extends State<EmojiPanelCell>
   void _fireHaptic() {
     final platform = Theme.of(context).platform;
     if (platform == TargetPlatform.android || platform == TargetPlatform.iOS) {
-      unawaited(AppHaptics.selectionClick());
+      unawaited(AppHaptics.tap());
     }
   }
 
