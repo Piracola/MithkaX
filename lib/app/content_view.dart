@@ -930,11 +930,11 @@ class _DesktopTitleBarProfilePopup extends StatelessWidget {
 /// The screen shown while the session starts.
 ///
 /// The shipped default keeps the brand gradient with the mark, which is what
-/// Mithka X opens with. Any other chosen icon is drawn the
-/// way the icon picker draws it, centred on the app background over a 24 pt
-/// spinner in the tertiary text colour: a standard icon as a 160 pt tile with
-/// 36 pt corners, a penguin as its 192 pt background-free art. Android 12+
-/// opens the app with the chosen icon on that same background.
+/// Mithka X opens with. Any other chosen icon is drawn the way the icon picker
+/// draws it, centred on the app background over a 24 pt spinner in the
+/// tertiary text colour: a standard icon as a 160 pt tile with 36 pt corners,
+/// a penguin as its 192 pt background-free art. Android 12+ opens the app with
+/// the chosen icon on that same background.
 class SplashView extends StatelessWidget {
   const SplashView({super.key});
 
