@@ -4133,6 +4133,8 @@
     <string name="mithkaxHapticsHint">Vibra al tocar, mantener pulsado y confirmar acciones, incluso con la vibración táctil del sistema desactivada.</string>
     <string name="mithkaxScheduledDeleteTitle">Eliminación programada</string>
     <string name="mithkaxScheduledDeleteEnable">Eliminar automáticamente mis mensajes de grupo</string>
+    <string name="mithkaxAiReplyButton">Botón de respuesta con IA</string>
+    <string name="mithkaxAiReplyButtonHint">Mostrar el botón de respuesta con IA junto al campo de mensaje.</string>
     <string name="mithkaxScheduledDeleteDescription">Solo se aplica a los grupos que no tienen activada la eliminación automática. Los chats privados y los canales no se ven afectados.</string>
     <string name="mithkaxScheduledDeleteDuration">Eliminar después de</string>
     <string name="mithkaxScheduledDeleteNote">Los mensajes que envíes en esos grupos se eliminan para todos después del tiempo elegido. Si desactivas esta opción, se cancelan las eliminaciones pendientes.</string>

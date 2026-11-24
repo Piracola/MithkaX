@@ -4116,6 +4116,8 @@
     <string name="mithkaxHapticsHint">點擊、長按與操作確認時震動；系統關閉觸感回饋時也會生效。</string>
     <string name="mithkaxScheduledDeleteTitle">定時刪除</string>
     <string name="mithkaxScheduledDeleteEnable">自動刪除我在群組中的訊息</string>
+    <string name="mithkaxAiReplyButton">AI 回覆按鈕</string>
+    <string name="mithkaxAiReplyButtonHint">在輸入框旁顯示 AI 回覆按鈕。</string>
     <string name="mithkaxScheduledDeleteDescription">僅適用於未開啟「自動刪除訊息」的群組；私聊和頻道不受影響。</string>
     <string name="mithkaxScheduledDeleteDuration">刪除時間</string>
     <string name="mithkaxScheduledDeleteNote">在這些群組中傳送的訊息會在所選時間後為所有人刪除。關閉後，尚未執行的刪除會被取消。</string>

@@ -4133,6 +4133,8 @@
     <string name="mithkaxHapticsHint">Ticks on taps, long presses and confirmations, even when system touch vibration is off.</string>
     <string name="mithkaxScheduledDeleteTitle">Scheduled deletion</string>
     <string name="mithkaxScheduledDeleteEnable">Auto-delete my group messages</string>
+    <string name="mithkaxAiReplyButton">AI Reply Button</string>
+    <string name="mithkaxAiReplyButtonHint">Show the AI Reply button beside the composer.</string>
     <string name="mithkaxScheduledDeleteDescription">Only applies to groups that don't have Auto-Delete enabled. Private chats and channels are not affected.</string>
     <string name="mithkaxScheduledDeleteDuration">Delete after</string>
     <string name="mithkaxScheduledDeleteNote">Messages you send in those groups are deleted for everyone after the selected time. Turning this off cancels deletions that haven't happened yet.</string>

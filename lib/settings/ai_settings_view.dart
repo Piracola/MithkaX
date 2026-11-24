@@ -158,6 +158,19 @@ class _AiSettingsViewState extends State<AiSettingsView> {
                         AiReplyPromptEditorView(settings: settings),
                       ),
                     ),
+                    SettingsSwitchRow(
+                      key: const ValueKey('aiReplyButtonRow'),
+                      title: AppStringKeys.mithkaxAiReplyButton.l10n(context),
+                      subtitle: AppStringKeys.mithkaxAiReplyButtonHint.l10n(
+                        context,
+                      ),
+                      value: settings.replyButtonEnabled,
+                      leading: const SettingsLeadingIcon(
+                        icon: HeroAppIcons.wandMagicSparkles,
+                      ),
+                      onChanged: (value) =>
+                          unawaited(settings.setReplyButtonEnabled(value)),
+                    ),
                   ],
                 ),
               ],

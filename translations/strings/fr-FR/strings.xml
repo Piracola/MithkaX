@@ -4133,6 +4133,8 @@
     <string name="mithkaxHapticsHint">Vibre au toucher, à l'appui long et aux confirmations, même si la vibration tactile du système est désactivée.</string>
     <string name="mithkaxScheduledDeleteTitle">Suppression programmée</string>
     <string name="mithkaxScheduledDeleteEnable">Supprimer automatiquement mes messages de groupe</string>
+    <string name="mithkaxAiReplyButton">Bouton de réponse IA</string>
+    <string name="mithkaxAiReplyButtonHint">Afficher le bouton de réponse IA à côté du champ de saisie.</string>
     <string name="mithkaxScheduledDeleteDescription">S'applique uniquement aux groupes où la suppression automatique est désactivée. Les discussions privées et les canaux ne sont pas concernés.</string>
     <string name="mithkaxScheduledDeleteDuration">Supprimer après</string>
     <string name="mithkaxScheduledDeleteNote">Les messages envoyés dans ces groupes sont supprimés pour tous après la durée choisie. Désactiver cette option annule les suppressions en attente.</string>

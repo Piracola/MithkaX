@@ -17,12 +17,14 @@ void main() {
 
       expect(controller.initialized, isFalse);
       expect(controller.enabled, isFalse);
+      expect(controller.replyButtonEnabled, isFalse);
       expect(controller.provider, AiProviderMode.applePcc);
 
       await controller.initialize();
 
       expect(controller.initialized, isTrue);
       expect(controller.enabled, isFalse);
+      expect(controller.replyButtonEnabled, isFalse);
       expect(
         preferences.getBool(AiSettingsController.enabledPreferenceKey),
         AiSettingsController.defaultUnreadSummaryEnabled,
@@ -59,6 +61,46 @@ void main() {
       );
       expect(controller.isConfiguredForFeature(AiFeature.reply), isTrue);
     });
+
+    test(
+      'keeps the composer AI Reply button off until it is switched on',
+      () async {
+        SharedPreferences.setMockInitialValues({});
+        final preferences = await SharedPreferences.getInstance();
+        AiSettingsController newController() => AiSettingsController(
+          preferences,
+          pccApi: _pccApi(available: false),
+          secureRead: (_) async => null,
+          secureWrite: (_, _) async {},
+        );
+        final controller = newController();
+        await controller.initialize();
+
+        expect(controller.replyButtonEnabled, isFalse);
+        expect(
+          preferences.getBool(AiSettingsController.replyButtonPreferenceKey),
+          isNull,
+        );
+
+        await controller.setReplyButtonEnabled(true);
+        expect(controller.replyButtonEnabled, isTrue);
+        expect(
+          preferences.getBool(AiSettingsController.replyButtonPreferenceKey),
+          isTrue,
+        );
+
+        final restored = newController();
+        await restored.initialize();
+        expect(restored.replyButtonEnabled, isTrue);
+
+        await restored.setReplyButtonEnabled(false);
+        expect(restored.replyButtonEnabled, isFalse);
+        expect(
+          preferences.getBool(AiSettingsController.replyButtonPreferenceKey),
+          isFalse,
+        );
+      },
+    );
 
     test(
       'persists ordinary values but keeps API key in secure storage',

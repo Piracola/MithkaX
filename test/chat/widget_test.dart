@@ -162,6 +162,7 @@ void main() {
       bool targetIsOutgoing = false,
       bool? telegramReplySupported = true,
       bool appleOnDeviceAvailable = false,
+      bool showReplyButton = true,
       VoidCallback? onMessageSent,
       List<ChatMessage> leadingMessages = const [],
       List<ChatMessage> trailingMessages = const [],
@@ -189,6 +190,7 @@ void main() {
         secureWrite: (_, _) async {},
       );
       await settings.initialize();
+      await settings.setReplyButtonEnabled(showReplyButton);
       if (aiReplyPrompt != null) {
         await settings.setAiReplyPrompt(aiReplyPrompt);
       }
@@ -414,6 +416,28 @@ void main() {
         find.byKey(const ValueKey('composerAiReplyProgress')),
         findsNothing,
       );
+    });
+
+    testWidgets('AI Reply button follows its setting, off by default', (
+      tester,
+    ) async {
+      await pumpAiReplyComposer(tester, null, showReplyButton: false);
+      final action = find.byKey(const ValueKey('composerAiReplyButton'));
+      expect(action, findsNothing);
+
+      final settings = Provider.of<AiSettingsController>(
+        tester.element(find.byType(ChatInputBar)),
+        listen: false,
+      );
+      expect(settings.replyButtonEnabled, isFalse);
+
+      await settings.setReplyButtonEnabled(true);
+      await tester.pump();
+      expect(action, findsOneWidget);
+
+      await settings.setReplyButtonEnabled(false);
+      await tester.pump();
+      expect(action, findsNothing);
     });
 
     testWidgets('typing after a streamed draft rejects later AI chunks', (

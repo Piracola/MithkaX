@@ -4133,6 +4133,8 @@
     <string name="mithkaxHapticsHint">Vibriert bei Tippen, langem Drücken und Bestätigungen, auch wenn die Touch-Vibration des Systems aus ist.</string>
     <string name="mithkaxScheduledDeleteTitle">Geplantes Löschen</string>
     <string name="mithkaxScheduledDeleteEnable">Meine Gruppennachrichten automatisch löschen</string>
+    <string name="mithkaxAiReplyButton">KI-Antwortschaltfläche</string>
+    <string name="mithkaxAiReplyButtonHint">Die KI-Antwortschaltfläche neben dem Eingabefeld anzeigen.</string>
     <string name="mithkaxScheduledDeleteDescription">Gilt nur für Gruppen, in denen „Nachrichten automatisch löschen“ nicht aktiviert ist. Private Chats und Kanäle sind nicht betroffen.</string>
     <string name="mithkaxScheduledDeleteDuration">Löschen nach</string>
     <string name="mithkaxScheduledDeleteNote">In diesen Gruppen gesendete Nachrichten werden nach der gewählten Zeit für alle gelöscht. Wenn du diese Option deaktivierst, werden ausstehende Löschungen abgebrochen.</string>

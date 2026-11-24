@@ -6365,6 +6365,7 @@ class _ChatInputBarState extends State<ChatInputBar>
     final aiReplyWorking =
         replyTarget != null && _aiReplyWorkingTargetId == replyTarget.id;
     final showAiReply =
+        (aiReplyWorking || aiSettings?.replyButtonEnabled == true) &&
         !editing &&
         (!hasText || aiReplyWorking) &&
         replyTarget != null &&
@@ -7536,9 +7537,11 @@ class _ChatInputBarState extends State<ChatInputBar>
             (!_hasText && _pendingClipboardAttachments.isEmpty));
     final replyTarget = _currentAiReplyTarget();
     final aiReplyWorking = _aiReplyWorkingTargetId != null;
+    final aiReplyButtonEnabled = aiSettings?.replyButtonEnabled == true;
     final canUseAiReply =
         aiReplyWorking ||
-        (!_hasText &&
+        (aiReplyButtonEnabled &&
+            !_hasText &&
             replyTarget != null &&
             _canOfferAiReply(replyTarget, aiSettings));
     final canUseAiEditor =
@@ -7738,25 +7741,27 @@ class _ChatInputBarState extends State<ChatInputBar>
             active: false,
             onTap: () => unawaited(_openRichTextComposer()),
           ),
-          _desktopIcon(
-            key: const ValueKey('desktopComposerAiReplyAction'),
-            icon: aiReplyWorking
-                ? HeroAppIcons.xmark
-                : HeroAppIcons.wandMagicSparkles,
-            semanticLabel: aiReplyWorking
-                ? AppStringKeys.confirmCancel.l10n(context)
-                : AppStringKeys.aiReplyAction.l10n(context),
-            active: aiReplyWorking,
-            enabled: canUseAiReply,
-            onTap: aiReplyWorking
-                ? () => _invalidateAiReplyGeneration(clearProgress: true)
-                : replyTarget == null
-                ? null
-                : () => unawaited(_generateAiReply(replyTarget)),
-            onLongPress: !aiReplyWorking && canUseAiReply && replyTarget != null
-                ? () => unawaited(_showAiReplyModelPicker(replyTarget))
-                : null,
-          ),
+          if (aiReplyWorking || aiReplyButtonEnabled)
+            _desktopIcon(
+              key: const ValueKey('desktopComposerAiReplyAction'),
+              icon: aiReplyWorking
+                  ? HeroAppIcons.xmark
+                  : HeroAppIcons.wandMagicSparkles,
+              semanticLabel: aiReplyWorking
+                  ? AppStringKeys.confirmCancel.l10n(context)
+                  : AppStringKeys.aiReplyAction.l10n(context),
+              active: aiReplyWorking,
+              enabled: canUseAiReply,
+              onTap: aiReplyWorking
+                  ? () => _invalidateAiReplyGeneration(clearProgress: true)
+                  : replyTarget == null
+                  ? null
+                  : () => unawaited(_generateAiReply(replyTarget)),
+              onLongPress:
+                  !aiReplyWorking && canUseAiReply && replyTarget != null
+                  ? () => unawaited(_showAiReplyModelPicker(replyTarget))
+                  : null,
+            ),
           _desktopIcon(
             key: const ValueKey('desktopComposerAiEditorAction'),
             icon: HeroAppIcons.palette,
