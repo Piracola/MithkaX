@@ -2405,6 +2405,8 @@ class _ChatViewState extends State<ChatView> {
     final viewportRect = Offset.zero & viewportRenderObject.size;
     var changed = false;
     final newlyVisible = <ChatMessage>[];
+    final newlyVisiblePosts = <ChatMessage>[];
+    final onScreenPostIds = <int>{};
 
     for (final entry in _mountedTranscriptEntries.entries) {
       final itemRenderObject = entry.value;
@@ -2418,9 +2420,10 @@ class _ChatViewState extends State<ChatView> {
       final itemRect = itemOrigin & itemRenderObject.size;
       if (!itemRect.overlaps(viewportRect)) continue;
 
-      for (final message
-          in _trackedTranscriptEntries[entry.key]?.messages ??
-              const <ChatMessage>[]) {
+      final entryMessages =
+          _trackedTranscriptEntries[entry.key]?.messages ??
+          const <ChatMessage>[];
+      for (final message in entryMessages) {
         if (message.isOutgoing || message.isService) continue;
         final observation = _unreadProgress.observeVisibleIncoming(
           messageId: message.id,
@@ -2431,6 +2434,24 @@ class _ChatViewState extends State<ChatView> {
         }
         changed = observation.unreadCountChanged || changed;
       }
+      // A channel post's counters are only as fresh as the last time TDLib was
+      // asked about that post, and every client asks for the posts it shows —
+      // its own posts included. Report each post once per stay in the
+      // viewport; `retainVisibleChannelPosts` forgets the ones that leave so
+      // scrolling back refreshes them again.
+      if (_vm.isChannel) {
+        for (final message in entryMessages) {
+          if (message.isService || message.id <= 0) continue;
+          onScreenPostIds.add(message.id);
+          if (_unreadProgress.markChannelPostReported(messageId: message.id)) {
+            newlyVisiblePosts.add(message);
+          }
+        }
+      }
+    }
+
+    if (_vm.isChannel) {
+      _unreadProgress.retainVisibleChannelPosts(onScreenPostIds);
     }
 
     if (_showEntryUnreadBanner &&
@@ -2442,6 +2463,9 @@ class _ChatViewState extends State<ChatView> {
 
     if (newlyVisible.isNotEmpty) {
       _vm.markVisibleMessagesViewed(newlyVisible);
+    }
+    if (newlyVisiblePosts.isNotEmpty) {
+      _vm.reportChannelPostViews(newlyVisiblePosts);
     }
 
     if (changed && mounted) setState(() {});

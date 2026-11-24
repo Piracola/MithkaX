@@ -701,6 +701,36 @@ extension ChatViewModelHistory on ChatViewModel {
     );
   }
 
+  /// Reports channel posts that entered the viewport so TDLib re-reads their
+  /// counters.
+  ///
+  /// A channel post's view / forward counts live in TDLib's message record and
+  /// only move when TDLib asks the server for them: the live
+  /// `updateChannelMessageViews` push does not reach ordinary subscribers.
+  /// `viewMessages` is that ask — TDLib batches the ids, issues
+  /// `messages.getMessagesViews` and publishes the fresh numbers as
+  /// `updateMessageInteractionInfo`. Every other client asks for the posts it
+  /// displays; without it a post kept whatever counters the history page that
+  /// first loaded it carried.
+  ///
+  /// `messageSourceOther` keeps the report out of the read path: it neither
+  /// marks a read receipt nor increments the view counter, so it is safe for
+  /// the account's own posts and while ghost mode hides read receipts.
+  void reportChannelPostViews(Iterable<ChatMessage> posts) {
+    final ids = <int>{
+      for (final message in posts)
+        if (!message.isService && message.id > 0) message.id,
+    };
+    if (ids.isEmpty) return;
+    _client.send({
+      '@type': 'viewMessages',
+      'chat_id': chatId,
+      'message_ids': ids.toList(),
+      'source': {'@type': 'messageSourceOther'},
+      'force_read': false,
+    });
+  }
+
   /// Marks the mention selected by the blue @ control after the view has
   /// scrolled it into place. Awaiting TDLib prevents a quick second tap from
   /// resolving the same mention again.
