@@ -152,6 +152,12 @@ class MessageHistoryStore extends ChangeNotifier {
     // A chat whose counterpart deleted their account (or the chat) stops
     // being openable; kept entries then render in the ghost style.
     'updateChat',
+    // Carries the chat's TYPE. TDLib chat ids do not encode whether a
+    // supergroup is a channel (-100… covers both), and the per-class record /
+    // snapshot switches must know: treating every supergroup as a channel
+    // meant a "groups" switch never applied to the groups users actually
+    // have.
+    'updateNewChat',
     // A kept message's media file often finishes downloading only after the
     // message was recorded (the first paint downloads the size it shows).
     // Completion is the one moment the file can still be copied — once the
@@ -779,6 +785,8 @@ class MessageHistoryStore extends ChangeNotifier {
         _recordDeletedMessages(accountUserId, update);
       case 'updateChat':
         _recordChatLiveness(accountUserId, update);
+      case 'updateNewChat':
+        _recordNewChatType(accountUserId, update);
       case 'updateFile':
         _recordFileUpdate(update);
     }
@@ -1304,7 +1312,12 @@ class MessageHistoryStore extends ChangeNotifier {
     // the id class decides. Self chat snapshots with "private".
     if (chatId > 0) return settings.snapshotPrivate;
     if (chatId > -1000000000000) return settings.snapshotGroups;
-    return settings.snapshotChannels;
+    return _supergroupGate(
+      accountUserId,
+      chatId,
+      settings.snapshotGroups,
+      settings.snapshotChannels,
+    );
   }
 
   MessageMediaSnapshotter _media() =>
@@ -1320,6 +1333,12 @@ class MessageHistoryStore extends ChangeNotifier {
   /// TDLib is cached here — chat ids alone cannot tell a bot dialog from a
   /// human one.
   final Map<String, bool> _botChats = {};
+
+  /// (account, chat) → true when the supergroup is a channel. Only ids in the
+  /// -100… range need it; basic groups and private chats are decided by id.
+  /// Unknown supergroups default to channel so a groups-only setting never
+  /// starts recording channel content before the type is known.
+  final Map<String, bool> _channelChats = {};
 
   /// Whether the mirror may record [chatId] for [accountUserId] under the
   /// per-type switches. Bot gating applies to DIALOGS only (a private chat
@@ -1342,7 +1361,30 @@ class MessageHistoryStore extends ChangeNotifier {
       return settings.recordPrivate;
     }
     if (chatId > -1000000000000) return settings.recordGroups;
-    return settings.recordChannels;
+    return _supergroupGate(
+      accountUserId,
+      chatId,
+      settings.recordGroups,
+      settings.recordChannels,
+    );
+  }
+
+  /// Applies the groups/channels switches to a -100… chat. Only the chat's
+  /// type tells a supergroup from a channel; TDLib delivers it through
+  /// updateNewChat/updateChat. Until it is known, honouring EITHER switch is
+  /// the safe default: ids cannot tell the classes apart, supergroups
+  /// outnumber channels, and treating an unknown supergroup as a channel
+  /// silently disabled a groups-only setting for the groups users actually
+  /// have.
+  bool _supergroupGate(
+    int accountUserId,
+    int chatId,
+    bool groups,
+    bool channels,
+  ) {
+    final isChannel = _channelChats['$accountUserId:$chatId'];
+    if (isChannel == null) return groups || channels;
+    return isChannel ? channels : groups;
   }
 
   /// Best-effort bot detection from the message payload itself: only a
@@ -1369,7 +1411,18 @@ class MessageHistoryStore extends ChangeNotifier {
     final isBot = type?.boolean('is_bot') ?? false;
     if (type != null) {
       _botChats[key] = isBot;
+      if (type.type == 'chatTypeSupergroup') {
+        _channelChats[key] = type.boolean('is_channel') ?? true;
+      }
     }
+  }
+
+  /// updateNewChat carries the full chat, including its type; seed the
+  /// classification before any message of that chat arrives.
+  void _recordNewChatType(int accountUserId, Map<String, dynamic> update) {
+    final chat = update.obj('chat');
+    if (chat == null) return;
+    _rememberChatType(accountUserId, chat);
   }
 
   /// The snapshotter the viewer resolves media paths against (tests read
@@ -1677,6 +1730,8 @@ class MessageHistoryStore extends ChangeNotifier {
     _pendingAliveKeys.clear();
     _trackedMedia.clear();
     _entryMediaFileIds.clear();
+    _channelChats.clear();
+    _botChats.clear();
     _generation++;
     _clearedAllAt = ++_scopeEpoch;
     _media().deleteAll();
@@ -1727,6 +1782,8 @@ class MessageHistoryStore extends ChangeNotifier {
     if (keys.isNotEmpty) changed = true;
     _forgetPendingEdits(accountUserId);
     _media().deleteAccount(accountUserId);
+    _channelChats.removeWhere((key, _) => key.startsWith('$accountUserId:'));
+    _botChats.removeWhere((key, _) => key.startsWith('$accountUserId:'));
     if (_excludedChatsByAccount.remove(accountUserId) != null) changed = true;
     unawaited(_prefs?.remove('$_prefsKeyPrefix$accountUserId'));
     _removedAccountAt[accountUserId] = ++_scopeEpoch;

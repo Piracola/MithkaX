@@ -962,6 +962,151 @@ void main() {
     expect(File(entry.mediaPath).existsSync(), isTrue);
     expect(entry.mediaWidth, 512);
   });
+  test('a supergroup follows the groups media switch, not channels', () async {
+    final settings = MessageHistorySettings.shared;
+    settings.setRecordGroups(true);
+    settings.setRecordChannels(false);
+    settings.setSnapshotGroups(true);
+    settings.setSnapshotChannels(false);
+    const supergroupId = -1001234567890;
+    await start();
+    emitAs(_clientA, 'updateNewChat', {
+      'chat': {
+        '@type': 'chat',
+        'id': supergroupId,
+        'type': {
+          '@type': 'chatTypeSupergroup',
+          'supergroup_id': 1234567890,
+          'is_channel': false,
+        },
+      },
+    });
+    final media = MessageMediaSnapshotter.forTesting();
+    media.dir = dir;
+    store.mediaSnapshotter = media;
+    final source = File('${dir.path}/tdlib-cache-supergroup.jpg')
+      ..writeAsBytesSync(List.filled(7, 9));
+    emitAs(_clientA, 'updateNewMessage', {
+      'message': {
+        ..._message(supergroupId, 406),
+        'content': {
+          '@type': 'messagePhoto',
+          'photo': {
+            '@type': 'photo',
+            'sizes': [
+              {
+                '@type': 'photoSize',
+                'width': 800,
+                'height': 600,
+                'photo': _completeFile(21, source.path),
+              },
+            ],
+          },
+        },
+      },
+    });
+    for (var i = 0; i < 100; i++) {
+      if ((store.entry(supergroupId, 406)?.mediaPath ?? '').isNotEmpty) {
+        break;
+      }
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+    }
+    final entry = store.entry(supergroupId, 406)!;
+    expect(entry.chatId, supergroupId);
+    expect(entry.mediaPath, isNotEmpty);
+    expect(File(entry.mediaPath).lengthSync(), 7);
+  });
+
+  test('an unknown supergroup still honours the groups switch', () async {
+    // The type update can be missed (store subscribing after the startup
+    // burst); the id alone cannot say supergroup vs channel, so a groups-only
+    // setting must keep working instead of silently going dark.
+    final settings = MessageHistorySettings.shared;
+    settings.setRecordGroups(true);
+    settings.setRecordChannels(false);
+    settings.setSnapshotGroups(true);
+    settings.setSnapshotChannels(false);
+    const chatId = -1005554443332;
+    final media = MessageMediaSnapshotter.forTesting();
+    media.dir = dir;
+    store.mediaSnapshotter = media;
+    final source = File('${dir.path}/tdlib-cache-unknown.jpg')
+      ..writeAsBytesSync(List.filled(6, 4));
+    await start();
+    emitAs(_clientA, 'updateNewMessage', {
+      'message': {
+        ..._message(chatId, 408),
+        'content': {
+          '@type': 'messagePhoto',
+          'photo': {
+            '@type': 'photo',
+            'sizes': [
+              {
+                '@type': 'photoSize',
+                'width': 640,
+                'height': 480,
+                'photo': _completeFile(23, source.path),
+              },
+            ],
+          },
+        },
+      },
+    });
+    for (var i = 0; i < 100; i++) {
+      if ((store.entry(chatId, 408)?.mediaPath ?? '').isNotEmpty) break;
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+    }
+    expect(store.entry(chatId, 408)!.mediaPath, isNotEmpty);
+  });
+
+  test('a channel keeps the channels switch', () async {
+    final settings = MessageHistorySettings.shared;
+    settings.setRecordGroups(true);
+    settings.setRecordChannels(true);
+    settings.setSnapshotGroups(true);
+    settings.setSnapshotChannels(false);
+    const channelId = -1009876543210;
+    await start();
+    emitAs(_clientA, 'updateNewChat', {
+      'chat': {
+        '@type': 'chat',
+        'id': channelId,
+        'type': {
+          '@type': 'chatTypeSupergroup',
+          'supergroup_id': 9876543210,
+          'is_channel': true,
+        },
+      },
+    });
+    final media = MessageMediaSnapshotter.forTesting();
+    media.dir = dir;
+    store.mediaSnapshotter = media;
+    final source = File('${dir.path}/tdlib-cache-channel.jpg')
+      ..writeAsBytesSync(List.filled(5, 8));
+    emitAs(_clientA, 'updateNewMessage', {
+      'message': {
+        ..._message(channelId, 407),
+        'content': {
+          '@type': 'messagePhoto',
+          'photo': {
+            '@type': 'photo',
+            'sizes': [
+              {
+                '@type': 'photoSize',
+                'width': 800,
+                'height': 600,
+                'photo': _completeFile(22, source.path),
+              },
+            ],
+          },
+        },
+      },
+    });
+    await Future<void>.delayed(const Duration(milliseconds: 120));
+    expect(store.entry(channelId, 407), isNotNull);
+    expect(store.entry(channelId, 407)!.mediaPath, isEmpty);
+  });
+
   test(
     'a copy finishing after removeAccount leaves no snapshot file behind',
     () async {
