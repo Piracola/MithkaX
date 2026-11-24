@@ -69,7 +69,10 @@ void main() {
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(appHaptics, (call) async {
           appTicks.add(call);
-          return null;
+          // The shell reports whether the tick landed; answering false/null
+          // makes AppHaptics fall back to Flutter's channel and one tick
+          // counts twice.
+          return true;
         });
   });
   tearDownAll(() async {
@@ -160,9 +163,9 @@ void main() {
       );
       expect(
         ticks.single,
-        anyOf('medium', 'HapticFeedbackType.mediumImpact'),
+        anyOf('tap', 'HapticFeedbackType.lightImpact'),
         reason:
-            'the reveal uses KEYBOARD_TAP strength (mediumImpact) — the '
+            'the reveal uses the reference client\'s KEYBOARD_TAP — the '
             'CLOCK_TICK selection haptic is too faint to feel mid-gesture',
       );
 
