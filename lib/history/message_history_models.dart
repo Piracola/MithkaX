@@ -127,6 +127,7 @@ class MessageHistoryEntry {
     this.mediaMimeType = '',
     this.mediaFileId = 0,
     this.mediaSourcePath = '',
+    this.mediaPosterPath = '',
     this.hasLiveChat = true,
     this.topicId = 0,
   });
@@ -189,6 +190,11 @@ class MessageHistoryEntry {
   /// already finished downloading.
   final String mediaSourcePath;
 
+  /// Snapshot of the media's own thumbnail (video cover, sticker preview).
+  /// The file behind [mediaPath] is the playable/original one — a player
+  /// cannot paint it as a still — so this is what the bubble previews.
+  final String mediaPosterPath;
+
   /// False once TDLib reported the chat gone (deleted account/chat): the
   /// kept copy renders in the ghost style because there is no chat to open.
   final bool hasLiveChat;
@@ -236,7 +242,8 @@ class MessageHistoryEntry {
       other.mediaFileName == mediaFileName &&
       other.mediaMimeType == mediaMimeType &&
       other.mediaFileId == mediaFileId &&
-      other.mediaSourcePath == mediaSourcePath;
+      other.mediaSourcePath == mediaSourcePath &&
+      other.mediaPosterPath == mediaPosterPath;
 
   @override
   int get hashCode => Object.hash(
@@ -278,6 +285,7 @@ class MessageHistoryEntry {
     String? mediaMimeType,
     int? mediaFileId,
     String? mediaSourcePath,
+    String? mediaPosterPath,
     bool? hasLiveChat,
     int? topicId,
   }) => MessageHistoryEntry(
@@ -299,6 +307,7 @@ class MessageHistoryEntry {
     mediaMimeType: mediaMimeType ?? this.mediaMimeType,
     mediaFileId: mediaFileId ?? this.mediaFileId,
     mediaSourcePath: mediaSourcePath ?? this.mediaSourcePath,
+    mediaPosterPath: mediaPosterPath ?? this.mediaPosterPath,
     hasLiveChat: hasLiveChat ?? this.hasLiveChat,
     topicId: topicId ?? this.topicId,
   );
@@ -322,6 +331,7 @@ class MessageHistoryEntry {
     if (mediaMimeType.isNotEmpty) 'mediaMime': mediaMimeType,
     if (mediaFileId > 0) 'mediaFile': mediaFileId,
     if (mediaSourcePath.isNotEmpty) 'mediaSrc': mediaSourcePath,
+    if (mediaPosterPath.isNotEmpty) 'mediaPoster': mediaPosterPath,
     if (!hasLiveChat) 'noChat': true,
     if (topicId > 0) 'topic': topicId,
   };
@@ -357,6 +367,7 @@ class MessageHistoryEntry {
     final mediaMime = json['mediaMime'];
     final mediaFile = json['mediaFile'];
     final mediaSrc = json['mediaSrc'];
+    final mediaPoster = json['mediaPoster'];
     final noChat = json['noChat'];
     final topic = json['topic'];
     return MessageHistoryEntry(
@@ -385,6 +396,7 @@ class MessageHistoryEntry {
       mediaMimeType: mediaMime is String ? mediaMime : '',
       mediaFileId: mediaFile is int ? mediaFile : 0,
       mediaSourcePath: mediaSrc is String ? mediaSrc : '',
+      mediaPosterPath: mediaPoster is String ? mediaPoster : '',
       hasLiveChat: noChat is bool ? !noChat : true,
       topicId: topic is int ? topic : 0,
     );

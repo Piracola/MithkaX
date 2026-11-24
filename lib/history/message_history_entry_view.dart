@@ -184,6 +184,7 @@ class MessageHistoryEntryView extends StatelessWidget {
         children: [
           MediaSnapshotView(
             path: media,
+            posterPath: entry.mediaPosterPath,
             kindKey: entry.kindKey,
             kindLabel: kindLabel,
             fileName: entry.mediaFileName,

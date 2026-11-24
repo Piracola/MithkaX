@@ -10,6 +10,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:heroicons_flutter/heroicons_flutter.dart';
 import 'package:mithka/chat/messages/message_bubble.dart';
 import 'package:mithka/config/build_flags.dart';
 import 'package:mithka/history/message_history_models.dart';
@@ -30,8 +31,11 @@ final _pngBytes = base64Decode(
 MessageHistoryEntry _entry({
   required String kindKey,
   required String mediaPath,
+  String posterPath = '',
   String text = '',
   String fileName = '',
+  int width = 1,
+  int height = 1,
 }) => MessageHistoryEntry(
   accountUserId: 7,
   chatId: 11,
@@ -44,8 +48,9 @@ MessageHistoryEntry _entry({
   deletedAt: 1700009999,
   events: const [],
   mediaPath: mediaPath,
-  mediaWidth: 1,
-  mediaHeight: 1,
+  mediaPosterPath: posterPath,
+  mediaWidth: width,
+  mediaHeight: height,
   mediaFileName: fileName,
 );
 
@@ -127,6 +132,47 @@ void main() {
     await _pumpBubble(tester, _ghost(entry));
 
     expect(find.text('report.pdf'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
+
+  testWidgets('a deleted video previews its poster and keeps the play badge', (
+    tester,
+  ) async {
+    final video = File('${dir.path}/kept.mp4')
+      ..writeAsBytesSync(const [1, 2, 3]);
+    final poster = File('${dir.path}/kept.jpg')..writeAsBytesSync(_pngBytes);
+    final entry = _entry(
+      kindKey: 'historyKindVideo',
+      mediaPath: video.path,
+      posterPath: poster.path,
+      width: 640,
+      height: 360,
+      fileName: 'clip.mp4',
+    );
+    await _pumpBubble(tester, _ghost(entry));
+
+    expect(find.byType(Image), findsOneWidget);
+    expect(find.byIcon(HeroiconsOutline.play), findsOneWidget);
+    expect(find.text('Video', findRichText: true), findsNothing);
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
+
+  testWidgets('a deleted static sticker paints the sticker itself', (
+    tester,
+  ) async {
+    final sticker = File('${dir.path}/kept.webp')..writeAsBytesSync(_pngBytes);
+    final entry = _entry(
+      kindKey: 'historyKindSticker',
+      mediaPath: sticker.path,
+      width: 512,
+      height: 512,
+    );
+    await _pumpBubble(tester, _ghost(entry));
+
+    expect(find.byType(Image), findsOneWidget);
+    expect(find.text('Sticker', findRichText: true), findsNothing);
     expect(tester.takeException(), isNull);
     await tester.pumpWidget(const SizedBox.shrink());
   });

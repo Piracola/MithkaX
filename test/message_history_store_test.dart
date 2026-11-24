@@ -54,6 +54,18 @@ class _GatedResolver implements TosAccountUserIdResolver {
   Future<int?> resolve(int clientId) => ids[clientId]!.future;
 }
 
+/// A `file` object whose local copy is fully on disk.
+Map<String, dynamic> _completeFile(int id, String path) => {
+  '@type': 'file',
+  'id': id,
+  'local': {
+    '@type': 'localFile',
+    'path': path,
+    'is_downloading_completed': true,
+    'is_active_downloading': false,
+  },
+};
+
 Map<String, dynamic> _message(
   int chatId,
   int messageId, {
@@ -830,6 +842,125 @@ void main() {
     expect(entry.kindKey, 'historyKindAudio');
     expect(entry.mediaPath, isNotEmpty);
     expect(File(entry.mediaPath).existsSync(), isTrue);
+  });
+
+  // TDLib's `@type` wrappers nest the file one level down. A copy taken from
+  // the wrapper itself has no local path and silently never snapshots — the
+  // ghost then kept showing "Document"/"Video" for a file that was on disk.
+  test('a document file is snapshotted from document.document', () async {
+    final media = MessageMediaSnapshotter.forTesting();
+    media.dir = dir;
+    store.mediaSnapshotter = media;
+    final source = File('${dir.path}/tdlib-cache-report.pdf')
+      ..writeAsBytesSync(List.filled(6, 1));
+    await start();
+    emitAs(_clientA, 'updateNewMessage', {
+      'message': {
+        ..._message(11, 403),
+        'content': {
+          '@type': 'messageDocument',
+          'document': {
+            '@type': 'document',
+            'file_name': 'report.pdf',
+            'mime_type': 'application/pdf',
+            'document': _completeFile(8, source.path),
+          },
+        },
+      },
+    });
+    for (var i = 0; i < 100; i++) {
+      if ((store.entry(11, 403)?.mediaPath ?? '').isNotEmpty) break;
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+    }
+    final entry = store.entry(11, 403)!;
+    expect(entry.kindKey, 'historyKindDocument');
+    expect(entry.mediaFileName, 'report.pdf');
+    expect(entry.mediaPath, isNotEmpty);
+    expect(File(entry.mediaPath).lengthSync(), 6);
+  });
+
+  test('a video keeps its file and its poster apart', () async {
+    final media = MessageMediaSnapshotter.forTesting();
+    media.dir = dir;
+    store.mediaSnapshotter = media;
+    final video = File('${dir.path}/tdlib-cache-clip.mp4')
+      ..writeAsBytesSync(List.filled(9, 2));
+    final poster = File('${dir.path}/tdlib-cache-clip.jpg')
+      ..writeAsBytesSync(List.filled(3, 4));
+    await start();
+    emitAs(_clientA, 'updateNewMessage', {
+      'message': {
+        ..._message(11, 404),
+        'content': {
+          '@type': 'messageVideo',
+          'video': {
+            '@type': 'video',
+            'width': 640,
+            'height': 360,
+            'duration': 12,
+            'file_name': 'clip.mp4',
+            'mime_type': 'video/mp4',
+            'video': _completeFile(9, video.path),
+            'thumbnail': {
+              '@type': 'photoSize',
+              'width': 320,
+              'height': 180,
+              'photo': _completeFile(10, poster.path),
+            },
+          },
+        },
+      },
+    });
+    for (var i = 0; i < 100; i++) {
+      final entry = store.entry(11, 404);
+      if (entry != null &&
+          entry.mediaPath.isNotEmpty &&
+          entry.mediaPosterPath.isNotEmpty) {
+        break;
+      }
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+    }
+    final entry = store.entry(11, 404)!;
+    expect(entry.kindKey, 'historyKindVideo');
+    expect(entry.mediaPath, isNotEmpty);
+    expect(File(entry.mediaPath).lengthSync(), 9);
+    expect(entry.mediaPosterPath, isNotEmpty);
+    expect(entry.mediaPosterPath, isNot(entry.mediaPath));
+    expect(File(entry.mediaPosterPath).lengthSync(), 3);
+    expect(entry.mediaWidth, 640);
+    expect(entry.mediaDuration, 12);
+  });
+
+  test('a sticker is snapshotted from sticker.sticker', () async {
+    final media = MessageMediaSnapshotter.forTesting();
+    media.dir = dir;
+    store.mediaSnapshotter = media;
+    final stickerFile = File('${dir.path}/tdlib-cache-sticker.webp')
+      ..writeAsBytesSync(List.filled(4, 6));
+    await start();
+    emitAs(_clientA, 'updateNewMessage', {
+      'message': {
+        ..._message(11, 405),
+        'content': {
+          '@type': 'messageSticker',
+          'sticker': {
+            '@type': 'sticker',
+            'width': 512,
+            'height': 512,
+            'sticker': _completeFile(11, stickerFile.path),
+          },
+        },
+      },
+    });
+    for (var i = 0; i < 100; i++) {
+      if ((store.entry(11, 405)?.mediaPath ?? '').isNotEmpty) break;
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+    }
+    final entry = store.entry(11, 405)!;
+    expect(entry.kindKey, 'historyKindSticker');
+    expect(entry.mediaPath, isNotEmpty);
+    expect(File(entry.mediaPath).existsSync(), isTrue);
+    expect(entry.mediaWidth, 512);
   });
   test(
     'a copy finishing after removeAccount leaves no snapshot file behind',

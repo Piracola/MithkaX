@@ -3,9 +3,10 @@
 //
 //  One media snapshot of the kept-message mirror, rendered the same way in
 //  the history viewer and in the in-chat ghost bubble: photos inline at their
-//  real aspect ratio (capped), every other kind as a file row with its kind,
-//  name and duration. The file is the snapshot copy, so a deleted message
-//  shows its actual media instead of a bare "Photo" label.
+//  real aspect ratio (capped), video and animated-sticker previews from the
+//  poster frame kept next to the file, and every other kind as a file row.
+//  The file is the snapshot copy, so a deleted message shows its actual media
+//  instead of a bare "Photo" label.
 //
 
 import 'dart:io';
@@ -25,6 +26,7 @@ class MediaSnapshotView extends StatefulWidget {
     required this.path,
     required this.kindKey,
     required this.kindLabel,
+    this.posterPath = '',
     this.fileName = '',
     this.sourceWidth = 0,
     this.sourceHeight = 0,
@@ -35,7 +37,13 @@ class MediaSnapshotView extends StatefulWidget {
     this.onTap,
   });
 
+  /// The original media file (photo/video/document/...).
   final String path;
+
+  /// Thumbnail kept next to [path]; the only still a video or an animated
+  /// sticker can be previewed from.
+  final String posterPath;
+
   final String kindKey;
   final String kindLabel;
   final String fileName;
@@ -63,6 +71,26 @@ class _MediaSnapshotViewState extends State<MediaSnapshotView> {
 
   bool get _isPhoto => widget.kindKey == 'historyKindPhoto';
 
+  bool get _isSticker => widget.kindKey == 'historyKindSticker';
+
+  bool get _isVideoLike =>
+      widget.kindKey == 'historyKindVideo' ||
+      widget.kindKey == 'historyKindVideoNote' ||
+      widget.kindKey == 'historyKindAnimation';
+
+  /// The file actually painted, or '' when this kind has no still preview and
+  /// the view falls back to the file row.
+  String get _imagePath {
+    if (_isPhoto) return widget.path;
+    // A static sticker IS the image (webp/png); animated and video stickers
+    // are `.tgs`/`.webm`, which Image.file cannot decode.
+    if (_isSticker && _looksLikeImage(widget.path)) return widget.path;
+    if (widget.posterPath.isNotEmpty && (_isVideoLike || _isSticker)) {
+      return widget.posterPath;
+    }
+    return '';
+  }
+
   @override
   void initState() {
     super.initState();
@@ -72,11 +100,14 @@ class _MediaSnapshotViewState extends State<MediaSnapshotView> {
   @override
   void didUpdateWidget(MediaSnapshotView oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.path != widget.path) _check();
+    if (oldWidget.path != widget.path ||
+        oldWidget.posterPath != widget.posterPath) {
+      _check();
+    }
   }
 
   void _check() {
-    final path = widget.path;
+    final path = _imagePath.isNotEmpty ? _imagePath : widget.path;
     if (path.isEmpty) {
       _exists = false;
       return;
@@ -90,11 +121,15 @@ class _MediaSnapshotViewState extends State<MediaSnapshotView> {
 
   @override
   Widget build(BuildContext context) {
-    final c = context.colors;
-    if (_exists == false) {
-      return Text(widget.kindLabel, style: AppTextStyle.body(c.textSecondary));
+    final imagePath = _imagePath;
+    Widget body;
+    if (imagePath.isEmpty) {
+      body = _fileRow(context);
+    } else if (_exists == false) {
+      body = _fallbackLabel(context);
+    } else {
+      body = _image(context, imagePath);
     }
-    final body = _isPhoto ? _photo(context) : _fileRow(context);
     final onTap = widget.onTap;
     if (onTap == null) return body;
     return GestureDetector(
@@ -104,7 +139,7 @@ class _MediaSnapshotViewState extends State<MediaSnapshotView> {
     );
   }
 
-  Widget _photo(BuildContext context) {
+  Widget _image(BuildContext context, String path) {
     final sourceWidth = widget.sourceWidth > 0 ? widget.sourceWidth : 4;
     final sourceHeight = widget.sourceHeight > 0 ? widget.sourceHeight : 3;
     return LayoutBuilder(
@@ -128,21 +163,50 @@ class _MediaSnapshotViewState extends State<MediaSnapshotView> {
           1,
           2048,
         );
-        return SizedBox(
+        final frame = SizedBox(
           width: geometry.frameSize.width,
           height: geometry.frameSize.height,
           child: ClipRRect(
             borderRadius: BorderRadius.circular(widget.cornerRadius),
             child: Image.file(
-              File(widget.path),
-              key: ValueKey('history-media-${widget.path}'),
-              fit: BoxFit.contain,
+              File(path),
+              key: ValueKey('history-media-$path'),
+              fit: BoxFit.cover,
               cacheWidth: cacheWidth,
               errorBuilder: (_, _, _) => _fallbackLabel(context),
             ),
           ),
         );
+        if (!_isVideoLike && widget.kindKey != 'historyKindAnimation') {
+          return frame;
+        }
+        return Stack(
+          alignment: Alignment.center,
+          children: [
+            frame,
+            _badge(
+              widget.kindKey == 'historyKindAnimation'
+                  ? HeroAppIcons.gif
+                  : HeroAppIcons.play,
+            ),
+          ],
+        );
       },
+    );
+  }
+
+  /// Centered pill over a preview: play for video, GIF for animations.
+  Widget _badge(AppIconData icon) {
+    return Container(
+      width: 34,
+      height: 34,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: const Color(0x99000000),
+        shape: BoxShape.circle,
+        border: Border.all(color: const Color(0x40FFFFFF)),
+      ),
+      child: AppIcon(icon, size: 16, color: const Color(0xFFFFFFFF)),
     );
   }
 
@@ -201,6 +265,17 @@ class _MediaSnapshotViewState extends State<MediaSnapshotView> {
     style: AppTextStyle.body(context.colors.textSecondary),
   );
 
+  static bool _looksLikeImage(String path) {
+    final lower = path.toLowerCase();
+    return lower.endsWith('.jpg') ||
+        lower.endsWith('.jpeg') ||
+        lower.endsWith('.png') ||
+        lower.endsWith('.webp') ||
+        lower.endsWith('.gif') ||
+        lower.endsWith('.bmp') ||
+        lower.endsWith('.heic');
+  }
+
   static AppIconData _kindIcon(String kindKey) => switch (kindKey) {
     'historyKindVideo' ||
     'historyKindVideoNote' ||
@@ -208,6 +283,7 @@ class _MediaSnapshotViewState extends State<MediaSnapshotView> {
     'historyKindVoice' => HeroAppIcons.microphone,
     'historyKindAudio' => HeroAppIcons.music,
     'historyKindDocument' => HeroAppIcons.file,
+    'historyKindSticker' => HeroAppIcons.faceSmile,
     _ => HeroAppIcons.image,
   };
 }

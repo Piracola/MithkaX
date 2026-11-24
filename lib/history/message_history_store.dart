@@ -72,13 +72,20 @@ class _TdClientUserIdResolver implements TosAccountUserIdResolver {
 /// through updateFile, and the copy taken at that moment is the only one a
 /// deleted message will ever get.
 class _TrackedMediaFile {
-  _TrackedMediaFile({required this.width, required this.height});
+  _TrackedMediaFile({
+    required this.width,
+    required this.height,
+    this.poster = false,
+  });
 
   /// Pixel size of this exact file (a photo's sizes differ per candidate), 0
   /// when the content does not carry one. Used to decide whether a file that
   /// just landed is worth replacing an existing snapshot with.
   int width;
   int height;
+
+  /// True when this file is a poster (thumbnail), not the media file itself.
+  bool poster;
 
   /// Latest TDLib file object seen (arrival payload or updateFile).
   Map<String, dynamic>? file;
@@ -97,6 +104,7 @@ class _MediaCandidate {
     this.duration = 0,
     this.fileName = '',
     this.mimeType = '',
+    this.poster = false,
   });
 
   final Map<String, dynamic> file;
@@ -105,6 +113,10 @@ class _MediaCandidate {
   final int duration;
   final String fileName;
   final String mimeType;
+
+  /// True for a thumbnail that previews a video/animated media. Posters land
+  /// in the entry's `mediaPosterPath`, never in `mediaPath`.
+  final bool poster;
 
   int get fileId => file.integer('id') ?? 0;
 
@@ -899,10 +911,27 @@ class MessageHistoryStore extends ChangeNotifier {
     if (!_snapshotsEnabledFor(accountUserId, chatId, message)) return;
     final entryKey = '$accountUserId:$chatId:$messageId';
     _trackMediaCandidates(entryKey, candidates);
+    // Candidates are largest first: the first complete main file is the best
+    // one, and the first complete poster fills the preview slot.
+    var mainCopied = false;
+    var posterCopied = false;
     for (final candidate in candidates) {
       if (!_fileIsComplete(candidate.file)) continue;
-      unawaited(_snapshotCandidate(entryKey, candidate, upgrade: false));
-      break; // candidates are largest first: the arrival copy is the best one
+      if (candidate.poster ? posterCopied : mainCopied) continue;
+      if (candidate.poster) {
+        posterCopied = true;
+      } else {
+        mainCopied = true;
+      }
+      unawaited(
+        _snapshotCandidate(
+          entryKey,
+          candidate,
+          upgrade: false,
+          poster: candidate.poster,
+        ),
+      );
+      if (mainCopied && posterCopied) break;
     }
   }
 
@@ -910,6 +939,12 @@ class MessageHistoryStore extends ChangeNotifier {
   /// file per size; the biggest one is normally downloaded only when the user
   /// opens the photo, so EVERY size is a candidate — whichever lands on disk
   /// first becomes the snapshot, and a later, larger one upgrades it.
+  ///
+  /// Video / animation / video note / sticker entries add their `thumbnail`
+  /// as a POSTER candidate: the content file itself is a video or a `.tgs`,
+  /// which no image widget can paint, so the bubble previews the poster and
+  /// taps open the original. The `@type` wrappers nest the real file one level
+  /// down (`video.video`, `document.document`, ...).
   static List<_MediaCandidate> _mediaCandidates(Map<String, dynamic>? content) {
     if (content == null) return const [];
     switch (content.type) {
@@ -932,27 +967,57 @@ class MessageHistoryStore extends ChangeNotifier {
         return candidates;
       case 'messageVideo':
       case 'messageAnimation':
-        final media = content.obj('animation') ?? content.obj('video');
-        if (media == null) return const [];
+        final media = content.obj('video') ?? content.obj('animation');
+        final file = media?.obj('video') ?? media?.obj('animation');
+        if (media == null || file == null) return const [];
         return [
           _MediaCandidate(
-            file: media,
+            file: file,
             width: media.integer('width') ?? 0,
             height: media.integer('height') ?? 0,
             duration: media.integer('duration') ?? 0,
             fileName: media.str('file_name') ?? '',
             mimeType: media.str('mime_type') ?? '',
           ),
+          ?_posterCandidate(media),
         ];
       case 'messageDocument':
         final document = content.obj('document');
-        if (document == null) return const [];
+        final file = document?.obj('document');
+        if (document == null || file == null) return const [];
         return [
           _MediaCandidate(
-            file: document,
+            file: file,
             fileName: document.str('file_name') ?? '',
             mimeType: document.str('mime_type') ?? '',
           ),
+        ];
+      case 'messageVideoNote':
+        final note = content.obj('video_note');
+        final file = note?.obj('video');
+        if (note == null || file == null) return const [];
+        final length = note.integer('length') ?? 0;
+        return [
+          _MediaCandidate(
+            file: file,
+            width: length,
+            height: length,
+            duration: note.integer('duration') ?? 0,
+            mimeType: 'video/mp4',
+          ),
+          ?_posterCandidate(note),
+        ];
+      case 'messageSticker':
+        final sticker = content.obj('sticker');
+        final file = sticker?.obj('sticker');
+        if (sticker == null || file == null) return const [];
+        return [
+          _MediaCandidate(
+            file: file,
+            width: sticker.integer('width') ?? 0,
+            height: sticker.integer('height') ?? 0,
+          ),
+          ?_posterCandidate(sticker),
         ];
       case 'messageVoiceNote':
         // messageVoiceNote nests the file one level deeper: voice_note.voice.
@@ -983,12 +1048,28 @@ class MessageHistoryStore extends ChangeNotifier {
     return const [];
   }
 
+  /// The `thumbnail` of a media wrapper as a poster candidate, null when the
+  /// wrapper has none. A thumbnail is a `photoSize`: the file lives in `photo`.
+  static _MediaCandidate? _posterCandidate(Map<String, dynamic> media) {
+    final thumbnail = media.obj('thumbnail');
+    final file = thumbnail?.obj('photo');
+    if (thumbnail == null || file == null) return null;
+    return _MediaCandidate(
+      file: file,
+      width: thumbnail.integer('width') ?? 0,
+      height: thumbnail.integer('height') ?? 0,
+      poster: true,
+    );
+  }
+
   /// Metadata of the media a newly recorded copy remembers without
   /// registering anything: the largest candidate, whose file id also survives
   /// a restart so a later completion can still be picked up.
   static _MediaCandidate? _primaryMedia(Map<String, dynamic>? content) {
-    final candidates = _mediaCandidates(content);
-    return candidates.isEmpty ? null : candidates.first;
+    for (final candidate in _mediaCandidates(content)) {
+      if (!candidate.poster) return candidate;
+    }
+    return null;
   }
 
   /// Registers every candidate file of one kept copy. A file id shared by
@@ -1003,15 +1084,19 @@ class MessageHistoryStore extends ChangeNotifier {
       if (id <= 0) continue;
       final tracked = _trackedMedia.putIfAbsent(
         id,
-        () =>
-            _TrackedMediaFile(width: candidate.width, height: candidate.height),
+        () => _TrackedMediaFile(
+          width: candidate.width,
+          height: candidate.height,
+          poster: candidate.poster,
+        ),
       );
       // The file OBJECT is refreshed from updateFile (the record that
       // matters); keeping every arrival payload alive would cost megabytes
       // for a full-size mirror.
       tracked
         ..width = candidate.width
-        ..height = candidate.height;
+        ..height = candidate.height
+        ..poster = candidate.poster;
       tracked.entryKeys.add(entryKey);
       _entryMediaFileIds.putIfAbsent(entryKey, () => <int>{}).add(id);
     }
@@ -1058,8 +1143,14 @@ class MessageHistoryStore extends ChangeNotifier {
     for (final entryKey in tracked.entryKeys.toList(growable: false)) {
       final entry = _byKey[entryKey];
       if (entry == null) continue;
-      final upgrade = _candidateImproves(entry, tracked.width, tracked.height);
-      if (entry.mediaPath.isNotEmpty && !upgrade) continue;
+      final upgrade =
+          !tracked.poster &&
+          _candidateImproves(entry, tracked.width, tracked.height);
+      if (tracked.poster
+          ? entry.mediaPosterPath.isNotEmpty
+          : entry.mediaPath.isNotEmpty && !upgrade) {
+        continue;
+      }
       final parts = entryKey.split(':');
       if (parts.length != 3) continue;
       final accountUserId = int.tryParse(parts[0]);
@@ -1072,8 +1163,10 @@ class MessageHistoryStore extends ChangeNotifier {
           file: file,
           width: tracked.width,
           height: tracked.height,
+          poster: tracked.poster,
         ),
         upgrade: upgrade,
+        poster: tracked.poster,
       );
     }
   }
@@ -1105,12 +1198,18 @@ class MessageHistoryStore extends ChangeNotifier {
     String entryKey,
     _MediaCandidate candidate, {
     required bool upgrade,
+    bool? poster,
   }) {
     final previous = _snapshotWork[entryKey] ?? Future<void>.value();
     final work = previous
         .catchError((Object _) {})
         .then(
-          (_) => _runSnapshotCandidate(entryKey, candidate, upgrade: upgrade),
+          (_) => _runSnapshotCandidate(
+            entryKey,
+            candidate,
+            upgrade: upgrade,
+            poster: poster ?? candidate.poster,
+          ),
         );
     _snapshotWork[entryKey] = work;
     return work.whenComplete(() {
@@ -1124,6 +1223,7 @@ class MessageHistoryStore extends ChangeNotifier {
     String entryKey,
     _MediaCandidate candidate, {
     required bool upgrade,
+    required bool poster,
   }) async {
     final parts = entryKey.split(':');
     if (parts.length != 3) return;
@@ -1146,6 +1246,13 @@ class MessageHistoryStore extends ChangeNotifier {
     if (_disposed || _generation != generation) return;
     final existing = _byKey[entryKey];
     if (existing == null) return;
+    if (poster) {
+      if (existing.mediaPosterPath.isNotEmpty) return;
+      _byKey[entryKey] = existing.copyWith(mediaPosterPath: path);
+      notifyListeners();
+      _schedulePersist();
+      return;
+    }
     if (existing.mediaPath.isNotEmpty && !upgrade) return;
     if (existing.mediaPath.isNotEmpty &&
         !_candidateImproves(existing, candidate.width, candidate.height)) {
@@ -1432,7 +1539,10 @@ class MessageHistoryStore extends ChangeNotifier {
     Map<String, dynamic>? content,
     String entryKey,
   ) {
-    final candidates = _mediaCandidates(content);
+    final candidates = [
+      for (final candidate in _mediaCandidates(content))
+        if (!candidate.poster) candidate,
+    ];
     if (candidates.isEmpty) return;
     final wrapped = <String, dynamic>{'chat_id': chatId, 'content': content};
     if (!_snapshotsEnabledFor(accountUserId, chatId, wrapped)) return;
@@ -1771,6 +1881,7 @@ class MessageHistoryStore extends ChangeNotifier {
             // to reuse the id snapshot an unrelated file.
             mediaFileId: 0,
             mediaSourcePath: '',
+            mediaPosterPath: '',
           );
       restored++;
     }

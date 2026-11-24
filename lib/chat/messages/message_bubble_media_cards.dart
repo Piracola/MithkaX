@@ -97,6 +97,17 @@ extension _MessageBubbleMediaCards on _MessageBubbleState {
     );
   }
 
+  static bool _isImagePath(String path) {
+    final lower = path.toLowerCase();
+    return lower.endsWith('.jpg') ||
+        lower.endsWith('.jpeg') ||
+        lower.endsWith('.png') ||
+        lower.endsWith('.webp') ||
+        lower.endsWith('.gif') ||
+        lower.endsWith('.bmp') ||
+        lower.endsWith('.heic');
+  }
+
   String? _caption() {
     final text = _activeMessageText;
     return text.trim().isEmpty ? null : text;
@@ -113,17 +124,25 @@ extension _MessageBubbleMediaCards on _MessageBubbleState {
   Widget _keptMediaBubble(MessageHistoryEntry entry, bool outgoing) {
     final kindLabel = localizedHistoryKindLabel(context, entry.kindKey);
     final caption = _caption();
+    // Photos, static stickers and any kind with a poster paint as a still at
+    // their real aspect; the rest is a compact file row on the bubble.
     final isPhoto = entry.kindKey == 'historyKindPhoto';
+    final showsStill =
+        isPhoto ||
+        entry.mediaPosterPath.isNotEmpty ||
+        (entry.kindKey == 'historyKindSticker' &&
+            _isImagePath(entry.mediaPath));
     final media = MediaSnapshotView(
       path: entry.mediaPath,
+      posterPath: entry.mediaPosterPath,
       kindKey: entry.kindKey,
       kindLabel: kindLabel,
       fileName: entry.mediaFileName,
       sourceWidth: entry.mediaWidth,
       sourceHeight: entry.mediaHeight,
       durationSeconds: entry.mediaDuration,
-      maxWidth: isPhoto ? _mediaMaxWidth() : null,
-      maxHeight: isPhoto ? telegramChatMediaPreviewMaxHeight : 240,
+      maxWidth: showsStill ? _mediaMaxWidth() : null,
+      maxHeight: showsStill ? telegramChatMediaPreviewMaxHeight : 240,
       onTap: () => unawaited(openDownloadedFile(context, entry.mediaPath)),
     );
     final interactive = GestureDetector(
@@ -132,7 +151,7 @@ extension _MessageBubbleMediaCards on _MessageBubbleState {
       onSecondaryTapUp: _handleSecondaryTapUp,
       child: media,
     );
-    final width = isPhoto
+    final width = showsStill
         ? telegramDesktopMediaPreviewGeometry(
             sourceWidth: entry.mediaWidth > 0 ? entry.mediaWidth : 4,
             sourceHeight: entry.mediaHeight > 0 ? entry.mediaHeight : 3,
@@ -141,7 +160,7 @@ extension _MessageBubbleMediaCards on _MessageBubbleState {
           ).frameSize.width
         : _bubbleMaxWidth();
     return _mediaWithCaption(
-      media: isPhoto
+      media: showsStill
           ? interactive
           : Padding(
               padding: EdgeInsets.fromLTRB(
