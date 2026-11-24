@@ -27,6 +27,26 @@ void main() {
     expect(source, isNot(contains('incomingSharePayload = null')));
   });
 
+  test('a share that opened the window is flushed once the channel exists', () {
+    // FlutterFragmentActivity adds its fragment with commit(), so this
+    // Activity's channel is null while onCreate runs — and runOnUiThread runs
+    // INLINE on the UI thread, which is how the old delivery vanished.
+    expect(source, contains('private var shareDeliveryPending'));
+    expect(source, contains('private fun deliverShareToDart'));
+    final onNewIntent = source.substring(
+      source.indexOf('override fun onNewIntent('),
+      source.indexOf('private fun parseIncomingShareIntent('),
+    );
+    expect(onNewIntent, contains('deliverShareToDart(payload)'));
+    expect(onNewIntent, isNot(contains('runOnUiThread')));
+    final channel = source.substring(
+      source.indexOf('private fun configureShareIntentChannel('),
+      source.indexOf('override fun onNewIntent('),
+    );
+    expect(channel, contains('if (shareDeliveryPending)'));
+    expect(channel, contains('invokeMethod("share", payload)'));
+  });
+
   test('a copy thread always replies, even when a provider throws', () {
     expect(source, contains('catch (error: Throwable)'));
     expect(source, contains('Unable to copy shared files'));

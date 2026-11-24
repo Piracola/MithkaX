@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -67,6 +68,21 @@ class _FakeSource implements AndroidShareSource {
 }
 
 void main() {
+  test('a resumed app re-polls the platform for the pending share', () {
+    // A push delivery is dropped when Dart has no handler yet (warm attach,
+    // splash). The host polls again on every resume, and the payload is
+    // non-consuming, so that delivery is recovered instead of lost.
+    final host = File('lib/app/main_tab_view.dart').readAsStringSync();
+    expect(host, contains('with WidgetsBindingObserver'));
+    expect(host, contains('WidgetsBinding.instance.addObserver(this)'));
+    final lifecycle = host.substring(
+      host.indexOf('void didChangeAppLifecycleState('),
+      host.indexOf('void _handleAndroidShareIntentChanged('),
+    );
+    expect(lifecycle, contains('AppLifecycleState.resumed'));
+    expect(lifecycle, contains('_startAndroidShareIntake'));
+  });
+
   testWidgets('the picker opens while the file copy is still running', (
     tester,
   ) async {

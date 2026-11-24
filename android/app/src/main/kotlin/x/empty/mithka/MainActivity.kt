@@ -63,6 +63,7 @@ class MainActivity : FlutterFragmentActivity() {
     private var haptics: HapticsPlugin? = null
     private var mediaDropChannel: MethodChannel? = null
     private var shareIntentChannel: MethodChannel? = null
+    private var shareDeliveryPending = false
     private var acceptingImageDrop = false
     private var fullscreenSystemUi = false
 
@@ -844,6 +845,38 @@ class MainActivity : FlutterFragmentActivity() {
                 else -> result.notImplemented()
             }
         }
+        // A share that OPENED this window arrived while the FlutterFragment was
+        // still queued (FlutterFragmentActivity adds it with commit()), so the
+        // channel did not exist yet. Hand it over now.
+        if (shareDeliveryPending) {
+            shareDeliveryPending = false
+            incomingSharePayload?.let { payload ->
+                shareIntentChannel?.invokeMethod("share", payload)
+            }
+        }
+    }
+
+    /**
+     * Hands an inbound share to Dart.
+     *
+     * `shareIntentChannel` is created in `configureFlutterEngine`, which runs
+     * when this Activity's FlutterFragment attaches — and
+     * `FlutterFragmentActivity` adds that fragment with `commit()`, i.e. on the
+     * NEXT main-loop pass. A share that opens a new window therefore reaches
+     * `onNewIntent` while the channel is still null, and `Activity.runOnUiThread`
+     * runs its action INLINE when called on the UI thread (it only posts from
+     * another thread), so `runOnUiThread { channel?.invokeMethod(...) }` dropped
+     * the payload without a trace. Keep it pending and flush it from
+     * [configureShareIntentChannel]; the payload also stays process-wide for
+     * Dart's `initial` poll.
+     */
+    private fun deliverShareToDart(payload: Map<String, Any?>) {
+        val channel = shareIntentChannel
+        if (channel == null) {
+            shareDeliveryPending = true
+            return
+        }
+        channel.invokeMethod("share", payload)
     }
 
     override fun onNewIntent(intent: Intent) {
@@ -854,9 +887,7 @@ class MainActivity : FlutterFragmentActivity() {
         // Keep a copy for the initial() handshake as well. The payload id lets
         // Dart de-duplicate it if both paths race during a warm start.
         incomingSharePayload = payload
-        runOnUiThread {
-            shareIntentChannel?.invokeMethod("share", payload)
-        }
+        deliverShareToDart(payload)
     }
 
     private fun parseIncomingShareIntent(intent: Intent?): Map<String, Any?>? {

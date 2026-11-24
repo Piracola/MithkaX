@@ -125,7 +125,8 @@ class _MainTabViewState extends _MainRootViewState<MainTabView> {
 
 class _MainSplitRootViewState extends _MainRootViewState<MainSplitRootView> {}
 
-abstract class _MainRootViewState<T extends StatefulWidget> extends State<T> {
+abstract class _MainRootViewState<T extends StatefulWidget> extends State<T>
+    with WidgetsBindingObserver {
   static const _desktopSidebarWidthKey = 'mithka.desktopSplitSidebarWidth.v1';
 
   bool get checkForUpdates => false;
@@ -178,6 +179,7 @@ abstract class _MainRootViewState<T extends StatefulWidget> extends State<T> {
         split.keysHost?.call(_navKeys);
     }
     if (_androidShareIntent.supported) {
+      WidgetsBinding.instance.addObserver(this);
       _androidShareIntent.addListener(_handleAndroidShareIntentChanged);
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
@@ -272,12 +274,24 @@ abstract class _MainRootViewState<T extends StatefulWidget> extends State<T> {
     _observedAccounts?.removeListener(_handleAccountStoreChanged);
     _chatDeepLinks?.removeListener(_handlePendingChatDeepLink);
     _androidShareIntent.removeListener(_handleAndroidShareIntentChanged);
+    WidgetsBinding.instance.removeObserver(this);
     _chatListController.dispose();
     _unread.dispose();
     _tabBar.dispose();
     _topicListHost.dispose();
     _splitSidebarWidth.dispose();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // A share always brings this app to the front. Polling here recovers a
+    // payload whose push delivery was dropped (the platform channel does not
+    // buffer a call made while Dart had no handler) without waiting for a
+    // remount, and it is idempotent: the payload id de-duplicates it.
+    if (state == AppLifecycleState.resumed && _androidShareIntent.supported) {
+      unawaited(_startAndroidShareIntake());
+    }
   }
 
   void _handleAndroidShareIntentChanged() {
