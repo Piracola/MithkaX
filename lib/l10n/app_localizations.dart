@@ -1094,6 +1094,8 @@ abstract final class AppStringKeys {
   static const chatForwardRenderMarkdownPremium =
       'chatForwardRenderMarkdownPremium';
   static const chatForwardToTitle = 'chatForwardToTitle';
+  static const chatGoToMessage = 'chatGoToMessage';
+  static const chatGoToMessageHint = 'chatGoToMessageHint';
   static const chatInfoAlbum = 'chatInfoAlbum';
   static const chatInfoAutoDeleteMessages = 'chatInfoAutoDeleteMessages';
   static const chatInfoAutoDeleteOff = 'chatInfoAutoDeleteOff';

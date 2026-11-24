@@ -897,6 +897,8 @@
     <string name="chatDeleteUnavailable">无法删除此聊天。</string>
     <string name="chatDeletedAccountName">已注销账号</string>
     <string name="chatEditMessageTitle">编辑消息</string>
+    <string name="chatGoToMessage">前往消息</string>
+    <string name="chatGoToMessageHint">输入消息 ID</string>
     <string name="chatReplyInAnotherChatTitle">回复到</string>
     <string name="chatEditPlainText">普通文本</string>
     <string name="chatFirstContactNotContact">非联系人</string>

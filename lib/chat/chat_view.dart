@@ -106,9 +106,7 @@ import 'ai_translation/unread_chat_summary_models.dart';
 import 'ai_translation/unread_chat_summary_service.dart';
 import 'ai_translation/unread_chat_summary_view.dart';
 import 'appearance/chat_appearance_message_preview.dart';
-import 'appearance/chat_theme_view.dart';
 import 'appearance/chat_wallpaper.dart';
-import 'appearance/chat_wallpaper_view.dart';
 import 'channel_bottom_panel.dart';
 import 'chat_auto_scroll_policy.dart';
 import 'chat_first_contact_card.dart';
@@ -9104,10 +9102,11 @@ class _ChatViewState extends State<ChatView> {
   /// search and the pinned-message browser on top, then the chat commands
   /// (mute with its duration chooser, translation, linked chat, direct
   /// messages, calls, auto-delete), then management for an admin, then the
-  /// chat's own appearance, then the transcript jump, and finally the
-  /// destructive tail. Search leads because it used to hold its own header
-  /// glyph; a menu that pushes the most-used command to the bottom reads
-  /// backwards.
+  /// transcript jumps (to the beginning, to a typed message id), and finally
+  /// the destructive tail. Search leads because it used to hold its own
+  /// header glyph; a menu that pushes the most-used command to the bottom
+  /// reads backwards. Theme and wallpaper stay in the details page — the
+  /// header column keeps to what acts on the conversation itself.
   Future<void> _showChatHeaderMenu(Rect anchor) async {
     final actions = _chatHeaderMenuActions();
     if (actions.isEmpty) return;
@@ -9239,21 +9238,6 @@ class _ChatViewState extends State<ChatView> {
           sectionStart: true,
           onSelected: _openGroupManagement,
         ),
-      if (inChat)
-        AppMenuAction(
-          key: 'theme',
-          label: AppStrings.t(AppStringKeys.chatThemeTitle),
-          icon: HeroAppIcons.palette,
-          sectionStart: true,
-          onSelected: _openChatTheme,
-        ),
-      if (inChat)
-        AppMenuAction(
-          key: 'wallpaper',
-          label: AppStrings.t(AppStringKeys.chatWallpaperTitle),
-          icon: HeroAppIcons.image,
-          onSelected: _openChatWallpaper,
-        ),
       if (_vm.hasOlderHistory)
         AppMenuAction(
           key: 'to-beginning',
@@ -9261,6 +9245,13 @@ class _ChatViewState extends State<ChatView> {
           icon: HeroAppIcons.arrowUp,
           sectionStart: true,
           onSelected: () => unawaited(_jumpToBeginning()),
+        ),
+      if (inChat)
+        AppMenuAction(
+          key: 'go-to-message',
+          label: AppStrings.t(AppStringKeys.chatGoToMessage),
+          icon: HeroAppIcons.arrowRight,
+          onSelected: () => unawaited(_goToMessageFromMenu()),
         ),
       if (inChat && allowTelegramTosViolations)
         AppMenuAction(
@@ -9395,24 +9386,6 @@ class _ChatViewState extends State<ChatView> {
     );
   }
 
-  void _openChatTheme() {
-    Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) =>
-            ChatThemeView(chatId: _vm.chatId, chatTitle: _chatDisplayTitle),
-      ),
-    );
-  }
-
-  void _openChatWallpaper() {
-    Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) =>
-            ChatWallpaperView(chatId: _vm.chatId, chatTitle: _chatDisplayTitle),
-      ),
-    );
-  }
-
   void _openKeptMessages() {
     Navigator.of(context).push(
       MaterialPageRoute<void>(
@@ -9428,7 +9401,34 @@ class _ChatViewState extends State<ChatView> {
   /// exteraless's "to the beginning": the chat's very first message. TDLib
   /// keeps message ids positive per chat, so id 1 is the oldest one, and the
   /// transcript loads the page around it if it is not in memory.
-  Future<void> _jumpToBeginning() => _scrollToMessage(1, forceAlignment: true);
+  ///
+  /// Inside a topic the transcript only holds that topic's messages, so the
+  /// chat's id 1 is not reachable from it — a topic's id *is* its first
+  /// message's id (1 for the General topic), which is the oldest row the
+  /// topic's history can return.
+  Future<void> _jumpToBeginning() {
+    final topicId = widget.forumTopicId;
+    final target = topicId == null || topicId <= 0 ? 1 : topicId;
+    return _scrollToMessage(target, forceAlignment: true);
+  }
+
+  /// exteraless's "Go To": prompt for a message id and land on it. The
+  /// transcript pages around the id, so it works for messages it has not
+  /// loaded yet; an id that does not exist simply navigates nowhere.
+  Future<void> _goToMessageFromMenu() async {
+    final input = await showAppTextEntryDialog(
+      context,
+      title: AppStrings.t(AppStringKeys.chatGoToMessage),
+      actionLabel: AppStrings.t(AppStringKeys.confirmOk),
+      hint: AppStrings.t(AppStringKeys.chatGoToMessageHint),
+      keyboardType: TextInputType.number,
+      allowEmpty: false,
+    );
+    if (!mounted || input == null) return;
+    final messageId = int.tryParse(input.trim());
+    if (messageId == null || messageId <= 0) return;
+    await _scrollToMessage(messageId, forceAlignment: true);
+  }
 
   /// Clears this chat's history for this account and leaves the chat on
   /// screen, emptied — the details page's flow, reachable from the menu.

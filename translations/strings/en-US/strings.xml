@@ -897,6 +897,8 @@
     <string name="chatDeleteUnavailable">This chat can't be deleted.</string>
     <string name="chatDeletedAccountName">Deleted Account</string>
     <string name="chatEditMessageTitle">Edit Message</string>
+    <string name="chatGoToMessage">Go to message</string>
+    <string name="chatGoToMessageHint">Enter message ID</string>
     <string name="chatReplyInAnotherChatTitle">Reply in</string>
     <string name="chatEditPlainText">Plain text</string>
     <string name="chatFirstContactNotContact">Not a contact</string>

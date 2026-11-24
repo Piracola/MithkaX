@@ -897,6 +897,8 @@
     <string name="chatDeleteUnavailable">Dieser Chat kann nicht gelöscht werden.</string>
     <string name="chatDeletedAccountName">Gelöschtes Konto</string>
     <string name="chatEditMessageTitle">Nachricht bearbeiten</string>
+    <string name="chatGoToMessage">Zu Nachricht springen</string>
+    <string name="chatGoToMessageHint">Nachrichten-ID eingeben</string>
     <string name="chatReplyInAnotherChatTitle">Antworten in</string>
     <string name="chatEditPlainText">Nur Text</string>
     <string name="chatFirstContactNotContact">Kein Kontakt</string>

@@ -28,6 +28,7 @@ import 'package:mithka/auth/auth_manager.dart';
 import 'package:mithka/chat/chat_view.dart';
 import 'package:mithka/chat/pinned_messages_view.dart';
 import 'package:mithka/components/app_anchored_menu.dart';
+import 'package:mithka/components/app_dialog.dart';
 import 'package:mithka/components/app_icons.dart';
 import 'package:mithka/components/drawer_controller.dart' as dc;
 import 'package:mithka/l10n/app_locale_controller.dart';
@@ -310,6 +311,12 @@ void main() {
               };
             case 'getForumTopic':
               return _topic(50, 'Announcements');
+            case 'getForumTopicHistory':
+              return {
+                '@type': 'messages',
+                'total_count': 2,
+                'messages': [_message(52), _message(53)],
+              };
             case 'getOption':
               return {'@type': 'optionValueInteger', 'value': '1024'};
             case 'getCountries':
@@ -533,11 +540,12 @@ void main() {
     expect(row('call'), findsOneWidget);
     expect(row('video-call'), findsOneWidget);
     expect(row('auto-delete'), findsOneWidget);
-    // Appearance block.
-    expect(row('theme'), findsOneWidget);
-    expect(row('wallpaper'), findsOneWidget);
+    // The appearance rows live in the details page, not here.
+    expect(row('theme'), findsNothing);
+    expect(row('wallpaper'), findsNothing);
     // Transcript block.
     expect(row('to-beginning'), findsOneWidget);
+    expect(row('go-to-message'), findsOneWidget);
     // Destructive block: a private chat can be deleted, never left, and has
     // no group management or linked chat.
     expect(row('clear-history'), findsOneWidget);
@@ -562,7 +570,8 @@ void main() {
     double gapAfter(String above, String below) =>
         tester.getTopLeft(row(below)).dy - tester.getBottomLeft(row(above)).dy;
     expect(gapAfter('search', 'mute'), appAnchoredMenuSectionGap);
-    expect(gapAfter('theme', 'wallpaper'), 0);
+    expect(gapAfter('call', 'video-call'), 0);
+    expect(gapAfter('to-beginning', 'go-to-message'), 0);
     expect(gapAfter('clear-history', 'delete-chat'), 0);
 
     await closeChat(tester);
@@ -744,6 +753,57 @@ void main() {
     expect(request['chat_id'], _privateChatId);
     expect(request['remove_from_chat_list'], true);
     expect(closed, 1);
+
+    await closeChat(tester);
+  });
+
+  testWidgets('to the beginning inside a topic targets the topic message', (
+    tester,
+  ) async {
+    _kind = _Kind.forumCreator;
+    await openChat(tester, forumTopicId: 50);
+    await openMenu(tester);
+
+    await tester.tap(row('to-beginning'));
+    await tester.pumpAndSettle();
+
+    final request = _queries.lastWhere(
+      (response) => response['@type'] == 'getForumTopicHistory',
+    );
+    expect(
+      request['from_message_id'],
+      50,
+      reason: 'a topic id is its first message id; chat id 1 is unreachable',
+    );
+    expect(request['forum_topic_id'], 50);
+
+    await closeChat(tester);
+  });
+
+  testWidgets('go to message jumps to the id the user types', (tester) async {
+    await openChat(tester);
+    await openMenu(tester);
+
+    await tester.tap(row('go-to-message'));
+    await tester.pumpAndSettle();
+    expect(find.text('Go to message'), findsWidgets);
+    expect(find.text('Enter message ID'), findsOneWidget);
+
+    await tester.enterText(
+      find.descendant(
+        of: find.byType(AppDialogSurface),
+        matching: find.byType(TextField),
+      ),
+      '777',
+    );
+    await tester.tap(find.text('OK'));
+    await tester.pumpAndSettle();
+
+    final request = _queries.lastWhere(
+      (response) =>
+          response['@type'] == 'getMessage' && response['message_id'] == 777,
+    );
+    expect(request['chat_id'], _privateChatId);
 
     await closeChat(tester);
   });

@@ -897,6 +897,8 @@
     <string name="chatDeleteUnavailable">Ce chat ne peut pas être supprimé.</string>
     <string name="chatDeletedAccountName">Compte supprimé</string>
     <string name="chatEditMessageTitle">Modifier le message</string>
+    <string name="chatGoToMessage">Aller au message</string>
+    <string name="chatGoToMessageHint">Saisissez l’ID du message</string>
     <string name="chatReplyInAnotherChatTitle">Répondre dans</string>
     <string name="chatEditPlainText">Texte simple</string>
     <string name="chatFirstContactNotContact">Pas dans vos contacts</string>
