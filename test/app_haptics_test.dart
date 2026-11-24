@@ -139,16 +139,40 @@ void main() {
     );
   });
 
-  test('the Android shell ignores the system setting', () {
+  test('the Android shell plays the reference waveforms', () {
     final source = File(
       'android/app/src/main/kotlin/x/empty/mithka/HapticsPlugin.kt',
     ).readAsStringSync();
-    expect(source, contains('FLAG_IGNORE_GLOBAL_SETTING'));
-    expect(source, contains('FLAG_IGNORE_VIEW_SETTING'));
-    expect(source, contains('HapticFeedbackConstants.KEYBOARD_TAP'));
-    expect(source, contains('HapticFeedbackConstants.LONG_PRESS'));
-    expect(source, contains('HapticFeedbackConstants.CLOCK_TICK'));
+    // BotWebViewVibrationEffect's tables, amplitudes included: a 7 ms 145
+    // medium impact is what the reference client feels like, and a plain
+    // performHapticFeedback tick is far weaker.
+    expect(
+      source,
+      contains('Spec(longArrayOf(7), intArrayOf(145), longArrayOf(70))'),
+    );
+    expect(
+      source,
+      contains('Spec(longArrayOf(7), intArrayOf(65), longArrayOf(60))'),
+    );
+    expect(
+      source,
+      contains('Spec(longArrayOf(7), intArrayOf(255), longArrayOf(80))'),
+    );
+    expect(
+      source,
+      contains('Spec(longArrayOf(1), intArrayOf(65), longArrayOf(30))'),
+    );
+    expect(
+      source,
+      contains('VibrationEffect.createWaveform(timings, amplitudes, -1)'),
+    );
+    expect(source, contains('hasAmplitudeControl()'));
     expect(source, contains('const val CHANNEL = "mithka/haptics"'));
+    expect(source, isNot(contains('performHapticFeedback(')));
+    final manifest = File(
+      'android/app/src/main/AndroidManifest.xml',
+    ).readAsStringSync();
+    expect(manifest, contains('android.permission.VIBRATE'));
     final activity = File(
       'android/app/src/main/kotlin/x/empty/mithka/MainActivity.kt',
     ).readAsStringSync();

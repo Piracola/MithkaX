@@ -3,12 +3,12 @@
 //
 //  Every vibration the interface emits goes through here.
 //
-//  Flutter's `HapticFeedback` maps straight onto `View.performHapticFeedback`
-//  with no flags, so the system touch-vibration switch silences it. exteraless
-//  passes `FLAG_IGNORE_GLOBAL_SETTING`, which is why it still ticks on a phone
-//  with that switch off; the Android side of this bridge does the same, and
-//  keeps the same platform constants (KEYBOARD_TAP / LONG_PRESS / CLOCK_TICK)
-//  so the strength is the device's own.
+//  Flutter's `HapticFeedback` ends in `View.performHapticFeedback`, which the
+//  system touch-vibration switch silences and which is only as strong as the
+//  platform's key-tick constant. exteraless vibrates the `Vibrator` itself with
+//  Telegram's own waveforms, so it always fires and hits much harder; the
+//  Android shell of this bridge ports those waveforms (`HapticsPlugin.kt`),
+//  amplitudes included.
 //
 //  The one preference in [AppHaptics] is the app-wide switch: with it off
 //  nothing is sent to either channel, so no surface can buzz on its own.
@@ -20,9 +20,9 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-/// What a tick should feel like. The names match exteraless's platform
-/// constants: light/medium are a key tap, heavy and vibrate are a long press,
-/// selection is a clock tick.
+/// What a tick should feel like, named after the reference client's effects.
+/// `light`/`medium`/`heavy` are 7 ms impacts at 65/145/255 amplitude,
+/// `selection` is a 1 ms 65 tap and `vibrate` is the two-burst error pattern.
 enum AppHapticKind { light, medium, heavy, selection, vibrate }
 
 /// App-wide haptics: the on/off switch plus the delivery path.
@@ -33,8 +33,8 @@ class AppHaptics extends ChangeNotifier {
 
   static const _enabledKey = 'mithka.haptics.enabled.v1';
 
-  /// Carries the tick to the Android shell, which re-delivers it with the
-  /// "ignore" flags so the system touch-vibration switch cannot silence it.
+  /// Carries the tick to the Android shell, which plays the reference
+  /// client's waveform through the Vibrator.
   static const MethodChannel channel = MethodChannel('mithka/haptics');
 
   SharedPreferences? _prefs;

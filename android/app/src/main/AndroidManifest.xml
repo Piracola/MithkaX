@@ -11,6 +11,9 @@
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <!-- Keep media playback alive while the screen is off/backgrounded. -->
     <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <!-- UI haptics go straight to the Vibrator (see HapticsPlugin.kt): the
+         system touch-vibration switch only gates performHapticFeedback. -->
+    <uses-permission android:name="android.permission.VIBRATE" />
     <!-- In-call audio routing (earpiece / speaker / Bluetooth) for ntgcalls -->
     <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
     <!-- Camera capture (image_picker) -->
