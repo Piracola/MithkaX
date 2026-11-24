@@ -4107,6 +4107,14 @@ class ChatViewModel extends ChangeNotifier {
       if (inTranscript.contains(entry.messageId)) continue;
       ghosts.add(_ghostChatMessageFor(entry, accountUserId));
     }
+    // Ghost ids no longer exist on Telegram's side, so a ghost never shows up
+    // in a history batch and its sender would stay unresolved: no name, no
+    // avatar photo. Resolve them like any other incoming message; the async
+    // results patch the folded bubbles through _patchSenders. Ghosts folded by
+    // an earlier pass are covered too — they are no longer in `ghosts`, but
+    // their sender may still be resolving.
+    final knownGhosts = messages.where((m) => m.mirrorEntry != null);
+    _resolveSendersIfNeeded([...ghosts, ...knownGhosts]);
     if (ghosts.isEmpty) return;
     messages = mergeChatMessages(messages, ghosts);
   }
@@ -4125,6 +4133,7 @@ class ChatViewModel extends ChangeNotifier {
     final isOutgoing = accountUserId != null && entry.senderId == accountUserId;
     final hasMedia = entry.mediaPath.isNotEmpty;
     final caption = entry.text.trim();
+    final sender = senderId == null ? null : _senderCache[senderId];
     return ChatMessage(
       id: entry.messageId,
       isOutgoing: isOutgoing,
@@ -4139,12 +4148,21 @@ class ChatViewModel extends ChangeNotifier {
       chatId: chatId,
       senderId: senderId,
       contentType: 'mithkaGhost',
-      // Attribution: a group ghost renders the sender header like any kept
-      // message would; the fold re-runs on every rebuild, so a cached name
-      // lands without waiting for another pass.
+      // Attribution: a group ghost renders the sender header and avatar like
+      // any kept message would. The name/photo come from the sender cache the
+      // fold primed above; _patchSenders refreshes them when the async lookup
+      // lands. A chat-sent ghost (negative id) avatars as that chat.
       senderName: isOutgoing
           ? (meName.trim().isNotEmpty ? meName : null)
-          : _senderCache[senderId]?.name,
+          : sender?.name,
+      senderPhoto: sender?.photo,
+      senderIsChat: senderId != null && senderId < 0,
+      senderRole: sender?.role,
+      senderTitle: sender?.title,
+      senderIsPremium: sender?.isPremium ?? false,
+      senderIsDeleted: sender?.isDeleted ?? false,
+      senderAccentColorId: sender?.accentColorId ?? -1,
+      senderEmojiStatusId: sender?.emojiStatusId ?? 0,
     )..mirrorEntry = entry;
   }
 
@@ -4631,10 +4649,24 @@ class ChatViewModel extends ChangeNotifier {
       for (final m in messages) {
         final entry = m.mirrorEntry;
         if (entry == null) continue;
-        if (!senders.containsKey(entry.senderId)) continue;
-        final name = senders[entry.senderId]!.name;
-        if (m.senderName != name) {
-          m.senderName = name;
+        final info = senders[entry.senderId];
+        if (info == null) continue;
+        if (m.senderName != info.name ||
+            !_sameSenderPhoto(m.senderPhoto, info.photo) ||
+            m.senderRole != info.role ||
+            m.senderTitle != (info.title ?? m.senderTitle) ||
+            m.senderIsPremium != info.isPremium ||
+            m.senderIsDeleted != info.isDeleted ||
+            m.senderAccentColorId != info.accentColorId ||
+            m.senderEmojiStatusId != info.emojiStatusId) {
+          m.senderName = info.name;
+          m.senderPhoto = info.photo;
+          m.senderRole = info.role;
+          m.senderTitle = info.title ?? m.senderTitle;
+          m.senderIsPremium = info.isPremium;
+          m.senderIsDeleted = info.isDeleted;
+          m.senderAccentColorId = info.accentColorId;
+          m.senderEmojiStatusId = info.emojiStatusId;
           changed = true;
         }
       }

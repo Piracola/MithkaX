@@ -334,6 +334,71 @@ void main() {
       expect(ghost.senderName, 'Me');
     });
 
+    test('a group ghost resolves its sender avatar', () async {
+      MessageHistorySettings.shared.setRenderGhosts(true);
+      proxyQuery = (request) {
+        if (request['@type'] == 'getUser') {
+          return {
+            '@type': 'user',
+            'id': 42,
+            'first_name': 'Alice',
+            'last_name': 'Ann',
+            'usernames': {
+              '@type': 'usernames',
+              'active_usernames': [],
+              'disabled_usernames': [],
+              'editable_username': '',
+            },
+            'profile_photo': {
+              '@type': 'profilePhoto',
+              'id': 900,
+              'small': {
+                '@type': 'file',
+                'id': 901,
+                'size': 1600,
+                'expected_size': 1600,
+                'local': {
+                  '@type': 'localFile',
+                  'path': '/tmp/alice.jpg',
+                  'can_be_downloaded': true,
+                  'is_downloading_completed': true,
+                },
+                'remote': {
+                  '@type': 'remoteFile',
+                  'id': 'alice-small',
+                  'unique_id': 'alice-small',
+                  'is_uploading_active': false,
+                  'is_uploading_completed': true,
+                  'uploaded_size': 1600,
+                },
+              },
+              'big': {'@type': 'file', 'id': 902},
+            },
+          };
+        }
+        return <String, dynamic>{'@type': 'ok'};
+      };
+      addTearDown(() => proxyQuery = null);
+
+      store.debugSeed([_deletedGhostEntry(102)]);
+      final vm = makeViewModel();
+      vm.isGroup = true;
+      addTearDown(vm.dispose);
+      vm.debugRebuildTranscriptForTesting();
+      for (var i = 0; i < 100; i++) {
+        final ghost = vm.messages
+            .where((m) => m.mirrorEntry != null)
+            .firstOrNull;
+        if (ghost?.senderPhoto != null) break;
+        await Future<void>.delayed(const Duration(milliseconds: 5));
+      }
+
+      final ghost = vm.messages.firstWhere((m) => m.mirrorEntry != null);
+      expect(ghost.senderName, 'Alice Ann');
+      expect(ghost.senderPhoto, isNotNull);
+      expect(ghost.senderPhoto!.id, 901);
+    });
+
     test('a media-only ghost shows the localized kind label', () {
       MessageHistorySettings.shared.setRenderGhosts(true);
       store.debugSeed([

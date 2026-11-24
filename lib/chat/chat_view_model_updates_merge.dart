@@ -1450,6 +1450,36 @@ extension ChatViewModelUpdates on ChatViewModel {
         changed = true;
       }
     }
+    // Ghost bubbles never join the id/sender indexes (their ids no longer
+    // exist on Telegram's side), so the loop above cannot reach them. Patch
+    // the folded ghosts of the resolved senders directly — otherwise a group
+    // ghost keeps an initials avatar after its sender lookup lands.
+    if (allowTelegramTosViolations) {
+      for (final m in messages) {
+        final entry = m.mirrorEntry;
+        if (entry == null) continue;
+        final info = senders[entry.senderId];
+        if (info == null) continue;
+        if (m.senderName != info.name ||
+            !_sameSenderPhoto(m.senderPhoto, info.photo) ||
+            m.senderRole != info.role ||
+            m.senderTitle != (info.title ?? m.senderTitle) ||
+            m.senderIsPremium != info.isPremium ||
+            m.senderIsDeleted != info.isDeleted ||
+            m.senderAccentColorId != info.accentColorId ||
+            m.senderEmojiStatusId != info.emojiStatusId) {
+          m.senderName = info.name;
+          m.senderPhoto = info.photo;
+          m.senderRole = info.role;
+          m.senderTitle = info.title ?? m.senderTitle;
+          m.senderIsPremium = info.isPremium;
+          m.senderIsDeleted = info.isDeleted;
+          m.senderAccentColorId = info.accentColorId;
+          m.senderEmojiStatusId = info.emojiStatusId;
+          changed = true;
+        }
+      }
+    }
     if (changed) _scheduleCoalescedNotify();
   }
 
