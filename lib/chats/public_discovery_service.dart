@@ -40,36 +40,6 @@ class PublicDiscoveryService {
     return response.int64Array('chat_ids') ?? const [];
   }
 
-  Future<List<int>> similarChannelIds(int chatId) async {
-    final response = await TdClient.shared.query(similarChatsRequest(chatId));
-    return response.int64Array('chat_ids') ?? const [];
-  }
-
-  Future<List<int>> similarBotUserIds(int botUserId) async {
-    final response = await TdClient.shared.query(similarBotsRequest(botUserId));
-    return response.int64Array('user_ids') ?? const [];
-  }
-
-  Future<void> markSimilarChannelOpened({
-    required int sourceChatId,
-    required int openedChatId,
-  }) => TdClient.shared.query(
-    openSimilarChatRequest(
-      sourceChatId: sourceChatId,
-      openedChatId: openedChatId,
-    ),
-  );
-
-  Future<void> markSimilarBotOpened({
-    required int sourceBotUserId,
-    required int openedBotUserId,
-  }) => TdClient.shared.query(
-    openSimilarBotRequest(
-      sourceBotUserId: sourceBotUserId,
-      openedBotUserId: openedBotUserId,
-    ),
-  );
-
   Future<PublicDiscoveryMessagePage> searchPublicPosts({
     required String query,
     String offset = '',

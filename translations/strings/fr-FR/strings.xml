@@ -2957,12 +2957,10 @@
     <string name="publicDiscoveryFilterVideoNote">Messages vidéo</string>
     <string name="publicDiscoveryFilterVoice">Vocaux</string>
     <string name="publicDiscoveryLoadMore">Charger plus</string>
-    <string name="publicDiscoveryLoading">Chargement…</string>
     <string name="publicDiscoveryNoChannelsFound">Aucun canal ou bot public trouvé</string>
     <string name="publicDiscoveryNoMatchingMedia">Aucun média correspondant trouvé</string>
     <string name="publicDiscoveryNoPublicPostsFound">Aucune publication publique trouvée</string>
     <string name="publicDiscoveryNoRecommendations">Aucune recommandation</string>
-    <string name="publicDiscoveryNoSimilarResults">Aucun résultat similaire</string>
     <string name="publicDiscoveryPaidPublicSearch">Recherche publique payante</string>
     <string name="publicDiscoveryPostSearchHint">Rechercher des publications publiques par texte, #hashtag ou cashtag</string>
     <string name="publicDiscoveryPostSearchLimitReached">La limite de recherche de publications publiques est atteinte.</string>
@@ -2974,7 +2972,6 @@
     <string name="publicDiscoverySearchFailed">Échec de la recherche</string>
     <string name="publicDiscoverySearchForValue1Stars">Rechercher {value1} étoiles</string>
     <string name="publicDiscoverySearchPublicPostsOrHashtag">Rechercher des publications publiques ou un #hashtag</string>
-    <string name="publicDiscoverySimilarToValue1">Semblable à {value1}</string>
     <string name="publicDiscoveryTabChannels">Canaux</string>
     <string name="publicDiscoveryTabMedia">Médias globaux</string>
     <string name="publicDiscoveryTabPosts">Publications publiques</string>
@@ -3145,6 +3142,13 @@
     <string name="scheduledMessagesSendWhenOnline">Envoyer une fois en ligne</string>
     <string name="scheduledMessagesTitle">Messages programmés</string>
     <string name="scheduledMessagesTitleForChatValue1">Programmés · {value1}</string>
+    <string name="searchHistoryClearAction">Effacer</string>
+    <string name="searchHistoryClearMessage">Voulez-vous vraiment effacer votre historique de recherche ?</string>
+    <string name="searchHistoryClearTitle">Effacer l'historique de recherche</string>
+    <string name="searchHistoryRemoveAction">Retirer</string>
+    <string name="searchHistoryRemoveMessage">Retirer « {value1} » de l'historique de recherche ?</string>
+    <string name="searchHistoryRemoveTitle">Historique de recherche</string>
+    <string name="searchRecent">Récent</string>
     <string name="searchTabChats">Discussions</string>
     <string name="searchTabFiles">Fichiers</string>
     <string name="searchTabLinks">Liens</string>

@@ -2957,12 +2957,10 @@
     <string name="publicDiscoveryFilterVideoNote">Video notes</string>
     <string name="publicDiscoveryFilterVoice">Voice</string>
     <string name="publicDiscoveryLoadMore">Load more</string>
-    <string name="publicDiscoveryLoading">Loading…</string>
     <string name="publicDiscoveryNoChannelsFound">No public channels or bots found</string>
     <string name="publicDiscoveryNoMatchingMedia">No matching media found</string>
     <string name="publicDiscoveryNoPublicPostsFound">No public posts found</string>
     <string name="publicDiscoveryNoRecommendations">No recommendations</string>
-    <string name="publicDiscoveryNoSimilarResults">No similar results</string>
     <string name="publicDiscoveryPaidPublicSearch">Paid public search</string>
     <string name="publicDiscoveryPostSearchHint">Search public posts by text, #hashtag, or cashtag</string>
     <string name="publicDiscoveryPostSearchLimitReached">The public-post search limit has been reached.</string>
@@ -2974,7 +2972,6 @@
     <string name="publicDiscoverySearchFailed">Search failed</string>
     <string name="publicDiscoverySearchForValue1Stars">Search for {value1} Stars</string>
     <string name="publicDiscoverySearchPublicPostsOrHashtag">Search public posts or #hashtag</string>
-    <string name="publicDiscoverySimilarToValue1">Similar to {value1}</string>
     <string name="publicDiscoveryTabChannels">Channels</string>
     <string name="publicDiscoveryTabMedia">Global media</string>
     <string name="publicDiscoveryTabPosts">Public posts</string>
@@ -3145,6 +3142,13 @@
     <string name="scheduledMessagesSendWhenOnline">Send when online</string>
     <string name="scheduledMessagesTitle">Scheduled messages</string>
     <string name="scheduledMessagesTitleForChatValue1">Scheduled · {value1}</string>
+    <string name="searchHistoryClearAction">Clear</string>
+    <string name="searchHistoryClearMessage">Are you sure you want to clear your search history?</string>
+    <string name="searchHistoryClearTitle">Clear search history</string>
+    <string name="searchHistoryRemoveAction">Remove</string>
+    <string name="searchHistoryRemoveMessage">Are you sure you want to remove "{value1}" from search history?</string>
+    <string name="searchHistoryRemoveTitle">Search history</string>
+    <string name="searchRecent">Recent</string>
     <string name="searchTabChats">Chats</string>
     <string name="searchTabFiles">Files</string>
     <string name="searchTabLinks">Links</string>

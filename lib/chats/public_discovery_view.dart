@@ -34,10 +34,6 @@ class _PublicDiscoveryViewState extends State<PublicDiscoveryView> {
 
   List<_DiscoveryPeer> _channels = const [];
   List<_DiscoveryPeer> _bots = const [];
-  List<_DiscoveryPeer> _similar = const [];
-  String _similarTitle = '';
-  int? _similarSourceChatId;
-  int? _similarSourceBotUserId;
 
   List<_DiscoveryHit> _hits = const [];
   String _nextOffset = '';
@@ -105,10 +101,6 @@ class _PublicDiscoveryViewState extends State<PublicDiscoveryView> {
         if (_tab == _DiscoveryTab.channels) {
           _channels = const [];
           _bots = const [];
-          _similar = const [];
-          _similarTitle = '';
-          _similarSourceChatId = null;
-          _similarSourceBotUserId = null;
         } else {
           _hits = const [];
         }
@@ -185,58 +177,6 @@ class _PublicDiscoveryViewState extends State<PublicDiscoveryView> {
       }),
     );
     return peers.whereType<_DiscoveryPeer>().toList();
-  }
-
-  Future<List<_DiscoveryPeer>> _hydrateBotUsers(Iterable<int> ids) async {
-    final peers = await Future.wait(
-      ids.take(50).map((id) async {
-        try {
-          final user = await TdClient.shared.query({
-            '@type': 'getUser',
-            'user_id': id,
-          });
-          return _DiscoveryPeer(
-            chatId: 0,
-            title: TDParse.userName(user),
-            photo: TDParse.smallPhoto(user.obj('profile_photo')),
-            isBot: true,
-            botUserId: id,
-          );
-        } catch (_) {
-          return null;
-        }
-      }),
-    );
-    return peers.whereType<_DiscoveryPeer>().toList();
-  }
-
-  Future<void> _showSimilar(_DiscoveryPeer source) async {
-    setState(() {
-      _loading = true;
-      _error = null;
-      _similar = const [];
-      _similarTitle = AppStrings.t(
-        AppStringKeys.publicDiscoverySimilarToValue1,
-        {'value1': source.title},
-      );
-      _similarSourceChatId = source.isBot ? null : source.chatId;
-      _similarSourceBotUserId = source.isBot ? source.botUserId : null;
-    });
-    try {
-      final List<_DiscoveryPeer> peers;
-      if (source.isBot && source.botUserId != null) {
-        final ids = await _service.similarBotUserIds(source.botUserId!);
-        peers = await _hydrateBotUsers(ids);
-      } else {
-        final ids = await _service.similarChannelIds(source.chatId);
-        peers = await _hydrateChats(ids, isBot: false);
-      }
-      if (!mounted) return;
-      setState(() => _similar = peers);
-    } catch (error) {
-      if (mounted) setState(() => _error = error.toString());
-    }
-    if (mounted) setState(() => _loading = false);
   }
 
   Future<void> _loadPosts(
@@ -349,10 +289,7 @@ class _PublicDiscoveryViewState extends State<PublicDiscoveryView> {
     return hits;
   }
 
-  Future<void> _openPeer(
-    _DiscoveryPeer peer, {
-    required bool markSimilar,
-  }) async {
+  Future<void> _openPeer(_DiscoveryPeer peer) async {
     var chatId = peer.chatId;
     if (chatId == 0 && peer.botUserId != null) {
       try {
@@ -367,22 +304,6 @@ class _PublicDiscoveryViewState extends State<PublicDiscoveryView> {
       }
     }
     if (chatId == 0 || !mounted) return;
-    try {
-      final sourceChatId = markSimilar ? _similarSourceChatId : null;
-      final sourceBotUserId = markSimilar ? _similarSourceBotUserId : null;
-      if (sourceChatId != null) {
-        await _service.markSimilarChannelOpened(
-          sourceChatId: sourceChatId,
-          openedChatId: chatId,
-        );
-      } else if (sourceBotUserId != null && peer.botUserId != null) {
-        await _service.markSimilarBotOpened(
-          sourceBotUserId: sourceBotUserId,
-          openedBotUserId: peer.botUserId!,
-        );
-      }
-    } catch (_) {}
-    if (!mounted) return;
     await openChatFromCurrentWindow(context, chatId: chatId, title: peer.title);
   }
 
@@ -633,10 +554,6 @@ class _PublicDiscoveryViewState extends State<PublicDiscoveryView> {
                   _bots,
                 ),
               ],
-              if (_similarTitle.isNotEmpty) ...[
-                const SliverToBoxAdapter(child: SizedBox(height: 14)),
-                _peerSection(_similarTitle, _similar, tracksSimilarOpen: true),
-              ],
             ],
           ),
         ),
@@ -644,11 +561,7 @@ class _PublicDiscoveryViewState extends State<PublicDiscoveryView> {
     );
   }
 
-  Widget _peerSection(
-    String title,
-    List<_DiscoveryPeer> peers, {
-    bool tracksSimilarOpen = false,
-  }) {
+  Widget _peerSection(String title, List<_DiscoveryPeer> peers) {
     final c = context.colors;
     const radius = Radius.circular(AppRadius.card);
     return SliverMainAxisGroup(
@@ -674,18 +587,6 @@ class _PublicDiscoveryViewState extends State<PublicDiscoveryView> {
                       ),
                     ),
                   ),
-                  if (peers.isEmpty)
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(14, 4, 14, 14),
-                      child: Text(
-                        AppStrings.t(
-                          _loading
-                              ? AppStringKeys.publicDiscoveryLoading
-                              : AppStringKeys.publicDiscoveryNoSimilarResults,
-                        ),
-                        style: TextStyle(fontSize: 14, color: c.textTertiary),
-                      ),
-                    ),
                 ],
               ),
             ),
@@ -702,7 +603,7 @@ class _PublicDiscoveryViewState extends State<PublicDiscoveryView> {
                 children: [
                   if (index > 0)
                     Divider(height: 1, indent: 66, color: c.divider),
-                  _peerRow(peers[index], tracksSimilarOpen: tracksSimilarOpen),
+                  _peerRow(peers[index]),
                 ],
               ),
             );
@@ -718,11 +619,11 @@ class _PublicDiscoveryViewState extends State<PublicDiscoveryView> {
     );
   }
 
-  Widget _peerRow(_DiscoveryPeer peer, {required bool tracksSimilarOpen}) {
+  Widget _peerRow(_DiscoveryPeer peer) {
     final c = context.colors;
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
-      onTap: () => _openPeer(peer, markSimilar: tracksSimilarOpen),
+      onTap: () => _openPeer(peer),
       child: Padding(
         padding: const EdgeInsets.fromLTRB(14, 9, 8, 9),
         child: Row(
@@ -743,21 +644,6 @@ class _PublicDiscoveryViewState extends State<PublicDiscoveryView> {
                   fontSize: 15,
                   fontWeight: FontWeight.w600,
                   color: c.textPrimary,
-                ),
-              ),
-            ),
-            GestureDetector(
-              behavior: HitTestBehavior.opaque,
-              onTap: () => _showSimilar(peer),
-              child: SizedBox(
-                width: 44,
-                height: 42,
-                child: Center(
-                  child: AppIcon(
-                    HeroAppIcons.objectGroup,
-                    size: 19,
-                    color: AppTheme.brand,
-                  ),
                 ),
               ),
             ),

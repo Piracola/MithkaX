@@ -2947,12 +2947,10 @@
     <string name="publicDiscoveryFilterVideoNote">视频消息</string>
     <string name="publicDiscoveryFilterVoice">语音</string>
     <string name="publicDiscoveryLoadMore">加载更多</string>
-    <string name="publicDiscoveryLoading">加载中…</string>
     <string name="publicDiscoveryNoChannelsFound">未找到公开频道或机器人</string>
     <string name="publicDiscoveryNoMatchingMedia">未找到匹配的媒体</string>
     <string name="publicDiscoveryNoPublicPostsFound">未找到公开帖子</string>
     <string name="publicDiscoveryNoRecommendations">暂无推荐</string>
-    <string name="publicDiscoveryNoSimilarResults">没有相似结果</string>
     <string name="publicDiscoveryPaidPublicSearch">付费公共搜索</string>
     <string name="publicDiscoveryPostSearchHint">按文本、#话题标签或 $股票标签搜索公开帖子</string>
     <string name="publicDiscoveryPostSearchLimitReached">已达到公开帖子搜索的上限。</string>
@@ -2964,7 +2962,6 @@
     <string name="publicDiscoverySearchFailed">搜索失败</string>
     <string name="publicDiscoverySearchForValue1Stars">搜索 {value1} 星星</string>
     <string name="publicDiscoverySearchPublicPostsOrHashtag">搜索公开帖子或 #话题标签</string>
-    <string name="publicDiscoverySimilarToValue1">与 {value1} 相似</string>
     <string name="publicDiscoveryTabChannels">频道</string>
     <string name="publicDiscoveryTabMedia">全局媒体</string>
     <string name="publicDiscoveryTabPosts">公开帖子</string>
@@ -3135,6 +3132,13 @@
     <string name="scheduledMessagesSendWhenOnline">上线时发送</string>
     <string name="scheduledMessagesTitle">定时消息</string>
     <string name="scheduledMessagesTitleForChatValue1">定时 · {value1}</string>
+    <string name="searchHistoryClearAction">清空</string>
+    <string name="searchHistoryClearMessage">确定要清空搜索历史吗？</string>
+    <string name="searchHistoryClearTitle">清空搜索历史</string>
+    <string name="searchHistoryRemoveAction">移除</string>
+    <string name="searchHistoryRemoveMessage">确定要将“{value1}”从搜索历史中移除吗？</string>
+    <string name="searchHistoryRemoveTitle">搜索历史</string>
+    <string name="searchRecent">最近</string>
     <string name="searchTabChats">聊天</string>
     <string name="searchTabFiles">文件</string>
     <string name="searchTabLinks">链接</string>

@@ -3051,6 +3051,13 @@ abstract final class AppStringKeys {
   static const sensitiveContentUnblockMessage =
       'sensitiveContentUnblockMessage';
   static const sensitiveContentUnblockTitle = 'sensitiveContentUnblockTitle';
+  static const searchHistoryClearAction = 'searchHistoryClearAction';
+  static const searchHistoryClearMessage = 'searchHistoryClearMessage';
+  static const searchHistoryClearTitle = 'searchHistoryClearTitle';
+  static const searchHistoryRemoveAction = 'searchHistoryRemoveAction';
+  static const searchHistoryRemoveMessage = 'searchHistoryRemoveMessage';
+  static const searchHistoryRemoveTitle = 'searchHistoryRemoveTitle';
+  static const searchRecent = 'searchRecent';
   static const searchTabChats = 'searchTabChats';
   static const searchTokenFromTitle = 'searchTokenFromTitle';
   static const searchTokenHasExample = 'searchTokenHasExample';
@@ -5410,8 +5417,6 @@ abstract final class AppStringKeys {
       'storyAuthoringLiveAlreadyActive';
   static const storyAuthoringPostingUnavailable =
       'storyAuthoringPostingUnavailable';
-  static const publicDiscoverySimilarToValue1 =
-      'publicDiscoverySimilarToValue1';
   static const publicDiscoveryPostSearchLimitReached =
       'publicDiscoveryPostSearchLimitReached';
   static const publicDiscoverySearchChannelsAndBots =
@@ -5428,9 +5433,6 @@ abstract final class AppStringKeys {
   static const publicDiscoveryRecommendedChannels =
       'publicDiscoveryRecommendedChannels';
   static const publicDiscoveryBotsSection = 'publicDiscoveryBotsSection';
-  static const publicDiscoveryLoading = 'publicDiscoveryLoading';
-  static const publicDiscoveryNoSimilarResults =
-      'publicDiscoveryNoSimilarResults';
   static const publicDiscoveryPostSearchHint = 'publicDiscoveryPostSearchHint';
   static const publicDiscoveryNoPublicPostsFound =
       'publicDiscoveryNoPublicPostsFound';

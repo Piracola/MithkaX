@@ -2957,12 +2957,10 @@
     <string name="publicDiscoveryFilterVideoNote">Videonachrichten</string>
     <string name="publicDiscoveryFilterVoice">Sprache</string>
     <string name="publicDiscoveryLoadMore">Mehr laden</string>
-    <string name="publicDiscoveryLoading">Wird geladen…</string>
     <string name="publicDiscoveryNoChannelsFound">Keine öffentlichen Kanäle oder Bots gefunden</string>
     <string name="publicDiscoveryNoMatchingMedia">Keine passenden Medien gefunden</string>
     <string name="publicDiscoveryNoPublicPostsFound">Keine öffentlichen Beiträge gefunden</string>
     <string name="publicDiscoveryNoRecommendations">Keine Empfehlungen</string>
-    <string name="publicDiscoveryNoSimilarResults">Keine ähnlichen Ergebnisse</string>
     <string name="publicDiscoveryPaidPublicSearch">Bezahlte öffentliche Suche</string>
     <string name="publicDiscoveryPostSearchHint">Öffentliche Beiträge nach Text, #Hashtag oder Cashtag durchsuchen</string>
     <string name="publicDiscoveryPostSearchLimitReached">Das Suchlimit für öffentliche Beiträge ist erreicht.</string>
@@ -2974,7 +2972,6 @@
     <string name="publicDiscoverySearchFailed">Suche fehlgeschlagen</string>
     <string name="publicDiscoverySearchForValue1Stars">Suchen Sie nach {value1} Sternen</string>
     <string name="publicDiscoverySearchPublicPostsOrHashtag">Öffentliche Beiträge oder #Hashtag suchen</string>
-    <string name="publicDiscoverySimilarToValue1">Ähnlich wie {value1}</string>
     <string name="publicDiscoveryTabChannels">Kanäle</string>
     <string name="publicDiscoveryTabMedia">Globale Medien</string>
     <string name="publicDiscoveryTabPosts">Öffentliche Beiträge</string>
@@ -3145,6 +3142,13 @@
     <string name="scheduledMessagesSendWhenOnline">Senden, sobald online</string>
     <string name="scheduledMessagesTitle">Geplante Nachrichten</string>
     <string name="scheduledMessagesTitleForChatValue1">Geplant · {value1}</string>
+    <string name="searchHistoryClearAction">Leeren</string>
+    <string name="searchHistoryClearMessage">Möchtest du deinen Suchverlauf wirklich löschen?</string>
+    <string name="searchHistoryClearTitle">Suchverlauf löschen</string>
+    <string name="searchHistoryRemoveAction">Entfernen</string>
+    <string name="searchHistoryRemoveMessage">„{value1}“ aus dem Suchverlauf entfernen?</string>
+    <string name="searchHistoryRemoveTitle">Suchverlauf</string>
+    <string name="searchRecent">Zuletzt</string>
     <string name="searchTabChats">Chats</string>
     <string name="searchTabFiles">Dateien</string>
     <string name="searchTabLinks">Links</string>

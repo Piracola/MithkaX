@@ -2947,12 +2947,10 @@
     <string name="publicDiscoveryFilterVideoNote">영상 메시지</string>
     <string name="publicDiscoveryFilterVoice">음성</string>
     <string name="publicDiscoveryLoadMore">더 로드하기</string>
-    <string name="publicDiscoveryLoading">불러오는 중…</string>
     <string name="publicDiscoveryNoChannelsFound">공개 채널이나 봇을 찾을 수 없습니다</string>
     <string name="publicDiscoveryNoMatchingMedia">일치하는 미디어를 찾을 수 없습니다</string>
     <string name="publicDiscoveryNoPublicPostsFound">공개 게시물을 찾을 수 없습니다</string>
     <string name="publicDiscoveryNoRecommendations">추천이 없습니다</string>
-    <string name="publicDiscoveryNoSimilarResults">비슷한 결과가 없습니다</string>
     <string name="publicDiscoveryPaidPublicSearch">유료 공개 검색</string>
     <string name="publicDiscoveryPostSearchHint">텍스트, #해시태그 또는 $캐시태그로 공개 게시물 검색</string>
     <string name="publicDiscoveryPostSearchLimitReached">공개 게시물 검색 한도에 도달했습니다.</string>
@@ -2964,7 +2962,6 @@
     <string name="publicDiscoverySearchFailed">검색 실패</string>
     <string name="publicDiscoverySearchForValue1Stars">{value1} 별 검색</string>
     <string name="publicDiscoverySearchPublicPostsOrHashtag">공개 게시물 또는 #해시태그 검색</string>
-    <string name="publicDiscoverySimilarToValue1">{value1}과(와) 비슷함</string>
     <string name="publicDiscoveryTabChannels">채널</string>
     <string name="publicDiscoveryTabMedia">전체 미디어</string>
     <string name="publicDiscoveryTabPosts">공개 게시물</string>
@@ -3135,6 +3132,13 @@
     <string name="scheduledMessagesSendWhenOnline">온라인일 때 보내기</string>
     <string name="scheduledMessagesTitle">예약 메시지</string>
     <string name="scheduledMessagesTitleForChatValue1">예약 · {value1}</string>
+    <string name="searchHistoryClearAction">지우기</string>
+    <string name="searchHistoryClearMessage">검색 기록을 모두 지울까요?</string>
+    <string name="searchHistoryClearTitle">검색 기록 지우기</string>
+    <string name="searchHistoryRemoveAction">삭제</string>
+    <string name="searchHistoryRemoveMessage">“{value1}”을(를) 검색 기록에서 삭제할까요?</string>
+    <string name="searchHistoryRemoveTitle">검색 기록</string>
+    <string name="searchRecent">최근</string>
     <string name="searchTabChats">채팅</string>
     <string name="searchTabFiles">파일</string>
     <string name="searchTabLinks">링크</string>
