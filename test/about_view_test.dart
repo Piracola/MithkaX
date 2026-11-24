@@ -1,7 +1,7 @@
 //
 //  about_view_test.dart
 //
-//  关于 draws the penguin as ink, not as a square canvas: the mark asset is
+//  关于 draws the mark as ink, not as a square canvas: the mark asset is
 //  the artwork with its transparent margins trimmed, so the app name sits one
 //  gap token under the logo instead of under a band of empty pixels.
 //
@@ -26,7 +26,7 @@ void main() {
 
   testWidgets('the about mark carries no transparent canvas', (tester) async {
     await tester.runAsync(() async {
-      final data = await rootBundle.load('assets/penguin_mark.png');
+      final data = await rootBundle.load('assets/brand_mark_ink.png');
       final codec = await ui.instantiateImageCodec(data.buffer.asUint8List());
       final frame = await codec.getNextFrame();
       final image = frame.image;
@@ -54,7 +54,7 @@ void main() {
     });
   });
 
-  testWidgets('the app name sits one gap under the mark', (tester) async {
+  Future<void> pumpAbout(WidgetTester tester, AppColors colors) async {
     SharedPreferences.setMockInitialValues({});
     final theme = ThemeController(await SharedPreferences.getInstance());
     addTearDown(theme.dispose);
@@ -70,17 +70,35 @@ void main() {
             GlobalWidgetsLocalizations.delegate,
           ],
           supportedLocales: AppLocalizations.supportedLocales,
-          theme: ThemeData(extensions: [AppColors.light]),
+          theme: ThemeData(extensions: [colors]),
           home: const AboutView(showBackButton: false),
         ),
       ),
     );
-    await tester.pump();
+    // A ThemeData change animates through AnimatedTheme; settle so the mark
+    // reads the appearance it was pumped with.
+    await tester.pumpAndSettle();
+  }
+
+  testWidgets('the app name sits one gap under the mark', (tester) async {
+    await pumpAbout(tester, AppColors.light);
 
     final mark = find.byType(Image).first;
     final name = find.text('Mithka X');
     final gap = tester.getTopLeft(name).dy - tester.getBottomLeft(mark).dy;
     expect(gap, AppSpacing.md);
     expect(tester.getSize(mark).height, 84);
+  });
+
+  testWidgets('the mark is tinted to the theme ink, not baked', (tester) async {
+    // One asset serves both appearances: the artwork carries only alpha, so
+    // the widget must hand each theme its own ink or the mark disappears into
+    // the surface it sits on.
+    for (final colors in [AppColors.light, AppColors.dark]) {
+      await pumpAbout(tester, colors);
+      final mark = tester.widget<Image>(find.byType(Image).first);
+      expect(mark.color, colors.textPrimary, reason: '$colors');
+      expect(mark.image, isA<ResizeImage>());
+    }
   });
 }

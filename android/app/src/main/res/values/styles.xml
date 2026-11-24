@@ -6,7 +6,7 @@
              the Flutter engine draws its first frame -->
         <item name="android:windowBackground">@drawable/launch_penguin_background</item>
         <!-- Android 12+ builds the system splash screen from this attribute.
-             Point it at the same high-density penguin artwork so the system
+             Point it at the same high-density mark artwork so the system
              splash matches the legacy drawable on every density. -->
         <item name="android:windowSplashScreenAnimatedIcon">@drawable/penguin_splash</item>
         <item name="android:windowSplashScreenBackground">@color/launch_background</item>

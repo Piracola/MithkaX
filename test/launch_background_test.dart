@@ -6,11 +6,13 @@
 //  frame — and the user sees every seam between them. These tests pin the
 //  three to the same two colours so the launch screen follows the system
 //  light/dark appearance instead of flashing white. The values-v31 layer
-//  additionally pins the Android 12+ system splash icon to the penguin mark.
+//  additionally pins the Android 12+ system splash icon to the app mark and
+//  checks the mark artwork is baked once per appearance.
 //
 
 import 'dart:convert';
 import 'dart:io';
+import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -75,6 +77,67 @@ Color _iosColor(Map<String, dynamic> colorSet, String? appearance) =>
       (_iosChannel(colorSet, appearance, 'blue') * 255).round(),
       1,
     );
+
+/// What the cold-start artwork actually contains: its ink box and its colour.
+class _MarkInk {
+  const _MarkInk({
+    required this.width,
+    required this.height,
+    required this.leftMargin,
+    required this.rightMargin,
+    required this.heightShare,
+    required this.luminance,
+  });
+
+  final int width;
+  final int height;
+  final int leftMargin;
+  final int rightMargin;
+  final double heightShare;
+
+  /// Mean luminance of the opaque pixels, 0..255.
+  final double luminance;
+}
+
+/// Decodes [path] and measures its opaque ink.
+Future<_MarkInk> _markInk(String path) async {
+  final codec = await ui.instantiateImageCodec(File(path).readAsBytesSync());
+  final frame = await codec.getNextFrame();
+  final image = frame.image;
+  final bytes = (await image.toByteData())!.buffer.asUint8List();
+  var minX = image.width, maxX = -1, minY = image.height, maxY = -1;
+  var total = 0.0;
+  var count = 0;
+  for (var y = 0; y < image.height; y++) {
+    for (var x = 0; x < image.width; x++) {
+      final alpha = bytes[(y * image.width + x) * 4 + 3];
+      if (alpha < 8) continue;
+      if (x < minX) minX = x;
+      if (x > maxX) maxX = x;
+      if (y < minY) minY = y;
+      if (y > maxY) maxY = y;
+      final offset = (y * image.width + x) * 4;
+      total +=
+          0.2126 * bytes[offset] +
+          0.7152 * bytes[offset + 1] +
+          0.0722 * bytes[offset + 2];
+      count++;
+    }
+  }
+  final width = image.width;
+  final height = image.height;
+  image.dispose();
+  codec.dispose();
+  expect(count, greaterThan(0), reason: '$path carries no ink');
+  return _MarkInk(
+    width: width,
+    height: height,
+    leftMargin: minX,
+    rightMargin: width - 1 - maxX,
+    heightShare: (maxY - minY + 1) / height,
+    luminance: total / count,
+  );
+}
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -155,14 +218,14 @@ void main() {
         }
 
         // LaunchTheme paints the splash drawable, whose bottom layer is the
-        // night-qualified colour checked above (top layer: the penguin).
+        // night-qualified colour checked above (top layer: the mark).
         final launchTheme = style('LaunchTheme');
         expect(
           launchTheme,
           contains(
             '<item name="android:windowBackground">@drawable/launch_penguin_background</item>',
           ),
-          reason: 'LaunchTheme in $path must paint the penguin splash drawable',
+          reason: 'LaunchTheme in $path must paint the mark splash drawable',
         );
         // NormalTheme is the window behind Flutter's first frame. It must not
         // resolve to AppCompat's grey colorBackground, or removing the splash
@@ -195,10 +258,10 @@ void main() {
       }
     });
 
-    test('Android 12+ splash icon is the penguin mark', () {
+    test('Android 12+ splash icon is the app mark', () {
       // Without windowSplashScreenAnimatedIcon the system splash falls back
       // to the launcher icon — the manifest default is the small monochrome
-      // letter_m mark. The fork's splash must carry the penguin, matching
+      // letter_m mark. The fork's splash must carry the app mark, matching
       // the in-app cold-start page.
       final xml = _read('$_androidRes/values-v31/styles.xml');
       final launchTheme = RegExp(
@@ -211,7 +274,7 @@ void main() {
           '<item name="android:windowSplashScreenAnimatedIcon">'
           '@drawable/penguin_splash</item>',
         ),
-        reason: 'the Android 12+ system splash must show the penguin mark',
+        reason: 'the Android 12+ system splash must show the app mark',
       );
       // The drawable exists in every density bucket.
       for (final bucket in ['mdpi', 'hdpi', 'xhdpi', 'xxhdpi', 'xxxhdpi']) {
@@ -221,11 +284,64 @@ void main() {
           reason: 'drawable-$bucket/penguin_splash.png must exist',
         );
       }
-      // The source asset is the same penguin the login page shows.
-      expect(File('assets/penguin.png').existsSync(), isTrue);
+      // The source asset is the same mark the login page shows.
+      expect(File('assets/brand_mark.png').existsSync(), isTrue);
     });
 
-    test('every Android 12+ theme bucket pins the penguin splash icon', () {
+    test('the cold-start mark is baked once per appearance', () async {
+      // A bitmap cannot be tinted by the launch colour, so the drawable ships
+      // twice: ink for values/colors.xml, white for values-night/colors.xml.
+      // A missing night copy would leave a black mark on the near-black
+      // starting window.
+      for (final bucket in ['mdpi', 'hdpi', 'xhdpi', 'xxhdpi', 'xxxhdpi']) {
+        for (final name in ['penguin_launch', 'penguin_splash']) {
+          for (final qualifier in ['drawable', 'drawable-night']) {
+            final path = '$_androidRes/$qualifier-$bucket/$name.png';
+            expect(File(path).existsSync(), isTrue, reason: path);
+          }
+        }
+      }
+      for (final qualifier in ['drawable', 'drawable-night']) {
+        final path = '$_androidRes/$qualifier/penguin_launch.png';
+        expect(File(path).existsSync(), isTrue, reason: path);
+      }
+
+      for (final bucket in ['mdpi', 'xxxhdpi']) {
+        for (final name in ['penguin_launch', 'penguin_splash']) {
+          final day = await _markInk('$_androidRes/drawable-$bucket/$name.png');
+          final night = await _markInk(
+            '$_androidRes/drawable-night-$bucket/$name.png',
+          );
+          for (final art in [day, night]) {
+            expect(
+              art.width,
+              art.height,
+              reason: '$bucket/$name must be square',
+            );
+            // The Android 12 system splash masks a circle into the icon; the
+            // mark must stay inside its middle third.
+            expect(
+              art.heightShare,
+              closeTo(0.62, 0.02),
+              reason: '$bucket/$name',
+            );
+            expect(
+              art.leftMargin,
+              closeTo(art.rightMargin, 2),
+              reason: '$bucket/$name must be centred',
+            );
+          }
+          expect(day.luminance, lessThan(40), reason: '$bucket/$name day ink');
+          expect(
+            night.luminance,
+            greaterThan(215),
+            reason: '$bucket/$name night ink',
+          );
+        }
+      }
+    });
+
+    test('every Android 12+ theme bucket pins the mark splash icon', () {
       // Resource qualifier precedence puts UI mode (night) ABOVE platform
       // version, so on a dark-mode Android 12 device the winning LaunchTheme
       // bucket is values-night-v29 — night outranks the v31 version check —
@@ -251,7 +367,7 @@ void main() {
             '@drawable/penguin_splash</item>',
           ),
           reason:
-              'LaunchTheme in $path must pin the penguin splash icon — dark '
+              'LaunchTheme in $path must pin the mark splash icon — dark '
               'mode resolves this bucket (night outranks v31) and without '
               'the item the Android 12+ splash becomes the launcher icon',
         );
@@ -263,7 +379,7 @@ void main() {
       // combinations an Android 12+ device can be in. For each, walks the
       // resource system's bucket preference (roughly: night-uiMode and
       // v29+ buckets beat the unqualified default) and asserts the winning
-      // LaunchTheme still carries the pinned penguin icon.
+      // LaunchTheme still carries the pinned mark icon.
       String win(String path) {
         final xml = _read(path);
         return RegExp(

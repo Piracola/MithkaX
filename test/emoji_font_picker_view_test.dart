@@ -167,8 +167,8 @@ void main() {
   });
 
   // The last-resort preview face is the system 🐧 emoji glyph, never the
-  // fork's penguin logo asset — unknown keys and failed assets both land
-  // there (regression: the fallback used to be assets/penguin.png).
+  // fork's brand-mark asset — unknown keys and failed assets both land
+  // there (regression: the fallback used to be assets/brand_mark.png).
   testWidgets('unmapped keys fall back to the system penguin emoji', (
     tester,
   ) async {
@@ -177,7 +177,7 @@ void main() {
     await pumpPicker(tester);
     // 'cursed' has no bundled preview asset and no channel preview id, and
     // the system row also renders the system penguin — expect at least one
-    // penguin face, never the fork's penguin logo asset.
+    // penguin face, never the fork's brand-mark asset.
     final penguin = find.text('\u{1F427}');
     expect(penguin, findsAtLeast(1));
     final style = tester.widget<Text>(penguin.first).style;
@@ -186,7 +186,7 @@ void main() {
     expect(
       find.byWidgetPredicate((w) {
         if (w is! Image || w.image is! AssetImage) return false;
-        return (w.image as AssetImage).assetName == 'assets/penguin.png';
+        return (w.image as AssetImage).assetName == 'assets/brand_mark.png';
       }),
       findsNothing,
     );

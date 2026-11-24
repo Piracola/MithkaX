@@ -397,7 +397,9 @@ abstract final class AppMetric {
       : AppTextSize.bodyLarge;
   static double popupMenuInset([TargetPlatform? platform]) =>
       isDesktopTargetPlatform(platform) ? AppSpacing.lg : AppSpacing.xxl;
-  static const double splashPenguinSize = 192;
+
+  /// The app mark on the startup screen.
+  static const double splashMarkSize = 192;
   static const double splashSpinnerSize = 24;
 
   /// A chosen launcher icon on the startup screen: about the size Android's

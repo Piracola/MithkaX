@@ -22,6 +22,7 @@ import '../bot_api/bot_api_client.dart';
 import '../bot_api/bot_api_endpoint_config.dart';
 import '../components/app_icons.dart';
 import '../components/app_interactive_surface.dart';
+import '../components/brand_mark.dart';
 import '../components/country_flag.dart';
 import '../components/ui_components.dart';
 import '../platform/adaptive_platform.dart';
@@ -397,7 +398,7 @@ class _LoginViewState extends State<LoginView> {
                         backToPhoneOnly: backToPhoneOnly,
                         showingPhone: showingPhone,
                       ),
-                    _penguinMark(_TouchLoginMetrics.brandMark),
+                    _brandMark(_TouchLoginMetrics.brandMark),
                     const SizedBox(width: AppSpacing.md),
                     Expanded(
                       child: Text(
@@ -527,13 +528,15 @@ class _LoginViewState extends State<LoginView> {
     );
   }
 
-  /// The penguin on its own, with no tile or tint behind it.
-  Widget _penguinMark(double size) => ExcludeSemantics(
+  /// The mark on its own, with no tile behind it, tinted to the login lane's
+  /// ink so it follows the light and dark appearance.
+  Widget _brandMark(double size) => ExcludeSemantics(
     child: Image(
-      image: const AssetImage('assets/penguin.png'),
+      image: const AssetImage(brandMarkAsset),
       width: size,
       height: size,
       fit: BoxFit.contain,
+      color: context.colors.textPrimary,
       filterQuality: FilterQuality.high,
     ),
   );
@@ -695,7 +698,7 @@ class _LoginViewState extends State<LoginView> {
                     ),
                     child: Row(
                       children: [
-                        _penguinMark(_DesktopLoginMetrics.brandMark),
+                        _brandMark(_DesktopLoginMetrics.brandMark),
                         const SizedBox(width: AppSpacing.md),
                         Expanded(
                           child: Text(

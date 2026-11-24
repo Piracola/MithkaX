@@ -313,7 +313,7 @@ void main() {
         height: 180,
         mimeType: 'video/mp4',
         file: TdFileRef(id: 200, localPath: 'pubspec.yaml'),
-        thumbnail: TdFileRef(id: 9201, localPath: 'assets/penguin.png'),
+        thumbnail: TdFileRef(id: 9201, localPath: 'assets/brand_mark.png'),
       ),
     ]);
     await tester.pump();

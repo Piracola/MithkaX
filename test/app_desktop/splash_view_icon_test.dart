@@ -83,7 +83,7 @@ void main() {
     final asset = AppIconVariant.aurora.standardPickerAsset(Brightness.light);
     expect(imageOf(asset), findsOneWidget);
     expectBundledEverywhere(asset);
-    expect(imageOf('assets/penguin.png'), findsNothing);
+    expect(imageOf('assets/brand_mark.png'), findsNothing);
     final background = tester.widget<ColoredBox>(
       find
           .ancestor(
@@ -117,19 +117,25 @@ void main() {
     }
   });
 
-  testWidgets('the default icon keeps the gradient penguin screen', (
+  testWidgets('the default icon keeps the gradient mark screen', (
     tester,
   ) async {
     await pumpSplash(tester, icon: 'default');
-    expect(imageOf('assets/penguin.png'), findsOneWidget);
+    final mark = find.byWidgetPredicate(
+      (widget) => widget is Image && assetOf(widget) == 'assets/brand_mark.png',
+    );
+    expect(mark, findsOneWidget);
     expect(find.byKey(const ValueKey('splash-icon-default')), findsNothing);
+    // The gradient is brand-coloured in both appearances, so the mark is
+    // drawn white instead of following the theme ink.
+    expect(tester.widget<Image>(mark).color, const Color(0xFFFFFFFF));
   });
 
   testWidgets('the fork\'s shipped mark keeps the brand screen too', (
     tester,
   ) async {
     await pumpSplash(tester, icon: 'mithkax_default');
-    expect(imageOf('assets/penguin.png'), findsOneWidget);
+    expect(imageOf('assets/brand_mark.png'), findsOneWidget);
     expect(
       find.byKey(const ValueKey('splash-icon-mithkax_default')),
       findsNothing,
@@ -140,6 +146,6 @@ void main() {
     tester,
   ) async {
     await pumpSplash(tester);
-    expect(imageOf('assets/penguin.png'), findsOneWidget);
+    expect(imageOf('assets/brand_mark.png'), findsOneWidget);
   });
 }

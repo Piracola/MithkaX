@@ -1,7 +1,7 @@
 //
 //  about_view.dart
 //
-//  关于 — app identity (penguin mark, name, version) plus tappable links
+//  关于 — app identity (mark, name, version) plus tappable links
 //  that resolve through the shared link handler.
 //
 
@@ -13,6 +13,7 @@ import '../app/app_version.dart';
 import '../app/telemetry_config.dart';
 import '../chat/links_search/link_handler.dart';
 import '../components/app_icons.dart';
+import '../components/brand_mark.dart';
 import '../components/toast.dart';
 import '../components/ui_components.dart';
 import '../theme/app_theme.dart';
@@ -97,18 +98,19 @@ class _AboutViewState extends State<AboutView> {
           Center(
             child: Column(
               children: [
-                // No tile behind the penguin: the mark is the identity, drawn
-                // large on its own instead of framed in a rounded box. The
-                // asset is the artwork with its transparent canvas cropped
-                // away, so the name sits a token's gap below the ink rather
-                // than below the canvas' empty margin.
-                const Image(
-                  image: ResizeImage(
-                    AssetImage('assets/penguin_mark.png'),
+                // No tile behind the mark: it is the identity, drawn large
+                // on its own instead of framed in a rounded box. The asset is
+                // the artwork with its transparent canvas cropped away, so the
+                // name sits a token's gap below the ink rather than below the
+                // canvas' empty margin.
+                Image(
+                  image: const ResizeImage(
+                    AssetImage(brandMarkInkAsset),
                     width: 300,
                   ),
                   height: 84,
                   fit: BoxFit.contain,
+                  color: c.textPrimary,
                   filterQuality: FilterQuality.high,
                 ),
                 const SizedBox(height: AppSpacing.md),

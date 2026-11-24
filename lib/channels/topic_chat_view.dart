@@ -28,6 +28,7 @@ import '../chat/messages/forward_markdown.dart';
 import '../chat/messages/message_replies_sheet.dart';
 import '../chat/messages/pangu_spacing.dart';
 import '../components/app_icons.dart';
+import '../components/brand_mark.dart';
 import '../components/confirm_dialog.dart';
 import '../components/photo_avatar.dart';
 import '../components/toast.dart';
@@ -1961,10 +1962,13 @@ class _TopicChatViewState extends State<TopicChatView> {
       padding: headerChromePaddingOf(context),
       decoration: BoxDecoration(
         color: widget.headerColor ?? c.navBar,
-        image: const DecorationImage(
-          image: AssetImage('assets/app_icon.png'),
+        image: DecorationImage(
+          image: const AssetImage(brandMarkAsset),
           fit: BoxFit.cover,
           opacity: 0.04,
+          // The watermark is the mark in the header's own ink, so it follows
+          // the light/dark appearance instead of baking a colour.
+          colorFilter: ColorFilter.mode(c.textPrimary, BlendMode.srcIn),
         ),
       ),
       child: Column(

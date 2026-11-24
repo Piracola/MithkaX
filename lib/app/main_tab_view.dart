@@ -33,6 +33,7 @@ import '../chats/chat_list_view.dart';
 import '../communities/community_view.dart';
 import '../components/app_icons.dart';
 import '../components/app_interactive_surface.dart';
+import '../components/brand_mark.dart';
 import '../components/drawer_controller.dart' as dc;
 import '../components/toast.dart';
 import '../components/ui_components.dart';
@@ -2077,9 +2078,10 @@ class _MessageEmptyPane extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               Image.asset(
-                'assets/penguin.png',
+                brandMarkAsset,
                 width: 92,
                 height: 92,
+                color: c.textTertiary,
                 filterQuality: FilterQuality.high,
               ),
               const SizedBox(width: 18),

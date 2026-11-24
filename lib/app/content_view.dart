@@ -18,6 +18,7 @@ import '../chat/stickers/custom_emoji.dart';
 import '../chats/search_view.dart';
 import '../components/app_icons.dart';
 import '../components/app_interactive_surface.dart';
+import '../components/brand_mark.dart';
 import '../components/vip_badge.dart';
 import '../l10n/app_localizations.dart';
 import '../platform/adaptive_platform.dart';
@@ -725,17 +726,18 @@ class _MacosTitleBarAvatar extends StatelessWidget {
   final String name;
   final double size;
 
-  Widget _fallback() {
+  Widget _fallback(BuildContext context) {
     final trimmedName = name.trim();
     if (trimmedName.isEmpty || trimmedName == 'Mithka X') {
-      // The icon is 1024x1024: 4 MB of RGBA for a 24 pt slot without a decode
+      // The mark is 1024x1024: 4 MB of RGBA for a 24 pt slot without a decode
       // hint. Width only, so the square aspect survives.
       return Image.asset(
-        'assets/app_icon.png',
+        brandMarkAsset,
         width: size,
         height: size,
         cacheWidth: (size * 4).round(),
         fit: BoxFit.cover,
+        color: context.colors.textPrimary,
       );
     }
     return Container(
@@ -758,7 +760,7 @@ class _MacosTitleBarAvatar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final path = this.path?.trim();
-    if (path == null || path.isEmpty) return _fallback();
+    if (path == null || path.isEmpty) return _fallback(context);
     return Image.file(
       File(path),
       key: const ValueKey('macos-title-bar-account-avatar-file'),
@@ -769,7 +771,7 @@ class _MacosTitleBarAvatar extends StatelessWidget {
       // against is unchanged.
       cacheWidth: (size * 4).round(),
       fit: BoxFit.cover,
-      errorBuilder: (_, _, _) => _fallback(),
+      errorBuilder: (context, _, _) => _fallback(context),
     );
   }
 }
@@ -927,8 +929,8 @@ class _DesktopTitleBarProfilePopup extends StatelessWidget {
 
 /// The screen shown while the session starts.
 ///
-/// The shipped default keeps the brand gradient with the transparent penguin,
-/// which is the mark Mithka X opens with. Any other chosen icon is drawn the
+/// The shipped default keeps the brand gradient with the mark, which is what
+/// Mithka X opens with. Any other chosen icon is drawn the
 /// way the icon picker draws it, centred on the app background over a 24 pt
 /// spinner in the tertiary text colour: a standard icon as a 160 pt tile with
 /// 36 pt corners, a penguin as its 192 pt background-free art. Android 12+
@@ -966,12 +968,14 @@ class SplashView extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // The asset is 1254x1254 and would otherwise decode at full size
-            // (6.3 MB of RGBA) for a 192 pt slot. Width only keeps it square.
+            // The asset is 1024x1024 and would otherwise decode at full size
+            // (4 MB of RGBA) for a 192 pt slot. Width only keeps it square.
             Image(
-              image: ResizeImage(AssetImage('assets/penguin.png'), width: 576),
-              width: AppMetric.splashPenguinSize,
-              height: AppMetric.splashPenguinSize,
+              image: ResizeImage(AssetImage(brandMarkAsset), width: 576),
+              width: AppMetric.splashMarkSize,
+              height: AppMetric.splashMarkSize,
+              // White on the gradient, both appearances.
+              color: Colors.white,
               filterQuality: FilterQuality.high,
             ),
             SizedBox(height: AppSpacing.lg + AppSpacing.sm),
@@ -1013,8 +1017,8 @@ class SplashView extends StatelessWidget {
         // the default penguin's 192 pt.
         : Image.asset(
             icon.pickerAsset,
-            width: AppMetric.splashPenguinSize,
-            height: AppMetric.splashPenguinSize,
+            width: AppMetric.splashMarkSize,
+            height: AppMetric.splashMarkSize,
             fit: BoxFit.contain,
           );
     return ColoredBox(

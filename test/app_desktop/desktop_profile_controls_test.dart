@@ -26,7 +26,7 @@ class _Accounts extends AccountStore {
 void main() {
   final desktop = TargetPlatformVariant.only(TargetPlatform.macOS);
 
-  testWidgets('Premium penguin follows the desktop status control', (
+  testWidgets('Premium mark follows the desktop status control', (
     tester,
   ) async {
     await _pump(tester);
@@ -42,7 +42,7 @@ void main() {
     await tester.pumpWidget(const SizedBox.shrink());
   }, variant: desktop);
 
-  testWidgets('non-Premium and signed-out identities have no penguin', (
+  testWidgets('non-Premium and signed-out identities have no mark', (
     tester,
   ) async {
     await _pump(tester, premium: false);
