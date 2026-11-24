@@ -852,8 +852,6 @@ class _ChatListPullDownArchiveRevealState
 
   @override
   Widget build(BuildContext context) {
-    final avatar = AppMetric.chatListAvatarSize();
-    final inset = AppMetric.chatRowHorizontalInset();
     return AnimatedBuilder(
       animation: _glow,
       // The row subtree is built once: only the wrappers animate, so the row
@@ -875,8 +873,6 @@ class _ChatListPullDownArchiveRevealState
         key: const ValueKey('archive-reveal-glow'),
         foregroundPainter: ChatListArchiveRevealGlow(
           progress: _glow.value,
-          avatar: avatar,
-          inset: inset,
           archiveColor: archivedChatsAccent,
           brandColor: AppTheme.brand,
           dark: Theme.of(context).brightness == Brightness.dark,
@@ -887,91 +883,85 @@ class _ChatListPullDownArchiveRevealState
   }
 }
 
-/// The halo the archive row arrives on: a tight archive-amber core around the
-/// assistant avatar, with a wide, faint wash of the app's brand colour beyond
-/// it on a dark canvas.
+/// The light the archive row arrives on, falling from above.
+///
+/// Everything vertical: the slot's top edge — the seam under the folder strip
+/// — carries the brightest band, and the wash dies out before the row's
+/// bottom, so the row reads as lit from over the pull rather than glowing
+/// around its avatar. The archive's amber is the light's own colour; on a dark
+/// canvas a wider, fainter band of the app's brand colour trails underneath
+/// it.
 ///
 /// Dark surfaces get additive light ([BlendMode.plus]); a light row can only
-/// be tinted, because adding colour to white stays white, so there the halo is
-/// a soft warm bloom rather than a brightness lift. Either way the avatar's
-/// own disc is cut out of the ring — light painted over the amber would wash
-/// it out instead of glowing around it.
+/// be tinted, because adding colour to white stays white, so there the light
+/// is a soft warm wash rather than a brightness lift.
 class ChatListArchiveRevealGlow extends CustomPainter {
   const ChatListArchiveRevealGlow({
     required this.progress,
-    required this.avatar,
-    required this.inset,
     required this.archiveColor,
     required this.brandColor,
     required this.dark,
   });
 
-  /// Envelope value, 0 when the halo is gone.
+  /// Envelope value, 0 when the light is gone.
   final double progress;
-
-  /// Side length of the row's avatar, and its leading inset — together they
-  /// place the halo's centre.
-  final double avatar;
-  final double inset;
 
   final Color archiveColor;
   final Color brandColor;
 
   /// Additive light has far more room on a dark canvas; on a light one the
-  /// wide wash turns into haze, so it is both narrower and fainter there.
+  /// wash turns into haze, so it is both shallower and fainter there.
   final bool dark;
 
   @override
   void paint(Canvas canvas, Size size) {
     if (progress <= 0) return;
-    final center = Offset(inset + avatar / 2, size.height / 2);
-    // The halo never paints over the avatar itself: additive light would wash
-    // the amber disc out (on a white row it cannot brighten the background at
-    // all), so the disc is cut out of the ring and only the air around it
-    // lights up.
-    final ring = Path.combine(
-      PathOperation.difference,
-      Path()..addRect(Offset.zero & size),
-      Path()..addOval(Rect.fromCircle(center: center, radius: avatar / 2)),
-    );
-    // The wide brand wash is dark-theme light; over a near-white row it only
-    // muddies the surface, so it is dropped there.
-    if (dark) _halo(canvas, ring, center, avatar * 3, brandColor, 0.10);
-    _halo(canvas, ring, center, avatar * 2.2, archiveColor, dark ? 0.34 : 0.20);
+    final rect = Offset.zero & size;
+    // The brand band reaches lower and wider, so it has to be dimmer to stay
+    // an ambient glow rather than a second light source.
+    if (dark) {
+      _band(canvas, rect, brandColor, 0.11 * progress, const [
+        (0.0, 1.0),
+        (0.55, 0.32),
+        (1.0, 0.0),
+      ]);
+    }
+    _band(canvas, rect, archiveColor, (dark ? 0.30 : 0.15) * progress, const [
+      (0.0, 1.0),
+      (0.42, 0.46),
+      (0.78, 0.10),
+      (1.0, 0.0),
+    ]);
   }
 
-  void _halo(
+  /// A vertical wash anchored at the row's top edge: [ramp] pairs a stop with
+  /// the fraction of the peak alpha the light has there.
+  void _band(
     Canvas canvas,
-    Path ring,
-    Offset center,
-    double radius,
+    Rect rect,
     Color color,
     double peakAlpha,
+    List<(double, double)> ramp,
   ) {
-    final alpha = peakAlpha * progress;
     final paint = Paint()
       // Light on a dark canvas is additive; on a light one it can only be a
       // soft tint, because adding colour to white stays white.
       ..blendMode = dark ? BlendMode.plus : BlendMode.srcOver
-      ..shader = RadialGradient(
+      ..shader = LinearGradient(
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
         colors: [
-          color.withValues(alpha: alpha),
-          // Half the peak by the avatar's rim, then a long, smooth falloff so
-          // the halo never draws its own edge.
-          color.withValues(alpha: alpha * 0.5),
-          color.withValues(alpha: alpha * 0.12),
-          color.withValues(alpha: 0),
+          for (final (_, alpha) in ramp)
+            color.withValues(alpha: peakAlpha * alpha),
         ],
-        stops: const [0, 0.3, 0.68, 1],
-      ).createShader(Rect.fromCircle(center: center, radius: radius));
-    canvas.drawPath(ring, paint);
+        stops: [for (final (stop, _) in ramp) stop],
+      ).createShader(rect);
+    canvas.drawRect(rect, paint);
   }
 
   @override
   bool shouldRepaint(ChatListArchiveRevealGlow oldDelegate) =>
       oldDelegate.progress != progress ||
-      oldDelegate.avatar != avatar ||
-      oldDelegate.inset != inset ||
       oldDelegate.archiveColor != archiveColor ||
       oldDelegate.brandColor != brandColor ||
       oldDelegate.dark != dark;

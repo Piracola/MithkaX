@@ -1,6 +1,8 @@
 import 'dart:async';
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mithka/chats/archived_chats_view.dart';
 import 'package:mithka/chats/chat_list_view.dart';
@@ -47,6 +49,53 @@ Map<String, dynamic> _chat(
   ],
 };
 
+final _shotKey = GlobalKey();
+
+Future<Uint8List> _capture(WidgetTester tester) async {
+  final boundary =
+      _shotKey.currentContext!.findRenderObject() as RenderRepaintBoundary;
+  late Uint8List bytes;
+  await tester.runAsync(() async {
+    final image = await boundary.toImage();
+    final data = await image.toByteData();
+    bytes = data!.buffer.asUint8List();
+    image.dispose();
+  });
+  return bytes;
+}
+
+/// Mean `R - B` of a horizontal band of the archive row, read from a raw RGBA
+/// capture (the boundary is captured at 1:1, so test coordinates map straight
+/// onto pixels).
+///
+/// Warmth isolates the light: both palettes tint with the archive amber, while
+/// the row's text is neutral, so glyphs do not move the number. Light theme
+/// tints towards amber (R up, B down) and the dark theme adds amber, so the
+/// measurement has the same sign on both.
+double _bandWarmth(
+  Uint8List bytes,
+  int imageWidth,
+  Rect row,
+  double topFraction,
+  double heightFraction,
+) {
+  final y0 = row.top + row.height * topFraction;
+  final y1 = y0 + row.height * heightFraction;
+  // The text column only: the avatar fills the row's full height on the left.
+  final x0 = (row.left + 200).round();
+  final x1 = (row.right - 20).round();
+  var sum = 0.0;
+  var count = 0;
+  for (var y = y0.round(); y < y1.round(); y++) {
+    for (var x = x0; x < x1; x++) {
+      final i = (y * imageWidth + x) * 4;
+      sum += bytes[i] - bytes[i + 2];
+      count++;
+    }
+  }
+  return count == 0 ? 0 : sum / count;
+}
+
 Future<void> _pump(
   WidgetTester tester,
   StreamController<Map<String, dynamic>> updates,
@@ -66,12 +115,15 @@ Future<void> _pump(
   await tester.pumpWidget(
     ChangeNotifierProvider<ThemeController>.value(
       value: theme,
-      child: MaterialApp(
-        locale: const Locale('en'),
-        localizationsDelegates: const [AppLocalizations.delegate],
-        supportedLocales: AppLocalizations.supportedLocales,
-        theme: ThemeData(extensions: [AppColors.light]),
-        home: const Scaffold(body: ChatListView()),
+      child: RepaintBoundary(
+        key: _shotKey,
+        child: MaterialApp(
+          locale: const Locale('en'),
+          localizationsDelegates: const [AppLocalizations.delegate],
+          supportedLocales: AppLocalizations.supportedLocales,
+          theme: ThemeData(extensions: [AppColors.light]),
+          home: const Scaffold(body: ChatListView()),
+        ),
       ),
     ),
   );
@@ -196,6 +248,50 @@ void main() {
       expect(_glowProgress(tester), 0.0);
       expect(find.byType(ArchivedChatsRow), findsOneWidget);
 
+      await _dispose(tester);
+    },
+    variant: TargetPlatformVariant.only(TargetPlatform.android),
+  );
+
+  testWidgets(
+    'the arrival light falls from the top edge of the row',
+    (tester) async {
+      await _pump(tester, updates);
+      final gesture = await _revealArchive(tester);
+      // Peak of the light, row fully in.
+      await tester.pump(const Duration(milliseconds: 180));
+
+      final row = tester.getRect(find.byType(ArchivedChatsRow));
+      final bytes = await _capture(tester);
+      final width =
+          tester.view.physicalSize.width ~/ tester.view.devicePixelRatio;
+      // From 12% down: the row's first few pixels sit under the pinned search
+      // row while the slot is still growing.
+      final bands = [
+        for (final fraction in [0.12, 0.35, 0.58, 0.8])
+          _bandWarmth(bytes, width, row, fraction, 0.08),
+      ];
+      for (var i = 1; i < bands.length; i++) {
+        expect(
+          bands[i],
+          lessThan(bands[i - 1] - 1),
+          reason:
+              'band $i (${bands.map((b) => b.toStringAsFixed(1)).toList()}) '
+              'must be dimmer than the one above it: the light comes from the '
+              'row\'s top edge, not from around the avatar or across the row',
+        );
+      }
+      expect(
+        bands.first - bands.last,
+        greaterThan(10),
+        reason:
+            'the top of the row is clearly lit and its bottom is not — '
+            'measured ${bands.first.toStringAsFixed(1)} vs '
+            '${bands.last.toStringAsFixed(1)}',
+      );
+
+      await gesture.up();
+      await tester.pumpAndSettle();
       await _dispose(tester);
     },
     variant: TargetPlatformVariant.only(TargetPlatform.android),
