@@ -119,38 +119,6 @@ class PublicDiscoveryService {
   };
 
   @visibleForTesting
-  static Map<String, dynamic> similarChatsRequest(int chatId) => {
-    '@type': 'getChatSimilarChats',
-    'chat_id': chatId,
-  };
-
-  @visibleForTesting
-  static Map<String, dynamic> similarBotsRequest(int botUserId) => {
-    '@type': 'getBotSimilarBots',
-    'bot_user_id': botUserId,
-  };
-
-  @visibleForTesting
-  static Map<String, dynamic> openSimilarChatRequest({
-    required int sourceChatId,
-    required int openedChatId,
-  }) => {
-    '@type': 'openChatSimilarChat',
-    'chat_id': sourceChatId,
-    'opened_chat_id': openedChatId,
-  };
-
-  @visibleForTesting
-  static Map<String, dynamic> openSimilarBotRequest({
-    required int sourceBotUserId,
-    required int openedBotUserId,
-  }) => {
-    '@type': 'openBotSimilarBot',
-    'bot_user_id': sourceBotUserId,
-    'opened_bot_user_id': openedBotUserId,
-  };
-
-  @visibleForTesting
   static Map<String, dynamic> publicPostLimitsRequest(String query) => {
     '@type': 'getPublicPostSearchLimits',
     'query': query,
