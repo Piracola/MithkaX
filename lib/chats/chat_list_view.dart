@@ -770,6 +770,213 @@ class ChatListTopOverscrollPin extends StatelessWidget {
   }
 }
 
+/// MithkaX's arrival transition for the pulled-out archive row.
+///
+/// The reference client grows the row out of an archive-coloured bloom and
+/// bounces the assistant avatar (`PullForegroundDrawable.startOutAnimation`:
+/// 250ms `EASE_OUT_QUINT`, then a 7% avatar bounce). MithkaX keeps the bloom
+/// but turns it into light around the avatar: the archive's amber tight, the
+/// app's own brand colour spilling wider on a dark canvas. The content fades
+/// in and drops into place from under the folder strip, and the halo is gone
+/// by the time the row has settled.
+class ChatListPullDownArchiveReveal extends StatefulWidget {
+  const ChatListPullDownArchiveReveal({super.key, required this.child});
+
+  final Widget child;
+
+  @override
+  State<ChatListPullDownArchiveReveal> createState() =>
+      _ChatListPullDownArchiveRevealState();
+}
+
+class _ChatListPullDownArchiveRevealState
+    extends State<ChatListPullDownArchiveReveal>
+    with SingleTickerProviderStateMixin {
+  /// One clock for the whole arrival. The slot's own extent grows first
+  /// (AppMotion.deliberate, ~280ms) with the row's background — the same
+  /// colour as the list — so what the eye sees is the chats settling; the
+  /// content then blooms in only once the slot is nearly full, which keeps a
+  /// half-height avatar from ever being visible. The glow peaks as the slot
+  /// finishes and dies out over the following ~250ms.
+  static const Duration _duration = Duration(milliseconds: 420);
+
+  late final AnimationController _controller = AnimationController(
+    vsync: this,
+    duration: _duration,
+  );
+
+  late final Animation<double> _content = CurvedAnimation(
+    parent: _controller,
+    curve: const Interval(0.36, 0.85, curve: AppMotion.standard),
+  );
+
+  late final Animation<double> _glow = _controller.drive(
+    TweenSequence<double>([
+      TweenSequenceItem(
+        tween: Tween<double>(
+          begin: 0,
+          end: 1,
+        ).chain(CurveTween(curve: Curves.easeOut)),
+        weight: 50,
+      ),
+      TweenSequenceItem(
+        tween: Tween<double>(
+          begin: 1,
+          end: 0,
+        ).chain(CurveTween(curve: Curves.easeInCubic)),
+        weight: 50,
+      ),
+    ]),
+  );
+
+  bool _started = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_started) return;
+    _started = true;
+    // A reduced-motion session gets the settled row, not a flicker.
+    if (AppMotion.isReduced(context)) {
+      _controller.value = 1;
+    } else {
+      _controller.forward();
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final avatar = AppMetric.chatListAvatarSize();
+    final inset = AppMetric.chatRowHorizontalInset();
+    return AnimatedBuilder(
+      animation: _glow,
+      // The row subtree is built once: only the wrappers animate, so the row
+      // never re-measures its text at 60fps.
+      child: AnimatedBuilder(
+        animation: _content,
+        child: widget.child,
+        builder: (context, child) => Opacity(
+          key: const ValueKey('archive-reveal-content'),
+          opacity: _content.value,
+          child: Transform.translate(
+            // Comes down out of the folder strip as it fades in.
+            offset: Offset(0, -8 * (1 - _content.value)),
+            child: child,
+          ),
+        ),
+      ),
+      builder: (context, child) => CustomPaint(
+        key: const ValueKey('archive-reveal-glow'),
+        foregroundPainter: ChatListArchiveRevealGlow(
+          progress: _glow.value,
+          avatar: avatar,
+          inset: inset,
+          archiveColor: archivedChatsAccent,
+          brandColor: AppTheme.brand,
+          dark: Theme.of(context).brightness == Brightness.dark,
+        ),
+        child: child,
+      ),
+    );
+  }
+}
+
+/// The halo the archive row arrives on: a tight archive-amber core around the
+/// assistant avatar, with a wide, faint wash of the app's brand colour beyond
+/// it on a dark canvas.
+///
+/// Dark surfaces get additive light ([BlendMode.plus]); a light row can only
+/// be tinted, because adding colour to white stays white, so there the halo is
+/// a soft warm bloom rather than a brightness lift. Either way the avatar's
+/// own disc is cut out of the ring — light painted over the amber would wash
+/// it out instead of glowing around it.
+class ChatListArchiveRevealGlow extends CustomPainter {
+  const ChatListArchiveRevealGlow({
+    required this.progress,
+    required this.avatar,
+    required this.inset,
+    required this.archiveColor,
+    required this.brandColor,
+    required this.dark,
+  });
+
+  /// Envelope value, 0 when the halo is gone.
+  final double progress;
+
+  /// Side length of the row's avatar, and its leading inset — together they
+  /// place the halo's centre.
+  final double avatar;
+  final double inset;
+
+  final Color archiveColor;
+  final Color brandColor;
+
+  /// Additive light has far more room on a dark canvas; on a light one the
+  /// wide wash turns into haze, so it is both narrower and fainter there.
+  final bool dark;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (progress <= 0) return;
+    final center = Offset(inset + avatar / 2, size.height / 2);
+    // The halo never paints over the avatar itself: additive light would wash
+    // the amber disc out (on a white row it cannot brighten the background at
+    // all), so the disc is cut out of the ring and only the air around it
+    // lights up.
+    final ring = Path.combine(
+      PathOperation.difference,
+      Path()..addRect(Offset.zero & size),
+      Path()..addOval(Rect.fromCircle(center: center, radius: avatar / 2)),
+    );
+    // The wide brand wash is dark-theme light; over a near-white row it only
+    // muddies the surface, so it is dropped there.
+    if (dark) _halo(canvas, ring, center, avatar * 3, brandColor, 0.10);
+    _halo(canvas, ring, center, avatar * 2.2, archiveColor, dark ? 0.34 : 0.20);
+  }
+
+  void _halo(
+    Canvas canvas,
+    Path ring,
+    Offset center,
+    double radius,
+    Color color,
+    double peakAlpha,
+  ) {
+    final alpha = peakAlpha * progress;
+    final paint = Paint()
+      // Light on a dark canvas is additive; on a light one it can only be a
+      // soft tint, because adding colour to white stays white.
+      ..blendMode = dark ? BlendMode.plus : BlendMode.srcOver
+      ..shader = RadialGradient(
+        colors: [
+          color.withValues(alpha: alpha),
+          // Half the peak by the avatar's rim, then a long, smooth falloff so
+          // the halo never draws its own edge.
+          color.withValues(alpha: alpha * 0.5),
+          color.withValues(alpha: alpha * 0.12),
+          color.withValues(alpha: 0),
+        ],
+        stops: const [0, 0.3, 0.68, 1],
+      ).createShader(Rect.fromCircle(center: center, radius: radius));
+    canvas.drawPath(ring, paint);
+  }
+
+  @override
+  bool shouldRepaint(ChatListArchiveRevealGlow oldDelegate) =>
+      oldDelegate.progress != progress ||
+      oldDelegate.avatar != avatar ||
+      oldDelegate.inset != inset ||
+      oldDelegate.archiveColor != archiveColor ||
+      oldDelegate.brandColor != brandColor ||
+      oldDelegate.dark != dark;
+}
+
 /// Animates the pull-down archive row without letting viewport overscroll move
 /// the row's painted position.
 class ChatListPullDownArchiveSlot extends StatelessWidget {
@@ -3942,13 +4149,13 @@ class _ChatListViewState extends State<ChatListView>
     );
   }
 
-  /// The archive row's reveal grows it into the slot over one clock, matching
-  /// the reference client sliding the row out on release.
-  Duration _pullDownArchiveRevealDuration(BuildContext context) {
-    return MediaQuery.maybeOf(context)?.disableAnimations ?? false
-        ? Duration.zero
-        : const Duration(milliseconds: 180);
-  }
+  /// The archive row's slot grows over one clock, matching the reference
+  /// client sliding the row out on release (250ms `EASE_OUT_QUINT`).
+  ///
+  /// Null means "no animation": a reduced-motion session, and the off-screen
+  /// drop, which must take the row out of the layout in a single frame.
+  Duration? _pullDownArchiveRevealDuration(BuildContext context) =>
+      AppMotion.isReduced(context) ? null : AppMotion.deliberate;
 
   Widget _pullDownArchiveSlot({required bool visible}) {
     return ChatListPullDownArchiveSlot(
@@ -3958,7 +4165,7 @@ class _ChatListViewState extends State<ChatListView>
       duration: _archiveDropInstant
           ? null
           : _pullDownArchiveRevealDuration(context),
-      child: _assistantRow(),
+      child: ChatListPullDownArchiveReveal(child: _assistantRow()),
     );
   }
 

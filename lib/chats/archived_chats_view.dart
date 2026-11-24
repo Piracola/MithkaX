@@ -27,6 +27,10 @@ import 'chat_row_view.dart';
 import 'chat_selection_actions.dart';
 import 'chat_selection_header.dart';
 
+/// The archive/assistant avatar's amber. Also the tone of the pull-down
+/// reveal's inner glow, so the bloom reads as light coming off that avatar.
+const Color archivedChatsAccent = Color(0xFFFF9D2E);
+
 class ArchivedChatsRow extends StatelessWidget {
   const ArchivedChatsRow({
     super.key,
@@ -68,7 +72,7 @@ class ArchivedChatsRow extends StatelessWidget {
         height: size,
         alignment: Alignment.center,
         decoration: const BoxDecoration(
-          color: Color(0xFFFF9D2E),
+          color: archivedChatsAccent,
           shape: BoxShape.circle,
         ),
         child: const AppIcon(
