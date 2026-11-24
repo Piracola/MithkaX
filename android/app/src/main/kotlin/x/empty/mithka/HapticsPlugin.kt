@@ -27,7 +27,10 @@ import io.flutter.plugin.common.MethodChannel
  * A raw one-shot covers a refused request (unattached window), and Dart falls
  * back again when this answers false — a tick can never disappear silently.
  */
-class HapticsPlugin(activity: Activity, messenger: BinaryMessenger) :
+class HapticsPlugin(
+    private val activity: Activity,
+    messenger: BinaryMessenger,
+) :
     MethodChannel.MethodCallHandler {
     private val appContext = activity.applicationContext
     private val channel = MethodChannel(messenger, CHANNEL)
