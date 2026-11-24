@@ -3767,6 +3767,7 @@ class _ChatViewState extends State<ChatView> {
       // Rebuild the rebased slivers before correcting their scroll coordinates.
       // Waiting for a frame alone leaves the old center layout in place.
       setState(() {});
+      WidgetsBinding.instance.ensureVisualUpdate();
       await WidgetsBinding.instance.endOfFrame;
       if (!mounted) return;
       if (_initialTranscriptPositioningAborted) {
@@ -3779,6 +3780,7 @@ class _ChatViewState extends State<ChatView> {
         // Rebasing a one-row center otherwise exposes empty space, then the
         // first gesture repairs it with a sudden jump to the newest message.
         for (var pass = 0; pass < 3; pass++) {
+          WidgetsBinding.instance.ensureVisualUpdate();
           await WidgetsBinding.instance.endOfFrame;
           if (!mounted || _initialTranscriptPositioningAborted) return;
           _scrollToBottom();
@@ -3950,6 +3952,13 @@ class _ChatViewState extends State<ChatView> {
     }
     var corrected = false;
     for (var i = 0; i < 3; i++) {
+      // Ask for the frame this loop is about to await. `endOfFrame` only
+      // schedules one itself from an idle phase, and this loop runs inside a
+      // post-frame callback: without the explicit request nothing draws the
+      // next frame, so the await never resumes and the transcript stays
+      // behind its skeleton (a widget-test harness that pumps only scheduled
+      // frames deadlocks here).
+      WidgetsBinding.instance.ensureVisualUpdate();
       await WidgetsBinding.instance.endOfFrame;
       if (!mounted ||
           !_scroll.hasClients ||
