@@ -92,13 +92,20 @@ void main() {
         expect(portableHome.existsSync(), isTrue);
         expect(work.existsSync(), isFalse);
         final relaunched = File('${original.path}.ran');
-        for (var i = 0; i < 100 && !relaunched.existsSync(); i++) {
-          await Future<void>.delayed(const Duration(milliseconds: 20));
+        // The relaunched script redirects `> "$0.ran"` before its `echo`
+        // writes, so the file exists for a moment with no content. Wait for
+        // the write, not just the file: a loaded CI box can schedule the test
+        // between the two.
+        var relaunchedText = '';
+        for (var i = 0; i < 100 && relaunchedText.isEmpty; i++) {
+          if (relaunched.existsSync()) {
+            relaunchedText = relaunched.readAsStringSync().trim();
+          }
+          if (relaunchedText.isEmpty) {
+            await Future<void>.delayed(const Duration(milliseconds: 20));
+          }
         }
-        expect(
-          relaunched.readAsStringSync().trim(),
-          missingStage ? 'old' : 'new',
-        );
+        expect(relaunchedText, missingStage ? 'old' : 'new');
       },
     );
   }
