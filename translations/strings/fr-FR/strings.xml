@@ -1083,6 +1083,7 @@
     <string name="chatLeaveAndDeleteDescription">Quitter « {value1} » et le retirer de votre liste de discussions. Les messages ne seront pas supprimés pour les autres membres.</string>
     <string name="chatLeaveHistoryCleanupFailed">Vous avez quitté le groupe, mais son historique de discussion n’a pas pu être effacé.</string>
     <string name="chatLeaveHistoryCleanupFailedChannel">Vous avez quitté la chaîne, mais l’historique n’a pas pu être effacé.</string>
+    <string name="chatLinkedChannel">Chaîne liée</string>
     <string name="chatListAddFriendOrGroup">Ajouter un ami/groupe</string>
     <string name="chatListBlockedPlaceholder">[Bloqué]</string>
     <string name="chatListChannelName">Nom de la chaîne</string>
@@ -1152,6 +1153,10 @@
     <string name="chatMessagesSavedCount">{value1} messages enregistrés</string>
     <string name="chatMoreActionsUnsupported">Plus d’actions non encore prises en charge</string>
     <string name="chatMute">Mettre en sourdine</string>
+    <string name="chatMuteFor1Hour">Pendant 1 heure</string>
+    <string name="chatMuteFor2Days">Pendant 2 jours</string>
+    <string name="chatMuteFor8Hours">Pendant 8 heures</string>
+    <string name="chatMuteForever">Pour toujours</string>
     <string name="chatNewMessagesCount">{value1} nouveaux messages</string>
     <string name="chatNewMessagesDivider">Nouveaux messages ci-dessous</string>
     <string name="chatNoTopics">Aucun sujet</string>
@@ -1258,6 +1263,7 @@
     <string name="chatThemeChoose">Choisir un thème de discussion</string>
     <string name="chatThemeSaveFailed">Impossible d’enregistrer le thème de discussion</string>
     <string name="chatThemeTitle">Thème de discussion</string>
+    <string name="chatToBeginning">Au début</string>
     <string name="chatTodoSetFailed">Échec de la configuration : {value1}</string>
     <string name="chatTodoSetSuccess">Défini comme tâche du groupe</string>
     <string name="chatTodoUnsetFailed">Échec du retrait : {value1}</string>

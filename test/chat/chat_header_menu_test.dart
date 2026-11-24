@@ -7,6 +7,11 @@
 //  * search leads the column and no longer holds a header glyph of its own;
 //  * the column is the HEADER family (48px rows, 16sp labels, right edge under
 //    the button) and stays visually distinct from the chat-info control;
+//  * the commands exteraless puts there exist here too, gated by the same
+//    rights: mute with durations, translation, linked chat, channel direct
+//    messages, private calls, auto-delete, management, chat appearance, the
+//    jump to the beginning, and the destructive tail (clear / leave / delete /
+//    close topic);
 //  * a topic chat's header action starts a topic (the title already opens the
 //    topic list), and it disappears without the right to create one —
 //    including a topics bot, whose permission is its own flag, never a
@@ -16,6 +21,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mithka/auth/account_store.dart';
 import 'package:mithka/auth/auth_manager.dart';
@@ -45,10 +51,15 @@ const _botChatId = 770011;
 const _botUserId = 7701;
 const _unjoinedChannelId = -1009404;
 const _unjoinedChannelSupergroupId = 9404;
+const _adminChatId = -1009606;
+const _adminSupergroupId = 9606;
+const _linkedChatId = -1009505;
+const _directMessagesChatId = -1009507;
 
 enum _Kind {
   privateChat,
   group,
+  adminGroup,
   channel,
   forumCreator,
   forumMember,
@@ -59,11 +70,15 @@ enum _Kind {
 
 _Kind _kind = _Kind.privateChat;
 bool _hasPinnedMessage = false;
+bool _callsAvailable = true;
+int _linkedChatIdOverride = 0;
+int _directMessagesChatIdOverride = 0;
 final _queries = <Map<String, dynamic>>[];
 
 int get _chatId => switch (_kind) {
   _Kind.privateChat => _privateChatId,
   _Kind.group => _groupChatId,
+  _Kind.adminGroup => _adminChatId,
   _Kind.channel => _channelChatId,
   _Kind.forumCreator || _Kind.forumMember => _forumChatId,
   _Kind.botTopics || _Kind.botWithoutTopicRights => _botChatId,
@@ -96,6 +111,14 @@ Map<String, dynamic> _chat() {
         'is_channel': false,
       },
       'Team',
+    ),
+    _Kind.adminGroup => (
+      {
+        '@type': 'chatTypeSupergroup',
+        'supergroup_id': _adminSupergroupId,
+        'is_channel': false,
+      },
+      'Admin Team',
     ),
     _Kind.channel => (
       {
@@ -133,6 +156,8 @@ Map<String, dynamic> _chat() {
     'title': title,
     'unread_count': 0,
     'last_read_inbox_message_id': 1,
+    'can_be_deleted_only_for_self': true,
+    'can_be_deleted_for_all_users': false,
     'permissions': {
       '@type': 'chatPermissions',
       'can_send_basic_messages': true,
@@ -153,6 +178,7 @@ Map<String, dynamic> _topic(int id, String name, {bool isGeneral = false}) => {
   },
   'unread_count': 0,
   'is_pinned': false,
+  'is_closed': false,
   'last_message': {
     '@type': 'message',
     'id': 100 + id,
@@ -170,18 +196,24 @@ Map<String, dynamic> _topic(int id, String name, {bool isGeneral = false}) => {
 Map<String, dynamic> _supergroup() {
   final status = switch (_kind) {
     _Kind.forumCreator => {'@type': 'chatMemberStatusCreator'},
+    _Kind.adminGroup => {
+      '@type': 'chatMemberStatusAdministrator',
+      'rights': {'can_manage_chat': true, 'can_delete_messages': true},
+    },
     _Kind.unjoinedChannel => {'@type': 'chatMemberStatusLeft'},
     _ => {'@type': 'chatMemberStatusMember'},
   };
   return {
     '@type': 'supergroup',
     'id': switch (_kind) {
+      _Kind.adminGroup => _adminSupergroupId,
       _Kind.channel => _channelSupergroupId,
       _Kind.unjoinedChannel => _unjoinedChannelSupergroupId,
       _Kind.forumCreator || _Kind.forumMember => _forumSupergroupId,
       _ => _groupSupergroupId,
     },
     'is_forum': _kind == _Kind.forumCreator || _kind == _Kind.forumMember,
+    'is_channel': _kind == _Kind.channel || _kind == _Kind.unjoinedChannel,
     'status': status,
   };
 }
@@ -221,10 +253,21 @@ void main() {
               };
             case 'getMe':
               return {'@type': 'user', 'id': 1, 'first_name': 'Me'};
+            case 'getUserFullInfo':
+              return {
+                '@type': 'userFullInfo',
+                'can_be_called': _callsAvailable,
+                'supports_video_calls': _callsAvailable,
+              };
             case 'getSupergroup':
               return _supergroup();
             case 'getSupergroupFullInfo':
-              return {'@type': 'supergroupFullInfo', 'member_count': 8};
+              return {
+                '@type': 'supergroupFullInfo',
+                'member_count': 8,
+                'linked_chat_id': _linkedChatIdOverride,
+                'direct_messages_chat_id': _directMessagesChatIdOverride,
+              };
             case 'getBasicGroup':
               return {'@type': 'basicGroup', 'id': 1, 'member_count': 3};
             case 'getChatHistory':
@@ -265,6 +308,8 @@ void main() {
                 ],
                 'total_count': 2,
               };
+            case 'getForumTopic':
+              return _topic(50, 'Announcements');
             case 'getOption':
               return {'@type': 'optionValueInteger', 'value': '1024'};
             case 'getCountries':
@@ -291,11 +336,19 @@ void main() {
   setUp(() {
     _kind = _Kind.privateChat;
     _hasPinnedMessage = false;
+    _callsAvailable = true;
+    _linkedChatIdOverride = 0;
+    _directMessagesChatIdOverride = 0;
     _queries.clear();
   });
 
-  Future<void> openChat(WidgetTester tester) async {
-    tester.view.physicalSize = const Size(390, 844);
+  Future<void> openChat(
+    WidgetTester tester, {
+    int? forumTopicId,
+    VoidCallback? onBack,
+    Size size = const Size(390, 844),
+  }) async {
+    tester.view.physicalSize = size;
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
 
@@ -328,13 +381,23 @@ void main() {
         ],
         child: MaterialApp(
           locale: const Locale('en'),
-          localizationsDelegates: const [AppLocalizations.delegate],
+          localizationsDelegates: const [
+            AppLocalizations.delegate,
+            GlobalMaterialLocalizations.delegate,
+            GlobalCupertinoLocalizations.delegate,
+            GlobalWidgetsLocalizations.delegate,
+          ],
           supportedLocales: AppLocalizations.supportedLocales,
           theme: ThemeData(
             brightness: Brightness.light,
             extensions: [AppColors.light],
           ),
-          home: ChatView(chatId: _chatId, title: 'Chat'),
+          home: ChatView(
+            chatId: _chatId,
+            title: 'Chat',
+            forumTopicId: forumTopicId,
+            onBack: onBack,
+          ),
         ),
       ),
     );
@@ -350,6 +413,8 @@ void main() {
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump(const Duration(seconds: 6));
   }
+
+  Finder row(String key) => find.byKey(ValueKey('app-anchored-menu-$key'));
 
   AppIconData headerIcon(WidgetTester tester, String key) => tester
       .widget<AppIcon>(
@@ -393,9 +458,9 @@ void main() {
     await openMenu(tester);
 
     expect(find.text('Search in chat'), findsOneWidget);
-    final search = find.byKey(const ValueKey('app-anchored-menu-search'));
+    final search = row('search');
     expect(search, findsOneWidget);
-    final mute = find.byKey(const ValueKey('app-anchored-menu-mute'));
+    final mute = row('mute');
     expect(mute, findsOneWidget);
     expect(
       tester.getTopLeft(search).dy,
@@ -428,16 +493,16 @@ void main() {
     expect(menu.top, closeTo(button.bottom + AppSpacing.xs, 1));
     expect(menu.width, greaterThanOrEqualTo(196));
 
-    final row = find.byKey(const ValueKey('app-anchored-menu-search'));
-    expect(tester.getSize(row).height, 48);
+    final search = row('search');
+    expect(tester.getSize(search).height, 48);
     final label = tester.widget<Text>(
-      find.descendant(of: row, matching: find.byType(Text)),
+      find.descendant(of: search, matching: find.byType(Text)),
     );
     expect(label.style?.fontSize, AppTextSize.bodyLarge);
 
     // The compact tab column keeps its own 36px row; the two families must
     // not collapse into one.
-    expect(tester.getSize(row).height, isNot(appAnchoredMenuRowHeight));
+    expect(tester.getSize(search).height, isNot(appAnchoredMenuRowHeight));
 
     await closeChat(tester);
   });
@@ -453,6 +518,282 @@ void main() {
       headerIcon(tester, 'chatHeaderMenu'),
       isNot(headerIcon(tester, 'chatHeaderInfo')),
     );
+
+    await closeChat(tester);
+  });
+
+  testWidgets('a private chat offers exteraless\'s chat commands in blocks', (
+    tester,
+  ) async {
+    await openChat(tester);
+    await openMenu(tester);
+
+    // Chat commands block.
+    expect(row('mute'), findsOneWidget);
+    expect(row('call'), findsOneWidget);
+    expect(row('video-call'), findsOneWidget);
+    expect(row('auto-delete'), findsOneWidget);
+    // Appearance block.
+    expect(row('theme'), findsOneWidget);
+    expect(row('wallpaper'), findsOneWidget);
+    // Transcript block.
+    expect(row('to-beginning'), findsOneWidget);
+    // Destructive block: a private chat can be deleted, never left, and has
+    // no group management or linked chat.
+    expect(row('clear-history'), findsOneWidget);
+    expect(row('delete-chat'), findsOneWidget);
+    expect(row('leave'), findsNothing);
+    expect(row('manage'), findsNothing);
+    expect(row('linked-chat'), findsNothing);
+    expect(row('direct-messages'), findsNothing);
+    expect(row('close-topic'), findsNothing);
+
+    // The commands sit between search and the destructive tail, in order.
+    final searchY = tester.getTopLeft(row('search')).dy;
+    final muteY = tester.getTopLeft(row('mute')).dy;
+    final clearY = tester.getTopLeft(row('clear-history')).dy;
+    final deleteY = tester.getTopLeft(row('delete-chat')).dy;
+    expect(muteY, greaterThan(searchY));
+    expect(clearY, greaterThan(muteY));
+    expect(deleteY, greaterThan(clearY));
+
+    // exteraless splits the column with one gap per block: 9px (a hairline
+    // plus breathing room) where a block starts, nothing between its rows.
+    double gapAfter(String above, String below) =>
+        tester.getTopLeft(row(below)).dy - tester.getBottomLeft(row(above)).dy;
+    expect(gapAfter('search', 'mute'), appAnchoredMenuSectionGap);
+    expect(gapAfter('theme', 'wallpaper'), 0);
+    expect(gapAfter('clear-history', 'delete-chat'), 0);
+
+    await closeChat(tester);
+  });
+
+  testWidgets('a channel links its discussion group and direct messages', (
+    tester,
+  ) async {
+    _kind = _Kind.channel;
+    _linkedChatIdOverride = _linkedChatId;
+    _directMessagesChatIdOverride = _directMessagesChatId;
+    await openChat(tester);
+    await openMenu(tester);
+
+    expect(row('linked-chat'), findsOneWidget);
+    expect(row('direct-messages'), findsOneWidget);
+    // A member channel can be left, not deleted, and the discussion row is
+    // named for the channel side.
+    expect(row('leave'), findsOneWidget);
+    expect(row('delete-chat'), findsNothing);
+    expect(find.text('Discussion group'), findsOneWidget);
+
+    await closeChat(tester);
+  });
+
+  testWidgets('only an administrator gets the management row', (tester) async {
+    _kind = _Kind.adminGroup;
+    await openChat(tester);
+    await openMenu(tester);
+    expect(row('manage'), findsOneWidget);
+    expect(find.text('Manage group'), findsOneWidget);
+    await closeChat(tester);
+
+    _kind = _Kind.group;
+    await openChat(tester);
+    await openMenu(tester);
+    expect(row('manage'), findsNothing);
+    await closeChat(tester);
+  });
+
+  testWidgets('mute asks for a duration and then unmutes on the next tap', (
+    tester,
+  ) async {
+    await openChat(tester);
+    await openMenu(tester);
+    expect(find.text('Mute'), findsOneWidget);
+
+    await tester.tap(row('mute'));
+    await tester.pumpAndSettle();
+    // exteraless's durations, in the sheet the row opens.
+    expect(find.text('For 1 hour'), findsOneWidget);
+    expect(find.text('For 8 hours'), findsOneWidget);
+    expect(find.text('For 2 days'), findsOneWidget);
+    expect(find.text('Forever'), findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey('chat-menu-mute-28800')));
+    await tester.pumpAndSettle();
+    final mute = _queries.lastWhere(
+      (request) => request['@type'] == 'setChatNotificationSettings',
+    );
+    expect(
+      (mute['notification_settings'] as Map<String, dynamic>)['mute_for'],
+      28800,
+    );
+
+    // The row names what the next tap does, exteraless's state-paired label.
+    await openMenu(tester);
+    expect(find.text('Unmute'), findsOneWidget);
+    await tester.tap(row('mute'));
+    await tester.pumpAndSettle();
+    final unmute = _queries.lastWhere(
+      (request) => request['@type'] == 'setChatNotificationSettings',
+    );
+    expect(
+      (unmute['notification_settings'] as Map<String, dynamic>)['mute_for'],
+      0,
+    );
+    // An already-muted chat unmutes straight away — no sheet.
+    expect(find.text('For 8 hours'), findsNothing);
+
+    await closeChat(tester);
+  });
+
+  testWidgets('auto-delete picks a timer through the same options', (
+    tester,
+  ) async {
+    await openChat(tester);
+    await openMenu(tester);
+
+    await tester.tap(row('auto-delete'));
+    await tester.pumpAndSettle();
+    expect(find.text('Auto-delete messages'), findsWidgets);
+
+    await tester.tap(
+      find.byKey(const ValueKey('chat-menu-auto-delete-604800')),
+    );
+    await tester.pumpAndSettle();
+    final request = _queries.lastWhere(
+      (response) => response['@type'] == 'setChatMessageAutoDeleteTime',
+    );
+    expect(request['chat_id'], _privateChatId);
+    expect(
+      (request['message_auto_delete_time'] as Map<String, dynamic>)['time'],
+      604800,
+    );
+
+    await closeChat(tester);
+  });
+
+  testWidgets('clear history asks twice, then clears for this account', (
+    tester,
+  ) async {
+    await openChat(tester);
+    await openMenu(tester);
+
+    await tester.tap(row('clear-history'));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('app-confirm-dialog')), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('app-confirm-accept')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('app-confirm-accept')));
+    await tester.pumpAndSettle();
+
+    final request = _queries.lastWhere(
+      (response) => response['@type'] == 'deleteChatHistory',
+    );
+    expect(request['chat_id'], _privateChatId);
+    expect(request['revoke'], false);
+    expect(
+      request['remove_from_chat_list'],
+      false,
+      reason: 'clearing history keeps the chat in the list',
+    );
+
+    await closeChat(tester);
+  });
+
+  testWidgets('leaving a group asks twice, sends leaveChat and closes', (
+    tester,
+  ) async {
+    _kind = _Kind.group;
+    var closed = 0;
+    await openChat(tester, onBack: () => closed++);
+    await openMenu(tester);
+
+    await tester.tap(row('leave'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('app-confirm-accept')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('app-confirm-accept')));
+    await tester.pumpAndSettle();
+
+    expect(
+      _queries.where((request) => request['@type'] == 'leaveChat'),
+      isNotEmpty,
+    );
+    expect(closed, 1, reason: 'the transcript closes after leaving');
+
+    await closeChat(tester);
+  });
+
+  testWidgets('deleting a private chat goes through the scope dialog', (
+    tester,
+  ) async {
+    var closed = 0;
+    await openChat(tester, onBack: () => closed++);
+    await openMenu(tester);
+
+    await tester.tap(row('delete-chat'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('chat-delete-scope-self')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('app-confirm-accept')));
+    await tester.pumpAndSettle();
+
+    final request = _queries.lastWhere(
+      (response) => response['@type'] == 'deleteChatHistory',
+    );
+    expect(request['chat_id'], _privateChatId);
+    expect(request['remove_from_chat_list'], true);
+    expect(closed, 1);
+
+    await closeChat(tester);
+  });
+
+  testWidgets('a forum topic offers closing it, and no topics list row', (
+    tester,
+  ) async {
+    _kind = _Kind.forumCreator;
+    await openChat(tester, forumTopicId: 50);
+    await openMenu(tester);
+
+    expect(row('close-topic'), findsOneWidget);
+    expect(find.text('Close topic'), findsOneWidget);
+
+    await tester.tap(row('close-topic'));
+    await tester.pumpAndSettle();
+    final request = _queries.lastWhere(
+      (response) => response['@type'] == 'toggleForumTopicIsClosed',
+    );
+    expect(request['forum_topic_id'], 50);
+    expect(request['is_closed'], true);
+
+    await closeChat(tester);
+  });
+
+  testWidgets('a long column stays inside the window and scrolls', (
+    tester,
+  ) async {
+    _kind = _Kind.channel;
+    _linkedChatIdOverride = _linkedChatId;
+    _directMessagesChatIdOverride = _directMessagesChatId;
+    // A short window: the admin channel's column cannot fit even without the
+    // management block, so it has to cap its height and scroll.
+    await openChat(tester, size: const Size(390, 420));
+
+    final button = tester.getRect(find.byKey(const ValueKey('chatHeaderMenu')));
+    await openMenu(tester);
+
+    final menu = tester.getRect(
+      find.byKey(const ValueKey('app-anchored-menu')),
+    );
+    expect(menu.height, lessThanOrEqualTo(420 - 2 * 8));
+    expect(menu.top, greaterThanOrEqualTo(8));
+    expect(menu.bottom, lessThanOrEqualTo(420 - 8));
+    expect(
+      find.byKey(const ValueKey('app-anchored-menu-scroll')),
+      findsOneWidget,
+    );
+    // The column still hangs off its button.
+    expect(menu.right, closeTo(button.right, 1));
 
     await closeChat(tester);
   });
@@ -532,10 +873,7 @@ void main() {
   ) async {
     await openChat(tester);
     await openMenu(tester);
-    expect(
-      find.byKey(const ValueKey('app-anchored-menu-pinned-messages')),
-      findsNothing,
-    );
+    expect(row('pinned-messages'), findsNothing);
     await tester.tapAt(const Offset(10, 800));
     await tester.pumpAndSettle();
     await closeChat(tester);
@@ -543,9 +881,7 @@ void main() {
     _hasPinnedMessage = true;
     await openChat(tester);
     await openMenu(tester);
-    final pinned = find.byKey(
-      const ValueKey('app-anchored-menu-pinned-messages'),
-    );
+    final pinned = row('pinned-messages');
     expect(pinned, findsOneWidget);
     expect(find.text('Pinned Messages'), findsOneWidget);
 
@@ -556,34 +892,6 @@ void main() {
     await closeChat(tester);
   });
 
-  testWidgets('mute toggles the chat notification settings', (tester) async {
-    await openChat(tester);
-    await openMenu(tester);
-    expect(find.text('Mute'), findsOneWidget);
-
-    await tester.tap(find.byKey(const ValueKey('app-anchored-menu-mute')));
-    await tester.pumpAndSettle();
-    final mute = _queries.lastWhere(
-      (request) => request['@type'] == 'setChatNotificationSettings',
-    );
-    final settings = mute['notification_settings'] as Map<String, dynamic>;
-    expect(settings['mute_for'], 2147483647);
-
-    // The row names what the next tap does, exteraless's state-paired label.
-    await openMenu(tester);
-    expect(find.text('Unmute'), findsOneWidget);
-    await tester.tap(find.byKey(const ValueKey('app-anchored-menu-mute')));
-    await tester.pumpAndSettle();
-    final unmute = _queries.lastWhere(
-      (request) => request['@type'] == 'setChatNotificationSettings',
-    );
-    expect(
-      (unmute['notification_settings'] as Map<String, dynamic>)['mute_for'],
-      0,
-    );
-
-    await closeChat(tester);
-  });
   testWidgets('a join screen with nothing to act on has no overflow button', (
     tester,
   ) async {

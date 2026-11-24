@@ -1082,6 +1082,7 @@
     <string name="chatLeaveAndDeleteDescription">“{value1}”에서 나가고 채팅 목록에서 제거합니다. 다른 멤버의 메시지는 삭제되지 않습니다.</string>
     <string name="chatLeaveHistoryCleanupFailed">그룹에서 나갔지만 채팅 기록을 지우지 못했습니다.</string>
     <string name="chatLeaveHistoryCleanupFailedChannel">채널을 떠났지만 채팅 기록을 지우지 못했습니다.</string>
+    <string name="chatLinkedChannel">연결된 채널</string>
     <string name="chatListAddFriendOrGroup">친구/그룹 추가</string>
     <string name="chatListBlockedPlaceholder">[차단됨]</string>
     <string name="chatListChannelName">채널 이름</string>
@@ -1150,6 +1151,10 @@
     <string name="chatMessagesSavedCount">메시지 {value1}개 저장됨</string>
     <string name="chatMoreActionsUnsupported">더 많은 작업은 아직 지원되지 않습니다</string>
     <string name="chatMute">음소거</string>
+    <string name="chatMuteFor1Hour">1시간</string>
+    <string name="chatMuteFor2Days">2일</string>
+    <string name="chatMuteFor8Hours">8시간</string>
+    <string name="chatMuteForever">계속</string>
     <string name="chatNewMessagesCount">새 메시지 {value1}개</string>
     <string name="chatNewMessagesDivider">아래는 새 메시지입니다</string>
     <string name="chatNoTopics">주제가 없습니다</string>
@@ -1252,6 +1257,7 @@
     <string name="chatThemeChoose">채팅 테마 선택</string>
     <string name="chatThemeSaveFailed">채팅 테마를 저장할 수 없습니다</string>
     <string name="chatThemeTitle">채팅 테마</string>
+    <string name="chatToBeginning">처음으로</string>
     <string name="chatTodoSetFailed">설정 실패: {value1}</string>
     <string name="chatTodoSetSuccess">그룹 할 일로 설정됨</string>
     <string name="chatTodoUnsetFailed">철회 실패: {value1}</string>

@@ -1082,6 +1082,7 @@
     <string name="chatLeaveAndDeleteDescription">「{value1}」から退出し、チャット一覧から削除します。他のメンバーのメッセージは削除されません。</string>
     <string name="chatLeaveHistoryCleanupFailed">グループから退出しましたが、チャット履歴を消去できませんでした。</string>
     <string name="chatLeaveHistoryCleanupFailedChannel">チャンネルを退出しましたが、チャット履歴を消去できませんでした。</string>
+    <string name="chatLinkedChannel">リンクされたチャンネル</string>
     <string name="chatListAddFriendOrGroup">友だち/グループを追加</string>
     <string name="chatListBlockedPlaceholder">[ブロック済み]</string>
     <string name="chatListChannelName">チャンネル名</string>
@@ -1150,6 +1151,10 @@
     <string name="chatMessagesSavedCount">{value1}件のメッセージを保存しました</string>
     <string name="chatMoreActionsUnsupported">その他の操作はまだ対応していません</string>
     <string name="chatMute">ミュート</string>
+    <string name="chatMuteFor1Hour">1 時間</string>
+    <string name="chatMuteFor2Days">2 日間</string>
+    <string name="chatMuteFor8Hours">8 時間</string>
+    <string name="chatMuteForever">無期限</string>
     <string name="chatNewMessagesCount">{value1}件の新着メッセージ</string>
     <string name="chatNewMessagesDivider">ここから新着メッセージ</string>
     <string name="chatNoTopics">トピックはありません</string>
@@ -1252,6 +1257,7 @@
     <string name="chatThemeChoose">チャットテーマを選択</string>
     <string name="chatThemeSaveFailed">チャットテーマを保存できませんでした</string>
     <string name="chatThemeTitle">チャットテーマ</string>
+    <string name="chatToBeginning">最初へ</string>
     <string name="chatTodoSetFailed">設定に失敗しました：{value1}</string>
     <string name="chatTodoSetSuccess">グループのToDoに設定しました</string>
     <string name="chatTodoUnsetFailed">取り消しに失敗しました：{value1}</string>

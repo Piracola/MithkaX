@@ -1083,6 +1083,7 @@
     <string name="chatLeaveAndDeleteDescription">Leave “{value1}” and remove it from your chat list. This will not delete messages for other members.</string>
     <string name="chatLeaveHistoryCleanupFailed">You left the group, but its chat history could not be cleared.</string>
     <string name="chatLeaveHistoryCleanupFailedChannel">Left the channel, but failed to clear the chat history.</string>
+    <string name="chatLinkedChannel">Linked channel</string>
     <string name="chatListAddFriendOrGroup">Add friend/group</string>
     <string name="chatListBlockedPlaceholder">[Blocked]</string>
     <string name="chatListChannelName">Channel name</string>
@@ -1152,6 +1153,10 @@
     <string name="chatMessagesSavedCount">Saved {value1} messages</string>
     <string name="chatMoreActionsUnsupported">More actions aren’t supported yet</string>
     <string name="chatMute">Mute</string>
+    <string name="chatMuteFor1Hour">For 1 hour</string>
+    <string name="chatMuteFor2Days">For 2 days</string>
+    <string name="chatMuteFor8Hours">For 8 hours</string>
+    <string name="chatMuteForever">Forever</string>
     <string name="chatNewMessagesCount">{value1} new messages</string>
     <string name="chatNewMessagesDivider">New messages below</string>
     <string name="chatNoTopics">No topics yet</string>
@@ -1258,6 +1263,7 @@
     <string name="chatThemeChoose">Choose a chat theme</string>
     <string name="chatThemeSaveFailed">Couldn’t save the chat theme</string>
     <string name="chatThemeTitle">Chat Theme</string>
+    <string name="chatToBeginning">To the beginning</string>
     <string name="chatTodoSetFailed">Failed to pin: {value1}</string>
     <string name="chatTodoSetSuccess">Pinned</string>
     <string name="chatTodoUnsetFailed">Failed to unpin: {value1}</string>

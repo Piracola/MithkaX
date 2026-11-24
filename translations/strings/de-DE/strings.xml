@@ -1083,6 +1083,7 @@
     <string name="chatLeaveAndDeleteDescription">„{value1}“ verlassen und aus deiner Chatliste entfernen. Nachrichten werden nicht für andere Mitglieder gelöscht.</string>
     <string name="chatLeaveHistoryCleanupFailed">Du hast die Gruppe verlassen, aber der Chatverlauf konnte nicht gelöscht werden.</string>
     <string name="chatLeaveHistoryCleanupFailedChannel">Kanal verlassen, aber der Chatverlauf konnte nicht gelöscht werden.</string>
+    <string name="chatLinkedChannel">Verknüpfter Kanal</string>
     <string name="chatListAddFriendOrGroup">Freund/Gruppe hinzufügen</string>
     <string name="chatListBlockedPlaceholder">[Blockiert]</string>
     <string name="chatListChannelName">Kanalname</string>
@@ -1152,6 +1153,10 @@
     <string name="chatMessagesSavedCount">{value1} Nachrichten gespeichert</string>
     <string name="chatMoreActionsUnsupported">Weitere Aktionen werden noch nicht unterstützt</string>
     <string name="chatMute">Stummschalten</string>
+    <string name="chatMuteFor1Hour">Für 1 Stunde</string>
+    <string name="chatMuteFor2Days">Für 2 Tage</string>
+    <string name="chatMuteFor8Hours">Für 8 Stunden</string>
+    <string name="chatMuteForever">Dauerhaft</string>
     <string name="chatNewMessagesCount">{value1} neue Nachrichten</string>
     <string name="chatNewMessagesDivider">Neue Nachrichten</string>
     <string name="chatNoTopics">Keine Themen</string>
@@ -1258,6 +1263,7 @@
     <string name="chatThemeChoose">Chat-Thema auswählen</string>
     <string name="chatThemeSaveFailed">Das Chat-Thema konnte nicht gespeichert werden</string>
     <string name="chatThemeTitle">Chat-Thema</string>
+    <string name="chatToBeginning">Zum Anfang</string>
     <string name="chatTodoSetFailed">Festlegen fehlgeschlagen: {value1}</string>
     <string name="chatTodoSetSuccess">Als Gruppenaufgabe festgelegt</string>
     <string name="chatTodoUnsetFailed">Zurücknehmen fehlgeschlagen: {value1}</string>

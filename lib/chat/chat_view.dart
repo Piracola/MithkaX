@@ -10,6 +10,7 @@ import 'dart:async';
 import 'dart:io';
 import 'dart:math' as math;
 import 'package:file_picker/file_picker.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
@@ -35,7 +36,10 @@ import '../channels/topic_list_actions.dart';
 import '../channels/topic_list_host.dart';
 import '../channels/topic_list_row.dart';
 import '../channels/topic_navigation.dart';
+import '../chats/chat_delete_dialog.dart';
+import '../chats/chat_delete_policy.dart';
 import '../chats/chat_list_view.dart';
+import '../chats/chat_removal_actions.dart';
 import '../chats/search_token_views.dart';
 import '../communities/community_models.dart';
 import '../communities/community_view.dart';
@@ -54,6 +58,7 @@ import '../config/build_flags.dart';
 import '../history/message_history_revision_view.dart';
 import '../history/message_history_settings.dart';
 import '../history/message_history_store.dart';
+import '../history/message_history_view.dart';
 import '../media/app_asset_picker.dart';
 import '../media/media_metadata.dart';
 import '../moments/moments_view.dart' show ChannelMomentsView;
@@ -86,6 +91,7 @@ import '../theme/theme_controller.dart';
 import 'admin/channel_direct_messages_service.dart';
 import 'admin/channel_direct_messages_view.dart';
 import 'admin/chat_info_view.dart';
+import 'admin/group_management_view.dart';
 import 'admin/group_remark_controller.dart';
 import 'ai_translation/ai_chat_translation_service.dart';
 import 'ai_translation/apple_pcc_unread_summary_provider.dart';
@@ -100,7 +106,9 @@ import 'ai_translation/unread_chat_summary_models.dart';
 import 'ai_translation/unread_chat_summary_service.dart';
 import 'ai_translation/unread_chat_summary_view.dart';
 import 'appearance/chat_appearance_message_preview.dart';
+import 'appearance/chat_theme_view.dart';
 import 'appearance/chat_wallpaper.dart';
+import 'appearance/chat_wallpaper_view.dart';
 import 'channel_bottom_panel.dart';
 import 'chat_auto_scroll_policy.dart';
 import 'chat_first_contact_card.dart';
@@ -9080,14 +9088,17 @@ class _ChatViewState extends State<ChatView> {
   bool get _canViewAsMoments =>
       _vm.isChannel && _vm.forumTopicId == null && _canSearchMessages;
 
-  /// The chat-level overflow menu, the way exteraless hangs its
-  /// `chat_menu_options` column off the header's `⋮`.
+  /// The chat's overflow button — exteraless's `⋮` action-bar item — and the
+  /// column it opens.
   ///
-  /// Search leads the column — it used to hold its own header glyph, and a
-  /// menu that pushes the most-used command to the bottom reads backwards.
-  /// The remaining rows are the commands this client can run without leaving
-  /// the conversation; everything that belongs to the details page stays
-  /// there, behind its own visual control.
+  /// The column mirrors exteraless's `chat_menu_options` block for block:
+  /// search and the pinned-message browser on top, then the chat commands
+  /// (mute with its duration chooser, translation, linked chat, direct
+  /// messages, calls, auto-delete), then management for an admin, then the
+  /// chat's own appearance, then the transcript jump, and finally the
+  /// destructive tail. Search leads because it used to hold its own header
+  /// glyph; a menu that pushes the most-used command to the bottom reads
+  /// backwards.
   Future<void> _showChatHeaderMenu(Rect anchor) async {
     final actions = _chatHeaderMenuActions();
     if (actions.isEmpty) return;
@@ -9104,47 +9115,444 @@ class _ChatViewState extends State<ChatView> {
 
   /// The commands this chat offers from its header menu, in the order the
   /// column draws them.
-  List<AppMenuAction> _chatHeaderMenuActions() => [
-    if (_canSearchMessages)
-      AppMenuAction(
-        key: 'search',
-        label: AppStrings.t(AppStringKeys.chatSearchInThisChat),
-        icon: HeroAppIcons.magnifyingGlass,
-        onSelected: _openSearch,
-      ),
-    if (_vm.pinnedMessage != null)
-      AppMenuAction(
-        key: 'pinned-messages',
-        label: AppStrings.t(AppStringKeys.chatInfoPinnedHighlights),
-        icon: HeroAppIcons.pin,
-        onSelected: () => unawaited(_openPinnedMessages()),
-      ),
-    // Saved messages and a secret chat have nothing to silence; a chat the
-    // user has not joined has no subscription to mute either.
-    if (_vm.isMember && !_vm.isSecretChat && !_vm.isSavedMessages)
-      AppMenuAction(
-        key: 'mute',
-        label: AppStrings.t(
-          _vm.isMuted ? AppStringKeys.chatUnmute : AppStringKeys.chatMute,
+  List<AppMenuAction> _chatHeaderMenuActions() {
+    final topic = _topicById(widget.forumTopicId);
+    final canCallPeer =
+        !_vm.isGroup &&
+        !_vm.peerIsBot &&
+        !_vm.isSavedMessages &&
+        !_vm.isSecretChat &&
+        _vm.canCallPeer;
+    final canVideoCallPeer = canCallPeer && _vm.canVideoCallPeer;
+    final canChangeAutoDelete = !_vm.isGroup && !_vm.isSavedMessages;
+    final canManageGroup = _vm.isGroup && _vm.canManageGroup;
+    final canLeave =
+        _vm.isGroup &&
+        _vm.isMember &&
+        !_vm.isChatCreator &&
+        !_vm.isSavedMessages;
+    final canDeleteChat = !_vm.isGroup && !_vm.isSavedMessages;
+    final canCloseTopic =
+        topic != null && !topic.isClosed && _vm.canCloseTopic(topic);
+    final callAvailabilityKnown = _vm.canCallPeer || _vm.canVideoCallPeer;
+    // A chat the user has not joined has no appearance of its own to set and
+    // no history to clear: its menu carries only the commands that read the
+    // chat (search, pinned, translation), never the ones that change it.
+    final inChat = _vm.isMember || !_vm.isGroup;
+    return [
+      if (_canSearchMessages)
+        AppMenuAction(
+          key: 'search',
+          label: AppStrings.t(AppStringKeys.chatSearchInThisChat),
+          icon: HeroAppIcons.magnifyingGlass,
+          onSelected: _openSearch,
         ),
-        icon: _vm.isMuted ? HeroAppIcons.bell : HeroAppIcons.bellSlash,
-        onSelected: () => unawaited(_vm.toggleMute()),
-      ),
-  ];
+      if (_vm.pinnedMessage != null)
+        AppMenuAction(
+          key: 'pinned-messages',
+          label: AppStrings.t(AppStringKeys.chatInfoPinnedHighlights),
+          icon: HeroAppIcons.pin,
+          onSelected: () => unawaited(_openPinnedMessages()),
+        ),
+      // Saved messages and a secret chat have nothing to silence; a chat the
+      // user has not joined has no subscription to mute either.
+      if (_vm.isMember && !_vm.isSecretChat && !_vm.isSavedMessages)
+        AppMenuAction(
+          key: 'mute',
+          label: AppStrings.t(
+            _vm.isMuted ? AppStringKeys.chatUnmute : AppStringKeys.chatMute,
+          ),
+          icon: _vm.isMuted ? HeroAppIcons.bell : HeroAppIcons.bellSlash,
+          sectionStart: true,
+          onSelected: () => unawaited(_muteFromMenu()),
+        ),
+      if (_canToggleChatTranslation)
+        AppMenuAction(
+          key: 'translate',
+          label: _automaticTranslationEnabled
+              ? AppStrings.t(AppStringKeys.chatTranslationShowOriginal)
+              : AppStrings.t(AppStringKeys.chatTranslationTranslateTo, {
+                  'value1': _translation.targetLanguageLabel.l10n(context),
+                }),
+          icon: HeroAppIcons.language,
+          onSelected: _toggleAutomaticTranslation,
+        ),
+      if (_vm.linkedDiscussionChatId != 0)
+        AppMenuAction(
+          key: 'linked-chat',
+          label: AppStrings.t(
+            _vm.isChannel
+                ? AppStringKeys.groupAdminDiscussionGroup
+                : AppStringKeys.chatLinkedChannel,
+          ),
+          icon: HeroAppIcons.users,
+          onSelected: () =>
+              unawaited(_openChannelLinkedChat(_vm.linkedDiscussionChatId)),
+        ),
+      if (_vm.hasDirectMessagesGroup && !_vm.isDirectMessagesGroup)
+        AppMenuAction(
+          key: 'direct-messages',
+          label: AppStrings.t(AppStringKeys.channelDirectMessages),
+          icon: HeroAppIcons.solidMessage,
+          onSelected: () =>
+              unawaited(_openChannelLinkedChat(_vm.directMessagesChatId)),
+        ),
+      if (callAvailabilityKnown &&
+          canCallPeer &&
+          !isDesktopTargetPlatform(Theme.of(context).platform))
+        AppMenuAction(
+          key: 'call',
+          label: AppStrings.t(AppStringKeys.composerVoiceCall),
+          icon: HeroAppIcons.phone,
+          onSelected: () => unawaited(_startCall(false)),
+        ),
+      if (callAvailabilityKnown &&
+          canVideoCallPeer &&
+          !isDesktopTargetPlatform(Theme.of(context).platform))
+        AppMenuAction(
+          key: 'video-call',
+          label: AppStrings.t(AppStringKeys.composerVideoCall),
+          icon: HeroAppIcons.video,
+          onSelected: () => unawaited(_startCall(true)),
+        ),
+      if (canChangeAutoDelete)
+        AppMenuAction(
+          key: 'auto-delete',
+          label: AppStrings.t(AppStringKeys.chatInfoAutoDeleteMessages),
+          icon: HeroAppIcons.clock,
+          onSelected: () => unawaited(_chooseAutoDeleteFromMenu()),
+        ),
+      if (canManageGroup)
+        AppMenuAction(
+          key: 'manage',
+          label: AppStrings.t(AppStringKeys.chatInfoManageGroup),
+          icon: HeroAppIcons.users,
+          sectionStart: true,
+          onSelected: _openGroupManagement,
+        ),
+      if (inChat)
+        AppMenuAction(
+          key: 'theme',
+          label: AppStrings.t(AppStringKeys.chatThemeTitle),
+          icon: HeroAppIcons.palette,
+          sectionStart: true,
+          onSelected: _openChatTheme,
+        ),
+      if (inChat)
+        AppMenuAction(
+          key: 'wallpaper',
+          label: AppStrings.t(AppStringKeys.chatWallpaperTitle),
+          icon: HeroAppIcons.image,
+          onSelected: _openChatWallpaper,
+        ),
+      if (_vm.hasOlderHistory)
+        AppMenuAction(
+          key: 'to-beginning',
+          label: AppStrings.t(AppStringKeys.chatToBeginning),
+          icon: HeroAppIcons.arrowUp,
+          sectionStart: true,
+          onSelected: () => unawaited(_jumpToBeginning()),
+        ),
+      if (inChat && allowTelegramTosViolations)
+        AppMenuAction(
+          key: 'kept-messages',
+          label: AppStrings.t(AppStringKeys.historyTitle),
+          icon: HeroAppIcons.archiveBox,
+          onSelected: _openKeptMessages,
+        ),
+      if (inChat && _vm.canClearHistory)
+        AppMenuAction(
+          key: 'clear-history',
+          label: AppStrings.t(AppStringKeys.chatInfoClearHistory),
+          icon: HeroAppIcons.trash,
+          destructive: true,
+          sectionStart: true,
+          onSelected: () => unawaited(_clearHistoryFromMenu()),
+        ),
+      if (canLeave)
+        AppMenuAction(
+          key: 'leave',
+          label: AppStrings.t(
+            _vm.isChannel
+                ? AppStringKeys.topicChatLeaveChannel
+                : AppStringKeys.chatInfoLeaveGroup,
+          ),
+          icon: HeroAppIcons.arrowRight,
+          destructive: true,
+          onSelected: () => unawaited(_leaveFromMenu()),
+        ),
+      if (canDeleteChat)
+        AppMenuAction(
+          key: 'delete-chat',
+          label: AppStrings.t(AppStringKeys.chatDelete),
+          icon: HeroAppIcons.trash,
+          destructive: true,
+          onSelected: () => unawaited(_deleteChatFromMenu()),
+        ),
+      if (canCloseTopic)
+        AppMenuAction(
+          key: 'close-topic',
+          label: AppStrings.t(AppStringKeys.topicChatCloseTopic),
+          icon: HeroAppIcons.lock,
+          sectionStart: true,
+          onSelected: () => unawaited(_toggleTopicClosed(topic)),
+        ),
+    ];
+  }
 
   /// A join screen with nothing to act on gets no overflow button: a `⋮` that
   /// opens an empty column is worse than no `⋮` at all.
   bool get _showsChatMenu => _chatHeaderMenuActions().isNotEmpty;
+
+  /// The chat is translated on demand: the in-chat panel can turn it on, and
+  /// so can the menu — but only where there is something to translate.
+  bool get _canToggleChatTranslation =>
+      _hasAvailableTranslationOption &&
+      _translation.translateChats &&
+      _hasIncomingTranslatableMessages;
+
+  /// Mute with exteraless's durations. An already-muted chat unmutes on the
+  /// tap; otherwise the sheet asks until when.
+  Future<void> _muteFromMenu() async {
+    if (_vm.isMuted) {
+      await _vm.setMuteFor(0);
+      return;
+    }
+    final selected = await showAppCupertinoModalPopup<int>(
+      context: context,
+      builder: (sheet) => CupertinoActionSheet(
+        title: Text(AppStrings.t(AppStringKeys.chatMute)),
+        actions: [
+          for (final option in const [
+            (AppStringKeys.chatMuteFor1Hour, 60 * 60),
+            (AppStringKeys.chatMuteFor8Hours, 8 * 60 * 60),
+            (AppStringKeys.chatMuteFor2Days, 2 * 24 * 60 * 60),
+            (AppStringKeys.chatMuteForever, 2147483647),
+          ])
+            CupertinoActionSheetAction(
+              key: ValueKey('chat-menu-mute-${option.$2}'),
+              onPressed: () => Navigator.of(sheet).pop(option.$2),
+              child: Text(AppStrings.t(option.$1)),
+            ),
+        ],
+        cancelButton: CupertinoActionSheetAction(
+          onPressed: () => Navigator.of(sheet).pop(),
+          child: Text(AppStrings.t(AppStringKeys.countryPickerCancel)),
+        ),
+      ),
+    );
+    if (selected == null || !mounted) return;
+    await _vm.setMuteFor(selected);
+  }
+
+  /// The auto-delete chooser, same options and request as the details page.
+  Future<void> _chooseAutoDeleteFromMenu() async {
+    final selected = await showAppCupertinoModalPopup<int>(
+      context: context,
+      builder: (sheet) => CupertinoActionSheet(
+        title: Text(AppStrings.t(AppStringKeys.chatInfoAutoDeleteMessages)),
+        actions: [
+          for (final option in const [
+            (AppStringKeys.chatInfoAutoDeleteOff, 0),
+            (AppStringKeys.chatInfoAutoDeleteOneDay, 86400),
+            (AppStringKeys.chatInfoAutoDeleteSevenDays, 604800),
+            (AppStringKeys.chatInfoAutoDeleteOneMonth, 2592000),
+          ])
+            CupertinoActionSheetAction(
+              key: ValueKey('chat-menu-auto-delete-${option.$2}'),
+              onPressed: () => Navigator.of(sheet).pop(option.$2),
+              child: Text(AppStrings.t(option.$1)),
+            ),
+        ],
+        cancelButton: CupertinoActionSheetAction(
+          onPressed: () => Navigator.of(sheet).pop(),
+          child: Text(AppStrings.t(AppStringKeys.countryPickerCancel)),
+        ),
+      ),
+    );
+    if (selected == null || !mounted) return;
+    await _vm.setMessageAutoDeleteTime(selected);
+  }
+
+  void _openGroupManagement() {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => GroupManagementView(
+          chatId: _vm.chatId,
+          title: _chatDisplayTitle,
+          isChannel: _vm.isChannel,
+        ),
+      ),
+    );
+  }
+
+  void _openChatTheme() {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) =>
+            ChatThemeView(chatId: _vm.chatId, chatTitle: _chatDisplayTitle),
+      ),
+    );
+  }
+
+  void _openChatWallpaper() {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) =>
+            ChatWallpaperView(chatId: _vm.chatId, chatTitle: _chatDisplayTitle),
+      ),
+    );
+  }
+
+  void _openKeptMessages() {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => MessageHistoryView(chatId: _vm.chatId),
+      ),
+    );
+  }
+
+  /// The chat's own name, falling back to the title the pane was opened with.
+  String get _chatDisplayTitle =>
+      _vm.peerTitle.isEmpty ? widget.title : _vm.peerTitle;
+
+  /// exteraless's "to the beginning": the chat's very first message. TDLib
+  /// keeps message ids positive per chat, so id 1 is the oldest one, and the
+  /// transcript loads the page around it if it is not in memory.
+  Future<void> _jumpToBeginning() => _scrollToMessage(1, forceAlignment: true);
+
+  /// Clears this chat's history for this account and leaves the chat on
+  /// screen, emptied — the details page's flow, reachable from the menu.
+  Future<void> _clearHistoryFromMenu() async {
+    final confirmed = await showTwoStepClearHistoryDialog(
+      context,
+      chatTitle: _chatDisplayTitle,
+    );
+    if (!mounted || !confirmed) return;
+    try {
+      await clearChatHistoryForSelf(
+        chatId: _vm.chatId,
+        query: TdClient.shared.query,
+      );
+      TdClient.shared.emitLocalUpdate({
+        '@type': 'mithkaChatHistoryCleared',
+        'chat_id': _vm.chatId,
+      });
+    } catch (error) {
+      if (!mounted) return;
+      showToast(context, _chatRemovalErrorText(error));
+    }
+  }
+
+  /// Leaves a group or channel through the same two-stage gate and helpers the
+  /// details page uses, then closes the transcript like exteraless does.
+  Future<void> _leaveFromMenu() async {
+    final action = _vm.isChannel
+        ? AppStringKeys.topicChatLeaveChannel
+        : AppStringKeys.chatInfoLeaveGroup;
+    final impact = AppStrings.t(AppStringKeys.chatLeaveAndDeleteDescription, {
+      'value1': _chatDisplayTitle,
+    });
+    final confirmed = await showTwoStepDestructiveConfirmation(
+      context,
+      firstTitle: AppStrings.t(action),
+      firstMessage: impact,
+      firstConfirmText: AppStringKeys.confirmContinue,
+      finalTitle: AppStrings.t(AppStringKeys.chatDeleteFinalQuestion, {
+        'value1': _chatDisplayTitle,
+      }),
+      finalMessage:
+          '$impact\n\n${AppStringKeys.chatDeleteFinalWarning.l10n(context)}',
+      finalConfirmText: AppStrings.t(action),
+    );
+    if (!mounted || !confirmed) return;
+    try {
+      await leaveChatAndRemoveFromList(
+        chatId: _vm.chatId,
+        query: TdClient.shared.query,
+        onLeft: () =>
+            TdClient.shared.emitLocalUpdate(chatLeftLocalUpdate(_vm.chatId)),
+      );
+      if (mounted) _handleBack();
+    } catch (error) {
+      if (!mounted) return;
+      showToast(context, _chatRemovalErrorText(error));
+    }
+  }
+
+  /// Deletes a private chat: the same scope dialog and requests the chat list
+  /// uses, then closes the transcript.
+  Future<void> _deleteChatFromMenu() async {
+    ChatDeleteCapabilities capabilities;
+    try {
+      final chat = await TdClient.shared.query({
+        '@type': 'getChat',
+        'chat_id': _vm.chatId,
+      });
+      capabilities = chatDeleteCapabilities(chat);
+    } catch (_) {
+      capabilities = const ChatDeleteCapabilities.none();
+    }
+    if (!mounted) return;
+    if (!capabilities.canDelete) {
+      showToast(context, AppStringKeys.chatDeleteUnavailable);
+      return;
+    }
+    final scope = await showTwoStepChatDeleteDialog(
+      context,
+      title: AppStringKeys.chatListDeleteChatQuestion,
+      selfOnlyDescription: AppStringKeys.chatInfoClearHistoryDescription.l10n(
+        context,
+      ),
+      capabilities: capabilities,
+      isGroupOrChannel: false,
+      isSavedMessages: false,
+      chatTitle: _chatDisplayTitle,
+      selfConfirmText: AppStringKeys.chatDelete,
+    );
+    if (!mounted || scope == null) return;
+    try {
+      if (scope == ChatDeleteScope.self) {
+        await TdClient.shared.query(
+          deleteChatHistoryRequest(
+            chatId: _vm.chatId,
+            scope: ChatDeleteScope.self,
+          ),
+        );
+      } else {
+        await TdClient.shared.query({
+          '@type': 'deleteChat',
+          'chat_id': _vm.chatId,
+        });
+      }
+      TdClient.shared.emitLocalUpdate(chatLeftLocalUpdate(_vm.chatId));
+      if (mounted) _handleBack();
+    } catch (error) {
+      if (!mounted) return;
+      showToast(context, _chatRemovalErrorText(error));
+    }
+  }
+
+  String _chatRemovalErrorText(Object error) => switch (error) {
+    ChatRemovalUnavailable() => AppStrings.t(
+      AppStringKeys.chatDeleteUnavailable,
+    ),
+    ChatLeaveHistoryCleanupFailed() => AppStrings.t(
+      _vm.isChannel
+          ? AppStringKeys.chatLeaveHistoryCleanupFailedChannel
+          : AppStringKeys.chatLeaveHistoryCleanupFailed,
+    ),
+    TdError() => error.message,
+    _ => error.toString(),
+  };
 
   /// Opens the chat's pinned-message browser — the same page the details view
   /// links to.
   Future<void> _openPinnedMessages() async {
     await Navigator.of(context).push(
       MaterialPageRoute<void>(
-        builder: (_) => PinnedMessagesView(
-          chatId: _vm.chatId,
-          title: _vm.peerTitle.isEmpty ? widget.title : _vm.peerTitle,
-        ),
+        builder: (_) =>
+            PinnedMessagesView(chatId: _vm.chatId, title: _chatDisplayTitle),
       ),
     );
   }

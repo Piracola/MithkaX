@@ -102,6 +102,11 @@ extension ChatViewModelHeaderTopics on ChatViewModel {
     canDeleteMessagesBySender = false;
     canManageTopics = false;
     canDeleteForumTopics = false;
+    canManageGroup = false;
+    isChatCreator = false;
+    canClearHistory = chatDeleteCapabilities(chat).canDeleteForSelf;
+    canCallPeer = false;
+    canVideoCallPeer = false;
     sendDisabledReason = '';
     isPeerRestricted = false;
     isPeerPornographicRestricted = false;
@@ -383,13 +388,13 @@ extension ChatViewModelHeaderTopics on ChatViewModel {
       });
       if (_isDisposed || peerSupergroupId != supergroupId) return;
       memberCount = full.integer('member_count') ?? memberCount;
-      linkedDiscussionChatId = isChannel
-          ? (full.int64('linked_chat_id') ?? 0)
-          : 0;
+      // Both ids come straight from the payload: a basic group's full info has
+      // neither field, and deriving them from the (asynchronously refreshed)
+      // `isChannel` flag lost the channel's own ids whenever a second header
+      // load reset the flag between the request and its response.
+      linkedDiscussionChatId = full.int64('linked_chat_id') ?? 0;
       hasLinkedDiscussion = linkedDiscussionChatId != 0;
-      directMessagesChatId = isChannel
-          ? (full.int64('direct_messages_chat_id') ?? 0)
-          : 0;
+      directMessagesChatId = full.int64('direct_messages_chat_id') ?? 0;
       _setPaidMessageStarCount(_paidMessageStars(full), notify: false);
       notifyListeners();
       if (isChannel) {
@@ -468,6 +473,8 @@ extension ChatViewModelHeaderTopics on ChatViewModel {
     var restrictsNewChats = false;
     var isUnavailable = false;
     var voiceMessagesForbidden = false;
+    var calls = false;
+    var videoCalls = false;
     try {
       final full = await _client.query({
         '@type': 'getUserFullInfo',
@@ -476,6 +483,8 @@ extension ChatViewModelHeaderTopics on ChatViewModel {
       next = _paidMessageStars(full);
       voiceMessagesForbidden =
           full.boolean('has_restricted_voice_and_video_note_messages') ?? false;
+      calls = full.boolean('can_be_called') ?? false;
+      videoCalls = full.boolean('supports_video_calls') ?? false;
     } catch (_) {}
     try {
       final result = await _client.query({
@@ -504,11 +513,19 @@ extension ChatViewModelHeaderTopics on ChatViewModel {
         peerIsUnavailable != isUnavailable;
     final voiceRestrictionChanged =
         canSendVoiceNotes != !voiceMessagesForbidden;
+    final callsChanged = canCallPeer != calls;
+    final videoCallsChanged = canVideoCallPeer != videoCalls;
     peerRequiresPremiumOrContact = restrictsNewChats;
     peerIsUnavailable = isUnavailable;
     canSendVoiceNotes = !voiceMessagesForbidden;
+    canCallPeer = calls;
+    canVideoCallPeer = videoCalls;
     _setPaidMessageStarCount(next, notify: false);
-    if (paidCountChanged || requirementChanged || voiceRestrictionChanged) {
+    if (paidCountChanged ||
+        requirementChanged ||
+        voiceRestrictionChanged ||
+        callsChanged ||
+        videoCallsChanged) {
       notifyListeners();
     }
   }
@@ -1330,6 +1347,8 @@ extension ChatViewModelHeaderTopics on ChatViewModel {
         canDeleteMessagesBySender = true;
         canManageTopics = true;
         canDeleteForumTopics = true;
+        canManageGroup = true;
+        isChatCreator = true;
         isMember = true;
         canSendMessages = true;
       case 'chatMemberStatusAdministrator':
@@ -1338,6 +1357,7 @@ extension ChatViewModelHeaderTopics on ChatViewModel {
         canManageTopics =
             status?.obj('rights')?.boolean('can_manage_topics') ?? false;
         canDeleteForumTopics = canDeleteMessagesBySender;
+        canManageGroup = true;
         isMember = true;
         canSendMessages = true;
       case 'chatMemberStatusMember':
@@ -1388,19 +1408,47 @@ extension ChatViewModelHeaderTopics on ChatViewModel {
   /// Mute / unmute notifications — the bottom-bar action for a channel you're
   /// subscribed to but can't post in (mirrors the official client).
   Future<void> toggleMute() async {
-    final target = isMuted;
-    isMuted = !isMuted;
+    await setMuteFor(isMuted ? 0 : 2147483647);
+  }
+
+  /// Applies a mute duration (0 = unmute). The header menu's 1h / 8h / 2d /
+  /// forever rows all land here.
+  Future<void> setMuteFor(int seconds) async {
+    final previous = isMuted;
+    final target = seconds != 0;
+    isMuted = target;
     notifyListeners();
     try {
       await _client.query({
         '@type': 'setChatNotificationSettings',
         'chat_id': chatId,
         'notification_settings': inheritedChatNotificationSettings(
-          muteFor: target ? 0 : 2147483647,
+          muteFor: seconds,
         ),
       });
     } catch (_) {
-      isMuted = target; // revert on failure
+      isMuted = previous;
+      notifyListeners();
+    }
+  }
+
+  /// Sets the chat's auto-delete timer (`setChatMessageAutoDeleteTime`); 0
+  /// turns it off. Private and secret chats only.
+  Future<void> setMessageAutoDeleteTime(int seconds) async {
+    final previous = messageAutoDeleteTime;
+    messageAutoDeleteTime = seconds;
+    notifyListeners();
+    try {
+      await _client.query({
+        '@type': 'setChatMessageAutoDeleteTime',
+        'chat_id': chatId,
+        'message_auto_delete_time': {
+          '@type': 'messageAutoDeleteTime',
+          'time': seconds,
+        },
+      });
+    } catch (_) {
+      messageAutoDeleteTime = previous;
       notifyListeners();
     }
   }

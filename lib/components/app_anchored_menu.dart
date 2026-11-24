@@ -24,6 +24,7 @@ class AppMenuAction {
     required this.icon,
     required this.onSelected,
     this.destructive = false,
+    this.sectionStart = false,
   });
 
   /// Stable suffix for the row's key, e.g. `edit` or `mark-read`.
@@ -37,7 +38,15 @@ class AppMenuAction {
   /// Destructive commands render in the danger color, like exteraless's red
   /// Delete item in a tab's popup.
   final bool destructive;
+
+  /// Draws a separator above this row, grouping the column the way
+  /// exteraless's `addColoredGap` splits its chat menu into blocks.
+  final bool sectionStart;
 }
+
+/// A group separator's height inside an anchored column: a hairline plus
+/// breathing room on both sides.
+const double appAnchoredMenuSectionGap = 9;
 
 /// Menu chrome metrics shared with the placement math and tests: 36px rows on
 /// a compact 196px column with an 8px vertical inset, mirroring exteraless's
@@ -147,14 +156,19 @@ const double _menuFastTrack = 150 / 200;
 
 const Curve _menuGrowCurve = Cubic(0.34, 1.56, 0.64, 1.0); // easeOutBack
 
+/// Keeps the popup off the window edges on every side.
+const double _menuViewportMargin = 8;
+
 @visibleForTesting
 double appAnchoredMenuHeightFor(
   int actionCount, {
   bool hasTitle = false,
+  int sectionCount = 0,
   AppAnchoredMenuStyle style = AppAnchoredMenuStyle.compact,
 }) =>
     style.verticalInset * 2 +
     (hasTitle ? appAnchoredMenuTitleHeight : 0) +
+    math.max(0, sectionCount) * appAnchoredMenuSectionGap +
     math.max(0, actionCount) * style.rowHeight;
 
 /// The column's width for [labels]: the compact family is a fixed
@@ -398,14 +412,23 @@ class _AppAnchoredMenuPopupState extends State<AppAnchoredMenuPopup>
         final menuWidth = appAnchoredMenuWidthFor(context, style, [
           for (final action in widget.actions) action.label,
         ]);
-        final menuSize = Size(
-          menuWidth,
-          appAnchoredMenuHeightFor(
-            widget.actions.length,
-            hasTitle: _hasHeader,
-            style: style,
-          ),
+        final sectionCount = widget.actions
+            .where((action) => action.sectionStart)
+            .length;
+        final contentHeight = appAnchoredMenuHeightFor(
+          widget.actions.length,
+          hasTitle: _hasHeader,
+          sectionCount: sectionCount,
+          style: style,
         );
+        // A chat menu can outgrow the screen (a channel admin's column carries
+        // a dozen rows); exteraless caps the popup and scrolls its contents
+        // instead of letting the column run off the window.
+        final maxHeight = math.max(
+          style.rowHeight,
+          viewport.height - 2 * _menuViewportMargin,
+        );
+        final menuSize = Size(menuWidth, math.min(contentHeight, maxHeight));
         final origin = appAnchoredMenuOriginFor(
           anchor: widget.anchor,
           viewport: viewport,
@@ -462,6 +485,9 @@ class _AppAnchoredMenuPopupState extends State<AppAnchoredMenuPopup>
                         child: Container(
                           key: const ValueKey('app-anchored-menu'),
                           width: menuSize.width,
+                          constraints: BoxConstraints(
+                            maxHeight: menuSize.height,
+                          ),
                           padding: EdgeInsets.symmetric(
                             vertical: style.verticalInset,
                           ),
@@ -482,36 +508,40 @@ class _AppAnchoredMenuPopupState extends State<AppAnchoredMenuPopup>
                             ],
                           ),
                           clipBehavior: Clip.antiAlias,
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              if (_hasHeader)
-                                Padding(
-                                  padding: const EdgeInsets.fromLTRB(
-                                    16,
-                                    8,
-                                    16,
-                                    6,
-                                  ),
-                                  child: Text(
-                                    widget.header!,
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: TextStyle(
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.w600,
-                                      color: c.textSecondary,
+                          child: SingleChildScrollView(
+                            key: const ValueKey('app-anchored-menu-scroll'),
+                            padding: EdgeInsets.zero,
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                if (_hasHeader)
+                                  Padding(
+                                    padding: const EdgeInsets.fromLTRB(
+                                      16,
+                                      8,
+                                      16,
+                                      6,
+                                    ),
+                                    child: Text(
+                                      widget.header!,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w600,
+                                        color: c.textSecondary,
+                                      ),
                                     ),
                                   ),
-                                ),
-                              for (final action in widget.actions)
-                                _AppAnchoredMenuRow(
-                                  action: action,
-                                  style: style,
-                                  onTap: () => _select(action),
-                                ),
-                            ],
+                                for (final action in widget.actions)
+                                  _AppAnchoredMenuRow(
+                                    action: action,
+                                    style: style,
+                                    onTap: () => _select(action),
+                                  ),
+                              ],
+                            ),
                           ),
                         ),
                       ),
@@ -541,10 +571,11 @@ class _AppAnchoredMenuRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
-    final foreground = action.destructive
+    final destructiveColor = Theme.of(context).brightness == Brightness.dark
         ? const Color(0xFFFF6961)
-        : c.textPrimary;
-    return AppInteractiveSurface(
+        : AppTheme.tagRed;
+    final foreground = action.destructive ? destructiveColor : c.textPrimary;
+    final row = AppInteractiveSurface(
       key: ValueKey('app-anchored-menu-${action.key}'),
       semanticLabel: action.label,
       onTap: onTap,
@@ -582,6 +613,23 @@ class _AppAnchoredMenuRow extends StatelessWidget {
           ),
         ),
       ),
+    );
+    if (!action.sectionStart) return row;
+    // exteraless splits its chat menu with addColoredGap: one hairline per
+    // block boundary, inset off the card's edge.
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Padding(
+          padding: EdgeInsets.symmetric(
+            horizontal: style.horizontalPadding,
+            vertical: 4,
+          ),
+          child: Container(height: 1, color: c.divider),
+        ),
+        row,
+      ],
     );
   }
 }

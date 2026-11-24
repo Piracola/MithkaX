@@ -1082,6 +1082,7 @@
     <string name="chatLeaveAndDeleteDescription">退出“{value1}”，并将其从你的聊天列表中移除。不会为其他成员删除消息。</string>
     <string name="chatLeaveHistoryCleanupFailed">已退出群聊，但未能清空聊天记录。</string>
     <string name="chatLeaveHistoryCleanupFailedChannel">已退出频道，但未能清空聊天记录。</string>
+    <string name="chatLinkedChannel">关联频道</string>
     <string name="chatListAddFriendOrGroup">加好友/群</string>
     <string name="chatListBlockedPlaceholder">[已屏蔽]</string>
     <string name="chatListChannelName">频道名称</string>
@@ -1150,6 +1151,10 @@
     <string name="chatMessagesSavedCount">已保存 {value1} 条消息</string>
     <string name="chatMoreActionsUnsupported">暂未支持更多操作</string>
     <string name="chatMute">静音</string>
+    <string name="chatMuteFor1Hour">1 小时</string>
+    <string name="chatMuteFor2Days">2 天</string>
+    <string name="chatMuteFor8Hours">8 小时</string>
+    <string name="chatMuteForever">永久</string>
     <string name="chatNewMessagesCount">{value1}条新消息</string>
     <string name="chatNewMessagesDivider">以下为新消息</string>
     <string name="chatNoTopics">暂无话题</string>
@@ -1252,6 +1257,7 @@
     <string name="chatThemeChoose">选择聊天主题</string>
     <string name="chatThemeSaveFailed">无法保存聊天主题</string>
     <string name="chatThemeTitle">聊天主题</string>
+    <string name="chatToBeginning">跳到开头</string>
     <string name="chatTodoSetFailed">置顶失败：{value1}</string>
     <string name="chatTodoSetSuccess">已置顶</string>
     <string name="chatTodoUnsetFailed">取消置顶失败：{value1}</string>

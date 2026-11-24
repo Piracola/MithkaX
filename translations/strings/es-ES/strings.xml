@@ -1083,6 +1083,7 @@
     <string name="chatLeaveAndDeleteDescription">Salir de «{value1}» y quitarlo de tu lista de chats. No se eliminarán los mensajes para otros miembros.</string>
     <string name="chatLeaveHistoryCleanupFailed">Has salido del grupo, pero no se pudo borrar su historial de chat.</string>
     <string name="chatLeaveHistoryCleanupFailedChannel">Saliste del canal, pero no se pudo borrar el historial.</string>
+    <string name="chatLinkedChannel">Canal vinculado</string>
     <string name="chatListAddFriendOrGroup">Añadir amigo/grupo</string>
     <string name="chatListBlockedPlaceholder">[Bloqueado]</string>
     <string name="chatListChannelName">Nombre del canal</string>
@@ -1152,6 +1153,10 @@
     <string name="chatMessagesSavedCount">{value1} mensajes guardados</string>
     <string name="chatMoreActionsUnsupported">Aún no hay más acciones disponibles</string>
     <string name="chatMute">Silenciar</string>
+    <string name="chatMuteFor1Hour">Durante 1 hora</string>
+    <string name="chatMuteFor2Days">Durante 2 días</string>
+    <string name="chatMuteFor8Hours">Durante 8 horas</string>
+    <string name="chatMuteForever">Para siempre</string>
     <string name="chatNewMessagesCount">{value1} mensajes nuevos</string>
     <string name="chatNewMessagesDivider">Mensajes nuevos a continuación</string>
     <string name="chatNoTopics">No hay temas</string>
@@ -1258,6 +1263,7 @@
     <string name="chatThemeChoose">Elegir tema del chat</string>
     <string name="chatThemeSaveFailed">No se pudo guardar el tema del chat</string>
     <string name="chatThemeTitle">Tema del chat</string>
+    <string name="chatToBeginning">Al principio</string>
     <string name="chatTodoSetFailed">No se pudo configurar: {value1}</string>
     <string name="chatTodoSetSuccess">Marcado como tarea del grupo</string>
     <string name="chatTodoUnsetFailed">No se pudo retirar: {value1}</string>

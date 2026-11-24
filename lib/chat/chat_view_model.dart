@@ -16,6 +16,7 @@ import 'package:mithka/notifications/scope_notification_settings.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../auth/account_store.dart';
 import '../channels/topic_list_actions.dart';
+import '../chats/chat_delete_policy.dart';
 import '../config/build_flags.dart';
 import '../history/message_history_settings.dart';
 import '../history/message_history_store.dart';
@@ -510,9 +511,10 @@ class ChatViewModel extends ChangeNotifier {
 
   bool hasLinkedDiscussion = false;
 
-  /// Chat id of the channel's linked discussion group, 0 when the channel has
-  /// none. [hasLinkedDiscussion] stays the boolean the transcript reads; this
-  /// id is what the channel bottom panel opens.
+  /// Chat id of the chat linked to this one — a channel's discussion group or
+  /// a group's channel — 0 when there is none. [hasLinkedDiscussion] stays the
+  /// boolean the transcript reads; this id is what the channel bottom panel
+  /// and the header menu open.
   int linkedDiscussionChatId = 0;
 
   /// Chat id of the channel's direct-messages group (`market`-style 私聊),
@@ -520,6 +522,22 @@ class ChatViewModel extends ChangeNotifier {
   int directMessagesChatId = 0;
 
   bool get hasDirectMessagesGroup => directMessagesChatId != 0;
+
+  /// Whether the current account may delete its own copy of this chat's
+  /// history — the header menu's Clear history gate.
+  bool canClearHistory = false;
+
+  /// Whether the current account administers this group or channel.
+  bool canManageGroup = false;
+
+  /// Whether the current account owns the group/channel. The owner cannot
+  /// leave it, so the menu hides Leave for them.
+  bool isChatCreator = false;
+
+  /// Call availability for a private chat (TDLib userFullInfo `can_be_called`
+  /// and `supports_video_calls`).
+  bool canCallPeer = false;
+  bool canVideoCallPeer = false;
 
   bool isDirectMessagesGroup = false;
 

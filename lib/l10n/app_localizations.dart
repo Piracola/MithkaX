@@ -1170,6 +1170,7 @@ abstract final class AppStringKeys {
   static const chatLeaveHistoryCleanupFailed = 'chatLeaveHistoryCleanupFailed';
   static const chatLeaveHistoryCleanupFailedChannel =
       'chatLeaveHistoryCleanupFailedChannel';
+  static const chatLinkedChannel = 'chatLinkedChannel';
   static const chatListAddFriendOrGroup = 'chatListAddFriendOrGroup';
   static const chatListBlockedPlaceholder = 'chatListBlockedPlaceholder';
   static const chatListChannelName = 'chatListChannelName';
@@ -1239,6 +1240,10 @@ abstract final class AppStringKeys {
   static const chatMessagesSavedCount = 'chatMessagesSavedCount';
   static const chatMoreActionsUnsupported = 'chatMoreActionsUnsupported';
   static const chatMute = 'chatMute';
+  static const chatMuteFor1Hour = 'chatMuteFor1Hour';
+  static const chatMuteFor2Days = 'chatMuteFor2Days';
+  static const chatMuteFor8Hours = 'chatMuteFor8Hours';
+  static const chatMuteForever = 'chatMuteForever';
   static const chatNewMessagesCount = 'chatNewMessagesCount';
   static const chatNewMessagesDivider = 'chatNewMessagesDivider';
   static const chatUnreadMessagesCount = 'chatUnreadMessagesCount';
@@ -1348,6 +1353,7 @@ abstract final class AppStringKeys {
   static const chatThemeChoose = 'chatThemeChoose';
   static const chatThemeSaveFailed = 'chatThemeSaveFailed';
   static const chatThemeTitle = 'chatThemeTitle';
+  static const chatToBeginning = 'chatToBeginning';
   static const chatTodoSetFailed = 'chatTodoSetFailed';
   static const chatTodoSetSuccess = 'chatTodoSetSuccess';
   static const chatTodoUnsetFailed = 'chatTodoUnsetFailed';
