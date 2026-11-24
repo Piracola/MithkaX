@@ -517,7 +517,6 @@ class HeroAppIcons {
   static const solidImage = AppIconData(HeroiconsSolid.photo);
   static const solidMessage = AppIconData(HeroiconsSolid.chatBubbleLeft);
   static const solidMoon = AppIconData(HeroiconsSolid.moon);
-  static const solidNewspaper = AppIconData(HeroiconsSolid.newspaper);
   static const solidPaperPlane = AppIconData(HeroiconsSolid.paperAirplane);
   static const solidPause = AppIconData(HeroiconsSolid.pause);
   static const solidPlay = AppIconData(HeroiconsSolid.play);

@@ -129,8 +129,8 @@ void main() {
                 HeroAppIcons.solidHashtag,
                 HeroAppIcons.users,
                 HeroAppIcons.solidUsers,
-                HeroAppIcons.newspaper,
-                HeroAppIcons.solidNewspaper,
+                HeroAppIcons.star,
+                HeroAppIcons.solidStar,
                 HeroAppIcons.circleCheck,
               ])
                 NativeTabIconRasterizer.png(icon.data, 1, TextDirection.ltr),
@@ -504,13 +504,13 @@ void main() {
             HeroAppIcons.message,
             HeroAppIcons.hashtag,
             HeroAppIcons.users,
-            HeroAppIcons.newspaper,
+            HeroAppIcons.star,
           ];
           const selectedGlyphs = [
             HeroAppIcons.solidMessage,
             HeroAppIcons.solidHashtag,
             HeroAppIcons.solidUsers,
-            HeroAppIcons.solidNewspaper,
+            HeroAppIcons.solidStar,
           ];
           // Return to Messages so every other tab is checked after deselection.
           for (final selected in [0, 1, 2, 3, 0]) {

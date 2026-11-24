@@ -445,14 +445,11 @@ abstract class _MainRootViewState<T extends StatefulWidget> extends State<T>
       HeroAppIcons.users,
       selectedIcon: HeroAppIcons.solidUsers,
     ),
-    // The tab is a feed of channel posts with a friends' stories shelf on top;
-    // the newspaper is the glyph the channel header already uses for
-    // 「以动态查看」, so the tab and that command read as the same surface.
     _MainTabItem(
       3,
       AppStringKeys.tabMoments,
-      HeroAppIcons.newspaper,
-      selectedIcon: HeroAppIcons.solidNewspaper,
+      HeroAppIcons.star,
+      selectedIcon: HeroAppIcons.solidStar,
     ),
   ];
 

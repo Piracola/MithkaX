@@ -28,7 +28,7 @@ void main() {
     (outline: HeroAppIcons.message, solid: HeroAppIcons.solidMessage),
     (outline: HeroAppIcons.hashtag, solid: HeroAppIcons.solidHashtag),
     (outline: HeroAppIcons.users, solid: HeroAppIcons.solidUsers),
-    (outline: HeroAppIcons.newspaper, solid: HeroAppIcons.solidNewspaper),
+    (outline: HeroAppIcons.star, solid: HeroAppIcons.solidStar),
   ];
 
   // IconData's equality covers the font family, but its toString prints only
