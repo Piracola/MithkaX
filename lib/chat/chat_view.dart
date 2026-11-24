@@ -155,6 +155,7 @@ import 'messages/quick_reaction_choice.dart';
 import 'messages/shared_contact_sheet.dart';
 import 'mini_apps/bot_api_access_warning.dart';
 import 'mini_apps/telegram_mini_app_view.dart';
+import 'pinned_messages_view.dart';
 import 'protected_forward.dart';
 import 'stickers/custom_emoji.dart';
 import 'stickers/emoji_store.dart';
@@ -1184,6 +1185,46 @@ class _ChatHeaderAction extends StatelessWidget {
         height: math.max(44, AppMetric.hitTarget),
         child: Center(
           child: AppIcon(icon, size: AppIconSize.nav, color: c.textPrimary),
+        ),
+      ),
+    );
+  }
+}
+
+/// The chat's overflow button — exteraless's `⋮` action-bar item.
+///
+/// Every chat type carries it, so the same secondary commands (search first)
+/// live in one predictable place. It is deliberately NOT the chat-info
+/// control: that one keeps its own glyph and opens the details page, while
+/// this one opens a menu — a vertical ellipsis never reads as the `☰`/gear
+/// info button beside it.
+class _ChatHeaderMenuButton extends StatelessWidget {
+  const _ChatHeaderMenuButton({required this.onPressed});
+
+  /// Receives the button's global rect so the menu hangs off it.
+  final ValueChanged<Rect> onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    return AppInteractiveSurface(
+      key: const ValueKey('chatHeaderMenu'),
+      semanticLabel: AppStringKeys.chatMenu.l10n(context),
+      onTap: () {
+        final box = context.findRenderObject() as RenderBox?;
+        if (box == null || !box.hasSize) return;
+        onPressed(box.localToGlobal(Offset.zero) & box.size);
+      },
+      borderRadius: BorderRadius.circular(AppRadius.md),
+      child: SizedBox(
+        width: math.max(44, AppMetric.hitTarget),
+        height: math.max(44, AppMetric.hitTarget),
+        child: Center(
+          child: AppIcon(
+            HeroAppIcons.ellipsisVertical,
+            size: AppIconSize.nav,
+            color: c.textPrimary,
+          ),
         ),
       ),
     );
@@ -8956,13 +8997,6 @@ class _ChatViewState extends State<ChatView> {
                       icon: HeroAppIcons.tableCells,
                       onTap: () => unawaited(_openBotMenuApp(_vm.botMenu!)),
                     ),
-                  if (_canSearchMessages)
-                    _ChatHeaderAction(
-                      key: const ValueKey('chatHeaderSearch'),
-                      label: AppStringKeys.chatSearchInThisChat.l10n(context),
-                      icon: HeroAppIcons.magnifyingGlass,
-                      onTap: _openSearch,
-                    ),
                   if (_canViewAsMoments)
                     _ChatHeaderAction(
                       key: const ValueKey('chatHeaderViewAsMoments'),
@@ -8992,25 +9026,24 @@ class _ChatViewState extends State<ChatView> {
                           ? _handleInfoPressed
                           : _handleFullInfoPressed,
                     ),
-                  if (_showsTopicSurfaces) ...[
+                  if (_showsTopicSurfaces && _vm.canCreateForumTopics)
                     _ChatHeaderAction(
-                      key: const ValueKey('chatHeaderTopics'),
-                      label: AppStringKeys.topicChatAllTopics.l10n(context),
-                      icon: HeroAppIcons.hashtag,
-                      onTap: () {
-                        // A shell overlay the user dismissed comes back from
-                        // the header; other shells pick from the sheet.
-                        final host = _topicListOverlaid
-                            ? _shellTopicListHost
-                            : null;
-                        if (host != null && host.listHidden) {
-                          host.showList();
-                          return;
-                        }
-                        unawaited(_showTopicSelector());
-                      },
+                      // The title itself opens the topic list, so the header
+                      // carries the one action the list cannot: starting a
+                      // topic. A chat whose rights refuse creation shows no
+                      // button at all.
+                      key: const ValueKey('chatHeaderNewTopic'),
+                      label: AppStringKeys.groupAdministrationNewTopic.l10n(
+                        context,
+                      ),
+                      icon: HeroAppIcons.plus,
+                      onTap: () => unawaited(_openCreateTopicDialog()),
                     ),
-                  ],
+                  if (_showsChatMenu)
+                    _ChatHeaderMenuButton(
+                      onPressed: (anchor) =>
+                          unawaited(_showChatHeaderMenu(anchor)),
+                    ),
                 ],
               ),
             ),
@@ -9046,6 +9079,75 @@ class _ChatViewState extends State<ChatView> {
   /// and a restricted channel have no posts to show there.
   bool get _canViewAsMoments =>
       _vm.isChannel && _vm.forumTopicId == null && _canSearchMessages;
+
+  /// The chat-level overflow menu, the way exteraless hangs its
+  /// `chat_menu_options` column off the header's `⋮`.
+  ///
+  /// Search leads the column — it used to hold its own header glyph, and a
+  /// menu that pushes the most-used command to the bottom reads backwards.
+  /// The remaining rows are the commands this client can run without leaving
+  /// the conversation; everything that belongs to the details page stays
+  /// there, behind its own visual control.
+  Future<void> _showChatHeaderMenu(Rect anchor) async {
+    final actions = _chatHeaderMenuActions();
+    if (actions.isEmpty) return;
+    await showAppAnchoredMenu(
+      context: context,
+      anchor: anchor,
+      actions: actions,
+      // The column belongs to the button it hangs from, the way exteraless
+      // anchors an action-bar submenu.
+      gap: AppSpacing.xs,
+      style: AppAnchoredMenuStyle.header,
+    );
+  }
+
+  /// The commands this chat offers from its header menu, in the order the
+  /// column draws them.
+  List<AppMenuAction> _chatHeaderMenuActions() => [
+    if (_canSearchMessages)
+      AppMenuAction(
+        key: 'search',
+        label: AppStrings.t(AppStringKeys.chatSearchInThisChat),
+        icon: HeroAppIcons.magnifyingGlass,
+        onSelected: _openSearch,
+      ),
+    if (_vm.pinnedMessage != null)
+      AppMenuAction(
+        key: 'pinned-messages',
+        label: AppStrings.t(AppStringKeys.chatInfoPinnedHighlights),
+        icon: HeroAppIcons.pin,
+        onSelected: () => unawaited(_openPinnedMessages()),
+      ),
+    // Saved messages and a secret chat have nothing to silence; a chat the
+    // user has not joined has no subscription to mute either.
+    if (_vm.isMember && !_vm.isSecretChat && !_vm.isSavedMessages)
+      AppMenuAction(
+        key: 'mute',
+        label: AppStrings.t(
+          _vm.isMuted ? AppStringKeys.chatUnmute : AppStringKeys.chatMute,
+        ),
+        icon: _vm.isMuted ? HeroAppIcons.bell : HeroAppIcons.bellSlash,
+        onSelected: () => unawaited(_vm.toggleMute()),
+      ),
+  ];
+
+  /// A join screen with nothing to act on gets no overflow button: a `⋮` that
+  /// opens an empty column is worse than no `⋮` at all.
+  bool get _showsChatMenu => _chatHeaderMenuActions().isNotEmpty;
+
+  /// Opens the chat's pinned-message browser — the same page the details view
+  /// links to.
+  Future<void> _openPinnedMessages() async {
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => PinnedMessagesView(
+          chatId: _vm.chatId,
+          title: _vm.peerTitle.isEmpty ? widget.title : _vm.peerTitle,
+        ),
+      ),
+    );
+  }
 
   Future<void> _openChannelMoments() async {
     ChatSummary? channel;
@@ -9149,13 +9251,15 @@ class _ChatViewState extends State<ChatView> {
     );
     if (_showsTopicSurfaces) {
       return GestureDetector(
+        key: const ValueKey('chatHeaderTitle'),
         behavior: HitTestBehavior.opaque,
-        onTap: _showTopicSelector,
+        onTap: _openTopicList,
         child: content,
       );
     }
     if ((_vm.peerUserId ?? 0) > 0) {
       return GestureDetector(
+        key: const ValueKey('chatHeaderTitle'),
         behavior: HitTestBehavior.opaque,
         onTap: _openPeerProfile,
         child: content,
@@ -9527,6 +9631,18 @@ class _ChatViewState extends State<ChatView> {
       actions: actions,
       gap: gap,
     );
+  }
+
+  /// Opens the topic list the way the chat title's chevron promises: a
+  /// sidebar-placement shell whose list the user dismissed gets it back;
+  /// every other shell picks from the sheet.
+  void _openTopicList() {
+    final host = _topicListOverlaid ? _shellTopicListHost : null;
+    if (host != null && host.listHidden) {
+      host.showList();
+      return;
+    }
+    unawaited(_showTopicSelector());
   }
 
   Future<void> _showTopicSelector() async {

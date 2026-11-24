@@ -548,15 +548,19 @@ class ChatViewModel extends ChangeNotifier {
 
   /// Topic moderation rights for forum chats. Creating needs the
   /// can_manage_topics administrator right or the can_create_topics member
-  /// right; pinning/editing/closing need can_manage_topics; deleting needs
-  /// can_delete_messages unless the user created the topic.
+  /// right; in a chat with a topics bot it follows the bot's own
+  /// `allows_users_to_create_topics` flag (tdesktop's `canCreateTopic`), which
+  /// no supergroup right ever answers. Pinning/editing/closing need
+  /// can_manage_topics; deleting needs can_delete_messages unless the user
+  /// created the topic.
   bool _chatCanCreateTopics = false;
 
   bool canManageTopics = false;
 
   bool canDeleteForumTopics = false;
 
-  bool get canCreateForumTopics => _chatCanCreateTopics || canManageTopics;
+  bool get canCreateForumTopics =>
+      _chatCanCreateTopics || canManageTopics || botTopicsManageable;
 
   /// Per-topic creator deletion eligibility, verified against the topic's
   /// actual message history. TDLib's deleteForumTopic allows a non-admin

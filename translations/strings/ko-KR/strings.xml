@@ -1149,6 +1149,7 @@
     <string name="chatMessagesForwardedCount">메시지 {value1}개 전달됨</string>
     <string name="chatMessagesSavedCount">메시지 {value1}개 저장됨</string>
     <string name="chatMoreActionsUnsupported">더 많은 작업은 아직 지원되지 않습니다</string>
+    <string name="chatMute">음소거</string>
     <string name="chatNewMessagesCount">새 메시지 {value1}개</string>
     <string name="chatNewMessagesDivider">아래는 새 메시지입니다</string>
     <string name="chatNoTopics">주제가 없습니다</string>

@@ -1236,6 +1236,7 @@ abstract final class AppStringKeys {
   static const chatMessagesForwardedCount = 'chatMessagesForwardedCount';
   static const chatMessagesSavedCount = 'chatMessagesSavedCount';
   static const chatMoreActionsUnsupported = 'chatMoreActionsUnsupported';
+  static const chatMute = 'chatMute';
   static const chatNewMessagesCount = 'chatNewMessagesCount';
   static const chatNewMessagesDivider = 'chatNewMessagesDivider';
   static const chatUnreadMessagesCount = 'chatUnreadMessagesCount';

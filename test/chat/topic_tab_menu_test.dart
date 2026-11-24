@@ -349,7 +349,7 @@ void main() {
       isForum: true,
     );
 
-    await tester.tap(find.byKey(const ValueKey('chatHeaderTopics')));
+    await tester.tap(find.byKey(const ValueKey('chatHeaderTitle')));
     await tester.pumpAndSettle();
     expect(find.byKey(const ValueKey('topic-selector-list')), findsOneWidget);
 
@@ -433,7 +433,7 @@ void main() {
       isForum: true,
     );
 
-    await tester.tap(find.byKey(const ValueKey('chatHeaderTopics')));
+    await tester.tap(find.byKey(const ValueKey('chatHeaderTitle')));
     await tester.pumpAndSettle();
 
     final row = find.byKey(const ValueKey('topic-selector-row-50'));

@@ -1149,6 +1149,7 @@
     <string name="chatMessagesForwardedCount">已转发 {value1} 条消息</string>
     <string name="chatMessagesSavedCount">已保存 {value1} 条消息</string>
     <string name="chatMoreActionsUnsupported">暂未支持更多操作</string>
+    <string name="chatMute">静音</string>
     <string name="chatNewMessagesCount">{value1}条新消息</string>
     <string name="chatNewMessagesDivider">以下为新消息</string>
     <string name="chatNoTopics">暂无话题</string>

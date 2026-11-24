@@ -1149,6 +1149,7 @@
     <string name="chatMessagesForwardedCount">{value1}件のメッセージを転送しました</string>
     <string name="chatMessagesSavedCount">{value1}件のメッセージを保存しました</string>
     <string name="chatMoreActionsUnsupported">その他の操作はまだ対応していません</string>
+    <string name="chatMute">ミュート</string>
     <string name="chatNewMessagesCount">{value1}件の新着メッセージ</string>
     <string name="chatNewMessagesDivider">ここから新着メッセージ</string>
     <string name="chatNoTopics">トピックはありません</string>

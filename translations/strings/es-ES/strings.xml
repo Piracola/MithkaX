@@ -1151,6 +1151,7 @@
     <string name="chatMessagesForwardedCount">{value1} mensajes reenviados</string>
     <string name="chatMessagesSavedCount">{value1} mensajes guardados</string>
     <string name="chatMoreActionsUnsupported">Aún no hay más acciones disponibles</string>
+    <string name="chatMute">Silenciar</string>
     <string name="chatNewMessagesCount">{value1} mensajes nuevos</string>
     <string name="chatNewMessagesDivider">Mensajes nuevos a continuación</string>
     <string name="chatNoTopics">No hay temas</string>

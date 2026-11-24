@@ -1151,6 +1151,7 @@
     <string name="chatMessagesForwardedCount">{value1} messages transférés</string>
     <string name="chatMessagesSavedCount">{value1} messages enregistrés</string>
     <string name="chatMoreActionsUnsupported">Plus d’actions non encore prises en charge</string>
+    <string name="chatMute">Mettre en sourdine</string>
     <string name="chatNewMessagesCount">{value1} nouveaux messages</string>
     <string name="chatNewMessagesDivider">Nouveaux messages ci-dessous</string>
     <string name="chatNoTopics">Aucun sujet</string>

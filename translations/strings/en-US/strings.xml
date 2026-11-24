@@ -1151,6 +1151,7 @@
     <string name="chatMessagesForwardedCount">Forwarded {value1} messages</string>
     <string name="chatMessagesSavedCount">Saved {value1} messages</string>
     <string name="chatMoreActionsUnsupported">More actions aren’t supported yet</string>
+    <string name="chatMute">Mute</string>
     <string name="chatNewMessagesCount">{value1} new messages</string>
     <string name="chatNewMessagesDivider">New messages below</string>
     <string name="chatNoTopics">No topics yet</string>

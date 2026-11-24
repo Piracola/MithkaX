@@ -50,6 +50,89 @@ const double appAnchoredMenuMinWidth = 196;
 /// line, 6px below.
 const double appAnchoredMenuTitleHeight = 30;
 
+/// How an anchored menu is drawn.
+///
+/// The app owns exactly two sizes of this popup, and they must stay
+/// tellable apart: the compact column hangs off a tab or an in-chat pill,
+/// while the chat header's overflow menu is exteraless's action-bar submenu —
+/// taller rows, the 16sp menu label, a column that hugs its widest label, and
+/// an edge that lines up with the `⋮` that opened it.
+enum AppAnchoredMenuStyle {
+  compact(
+    rowHeight: appAnchoredMenuRowHeight,
+    verticalInset: appAnchoredMenuVerticalInset,
+    minWidth: appAnchoredMenuMinWidth,
+    maxWidth: appAnchoredMenuMinWidth,
+    iconSize: 19,
+    iconSlot: 31,
+    labelSize: 15,
+    labelWeight: FontWeight.w500,
+    horizontalPadding: 16,
+    rowRadius: AppRadius.md,
+    surfaceRadius: AppRadius.control,
+    hugLabels: false,
+    rightAligned: false,
+  ),
+
+  /// The chat header's `⋮` menu: exteraless `ActionBarMenuSubItem` geometry —
+  /// 48dp rows, 18dp row insets, a 22px glyph in its 43dp slot, and a 16sp
+  /// label.
+  header(
+    rowHeight: 48,
+    verticalInset: 8,
+    minWidth: appAnchoredMenuMinWidth,
+    maxWidth: 300,
+    iconSize: 22,
+    iconSlot: 43,
+    labelSize: 16,
+    labelWeight: FontWeight.w400,
+    horizontalPadding: 18,
+    rowRadius: AppRadius.control,
+    surfaceRadius: AppRadius.card,
+    hugLabels: true,
+    rightAligned: true,
+  );
+
+  const AppAnchoredMenuStyle({
+    required this.rowHeight,
+    required this.verticalInset,
+    required this.minWidth,
+    required this.maxWidth,
+    required this.iconSize,
+    required this.iconSlot,
+    required this.labelSize,
+    required this.labelWeight,
+    required this.horizontalPadding,
+    required this.rowRadius,
+    required this.surfaceRadius,
+    required this.hugLabels,
+    required this.rightAligned,
+  });
+
+  final double rowHeight;
+  final double verticalInset;
+  final double minWidth;
+  final double maxWidth;
+  final double iconSize;
+
+  /// Width of the leading glyph slot, so every label in a menu starts on one
+  /// vertical line instead of following its own icon's width.
+  final double iconSlot;
+  final double labelSize;
+  final FontWeight labelWeight;
+  final double horizontalPadding;
+  final double rowRadius;
+  final double surfaceRadius;
+
+  /// Sizes the column to its widest label (inside [minWidth]–[maxWidth])
+  /// instead of pinning it to [minWidth].
+  final bool hugLabels;
+
+  /// Lines the column's right edge up with the pressed control's right edge —
+  /// the way a header overflow hangs under its own button.
+  final bool rightAligned;
+}
+
 /// The dim layer's opacity, exteraless's tab ItemOptions value
 /// (`setDimAlpha(0x60)` on DialogsActivity's filter tabs).
 const double appAnchoredMenuDimOpacity = 0x60 / 0xff;
@@ -65,15 +148,51 @@ const double _menuFastTrack = 150 / 200;
 const Curve _menuGrowCurve = Cubic(0.34, 1.56, 0.64, 1.0); // easeOutBack
 
 @visibleForTesting
-double appAnchoredMenuHeightFor(int actionCount, {bool hasTitle = false}) =>
-    appAnchoredMenuVerticalInset * 2 +
+double appAnchoredMenuHeightFor(
+  int actionCount, {
+  bool hasTitle = false,
+  AppAnchoredMenuStyle style = AppAnchoredMenuStyle.compact,
+}) =>
+    style.verticalInset * 2 +
     (hasTitle ? appAnchoredMenuTitleHeight : 0) +
-    math.max(0, actionCount) * appAnchoredMenuRowHeight;
+    math.max(0, actionCount) * style.rowHeight;
+
+/// The column's width for [labels]: the compact family is a fixed
+/// [AppAnchoredMenuStyle.minWidth]; a label-hugging style measures the widest
+/// row the way exteraless sizes its action-bar submenu, clamped between its
+/// minimum and maximum.
+@visibleForTesting
+double appAnchoredMenuWidthFor(
+  BuildContext context,
+  AppAnchoredMenuStyle style,
+  Iterable<String> labels,
+) {
+  if (!style.hugLabels) return style.minWidth;
+  final painter = TextPainter(
+    textDirection: Directionality.of(context),
+    textScaler: MediaQuery.textScalerOf(context),
+    maxLines: 1,
+  );
+  var widest = 0.0;
+  for (final label in labels) {
+    painter.text = TextSpan(
+      text: label,
+      style: TextStyle(fontSize: style.labelSize),
+    );
+    painter.layout();
+    widest = math.max(widest, painter.width);
+  }
+  painter.dispose();
+  final fitted =
+      style.horizontalPadding * 2 + style.iconSlot + widest + 2; // 2px slack
+  return fitted.clamp(style.minWidth, style.maxWidth).toDouble();
+}
 
 /// Where a menu of [menuSize] opens for a control at [anchor], staying inside
 /// the viewport: below the control when it fits, above when it does not,
 /// horizontally clamped with the menu's left edge near the control like
-/// exteraless's ItemOptions with Gravity.LEFT.
+/// exteraless's ItemOptions with Gravity.LEFT. [alignRight] hangs the column's
+/// right edge under the control's instead (a header overflow button).
 @visibleForTesting
 Offset appAnchoredMenuOriginFor({
   required Rect anchor,
@@ -81,13 +200,15 @@ Offset appAnchoredMenuOriginFor({
   required Size menuSize,
   double margin = 8,
   double? gap,
+  bool alignRight = false,
 }) {
   // [margin] keeps the menu off the viewport edges; [gap] is the distance to
   // the pressed control itself, so a caller can hug a tab strip without also
   // pinning the menu to the screen edge.
   final controlGap = gap ?? margin;
   final maxLeft = math.max(margin, viewport.width - menuSize.width - margin);
-  final left = anchor.left.clamp(margin, maxLeft).toDouble();
+  final wantedLeft = alignRight ? anchor.right - menuSize.width : anchor.left;
+  final left = wantedLeft.clamp(margin, maxLeft).toDouble();
   final belowTop = anchor.bottom + controlGap;
   final aboveTop = anchor.top - controlGap - menuSize.height;
   final double top;
@@ -115,6 +236,7 @@ Future<void> showAppAnchoredMenu({
   required List<AppMenuAction> actions,
   String? header,
   double gap = 8,
+  AppAnchoredMenuStyle style = AppAnchoredMenuStyle.compact,
 }) {
   if (actions.isEmpty) return Future<void>.value();
   final overlay = Overlay.of(context, rootOverlay: true);
@@ -140,6 +262,7 @@ Future<void> showAppAnchoredMenu({
     gap: gap,
     header: header,
     actions: actions,
+    style: style,
     onDismissed: () {
       removeEntry(menu.entry);
       completer.complete();
@@ -165,6 +288,7 @@ class AppAnchoredMenuPopup extends StatefulWidget {
     required this.onDismissed,
     this.header,
     this.gap = 8,
+    this.style = AppAnchoredMenuStyle.compact,
   });
 
   /// The pressed control's rect in the enclosing overlay's coordinates.
@@ -177,6 +301,7 @@ class AppAnchoredMenuPopup extends StatefulWidget {
   /// Optional caption naming the surface the menu acts on.
   final String? header;
   final List<AppMenuAction> actions;
+  final AppAnchoredMenuStyle style;
   final VoidCallback onDismissed;
 
   /// The overlay entry this menu renders inside; assigned by
@@ -266,18 +391,27 @@ class _AppAnchoredMenuPopupState extends State<AppAnchoredMenuPopup>
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
+    final style = widget.style;
     return LayoutBuilder(
       builder: (context, constraints) {
         final viewport = Size(constraints.maxWidth, constraints.maxHeight);
+        final menuWidth = appAnchoredMenuWidthFor(context, style, [
+          for (final action in widget.actions) action.label,
+        ]);
         final menuSize = Size(
-          appAnchoredMenuMinWidth,
-          appAnchoredMenuHeightFor(widget.actions.length, hasTitle: _hasHeader),
+          menuWidth,
+          appAnchoredMenuHeightFor(
+            widget.actions.length,
+            hasTitle: _hasHeader,
+            style: style,
+          ),
         );
         final origin = appAnchoredMenuOriginFor(
           anchor: widget.anchor,
           viewport: viewport,
           menuSize: menuSize,
           gap: widget.gap,
+          alignRight: style.rightAligned,
         );
         // The menu grows from the corner nearest the pressed control,
         // matching exteraless's pivotX/pivotY on the control-adjacent corner:
@@ -328,20 +462,22 @@ class _AppAnchoredMenuPopupState extends State<AppAnchoredMenuPopup>
                         child: Container(
                           key: const ValueKey('app-anchored-menu'),
                           width: menuSize.width,
-                          padding: const EdgeInsets.symmetric(
-                            vertical: appAnchoredMenuVerticalInset,
+                          padding: EdgeInsets.symmetric(
+                            vertical: style.verticalInset,
                           ),
                           decoration: BoxDecoration(
                             color: c.card,
                             borderRadius: BorderRadius.circular(
-                              AppRadius.control,
+                              style.surfaceRadius,
                             ),
                             border: Border.all(color: c.divider, width: 0.5),
                             boxShadow: [
                               BoxShadow(
-                                color: Colors.black.withValues(alpha: 0.2),
-                                blurRadius: 18,
-                                offset: const Offset(0, 6),
+                                color: Colors.black.withValues(
+                                  alpha: style.rightAligned ? 0.24 : 0.2,
+                                ),
+                                blurRadius: style.rightAligned ? 22 : 18,
+                                offset: Offset(0, style.rightAligned ? 8 : 6),
                               ),
                             ],
                           ),
@@ -372,6 +508,7 @@ class _AppAnchoredMenuPopupState extends State<AppAnchoredMenuPopup>
                               for (final action in widget.actions)
                                 _AppAnchoredMenuRow(
                                   action: action,
+                                  style: style,
                                   onTap: () => _select(action),
                                 ),
                             ],
@@ -391,9 +528,14 @@ class _AppAnchoredMenuPopupState extends State<AppAnchoredMenuPopup>
 }
 
 class _AppAnchoredMenuRow extends StatelessWidget {
-  const _AppAnchoredMenuRow({required this.action, required this.onTap});
+  const _AppAnchoredMenuRow({
+    required this.action,
+    required this.style,
+    required this.onTap,
+  });
 
   final AppMenuAction action;
+  final AppAnchoredMenuStyle style;
   final VoidCallback onTap;
 
   @override
@@ -406,23 +548,32 @@ class _AppAnchoredMenuRow extends StatelessWidget {
       key: ValueKey('app-anchored-menu-${action.key}'),
       semanticLabel: action.label,
       onTap: onTap,
-      borderRadius: BorderRadius.circular(AppRadius.md),
+      borderRadius: BorderRadius.circular(style.rowRadius),
       child: SizedBox(
-        height: appAnchoredMenuRowHeight,
+        height: style.rowHeight,
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
+          padding: EdgeInsets.symmetric(horizontal: style.horizontalPadding),
           child: Row(
             children: [
-              AppIcon(action.icon, size: 19, color: foreground),
-              const SizedBox(width: 12),
+              SizedBox(
+                width: style.iconSlot,
+                child: Align(
+                  alignment: AlignmentDirectional.centerStart,
+                  child: AppIcon(
+                    action.icon,
+                    size: style.iconSize,
+                    color: foreground,
+                  ),
+                ),
+              ),
               Expanded(
                 child: Text(
                   action.label,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w500,
+                    fontSize: style.labelSize,
+                    fontWeight: style.labelWeight,
                     color: foreground,
                   ),
                 ),
