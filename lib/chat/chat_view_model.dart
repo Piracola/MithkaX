@@ -1310,6 +1310,7 @@ class ChatViewModel extends ChangeNotifier {
       initialLoaded = true;
       notifyListeners();
       unawaited(_loadAvailableMessageSenders());
+      unawaited(_reconcileMirrorGhosts());
     }();
   }
 
@@ -4013,6 +4014,62 @@ class ChatViewModel extends ChangeNotifier {
         .deletedEntriesFor(accountUserId, chatId, topicId: forumTopicId ?? 0);
   }
 
+  /// Once per open, asks the server whether the chat's kept "deleted" copies
+  /// still exist. A copy wrongly marked deleted — older builds recorded
+  /// TDLib's cache-unload updates as deletions — gets no live update to
+  /// contradict it, so without this probe its ghost would stay in the
+  /// transcript forever. `getMessages` is the ground truth: ids the server
+  /// still returns are live messages and are reactivated in the mirror.
+  Future<void> _reconcileMirrorGhosts() async {
+    if (!allowTelegramTosViolations || _mirrorGhostsReconciled) return;
+    final accountUserId = _accountUserId;
+    if (accountUserId == null) return;
+    final store = historyStoreOverride ?? MessageHistoryStore.shared;
+    final ghosts = store.deletedEntriesFor(
+      accountUserId,
+      chatId,
+      topicId: forumTopicId ?? 0,
+    );
+    if (ghosts.isEmpty) {
+      // A cold start can open a chat before the mirror file is read; an
+      // empty answer is only final once it has landed.
+      if (store.isLoaded) _mirrorGhostsReconciled = true;
+      return;
+    }
+    _mirrorGhostsReconciled = true;
+    // Bound the probe to the newest copies: they are what a session can
+    // scroll to, and 100 ids per call is TDLib's usual batch size.
+    final ids = [for (final entry in ghosts) entry.messageId]
+      ..sort((a, b) => b.compareTo(a));
+    final bounded = ids.take(200).toList(growable: false);
+    for (var start = 0; start < bounded.length; start += 100) {
+      if (_chatOpenWorkIsStale) return;
+      final end = math.min(start + 100, bounded.length);
+      final chunk = bounded.sublist(start, end);
+      Map<String, dynamic> response;
+      try {
+        response = await _client.queryTo({
+          '@type': 'getMessages',
+          'chat_id': chatId,
+          'message_ids': chunk,
+        }, _accountClientId);
+      } catch (_) {
+        return; // offline: the new deletion rule still keeps fresh data clean
+      }
+      if (_chatOpenWorkIsStale) return;
+      for (final raw
+          in response.objects('messages') ?? const <Map<String, dynamic>>[]) {
+        final id = raw.integer('id') ?? 0;
+        if (id <= 0) continue;
+        final rawChatId = raw.int64('chat_id');
+        if (rawChatId != null && rawChatId != chatId) continue;
+        store.confirmAlive(accountUserId, chatId, id);
+      }
+    }
+  }
+
+  bool _mirrorGhostsReconciled = false;
+
   /// Folds ghost bubbles into the published transcript after every rebuild.
   /// Ghosts are render-only: they join `messages` (sorted by their original
   /// message id, so they sit where the message used to be) but never enter
@@ -4034,20 +4091,27 @@ class ChatViewModel extends ChangeNotifier {
 
   /// One ghost as a transcript [ChatMessage]. `contentType` marks the ghost
   /// for the bubble layer; media ghosts carry their snapshot through
-  /// [ChatMessage.mirrorEntry].
+  /// [ChatMessage.mirrorEntry]. A kept media copy with a snapshot renders the
+  /// actual image/file in the bubble, so its text stays the CAPTION (empty
+  /// when none) instead of the kind label — otherwise the label would print
+  /// under the media it names.
   ChatMessage _ghostChatMessageFor(
     MessageHistoryEntry entry,
     int? accountUserId,
   ) {
     final senderId = entry.senderId == 0 ? null : entry.senderId;
     final isOutgoing = accountUserId != null && entry.senderId == accountUserId;
+    final hasMedia = entry.mediaPath.isNotEmpty;
+    final caption = entry.text.trim();
     return ChatMessage(
       id: entry.messageId,
       isOutgoing: isOutgoing,
-      // Media-only kept copies have no text; the localized kind label keeps
-      // the ghost bubble from rendering as an empty shell.
-      text: entry.text.trim().isNotEmpty
+      // Media-only kept copies without a snapshot have no text; the localized
+      // kind label keeps the ghost bubble from rendering as an empty shell.
+      text: caption.isNotEmpty
           ? entry.text
+          : hasMedia
+          ? ''
           : localizedHistoryKindLabelStub(entry.kindKey),
       date: entry.date,
       chatId: chatId,
@@ -4067,6 +4131,12 @@ class ChatViewModel extends ChangeNotifier {
   @visibleForTesting
   void debugRebuildTranscriptForTesting() => _applyKeywordFilter();
 
+  /// Test seam: run the once-per-open ghost reconciliation without the full
+  /// chat-open task.
+  @visibleForTesting
+  Future<void> debugReconcileMirrorGhostsForTesting() =>
+      _reconcileMirrorGhosts();
+
   /// Test seam: merge live messages as the update path would.
   @visibleForTesting
   void debugMergeMessagesForTesting(List<ChatMessage> incoming) {
@@ -4083,6 +4153,9 @@ class ChatViewModel extends ChangeNotifier {
   void _onGhostSourceChanged() {
     if (_isDisposed) return;
     _applyKeywordFilter();
+    if (!_mirrorGhostsReconciled) {
+      unawaited(_reconcileMirrorGhosts());
+    }
   }
 
   /// Rebuilds `messages` from `_allMessages` and refreshes the lookup indexes.
@@ -4267,8 +4340,11 @@ class ChatViewModel extends ChangeNotifier {
 
   /// Re-applies what this client already knows about [incoming] messages
   /// (acknowledged sends, locally viewed mentions and reactions) before they
-  /// replace their stale copies.
+  /// replace their stale copies. Also tells the kept-message mirror that these
+  /// messages exist: a mirror of an earlier build may have recorded TDLib's
+  /// cache-unload update as a deletion, and live evidence is what repairs it.
   void _applyLocalMessageState(List<ChatMessage> incoming) {
+    final accountUserId = _accountUserId;
     for (final message in incoming) {
       if (_acknowledgedPendingMessageIds.contains(message.id)) {
         message.isSendAcknowledged = true;
@@ -4278,6 +4354,15 @@ class ChatViewModel extends ChangeNotifier {
       }
       if (_locallyViewedReactionIds.contains(message.id)) {
         message.hasUnreadReactions = false;
+      }
+      if (accountUserId != null &&
+          message.id > 0 &&
+          !isPendingChatMessage(message)) {
+        (historyStoreOverride ?? MessageHistoryStore.shared).confirmAlive(
+          accountUserId,
+          message.chatId ?? chatId,
+          message.id,
+        );
       }
     }
   }

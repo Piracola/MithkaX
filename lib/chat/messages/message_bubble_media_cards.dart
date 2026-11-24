@@ -106,6 +106,58 @@ extension _MessageBubbleMediaCards on _MessageBubbleState {
     return _imagePreviewGeometry().frameSize;
   }
 
+  /// A kept copy whose media snapshot exists: a photo renders as the photo
+  /// bubble (real aspect ratio, capped), every other kind as a file row on the
+  /// message surface. Tapping opens the snapshot through the OS; long-press
+  /// still opens the message menu (edit history, remove from mirror).
+  Widget _keptMediaBubble(MessageHistoryEntry entry, bool outgoing) {
+    final kindLabel = localizedHistoryKindLabel(context, entry.kindKey);
+    final caption = _caption();
+    final isPhoto = entry.kindKey == 'historyKindPhoto';
+    final media = MediaSnapshotView(
+      path: entry.mediaPath,
+      kindKey: entry.kindKey,
+      kindLabel: kindLabel,
+      fileName: entry.mediaFileName,
+      sourceWidth: entry.mediaWidth,
+      sourceHeight: entry.mediaHeight,
+      durationSeconds: entry.mediaDuration,
+      maxWidth: isPhoto ? _mediaMaxWidth() : null,
+      maxHeight: isPhoto ? telegramChatMediaPreviewMaxHeight : 240,
+      onTap: () => unawaited(openDownloadedFile(context, entry.mediaPath)),
+    );
+    final interactive = GestureDetector(
+      behavior: HitTestBehavior.translucent,
+      onLongPress: _handleLongPress,
+      onSecondaryTapUp: _handleSecondaryTapUp,
+      child: media,
+    );
+    final width = isPhoto
+        ? telegramDesktopMediaPreviewGeometry(
+            sourceWidth: entry.mediaWidth > 0 ? entry.mediaWidth : 4,
+            sourceHeight: entry.mediaHeight > 0 ? entry.mediaHeight : 3,
+            availableWidth: _mediaMaxWidth(),
+            maxHeight: telegramChatMediaPreviewMaxHeight,
+          ).frameSize.width
+        : _bubbleMaxWidth();
+    return _mediaWithCaption(
+      media: isPhoto
+          ? interactive
+          : Padding(
+              padding: EdgeInsets.fromLTRB(
+                10,
+                10,
+                10,
+                caption == null ? 10 : 0,
+              ),
+              child: interactive,
+            ),
+      mediaWidth: width,
+      caption: caption,
+      outgoing: outgoing,
+    );
+  }
+
   MediaPreviewGeometry _imagePreviewGeometry() {
     return telegramDesktopMediaPreviewGeometry(
       sourceWidth: message.imageWidth,

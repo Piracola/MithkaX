@@ -8,7 +8,6 @@
 //  exists only in opted-in self-builds.
 //
 
-import 'dart:io';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import '../components/app_icons.dart';
@@ -16,8 +15,14 @@ import '../components/app_interactive_surface.dart';
 import '../components/toast.dart';
 import '../l10n/app_localizations.dart';
 import '../theme/app_theme.dart';
+import 'message_history_labels.dart';
 import 'message_history_models.dart';
+import 'message_history_settings.dart';
 import 'message_media_snapshot.dart';
+import 'message_media_snapshot_view.dart';
+
+export 'message_history_labels.dart';
+export 'message_media_snapshot_view.dart';
 
 /// Renders one [MessageHistoryEntry] as a standalone bubble-shaped card.
 class MessageHistoryEntryView extends StatelessWidget {
@@ -90,14 +95,14 @@ class MessageHistoryEntryView extends StatelessWidget {
             children: [
               Row(
                 children: [
-                  if (deleted) ...[
-                    AppIcon(
-                      HeroAppIcons.trash,
-                      size: 13,
-                      color: c.textTertiary,
-                    ),
-                    const SizedBox(width: 5),
+                  if (entry.state == MessageHistoryState.deleted) ...[
+                    const _StatusBadge(deleted: true),
+                    if (entry.isEdited) const SizedBox(width: 4),
                   ],
+                  if (entry.isEdited) const _StatusBadge(deleted: false),
+                  if (entry.state == MessageHistoryState.deleted ||
+                      entry.isEdited)
+                    const SizedBox(width: 7),
                   if (showChatTitle) ...[
                     Expanded(
                       child: Text(
@@ -165,21 +170,36 @@ class MessageHistoryEntryView extends StatelessWidget {
     final c = context.colors;
     final text = entry.text.trim();
     final media = _snapshotPath(entry);
-    if (text.isNotEmpty && media == null) {
-      return Text(text, style: AppTextStyle.body(c.textPrimary));
+    if (media == null) {
+      if (text.isNotEmpty) {
+        return Text(text, style: AppTextStyle.body(c.textPrimary));
+      }
+      return Text(kindLabel, style: AppTextStyle.body(c.textSecondary));
     }
-    if (media != null) {
-      return Padding(
-        padding: const EdgeInsets.only(top: 4),
-        child: MediaSnapshotView(
-          path: media,
-          kindKey: entry.kindKey,
-          kindLabel: kindLabel,
-          onTap: onOpenMedia == null ? null : () => onOpenMedia!(media),
-        ),
-      );
-    }
-    return Text(kindLabel, style: AppTextStyle.body(c.textSecondary));
+    return Padding(
+      padding: const EdgeInsets.only(top: 2),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          MediaSnapshotView(
+            path: media,
+            kindKey: entry.kindKey,
+            kindLabel: kindLabel,
+            fileName: entry.mediaFileName,
+            sourceWidth: entry.mediaWidth,
+            sourceHeight: entry.mediaHeight,
+            durationSeconds: entry.mediaDuration,
+            maxHeight: 220,
+            onTap: onOpenMedia == null ? null : () => onOpenMedia!(media),
+          ),
+          if (text.isNotEmpty) ...[
+            const SizedBox(height: 6),
+            Text(text, style: AppTextStyle.body(c.textPrimary)),
+          ],
+        ],
+      ),
+    );
   }
 
   /// The snapshot path recorded on the entry, validated against the current
@@ -215,116 +235,56 @@ String _formatDateTime(int unixSeconds) {
   return '${t.year}-${two(t.month)}-${two(t.day)} ${two(t.hour)}:${two(t.minute)}';
 }
 
-/// Localized kind name for a stored kind suffix, shared by the entry view
-/// and the revision view; unknown kinds keep the generic label instead of
-/// leaking the raw key.
-String localizedHistoryKindLabel(BuildContext context, String suffix) {
-  final key = switch (suffix) {
-    'historyKindPhoto' => AppStringKeys.historyKindPhoto,
-    'historyKindVideo' => AppStringKeys.historyKindVideo,
-    'historyKindVideoNote' => AppStringKeys.historyKindVideoNote,
-    'historyKindVoice' => AppStringKeys.historyKindVoice,
-    'historyKindAnimation' => AppStringKeys.historyKindAnimation,
-    'historyKindSticker' => AppStringKeys.historyKindSticker,
-    'historyKindDocument' => AppStringKeys.historyKindDocument,
-    'historyKindAudio' => AppStringKeys.historyKindAudio,
-    'historyKindPoll' => AppStringKeys.historyKindPoll,
-    'historyKindLocation' => AppStringKeys.historyKindLocation,
-    'historyKindContact' => AppStringKeys.historyKindContact,
-    'historyKindDice' => AppStringKeys.historyKindDice,
-    _ => AppStringKeys.historyKindUnknown,
-  };
-  return AppStrings.t(key).isEmpty ? suffix : key.l10n(context);
-}
+/// Compact "Deleted" / "Edited" pill for a kept copy's header. The deleted
+/// badge follows the same [GhostBadgeStyle] as the in-chat ghost chip, so the
+/// viewer and the transcript never disagree about how a deletion is marked.
+class _StatusBadge extends StatelessWidget {
+  const _StatusBadge({required this.deleted});
 
-/// Renders a media snapshot: images inline (cached, aspect-preserved), other
-/// kinds as a tappable file row with the kind's icon; both fall back to the
-/// kind label when the file is missing. [onTap] opens the file externally.
-class MediaSnapshotView extends StatefulWidget {
-  const MediaSnapshotView({
-    super.key,
-    required this.path,
-    required this.kindKey,
-    required this.kindLabel,
-    this.onTap,
-  });
-
-  final String path;
-  final String kindKey;
-  final String kindLabel;
-  final VoidCallback? onTap;
-
-  @override
-  State<MediaSnapshotView> createState() => _MediaSnapshotViewState();
-}
-
-class _MediaSnapshotViewState extends State<MediaSnapshotView> {
-  bool? _exists;
-
-  @override
-  void initState() {
-    super.initState();
-    // Plain test() bodies may await real IO; widget tests drive this widget
-    // through runAsync-free pumps, so resolve asynchronously and rebuild.
-    File(widget.path).exists().then((exists) {
-      if (mounted) setState(() => _exists = exists);
-    });
-  }
+  final bool deleted;
 
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
-    if (_exists == false) {
-      return Text(widget.kindLabel, style: AppTextStyle.body(c.textSecondary));
-    }
-    final isImage = switch (widget.kindKey) {
-      'historyKindPhoto' => true,
-      _ => false,
-    };
-    final body = isImage
-        ? ClipRRect(
-            borderRadius: BorderRadius.circular(10),
-            child: Image.file(
-              File(widget.path),
-              key: ValueKey('history-media-${widget.path}'),
-              fit: BoxFit.contain,
-              errorBuilder: (_, _, _) => Text(
-                widget.kindLabel,
-                style: AppTextStyle.body(c.textSecondary),
-              ),
+    final style = deleted
+        ? MessageHistorySettings.shared.badgeStyle
+        : GhostBadgeStyle.both;
+    final showIcon = style != GhostBadgeStyle.text;
+    final showText = style != GhostBadgeStyle.icon;
+    final color = deleted ? c.textTertiary : c.textSecondary;
+    final label = deleted
+        ? AppStringKeys.historyDeletedLabel.l10n(context)
+        : AppStringKeys.historyEditedLabel.l10n(context);
+    return Container(
+      key: ValueKey(
+        deleted ? 'history-status-deleted' : 'history-status-edited',
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+      decoration: BoxDecoration(
+        color: c.groupedBackground,
+        borderRadius: BorderRadius.circular(AppRadius.control),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (showIcon)
+            AppIcon(
+              deleted ? HeroAppIcons.trash : HeroAppIcons.penToSquare,
+              size: 11,
+              color: color,
             ),
-          )
-        : Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              AppIcon(
-                _kindIcon(widget.kindKey),
-                size: 15,
-                color: c.textSecondary,
-              ),
-              const SizedBox(width: 6),
-              Flexible(
-                child: Text(
-                  widget.kindLabel,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: AppTextStyle.body(c.textSecondary),
-                ),
-              ),
-            ],
-          );
-    final onTap = widget.onTap;
-    if (onTap == null) return body;
-    return GestureDetector(onTap: onTap, child: body);
+          if (showIcon && showText) const SizedBox(width: 3),
+          if (showText)
+            Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: AppTextStyle.footnote(
+                color,
+              ).copyWith(fontSize: 11, height: 1.1),
+            ),
+        ],
+      ),
+    );
   }
-
-  static AppIconData _kindIcon(String kindKey) => switch (kindKey) {
-    'historyKindVideo' ||
-    'historyKindVideoNote' ||
-    'historyKindAnimation' => HeroAppIcons.video,
-    'historyKindVoice' => HeroAppIcons.microphone,
-    'historyKindAudio' => HeroAppIcons.music,
-    'historyKindDocument' => HeroAppIcons.file,
-    _ => HeroAppIcons.image,
-  };
 }

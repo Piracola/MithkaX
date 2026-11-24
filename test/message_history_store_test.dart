@@ -221,6 +221,317 @@ void main() {
     expect(state['text'], 'secret');
   });
 
+  test('cache unloads and inaccessible messages are not deletions', () async {
+    await start();
+    emitAs(_clientA, 'updateNewMessage', {
+      'message': _message(11, 100, text: 'still there'),
+    });
+    await pump();
+
+    // TDLib reports "removed from the local cache, may be retrieved again".
+    emitAs(_clientA, 'updateDeleteMessages', {
+      'chat_id': '11',
+      'message_ids': ['100'],
+      'is_permanent': false,
+      'from_cache': true,
+    });
+    await pump();
+    expect(store.entry(11, 100)!.state, MessageHistoryState.active);
+
+    // ... and messages that merely became inaccessible for this account.
+    emitAs(_clientA, 'updateDeleteMessages', {
+      'chat_id': '11',
+      'message_ids': ['100'],
+      'is_permanent': false,
+      'from_cache': false,
+    });
+    await pump();
+    expect(store.entry(11, 100)!.state, MessageHistoryState.active);
+    expect(store.entry(11, 100)!.deletedAt, 0);
+  });
+
+  test('live evidence reactivates a wrongly recorded deletion', () async {
+    await start();
+    emitAs(_clientA, 'updateNewMessage', {
+      'message': _message(11, 100, text: 'v1'),
+    });
+    await pump();
+    emitAs(_clientA, 'updateDeleteMessages', {
+      'chat_id': '11',
+      'message_ids': ['100'],
+      'is_permanent': true,
+      'from_cache': false,
+    });
+    await pump();
+    expect(store.entry(11, 100)!.state, MessageHistoryState.deleted);
+
+    // A transcript that parsed the live message hands it back to the mirror.
+    final before = notifications;
+    store.confirmAlive(_accountA, 11, 100);
+    await pump();
+    final entry = store.entry(11, 100)!;
+    expect(entry.state, MessageHistoryState.active);
+    expect(entry.deletedAt, 0);
+    // One notification for the batch, not one per parsed message.
+    expect(notifications - before, 1);
+  });
+
+  test('historyEntries lists only deleted or edited copies', () async {
+    await start();
+    emitAs(_clientA, 'updateNewMessage', {
+      'message': _message(11, 100, text: 'ordinary'),
+    });
+    emitAs(_clientA, 'updateNewMessage', {
+      'message': _message(11, 101, text: 'gone'),
+    });
+    emitAs(_clientA, 'updateNewMessage', {
+      'message': _message(11, 102, text: 'before edit'),
+    });
+    await pump();
+    emitAs(_clientA, 'updateMessageEdited', {
+      'chat_id': '11',
+      'message_id': 102,
+      'edit_date': 1700000123,
+    });
+    emitAs(_clientA, 'updateMessageContent', {
+      'chat_id': '11',
+      'message_id': 102,
+      'new_content': {
+        '@type': 'messageText',
+        'text': {'@type': 'formattedText', 'text': 'after edit'},
+      },
+    });
+    emitAs(_clientA, 'updateDeleteMessages', {
+      'chat_id': '11',
+      'message_ids': ['101'],
+      'is_permanent': true,
+      'from_cache': false,
+    });
+    await pump();
+    store.debugSetActiveAccount(_accountA);
+
+    expect(store.entries, hasLength(3));
+    final history = store.historyEntries.map((e) => e.messageId).toSet();
+    expect(history, {101, 102});
+    expect(store.historyEntriesFor(11), hasLength(2));
+  });
+
+  test('a photo keeps the size that is already on disk', () async {
+    final media = MessageMediaSnapshotter.forTesting();
+    media.dir = dir;
+    store.mediaSnapshotter = media;
+    final source = File('${dir.path}/tdlib-cache-thumb.jpg')
+      ..writeAsBytesSync(List.filled(6, 1));
+    await start();
+    emitAs(_clientA, 'updateNewMessage', {
+      'message': {
+        ..._message(11, 410),
+        'content': {
+          '@type': 'messagePhoto',
+          'photo': {
+            '@type': 'photo',
+            'sizes': [
+              {
+                '@type': 'photoSize',
+                'width': 1280,
+                'height': 960,
+                'photo': {
+                  '@type': 'file',
+                  'id': 21,
+                  'local': {
+                    '@type': 'localFile',
+                    'path': '',
+                    'is_downloading_completed': false,
+                    'is_active_downloading': false,
+                  },
+                },
+              },
+              {
+                '@type': 'photoSize',
+                'width': 320,
+                'height': 240,
+                'photo': {
+                  '@type': 'file',
+                  'id': 22,
+                  'local': {
+                    '@type': 'localFile',
+                    'path': source.path,
+                    'is_downloading_completed': true,
+                    'is_active_downloading': false,
+                  },
+                },
+              },
+            ],
+          },
+        },
+      },
+    });
+    for (var i = 0; i < 100; i++) {
+      if ((store.entry(11, 410)?.mediaPath ?? '').isNotEmpty) break;
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+    }
+    final entry = store.entry(11, 410)!;
+    expect(entry.mediaPath, isNotEmpty);
+    expect(entry.mediaWidth, 320);
+    expect(entry.mediaHeight, 240);
+    expect(entry.mediaFileId, 22);
+    expect(File(entry.mediaPath).lengthSync(), 6);
+  });
+
+  test(
+    'a download that finishes later is snapshotted via updateFile',
+    () async {
+      final media = MessageMediaSnapshotter.forTesting();
+      media.dir = dir;
+      store.mediaSnapshotter = media;
+      final source = File('${dir.path}/tdlib-cache-late.jpg')
+        ..writeAsBytesSync(List.filled(9, 2));
+      await start();
+      emitAs(_clientA, 'updateNewMessage', {
+        'message': {
+          ..._message(11, 411),
+          'content': {
+            '@type': 'messagePhoto',
+            'photo': {
+              '@type': 'photo',
+              'sizes': [
+                {
+                  '@type': 'photoSize',
+                  'width': 800,
+                  'height': 600,
+                  'photo': {
+                    '@type': 'file',
+                    'id': 31,
+                    'local': {
+                      '@type': 'localFile',
+                      'path': '',
+                      'is_downloading_completed': false,
+                      'is_active_downloading': false,
+                    },
+                  },
+                },
+              ],
+            },
+          },
+        },
+      });
+      await pump();
+      expect(store.entry(11, 411)!.mediaPath, isEmpty);
+
+      // The bubble asked for the size; TDLib reports the completed file.
+      emitAs(_clientA, 'updateFile', {
+        'file': {
+          '@type': 'file',
+          'id': 31,
+          'size': 9,
+          'expected_size': 9,
+          'local': {
+            '@type': 'localFile',
+            'path': source.path,
+            'is_downloading_completed': true,
+            'is_active_downloading': false,
+            'downloaded_size': 9,
+          },
+        },
+      });
+      for (var i = 0; i < 100; i++) {
+        if ((store.entry(11, 411)?.mediaPath ?? '').isNotEmpty) break;
+        await Future<void>.delayed(const Duration(milliseconds: 10));
+      }
+      final entry = store.entry(11, 411)!;
+      expect(entry.mediaPath, isNotEmpty);
+      expect(entry.mediaWidth, 800);
+      expect(entry.mediaHeight, 600);
+      expect(File(entry.mediaPath).lengthSync(), 9);
+    },
+  );
+
+  test('a larger size upgrades the earlier snapshot', () async {
+    final media = MessageMediaSnapshotter.forTesting();
+    media.dir = dir;
+    store.mediaSnapshotter = media;
+    final small = File('${dir.path}/tdlib-cache-small.jpg')
+      ..writeAsBytesSync(List.filled(5, 3));
+    final large = File('${dir.path}/tdlib-cache-large.jpg')
+      ..writeAsBytesSync(List.filled(11, 4));
+    await start();
+    emitAs(_clientA, 'updateNewMessage', {
+      'message': {
+        ..._message(11, 412),
+        'content': {
+          '@type': 'messagePhoto',
+          'photo': {
+            '@type': 'photo',
+            'sizes': [
+              {
+                '@type': 'photoSize',
+                'width': 1600,
+                'height': 1200,
+                'photo': {
+                  '@type': 'file',
+                  'id': 41,
+                  'local': {
+                    '@type': 'localFile',
+                    'path': '',
+                    'is_downloading_completed': false,
+                    'is_active_downloading': false,
+                  },
+                },
+              },
+              {
+                '@type': 'photoSize',
+                'width': 400,
+                'height': 300,
+                'photo': {
+                  '@type': 'file',
+                  'id': 42,
+                  'local': {
+                    '@type': 'localFile',
+                    'path': small.path,
+                    'is_downloading_completed': true,
+                    'is_active_downloading': false,
+                  },
+                },
+              },
+            ],
+          },
+        },
+      },
+    });
+    for (var i = 0; i < 100; i++) {
+      if ((store.entry(11, 412)?.mediaPath ?? '').isNotEmpty) break;
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+    }
+    final first = store.entry(11, 412)!;
+    expect(first.mediaWidth, 400);
+    expect(File(first.mediaPath).lengthSync(), 5);
+
+    emitAs(_clientA, 'updateFile', {
+      'file': {
+        '@type': 'file',
+        'id': 41,
+        'size': 11,
+        'expected_size': 11,
+        'local': {
+          '@type': 'localFile',
+          'path': large.path,
+          'is_downloading_completed': true,
+          'is_active_downloading': false,
+          'downloaded_size': 11,
+        },
+      },
+    });
+    for (var i = 0; i < 100; i++) {
+      if (store.entry(11, 412)!.mediaWidth == 1600) break;
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+    }
+    final upgraded = store.entry(11, 412)!;
+    expect(upgraded.mediaWidth, 1600);
+    expect(upgraded.mediaHeight, 1200);
+    expect(upgraded.mediaPath, first.mediaPath);
+    expect(File(upgraded.mediaPath).lengthSync(), 11);
+  });
+
   test('content changes without a preceding edit produce nothing', () async {
     await start();
     emitAs(_clientA, 'updateNewMessage', {

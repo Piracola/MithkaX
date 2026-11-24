@@ -32,6 +32,7 @@ MessageHistoryEntry _entry(
   String text = 'hello',
   bool deleted = false,
   int deletedAt = 0,
+  bool edited = false,
   String kindKey = '',
 }) => MessageHistoryEntry(
   accountUserId: accountUserId,
@@ -43,7 +44,9 @@ MessageHistoryEntry _entry(
   kindKey: kindKey,
   state: deleted ? MessageHistoryState.deleted : MessageHistoryState.active,
   deletedAt: deletedAt,
-  events: const [],
+  events: edited
+      ? [MessageHistoryEvent(at: 1700000600, oldText: 'before', newText: text)]
+      : const [],
 );
 
 Future<void> _pumpViewer(WidgetTester tester, MessageHistoryStore store) async {
@@ -107,13 +110,13 @@ void main() {
 
   testWidgets('rows list kept messages with their chat label', (tester) async {
     store.debugSeed([
-      _entry(11, 100, text: 'kept one'),
-      _entry(12, 200, text: 'kept two'),
+      _entry(11, 100, text: 'kept one', deleted: true, deletedAt: 1600000000),
+      _entry(12, 200, text: 'kept two', edited: true),
     ]);
     await _pumpViewer(tester, store);
 
-    expect(find.text('kept one'), findsOneWidget);
-    expect(find.text('kept two'), findsOneWidget);
+    expect(find.textContaining('kept one'), findsOneWidget);
+    expect(find.textContaining('kept two'), findsOneWidget);
     // Chat labels fall back to the localized Chat {id} until a title is
     // resolved; each row carries its own chat's label.
     final context = _contextOf(tester);
@@ -128,15 +131,46 @@ void main() {
     expect(context, isNotNull);
   });
 
-  testWidgets('tapping a row filters to its chat', (tester) async {
+  testWidgets('plain active copies never appear, only history', (tester) async {
     store.debugSeed([
-      _entry(11, 100, text: 'kept one'),
-      _entry(11, 101, text: 'kept three'),
-      _entry(12, 200, text: 'kept two'),
+      _entry(11, 100, text: 'still live'),
+      _entry(11, 101, text: 'deleted one', deleted: true),
+      _entry(11, 102, text: 'edited one', edited: true),
     ]);
     await _pumpViewer(tester, store);
 
-    await tester.tap(find.text('kept one'));
+    expect(find.text('still live'), findsNothing);
+    await tester.tap(find.text('Chat 11'));
+    await tester.pump();
+    expect(find.text('still live'), findsNothing);
+    expect(find.text('deleted one'), findsOneWidget);
+    expect(find.text('edited one'), findsOneWidget);
+  });
+
+  testWidgets('a live copy that was only recorded as a base stays hidden', (
+    tester,
+  ) async {
+    // The mirror records every incoming message so a later deletion has its
+    // base; the viewer must not turn into a second inbox because of it.
+    store.debugSeed([_entry(11, 100, text: 'ordinary message')]);
+    await _pumpViewer(tester, store);
+
+    expect(
+      find.text(AppStringKeys.historyEmpty.l10n(_contextOf(tester))),
+      findsOneWidget,
+    );
+    expect(find.text('Chat 11'), findsNothing);
+  });
+
+  testWidgets('tapping a row filters to its chat', (tester) async {
+    store.debugSeed([
+      _entry(11, 100, text: 'kept one', deleted: true),
+      _entry(11, 101, text: 'kept three', deleted: true),
+      _entry(12, 200, text: 'kept two', deleted: true),
+    ]);
+    await _pumpViewer(tester, store);
+
+    await tester.tap(find.text('Chat 11'));
     await tester.pump();
 
     expect(find.text('kept one'), findsOneWidget);
@@ -144,12 +178,68 @@ void main() {
     expect(find.text('kept two'), findsNothing);
   });
 
-  testWidgets('deleted entries render inside the chat with the ghost style', (
+  testWidgets('filter chips narrow the chat to deleted or edited copies', (
+    tester,
+  ) async {
+    store.debugSeed([
+      _entry(11, 100, text: 'deleted only', deleted: true),
+      _entry(11, 101, text: 'edited only', edited: true),
+      _entry(11, 102, text: 'deleted and edited', deleted: true, edited: true),
+    ]);
+    await _pumpViewer(tester, store);
+    await tester.tap(find.text('Chat 11'));
+    await tester.pump();
+
+    expect(find.text('deleted only'), findsOneWidget);
+    expect(find.text('edited only'), findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey('history-filter-deleted')));
+    await tester.pump();
+    expect(find.text('deleted only'), findsOneWidget);
+    expect(find.text('deleted and edited'), findsOneWidget);
+    expect(find.text('edited only'), findsNothing);
+
+    await tester.tap(find.byKey(const ValueKey('history-filter-edited')));
+    await tester.pump();
+    expect(find.text('edited only'), findsOneWidget);
+    expect(find.text('deleted and edited'), findsOneWidget);
+    expect(find.text('deleted only'), findsNothing);
+  });
+
+  testWidgets('search narrows the kept messages of one chat', (tester) async {
+    store.debugSeed([
+      _entry(11, 100, text: 'invoice for march', deleted: true),
+      _entry(11, 101, text: 'lunch plans', deleted: true),
+    ]);
+    await _pumpViewer(tester, store);
+    await tester.tap(find.text('Chat 11'));
+    await tester.pump();
+
+    await tester.enterText(
+      find.byKey(const ValueKey('settings-search-field')),
+      'invoice',
+    );
+    await tester.pump();
+    expect(find.text('invoice for march'), findsOneWidget);
+    expect(find.text('lunch plans'), findsNothing);
+
+    await tester.enterText(
+      find.byKey(const ValueKey('settings-search-field')),
+      'nothing matches',
+    );
+    await tester.pump();
+    expect(
+      find.text(AppStringKeys.historyNoMatches.l10n(_contextOf(tester))),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('deleted and edited entries render inside the chat', (
     tester,
   ) async {
     store.debugSeed([
       _entry(11, 100, text: 'gone', deleted: true, deletedAt: 1600000000),
-      _entry(11, 101, text: 'fresh'),
+      _entry(11, 101, text: 'reworded', edited: true),
     ]);
     await _pumpViewer(tester, store);
 
@@ -157,7 +247,12 @@ void main() {
     await tester.tap(find.text('Chat 11'));
     await tester.pump();
     expect(find.text('gone'), findsOneWidget);
-    expect(find.text('fresh'), findsOneWidget);
+    expect(find.text('reworded'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('history-status-deleted')),
+      findsOneWidget,
+    );
+    expect(find.byKey(const ValueKey('history-status-edited')), findsOneWidget);
   });
 
   testWidgets('excluded chats are listed and can be re-included', (
@@ -216,7 +311,7 @@ void main() {
       ),
     );
     addTearDown(TdClient.shared.closeProxy);
-    store.debugSeed([_entry(11, 100, text: 'group message')]);
+    store.debugSeed([_entry(11, 100, text: 'group message', deleted: true)]);
     await _pumpViewer(tester, store);
 
     await tester.tap(find.text('Chat 11'));

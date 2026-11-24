@@ -98,11 +98,16 @@ class MessageMediaSnapshotter {
   /// already fully downloaded ([File.local] with a non-empty path and
   /// is_active_completed), and returns the copy's path. Returns null when the
   /// source is not fully local — nothing is fetched from the network here.
+  ///
+  /// [replaceExisting] lets a larger candidate of the same message replace an
+  /// earlier, smaller snapshot (TDLib downloads the size the bubble paints
+  /// first and the full-size file only when the photo is opened).
   Future<String?> snapshot(
     Map<String, dynamic>? file, {
     required int accountUserId,
     required int chatId,
     required int messageId,
+    bool replaceExisting = false,
   }) async {
     if (!allowTelegramTosViolations) return null;
     if (file == null) return null;
@@ -142,6 +147,13 @@ class MessageMediaSnapshotter {
         final budget = budgetOverrideForTesting ?? attachmentBytesBudget;
         if (usedBytes + incoming > budget) return null;
         await source.copy(target.path);
+      } else if (replaceExisting) {
+        // A later candidate for the same message (usually the full-size photo
+        // the user opened) replaces the smaller preview; never shrink to a
+        // file the entry already has a bigger copy of.
+        final incoming = await source.length();
+        final current = await target.length();
+        if (incoming > current) await source.copy(target.path);
       }
       final beforeValidate = beforeValidateForTesting;
       if (beforeValidate != null) await beforeValidate();

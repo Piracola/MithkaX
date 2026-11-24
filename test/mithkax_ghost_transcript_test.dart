@@ -6,6 +6,8 @@
 //  and never render empty.
 //
 
+import 'dart:async';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mithka/auth/account_store.dart';
 import 'package:mithka/chat/chat_view_model.dart';
@@ -13,6 +15,7 @@ import 'package:mithka/config/build_flags.dart';
 import 'package:mithka/history/message_history_settings.dart';
 import 'package:mithka/history/message_history_store.dart';
 import 'package:mithka/l10n/app_localizations.dart';
+import 'package:mithka/tdlib/td_client.dart';
 import 'package:mithka/tdlib/td_models.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -69,6 +72,23 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   late MessageHistoryStore store;
+  Map<String, dynamic> Function(Map<String, dynamic> request)? proxyQuery;
+
+  setUpAll(() {
+    // The TDLib proxy can be configured only once per process; the mirror
+    // reconciliation tests swap the answer through [proxyQuery].
+    TdClient.shared.configureProxy(
+      TdClientProxyTransport(
+        accountSlot: 0,
+        query: (request) async =>
+            proxyQuery?.call(request) ?? <String, dynamic>{'@type': 'ok'},
+        send: (_) async {},
+        updates: const Stream<Map<String, dynamic>>.empty(),
+      ),
+    );
+  });
+
+  tearDownAll(TdClient.shared.closeProxy);
 
   setUp(() async {
     SharedPreferences.setMockInitialValues(const {});
@@ -218,6 +238,77 @@ void main() {
     });
   });
 
+  group('mirror reconciliation', () {
+    tearDown(() => proxyQuery = null);
+
+    test(
+      'a wrongly recorded deletion is repaired by the server probe',
+      () async {
+        proxyQuery = (request) {
+          if (request['@type'] != 'getMessages') {
+            return <String, dynamic>{'@type': 'ok'};
+          }
+          return <String, dynamic>{
+            '@type': 'messages',
+            'total_count': 1,
+            'messages': [
+              {
+                '@type': 'message',
+                'id': 100,
+                'chat_id': _chatId,
+                'date': 1700000000,
+                'content': {
+                  '@type': 'messageText',
+                  'text': {'@type': 'formattedText', 'text': 'alive'},
+                },
+              },
+            ],
+          };
+        };
+
+        // The mirror believes the message is gone; the server still has it.
+        store.debugSeed([_deletedGhostEntry(100)]);
+        final vm = makeViewModel();
+        addTearDown(vm.dispose);
+        await vm.debugReconcileMirrorGhostsForTesting();
+        await Future<void>.delayed(Duration.zero);
+        await Future<void>.delayed(Duration.zero);
+
+        final entry = store.entryFor(_accountUserId, _chatId, 100)!;
+        expect(entry.state, MessageHistoryState.active);
+        expect(entry.deletedAt, 0);
+      },
+    );
+
+    test('a probe that finds nothing keeps the deletion', () async {
+      proxyQuery = (request) {
+        if (request['@type'] != 'getMessages') {
+          return <String, dynamic>{'@type': 'ok'};
+        }
+        // TDLib answers unavailable ids as placeholders without an id.
+        return <String, dynamic>{
+          '@type': 'messages',
+          'total_count': 0,
+          'messages': [
+            {'@type': 'message', 'id': 0, 'chat_id': _chatId},
+          ],
+        };
+      };
+
+      store.debugSeed([_deletedGhostEntry(100)]);
+      final vm = makeViewModel();
+      addTearDown(vm.dispose);
+      await vm.debugReconcileMirrorGhostsForTesting();
+      await Future<void>.delayed(Duration.zero);
+      await Future<void>.delayed(Duration.zero);
+
+      expect(
+        store.entryFor(_accountUserId, _chatId, 100)!.state,
+        MessageHistoryState.deleted,
+      );
+    });
+  });
+
   group('ghost attribution', () {
     test('a self-sent ghost carries the account name', () {
       MessageHistorySettings.shared.setRenderGhosts(true);
@@ -268,6 +359,59 @@ void main() {
         AppStrings.t(AppStringKeys.historyKindPhoto),
         reason: 'an empty media ghost must not render as an empty bubble',
       );
+    });
+    test('a media ghost with a snapshot keeps the caption, not the label', () {
+      MessageHistorySettings.shared.setRenderGhosts(true);
+      store.debugSeed([
+        const MessageHistoryEntry(
+          accountUserId: _accountUserId,
+          chatId: _chatId,
+          messageId: 102,
+          senderId: 42,
+          date: 1,
+          text: 'look at this',
+          kindKey: 'historyKindPhoto',
+          state: MessageHistoryState.deleted,
+          deletedAt: 2,
+          events: [],
+          mediaPath: '/tmp/kept-photo.jpg',
+          mediaWidth: 320,
+          mediaHeight: 240,
+        ),
+      ]);
+      final vm = makeViewModel();
+      addTearDown(vm.dispose);
+      vm.debugRebuildTranscriptForTesting();
+      final ghost = vm.messages.firstWhere((m) => m.mirrorEntry != null);
+      // The bubble paints the snapshot itself, so the kind label must not
+      // print underneath it; only a real caption stays as text.
+      expect(ghost.text, 'look at this');
+    });
+
+    test('a media ghost without a caption has no label text', () {
+      MessageHistorySettings.shared.setRenderGhosts(true);
+      store.debugSeed([
+        const MessageHistoryEntry(
+          accountUserId: _accountUserId,
+          chatId: _chatId,
+          messageId: 103,
+          senderId: 42,
+          date: 1,
+          text: '',
+          kindKey: 'historyKindPhoto',
+          state: MessageHistoryState.deleted,
+          deletedAt: 2,
+          events: [],
+          mediaPath: '/tmp/kept-photo.jpg',
+          mediaWidth: 320,
+          mediaHeight: 240,
+        ),
+      ]);
+      final vm = makeViewModel();
+      addTearDown(vm.dispose);
+      vm.debugRebuildTranscriptForTesting();
+      final ghost = vm.messages.firstWhere((m) => m.mirrorEntry != null);
+      expect(ghost.text, isEmpty);
     });
   });
 }

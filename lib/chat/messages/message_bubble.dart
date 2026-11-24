@@ -26,7 +26,10 @@ import '../../components/photo_avatar.dart';
 import '../../components/toast.dart';
 import '../../components/ui_components.dart';
 import '../../config/build_flags.dart';
+import '../../history/message_history_labels.dart';
+import '../../history/message_history_models.dart';
 import '../../history/message_history_settings.dart';
+import '../../history/message_media_snapshot_view.dart';
 import '../../media/media_metadata.dart';
 import '../../platform/adaptive_platform.dart';
 import '../../profile/profile_detail_view.dart';
@@ -45,6 +48,7 @@ import '../../theme/theme_controller.dart';
 import '../appearance/chat_appearance_preview.dart';
 import '../links_search/link_handler.dart';
 import '../media/file_detail_view.dart';
+import '../media/file_opener.dart';
 import '../media/inline_video_autoplay.dart';
 import '../media/looping_video_view.dart';
 import '../media/music_player_controller.dart';
@@ -1358,6 +1362,13 @@ class _MessageBubbleState extends State<_ScopedMessageBubble>
     if (message.isCall) {
       body = _callBubble(outgoing);
       return _withFloatingMeta(body, outgoing);
+    }
+    // A deleted message's kept copy renders its mirrored media (the snapshot
+    // taken when the file landed) instead of a bare kind label. This branch
+    // must come before the live-media paths: a ghost has no TDLib file ids.
+    final kept = message.mirrorEntry;
+    if (kept != null && kept.mediaPath.isNotEmpty) {
+      return _withFloatingMeta(_keptMediaBubble(kept, outgoing), outgoing);
     }
     // Only the card-shaped contents below read these; text, media, sticker and
     // voice messages would otherwise resolve three colour chains and drop them.

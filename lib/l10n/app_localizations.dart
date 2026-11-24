@@ -475,6 +475,7 @@ abstract final class AppStringKeys {
   static const advancedUnlimitedFavoritesAbout =
       'advancedUnlimitedFavoritesAbout';
   static const historyChatLabel = 'historyChatLabel';
+  static const historyChatNote = 'historyChatNote';
   static const historyClearedToast = 'historyClearedToast';
   static const historyClearAction = 'historyClearAction';
   static const historyClearAllConfirmTitle = 'historyClearAllConfirmTitle';
@@ -485,7 +486,7 @@ abstract final class AppStringKeys {
   static const historyEmpty = 'historyEmpty';
   static const historyExcludedNote = 'historyExcludedNote';
   static const historyExcludedTitle = 'historyExcludedTitle';
-  static const historyFilteredNote = 'historyFilteredNote';
+  static const historyFilterAll = 'historyFilterAll';
   static const historyKindAnimation = 'historyKindAnimation';
   static const historyKindAudio = 'historyKindAudio';
   static const historyKindContact = 'historyKindContact';
@@ -500,7 +501,10 @@ abstract final class AppStringKeys {
   static const historyKindVideoNote = 'historyKindVideoNote';
   static const historyKindVoice = 'historyKindVoice';
   static const historyNoExcludedChats = 'historyNoExcludedChats';
+  static const historyNoMatches = 'historyNoMatches';
+  static const historyOnlyNote = 'historyOnlyNote';
   static const historyReincludeAction = 'historyReincludeAction';
+  static const historySearchHint = 'historySearchHint';
   static const historySettingsRow = 'historySettingsRow';
   static const historyTitle = 'historyTitle';
   static const apiCredentialsCustomClientApi = 'apiCredentialsCustomClientApi';
