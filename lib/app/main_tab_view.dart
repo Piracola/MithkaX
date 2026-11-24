@@ -427,7 +427,12 @@ abstract class _MainRootViewState<T extends StatefulWidget> extends State<T>
   List<GlobalKey<NavigatorState>> get tabNavigatorKeys => _navKeys;
 
   static const _allTabs = [
-    _MainTabItem(0, AppStringKeys.tabMessages, HeroAppIcons.solidMessage),
+    _MainTabItem(
+      0,
+      AppStringKeys.tabMessages,
+      HeroAppIcons.message,
+      selectedIcon: HeroAppIcons.solidMessage,
+    ),
     _MainTabItem(
       1,
       AppStringKeys.tabChannels,
@@ -440,11 +445,14 @@ abstract class _MainRootViewState<T extends StatefulWidget> extends State<T>
       HeroAppIcons.users,
       selectedIcon: HeroAppIcons.solidUsers,
     ),
+    // The tab is a feed of channel posts with a friends' stories shelf on top;
+    // the newspaper is the glyph the channel header already uses for
+    // 「以动态查看」, so the tab and that command read as the same surface.
     _MainTabItem(
       3,
       AppStringKeys.tabMoments,
-      HeroAppIcons.circleNotch,
-      selectedIcon: HeroAppIcons.solidCircleNotch,
+      HeroAppIcons.newspaper,
+      selectedIcon: HeroAppIcons.solidNewspaper,
     ),
   ];
 
@@ -2498,7 +2506,9 @@ class _MainBottomBar extends StatelessWidget {
                             alignment: Alignment.center,
                             children: [
                               AppIcon(
-                                items[i].icon,
+                                selection == i
+                                    ? items[i].selectedIcon
+                                    : items[i].icon,
                                 size: 24,
                                 color: selection == i
                                     ? c.linkBlue
@@ -2630,7 +2640,12 @@ class _MainBottomBar extends StatelessWidget {
                                           child: Transform.scale(
                                             scale: 1 + value * 0.08,
                                             child: AppIcon(
-                                              glass && selection == i
+                                              // The picked tab fills in on
+                                              // every host, glass or not: the
+                                              // outline glyph is the quiet
+                                              // state, the solid one the
+                                              // selected state.
+                                              selection == i
                                                   ? items[i].selectedIcon
                                                   : items[i].icon,
                                               size: 24,

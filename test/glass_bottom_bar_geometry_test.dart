@@ -25,7 +25,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:heroicons_flutter/heroicons_flutter.dart';
 import 'package:mithka/app/chat_deep_link_controller.dart';
 import 'package:mithka/app/liquid_glass_bottom_bar.dart';
 import 'package:mithka/app/main_tab_view.dart';
@@ -124,13 +123,14 @@ void main() {
           await tester.runAsync(() async {
             await Future.wait([
               for (final icon in [
+                HeroAppIcons.message,
                 HeroAppIcons.solidMessage,
                 HeroAppIcons.hashtag,
                 HeroAppIcons.solidHashtag,
                 HeroAppIcons.users,
                 HeroAppIcons.solidUsers,
-                HeroAppIcons.circleNotch,
-                HeroAppIcons.solidCircleNotch,
+                HeroAppIcons.newspaper,
+                HeroAppIcons.solidNewspaper,
                 HeroAppIcons.circleCheck,
               ])
                 NativeTabIconRasterizer.png(icon.data, 1, TextDirection.ltr),
@@ -492,22 +492,25 @@ void main() {
 
   for (final glass in [false, true]) {
     testWidgets(
-      '${glass ? 'glass selected' : 'classic unchanged'} tab glyph identities',
+      '${glass ? 'glass' : 'classic'} tab glyphs follow the picked tab',
       (tester) async {
         await onIOS(() async {
           installMockGlassSurface(tester);
           await _pumpShell(tester, _phoneSize, liquidGlass: glass);
+          // Every tab shows its outline glyph until it is picked; the picked
+          // tab fills in. Both hosts obey the rule — the classic bar used to
+          // read the outline glyph whatever the selection was.
           const baseGlyphs = [
-            HeroiconsSolid.chatBubbleLeft,
-            HeroiconsOutline.hashtag,
-            HeroiconsOutline.userGroup,
-            HeroiconsOutline.arrowPath,
+            HeroAppIcons.message,
+            HeroAppIcons.hashtag,
+            HeroAppIcons.users,
+            HeroAppIcons.newspaper,
           ];
           const selectedGlyphs = [
-            HeroiconsSolid.chatBubbleLeft,
-            HeroiconsSolid.hashtag,
-            HeroiconsSolid.userGroup,
-            HeroiconsSolid.arrowPath,
+            HeroAppIcons.solidMessage,
+            HeroAppIcons.solidHashtag,
+            HeroAppIcons.solidUsers,
+            HeroAppIcons.solidNewspaper,
           ];
           // Return to Messages so every other tab is checked after deselection.
           for (final selected in [0, 1, 2, 3, 0]) {
@@ -521,9 +524,9 @@ void main() {
               );
               expect(
                 icon.icon.data,
-                glass && tab.index == selected
-                    ? selectedGlyphs[tab.index]
-                    : baseGlyphs[tab.index],
+                tab.index == selected
+                    ? selectedGlyphs[tab.index].data
+                    : baseGlyphs[tab.index].data,
                 reason: '${tab.label}, selected=$selected, glass=$glass',
               );
               final colors = tester.element(slot).colors;
