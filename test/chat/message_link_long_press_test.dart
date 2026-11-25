@@ -192,7 +192,7 @@ void main() {
     expect(AppTextSize.messageInlineCode(16, 8), 14);
     expect(
       AppTextStyle.messageBody(
-        Color(0xFF000000),
+        const Color(0xFF000000),
         platform: TargetPlatform.android,
       ).height,
       20 / 16,
