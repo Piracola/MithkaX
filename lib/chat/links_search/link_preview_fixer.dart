@@ -25,9 +25,19 @@ class LinkPreviewFixer extends ChangeNotifier {
   static const preferenceKey = 'fixLinkPreviews';
 
   /// Hosts Telegram cannot preview, mapped to the mirror serving the same page
-  /// with metadata. Every subdomain is listed explicitly because a mirror only
-  /// answers on the hosts it publishes; a rewritten `mobile.` prefix would not
-  /// resolve.
+  /// with metadata. The set and its mirrors follow exteraless's page-preview
+  /// rules — the `#pagepreview` payload its built-in fallback mirrors:
+  ///
+  ///   x.com → fixupx.com, twitter.com → fxtwitter.com,
+  ///   coolapk.com → coolapk1s.com, www.instagram.com → kkinstagram.com,
+  ///   vm.tiktok.com → vm.kktiktok.com, vt.tiktok.com → vt.kktiktok.com,
+  ///   www.tiktok.com → www.kktiktok.com, www.reddit.com → www.rxddit.com,
+  ///   bsky.app → fxbsky.app, www.pixiv.net → www.phixiv.net.
+  ///
+  /// Bare and `www.`/`mobile.` variants are listed as well: a shared link
+  /// rarely carries the exact host a rule was written for, and every variant
+  /// still needs its own entry because a mirror only answers on the hosts it
+  /// publishes — a rewritten `mobile.` prefix would not resolve.
   static const Map<String, String> previewHosts = {
     'x.com': 'fixupx.com',
     'www.x.com': 'fixupx.com',
@@ -35,14 +45,17 @@ class LinkPreviewFixer extends ChangeNotifier {
     'twitter.com': 'fxtwitter.com',
     'www.twitter.com': 'fxtwitter.com',
     'mobile.twitter.com': 'fxtwitter.com',
-    'tiktok.com': 'vxtiktok.com',
-    'www.tiktok.com': 'vxtiktok.com',
+    'coolapk.com': 'coolapk1s.com',
+    'www.coolapk.com': 'coolapk1s.com',
+    'instagram.com': 'kkinstagram.com',
+    'www.instagram.com': 'kkinstagram.com',
     // A short link keeps its own prefix: the mirror follows the redirect.
-    'vm.tiktok.com': 'vm.vxtiktok.com',
-    'instagram.com': 'ddinstagram.com',
-    'www.instagram.com': 'ddinstagram.com',
-    'reddit.com': 'www.vxreddit.com',
-    'www.reddit.com': 'www.vxreddit.com',
+    'vm.tiktok.com': 'vm.kktiktok.com',
+    'vt.tiktok.com': 'vt.kktiktok.com',
+    'tiktok.com': 'www.kktiktok.com',
+    'www.tiktok.com': 'www.kktiktok.com',
+    'reddit.com': 'www.rxddit.com',
+    'www.reddit.com': 'www.rxddit.com',
     'bsky.app': 'fxbsky.app',
     'www.bsky.app': 'fxbsky.app',
     'pixiv.net': 'www.phixiv.net',
@@ -53,8 +66,6 @@ class LinkPreviewFixer extends ChangeNotifier {
     'hoyolab.com': 'www.hoyolab.pp.ua',
     'www.hoyolab.com': 'www.hoyolab.pp.ua',
     'm.hoyolab.com': 'www.hoyolab.pp.ua',
-    'coolapk.com': 'coolapk1s.com',
-    'www.coolapk.com': 'coolapk1s.com',
   };
 
   SharedPreferences? _preferences;

@@ -120,6 +120,40 @@ void main() {
     });
   });
 
+  group('mirror table matches the exteraless page-preview rules', () {
+    const rules = {
+      'https://x.com/user/status/1': 'https://fixupx.com/user/status/1',
+      'https://twitter.com/user/status/1':
+          'https://fxtwitter.com/user/status/1',
+      'https://coolapk.com/feed/1': 'https://coolapk1s.com/feed/1',
+      'https://www.instagram.com/p/abc/': 'https://kkinstagram.com/p/abc/',
+      'https://vm.tiktok.com/ZMabc/': 'https://vm.kktiktok.com/ZMabc/',
+      'https://vt.tiktok.com/ZSabc/': 'https://vt.kktiktok.com/ZSabc/',
+      'https://www.tiktok.com/@user/video/1':
+          'https://www.kktiktok.com/@user/video/1',
+      'https://www.reddit.com/r/aww/comments/1/title/':
+          'https://www.rxddit.com/r/aww/comments/1/title/',
+      'https://bsky.app/profile/user/post/1':
+          'https://fxbsky.app/profile/user/post/1',
+      'https://www.pixiv.net/artworks/1': 'https://www.phixiv.net/artworks/1',
+    };
+
+    for (final rule in rules.entries) {
+      test(rule.key, () {
+        expect(LinkPreviewFixer.fixedUrl(rule.key), rule.value);
+        // The send path and the host table agree on the same rewrite.
+        expect(
+          LinkPreviewFixer.previewHosts[Uri.parse(rule.key).host],
+          isNotNull,
+        );
+      });
+    }
+
+    test('a site without a rule is left alone', () {
+      expect(LinkPreviewFixer.fixedUrl('https://example.com/post/1'), isNull);
+    });
+  });
+
   test('the override stays off until the reader opts in', () async {
     final vm = model()..setDraft('https://x.com/user/status/1');
 
