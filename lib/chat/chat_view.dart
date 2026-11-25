@@ -10,7 +10,6 @@ import 'dart:async';
 import 'dart:io';
 import 'dart:math' as math;
 import 'package:file_picker/file_picker.dart';
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
@@ -9259,7 +9258,22 @@ class _ChatViewState extends State<ChatView> {
           key: 'auto-delete',
           label: AppStrings.t(AppStringKeys.chatInfoAutoDeleteMessages),
           icon: HeroAppIcons.clock,
-          onSelected: () => unawaited(_chooseAutoDeleteFromMenu()),
+          // Same split as mute: the lengths are a page of this card, not a
+          // sheet over it.
+          children: [
+            for (final option in const [
+              (AppStringKeys.chatInfoAutoDeleteOff, 0),
+              (AppStringKeys.chatInfoAutoDeleteOneDay, 86400),
+              (AppStringKeys.chatInfoAutoDeleteSevenDays, 604800),
+              (AppStringKeys.chatInfoAutoDeleteOneMonth, 2592000),
+            ])
+              AppMenuAction(
+                key: 'auto-delete-${option.$2}',
+                label: AppStrings.t(option.$1),
+                onSelected: () =>
+                    unawaited(_vm.setMessageAutoDeleteTime(option.$2)),
+              ),
+          ],
         ),
       if (canManageGroup)
         AppMenuAction(
@@ -9345,34 +9359,6 @@ class _ChatViewState extends State<ChatView> {
   /// Mute with exteraless's durations. An already-muted chat unmutes on the
   /// tap; otherwise the sheet asks until when.
   /// The auto-delete chooser, same options and request as the details page.
-  Future<void> _chooseAutoDeleteFromMenu() async {
-    final selected = await showAppCupertinoModalPopup<int>(
-      context: context,
-      builder: (sheet) => CupertinoActionSheet(
-        title: Text(AppStrings.t(AppStringKeys.chatInfoAutoDeleteMessages)),
-        actions: [
-          for (final option in const [
-            (AppStringKeys.chatInfoAutoDeleteOff, 0),
-            (AppStringKeys.chatInfoAutoDeleteOneDay, 86400),
-            (AppStringKeys.chatInfoAutoDeleteSevenDays, 604800),
-            (AppStringKeys.chatInfoAutoDeleteOneMonth, 2592000),
-          ])
-            CupertinoActionSheetAction(
-              key: ValueKey('chat-menu-auto-delete-${option.$2}'),
-              onPressed: () => Navigator.of(sheet).pop(option.$2),
-              child: Text(AppStrings.t(option.$1)),
-            ),
-        ],
-        cancelButton: CupertinoActionSheetAction(
-          onPressed: () => Navigator.of(sheet).pop(),
-          child: Text(AppStrings.t(AppStringKeys.countryPickerCancel)),
-        ),
-      ),
-    );
-    if (selected == null || !mounted) return;
-    await _vm.setMessageAutoDeleteTime(selected);
-  }
-
   void _openGroupManagement() {
     Navigator.of(context).push(
       MaterialPageRoute<void>(

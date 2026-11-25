@@ -741,18 +741,42 @@ void main() {
     await closeChat(tester);
   });
 
-  testWidgets('auto-delete picks a timer through the same options', (
-    tester,
-  ) async {
+  testWidgets('auto-delete picks a timer from its own submenu', (tester) async {
     await openChat(tester);
     await openMenu(tester);
+    final card = tester.getRect(
+      find.byKey(const ValueKey('app-anchored-menu')),
+    );
 
     await tester.tap(row('auto-delete'));
     await tester.pumpAndSettle();
-    expect(find.text('Auto-delete messages'), findsWidgets);
+    // The same card as mute's: back row, then the four timers, no glyphs.
+    expect(
+      find.descendant(
+        of: find.byKey(const ValueKey('app-anchored-menu-back')),
+        matching: find.text('Auto-delete messages'),
+      ),
+      findsOneWidget,
+    );
+    expect(find.text('Off'), findsOneWidget);
+    expect(find.text('1 day'), findsOneWidget);
+    expect(find.text('7 days'), findsOneWidget);
+    expect(find.text('1 month'), findsOneWidget);
+    expect(
+      find.descendant(
+        of: find.byKey(const ValueKey('app-anchored-menu')),
+        matching: find.byType(AppIcon),
+      ),
+      findsOneWidget,
+      reason: 'only the back chevron stays in the card',
+    );
+    expect(
+      tester.getRect(find.byKey(const ValueKey('app-anchored-menu'))).left,
+      card.left,
+    );
 
     await tester.tap(
-      find.byKey(const ValueKey('chat-menu-auto-delete-604800')),
+      find.byKey(const ValueKey('app-anchored-menu-auto-delete-604800')),
     );
     await tester.pumpAndSettle();
     final request = _queries.lastWhere(
