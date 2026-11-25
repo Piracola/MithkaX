@@ -1625,7 +1625,10 @@ class _MessageBubbleState extends State<_ScopedMessageBubble>
           ],
         ),
       );
-      return _withFloatingMeta(_stickerTap(body), outgoing);
+      return _withFloatingMeta(
+        _withReplyAboveContent(_stickerTap(body), outgoing, s.width),
+        outgoing,
+      );
     }
     if (message.videoSticker != null) {
       final s = _stickerSize();
@@ -1650,7 +1653,10 @@ class _MessageBubbleState extends State<_ScopedMessageBubble>
           ],
         ),
       );
-      return _withFloatingMeta(_stickerTap(body), outgoing);
+      return _withFloatingMeta(
+        _withReplyAboveContent(_stickerTap(body), outgoing, s.width),
+        outgoing,
+      );
     }
     if (message.isDice) {
       body = _diceBubble(outgoing);
@@ -1661,7 +1667,11 @@ class _MessageBubbleState extends State<_ScopedMessageBubble>
         _ => _videoContent(outgoing),
       };
     } else if (message.stickerFileId != null && message.image != null) {
-      body = _staticStickerContent(message.image!);
+      body = _withReplyAboveContent(
+        _staticStickerContent(message.image!),
+        outgoing,
+        _stickerSize().width,
+      );
     } else if (message.image != null) {
       body = _imageContent(message.image!, outgoing);
     } else if (message.music != null) {
@@ -1712,6 +1722,12 @@ class _MessageBubbleState extends State<_ScopedMessageBubble>
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
+        // A round video has no bubble either; its reply quote rides above the
+        // circle, the way exteraless draws the reply panel for TYPE_ROUND_VIDEO.
+        if (message.replyPreviewText != null) ...[
+          SizedBox(width: size, child: _replyQuote(message.isOutgoing)),
+          const SizedBox(height: 4),
+        ],
         GestureDetector(
           key: const ValueKey('messageVideoNote'),
           behavior: HitTestBehavior.opaque,
@@ -4411,6 +4427,31 @@ class _MessageBubbleState extends State<_ScopedMessageBubble>
           ),
         ],
       ),
+    );
+  }
+
+  /// A background-less message (sticker, round video) that answers another
+  /// message carries its reply quote ABOVE the content, where exteraless
+  /// draws the reply panel over the sticker's empty bubble. The quote gets a
+  /// floor width so a small sticker's quote is still readable, and never
+  /// grows past the bubble lane.
+  Widget _withReplyAboveContent(
+    Widget content,
+    bool outgoing,
+    double contentWidth,
+  ) {
+    if (message.replyPreviewText == null) return content;
+    final width = math.min(_bubbleMaxWidth(), math.max(contentWidth, 168.0));
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: outgoing
+          ? CrossAxisAlignment.end
+          : CrossAxisAlignment.start,
+      children: [
+        SizedBox(width: width, child: _replyQuote(outgoing)),
+        const SizedBox(height: 4),
+        content,
+      ],
     );
   }
 
