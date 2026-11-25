@@ -22,6 +22,7 @@ import '../../components/ui_components.dart';
 import '../../l10n/app_localizations.dart';
 import '../../theme/app_motion.dart';
 import '../../theme/app_theme.dart';
+import '../links_search/link_preview_fixer.dart';
 import 'instant_view_blocks.dart';
 import 'instant_view_links.dart';
 import 'instant_view_loader.dart';
@@ -133,20 +134,35 @@ class _InstantViewViewState extends State<InstantViewView> {
       _loading = true;
       _error = null;
     });
+    InstantViewPage? page;
+    Object? failure;
     try {
-      final page = await _loader.load(widget.url);
-      if (!mounted) return;
-      setState(() {
-        _adopt(page);
-        _loading = false;
-      });
+      page = await _loader.load(widget.url);
     } catch (error) {
-      if (!mounted) return;
-      setState(() {
-        _error = error;
-        _loading = false;
-      });
+      failure = error;
     }
+    // An x.com link never has a template of its own; the Tweet mirror does.
+    // Reading the mirror is still Telegram's own Instant View, not a local
+    // extraction, so this is the one retry the reader performs.
+    if (page == null && LinkPreviewFixer.isTwitterUrl(widget.url)) {
+      final mirror = LinkPreviewFixer.forcedPreviewUrl(widget.url);
+      if (mirror != null && mirror != widget.url) {
+        try {
+          page = await _loader.load(mirror);
+        } catch (error) {
+          failure = error;
+        }
+      }
+    }
+    if (!mounted) return;
+    setState(() {
+      _loading = false;
+      if (page != null) {
+        _adopt(page);
+      } else {
+        _error = failure ?? InstantViewUnavailable(widget.url);
+      }
+    });
   }
 
   void _scrollToAnchor(String anchor, String fallbackUrl) {

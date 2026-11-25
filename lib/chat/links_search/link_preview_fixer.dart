@@ -70,6 +70,20 @@ class LinkPreviewFixer extends ChangeNotifier {
     'm.hoyolab.com': 'www.hoyolab.pp.ua',
   };
 
+  /// Hosts whose preview is requested no matter what the switch says: Telegram
+  /// renders Telegraph pages itself and the Tweet mirrors carry an Instant View
+  /// template, so a missing card there is never the site's fault.
+  static const Set<String> _telegraphHosts = {'telegra.ph', 'www.telegra.ph'};
+
+  static const Set<String> _twitterHosts = {
+    'x.com',
+    'www.x.com',
+    'mobile.x.com',
+    'twitter.com',
+    'www.twitter.com',
+    'mobile.twitter.com',
+  };
+
   SharedPreferences? _preferences;
   bool _enabled = false;
 
@@ -99,7 +113,19 @@ class LinkPreviewFixer extends ChangeNotifier {
     String text, {
     List<MessageTextEntity> entities = const [],
   }) {
-    final url = previewUrl(text, entities: entities);
+    final first = firstPreviewableUrl(text, entities: entities);
+    if (first == null) return null;
+    final forced = forcedPreviewUrl(first);
+    if (forced != null) {
+      return {
+        '@type': 'linkPreviewOptions',
+        'is_disabled': false,
+        'url': forced,
+        'show_above_text': true,
+      };
+    }
+    if (!_enabled) return null;
+    final url = fixedUrl(first);
     if (url == null) return null;
     return {'@type': 'linkPreviewOptions', 'is_disabled': false, 'url': url};
   }
@@ -120,14 +146,17 @@ class LinkPreviewFixer extends ChangeNotifier {
   Map<String, dynamic> applyTo(Map<String, dynamic> request) {
     final content = request['input_message_content'];
     if (content is! Map<String, dynamic> ||
-        content['@type'] != 'inputMessageText' ||
-        content.containsKey('link_preview_options')) {
+        content['@type'] != 'inputMessageText') {
       return request;
     }
     final text = content['text'];
     if (text is! Map<String, dynamic>) return request;
     final options = optionsForFormattedText(text);
     if (options == null) return request;
+    final forced = options['show_above_text'] == true;
+    // An explicit choice wins for ordinary mirrors, but a Telegraph or Tweet
+    // link is always previewed: that is the point of the forced hosts.
+    if (content.containsKey('link_preview_options') && !forced) return request;
     return {
       ...request,
       'input_message_content': {...content, 'link_preview_options': options},
@@ -140,10 +169,51 @@ class LinkPreviewFixer extends ChangeNotifier {
     String text, {
     List<MessageTextEntity> entities = const [],
   }) {
-    if (!_enabled) return null;
     final first = firstPreviewableUrl(text, entities: entities);
     if (first == null) return null;
-    return fixedUrl(first);
+    final forced = forcedPreviewUrl(first);
+    if (forced != null) return forced;
+    return _enabled ? fixedUrl(first) : null;
+  }
+
+  /// The URL a Telegraph or Tweet link must be previewed from, or null for
+  /// everything else. Telegraph pages are returned unchanged (a `t.me/iv` link
+  /// needs its query); Tweets go to their mirror, which is the host Telegram
+  /// has an Instant View template for.
+  static String? forcedPreviewUrl(String url) {
+    final absolute = _absoluteUrl(url);
+    if (absolute == null) return null;
+    if (isTwitterUrl(absolute)) return fixedUrl(absolute);
+    if (isTelegraphUrl(absolute)) return absolute;
+    return null;
+  }
+
+  /// A Telegraph article, either on `telegra.ph` or behind a `t.me/iv` link.
+  static bool isTelegraphUrl(String url) {
+    final parsed = _absoluteUri(url);
+    if (parsed == null) return false;
+    final host = parsed.host.toLowerCase();
+    if (_telegraphHosts.contains(host)) return true;
+    return host == 't.me' && parsed.path.toLowerCase().startsWith('/iv');
+  }
+
+  /// An x.com or twitter.com link.
+  static bool isTwitterUrl(String url) {
+    final parsed = _absoluteUri(url);
+    return parsed != null && _twitterHosts.contains(parsed.host.toLowerCase());
+  }
+
+  static String? _absoluteUrl(String url) {
+    final trimmed = trimmedUrl(url);
+    if (trimmed.isEmpty) return null;
+    if (trimmed.contains('://')) return trimmed;
+    if (_hasForeignScheme(trimmed)) return null;
+    return 'https://$trimmed';
+  }
+
+  static Uri? _absoluteUri(String url) {
+    final absolute = _absoluteUrl(url);
+    return absolute == null ? null : Uri.tryParse(absolute);
   }
 
   /// The link TDLib would preview in [text] — its first URL — or null when there

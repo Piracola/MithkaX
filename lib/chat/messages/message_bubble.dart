@@ -48,6 +48,7 @@ import '../../theme/telegram_cloud_theme.dart';
 import '../../theme/theme_controller.dart';
 import '../appearance/chat_appearance_preview.dart';
 import '../links_search/link_handler.dart';
+import '../links_search/link_preview_fixer.dart';
 import '../media/file_detail_view.dart';
 import '../media/file_opener.dart';
 import '../media/inline_video_autoplay.dart';
@@ -3904,7 +3905,8 @@ class _MessageBubbleState extends State<_ScopedMessageBubble>
       onTap: preview.url.isEmpty
           ? null
           : () {
-              if (preview.hasInstantView) {
+              if (preview.hasInstantView ||
+                  LinkPreviewFixer.isTwitterUrl(preview.url)) {
                 unawaited(
                   openInstantViewPage(context, preview.url, waitForPage: false),
                 );

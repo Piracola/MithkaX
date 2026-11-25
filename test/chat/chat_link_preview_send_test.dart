@@ -94,6 +94,7 @@ void main() {
         '@type': 'linkPreviewOptions',
         'is_disabled': false,
         'url': 'https://fixupx.com/user/status/1',
+        'show_above_text': true,
       });
     },
   );
@@ -117,6 +118,7 @@ void main() {
       '@type': 'linkPreviewOptions',
       'is_disabled': false,
       'url': 'https://fxtwitter.com/user/status/2',
+      'show_above_text': true,
     });
   });
 
@@ -164,15 +166,84 @@ void main() {
       '@type': 'linkPreviewOptions',
       'is_disabled': false,
       'url': 'https://fixupx.com/user/status/1',
+      'show_above_text': true,
     });
   });
 
-  test('turning the switch off leaves the send alone', () async {
-    await LinkPreviewFixer.shared.setEnabled(false);
-    final vm = model()..setDraft('https://x.com/user/status/1');
+  group('Telegraph and Tweet links are always previewed', () {
+    test('a Tweet keeps its mirror when the switch is off', () async {
+      await LinkPreviewFixer.shared.setEnabled(false);
+      final vm = model()..setDraft('https://x.com/user/status/1');
 
-    expect(await vm.send(), isTrue);
+      expect(await vm.send(), isTrue);
 
-    expect(sentContent().containsKey('link_preview_options'), isFalse);
+      expect(sentContent()['link_preview_options'], {
+        '@type': 'linkPreviewOptions',
+        'is_disabled': false,
+        'url': 'https://fixupx.com/user/status/1',
+        'show_above_text': true,
+      });
+    });
+
+    test('a Telegraph article is requested as itself', () async {
+      await LinkPreviewFixer.shared.setEnabled(false);
+      final vm = model()
+        ..setDraft('读 https://telegra.ph/Why-Instant-View-11-25 这篇');
+
+      expect(await vm.send(), isTrue);
+
+      expect(sentContent()['link_preview_options'], {
+        '@type': 'linkPreviewOptions',
+        'is_disabled': false,
+        'url': 'https://telegra.ph/Why-Instant-View-11-25',
+        'show_above_text': true,
+      });
+    });
+
+    test('a t.me/iv link keeps the query it needs', () async {
+      final vm = model()
+        ..setDraft(
+          'https://t.me/iv?url=https%3A%2F%2Ftelegra.ph%2FNote-11-25&rhash=abc',
+        );
+
+      expect(await vm.send(), isTrue);
+
+      expect(
+        sentContent()['link_preview_options']?['url'],
+        'https://t.me/iv?url=https%3A%2F%2Ftelegra.ph%2FNote-11-25&rhash=abc',
+      );
+    });
+
+    test('the switch still turns off the other mirrors', () async {
+      await LinkPreviewFixer.shared.setEnabled(false);
+      final vm = model()..setDraft('https://www.instagram.com/p/C2QhXyYabc/');
+
+      expect(await vm.send(), isTrue);
+
+      expect(sentContent().containsKey('link_preview_options'), isFalse);
+    });
+
+    test('an explicit preview choice is overridden for a Tweet', () {
+      final request = LinkPreviewFixer.shared.applyTo({
+        '@type': 'sendMessage',
+        'input_message_content': {
+          '@type': 'inputMessageText',
+          'text': {
+            '@type': 'formattedText',
+            'text': 'https://x.com/a/status/1',
+          },
+          'link_preview_options': {
+            '@type': 'linkPreviewOptions',
+            'is_disabled': true,
+          },
+        },
+      });
+
+      expect(
+        (request['input_message_content']
+            as Map<String, dynamic>)['link_preview_options']?['url'],
+        'https://fixupx.com/a/status/1',
+      );
+    });
   });
 }
