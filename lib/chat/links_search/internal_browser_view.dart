@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:webview_flutter/webview_flutter.dart';
@@ -37,7 +36,6 @@ class _InternalBrowserViewState extends State<InternalBrowserView> {
   var _canGoForward = false;
   var _navigationRevision = 0;
   var _instantBusy = false;
-  Completer<Map<String, dynamic>?>? _instantCompleter;
 
   @override
   void initState() {
@@ -49,10 +47,6 @@ class _InternalBrowserViewState extends State<InternalBrowserView> {
             onPermissionRequest: (request) => unawaited(request.deny()),
           )
           ..setJavaScriptMode(JavaScriptMode.unrestricted)
-          ..addJavaScriptChannel(
-            'MithkaIV',
-            onMessageReceived: _onInstantMessage,
-          )
           ..setNavigationDelegate(
             NavigationDelegate(
               onProgress: (value) {
@@ -99,62 +93,6 @@ class _InternalBrowserViewState extends State<InternalBrowserView> {
     unawaited(_controller.loadRequest(widget.initialUri));
   }
 
-  void _onInstantMessage(JavaScriptMessage message) {
-    final completer = _instantCompleter;
-    if (completer == null || completer.isCompleted) return;
-    final raw = message.message.trim();
-    if (raw.isEmpty || raw == 'null') {
-      completer.complete(null);
-      return;
-    }
-    try {
-      final decoded = jsonDecode(raw);
-      completer.complete(decoded is Map<String, dynamic> ? decoded : null);
-    } catch (_) {
-      completer.complete(null);
-    }
-  }
-
-  /// exteraless's "Open local Instant View": read the page already loaded in
-  /// this WebView and show it in the article surface.
-  Future<void> _openInstantView() async {
-    if (_instantBusy) return;
-    final url = _currentUri.toString();
-    final completer = Completer<Map<String, dynamic>?>();
-    _instantCompleter = completer;
-    setState(() => _instantBusy = true);
-    try {
-      final script =
-          await InstantViewWebExtractor.instantViewExtractionScript();
-      await _controller.runJavaScript(script);
-      final json = await completer.future.timeout(
-        const Duration(seconds: 20),
-        onTimeout: () => null,
-      );
-      if (!mounted) return;
-      final page = json == null
-          ? null
-          : parseWebInstantViewPage(json, url: url);
-      if (page == null || page.isEmpty) {
-        showToast(context, AppStrings.t(AppStringKeys.instantViewLoadFailed));
-        return;
-      }
-      await Navigator.of(context).push<void>(
-        AppPageRoute<void>(
-          pageBuilder: (_, _, _) =>
-              InstantViewView(url: url, initialPage: page, fallbackUrl: url),
-        ),
-      );
-    } catch (_) {
-      if (mounted) {
-        showToast(context, AppStrings.t(AppStringKeys.instantViewLoadFailed));
-      }
-    } finally {
-      _instantCompleter = null;
-      if (mounted) setState(() => _instantBusy = false);
-    }
-  }
-
   void _recordUrl(String? value) {
     final uri = value == null ? null : Uri.tryParse(value);
     if (uri == null || !internalBrowserCanOpen(uri) || !mounted) return;
@@ -196,6 +134,44 @@ class _InternalBrowserViewState extends State<InternalBrowserView> {
     if (!await _controller.canGoForward()) return;
     await _controller.goForward();
     await _refreshNavigationState();
+  }
+
+  /// exteraless's "Open local Instant View": read the page already loaded in
+  /// this WebView and show it in the article surface. No JS channel is added:
+  /// the extractor returns its JSON through `runJavaScriptReturningResult`, so
+  /// an untrusted page never gets a native bridge.
+  Future<void> _openInstantView() async {
+    if (_instantBusy) return;
+    final url = _currentUri.toString();
+    setState(() => _instantBusy = true);
+    try {
+      final script =
+          await InstantViewWebExtractor.instantViewExtractionScript();
+      final raw = await _controller
+          .runJavaScriptReturningResult(script)
+          .timeout(const Duration(seconds: 20));
+      if (!mounted) return;
+      final json = decodeInstantViewWebResult(raw);
+      final page = json == null
+          ? null
+          : parseWebInstantViewPage(json, url: url);
+      if (page == null || page.isEmpty) {
+        showToast(context, AppStrings.t(AppStringKeys.instantViewLoadFailed));
+        return;
+      }
+      await Navigator.of(context).push<void>(
+        AppPageRoute<void>(
+          pageBuilder: (_, _, _) =>
+              InstantViewView(url: url, initialPage: page, fallbackUrl: url),
+        ),
+      );
+    } catch (_) {
+      if (mounted) {
+        showToast(context, AppStrings.t(AppStringKeys.instantViewLoadFailed));
+      }
+    } finally {
+      if (mounted) setState(() => _instantBusy = false);
+    }
   }
 
   String get _originLabel {

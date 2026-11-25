@@ -447,6 +447,31 @@ String _imageSource(Map<String, dynamic> map) {
 // Extraction
 // ---------------------------------------------------------------------------
 
+/// Decodes what `runJavaScriptReturningResult` returns for `instant.js`.
+///
+/// Android hands back the JS string JSON-encoded (outer quotes and escapes),
+/// WKWebView hands it back raw; both end in the extractor's own JSON or
+/// `'null'`.
+Map<String, dynamic>? decodeInstantViewWebResult(Object? raw) {
+  if (raw is! String) return null;
+  var text = raw.trim();
+  if (text.isEmpty || text == 'null' || text == '""') return null;
+  if (text.startsWith('"')) {
+    try {
+      text = jsonDecode(text) as String;
+    } catch (_) {
+      return null;
+    }
+  }
+  if (text.isEmpty || text == 'null') return null;
+  try {
+    final decoded = jsonDecode(text);
+    return decoded is Map<String, dynamic> ? decoded : null;
+  } catch (_) {
+    return null;
+  }
+}
+
 /// Loads [url] in a WebView and runs Telegram's `instant.js` against the live
 /// document, the way exteraless's `WebInstantView` builds an article for a page
 /// with no server-side Instant View template.
@@ -472,7 +497,6 @@ class InstantViewWebExtractor {
     final controller = WebViewController()
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
       ..setBackgroundColor(const Color(0x00000000))
-      ..addJavaScriptChannel('MithkaIV', onMessageReceived: _onMessage)
       ..setNavigationDelegate(
         NavigationDelegate(
           onPageFinished: (url) => unawaited(_inject()),
@@ -501,32 +525,19 @@ class InstantViewWebExtractor {
     if (controller == null) return;
     try {
       final script = await _instantScript();
-      await controller.runJavaScript(script);
+      final raw = await controller.runJavaScriptReturningResult(script);
+      _finish(decodeInstantViewWebResult(raw));
     } catch (_) {
       // One retry: the first `onPageFinished` can fire before the document is
       // scriptable on slower WebView implementations.
       try {
         final script = await _instantScript();
         await Future<void>.delayed(const Duration(milliseconds: 400));
-        await controller.runJavaScript(script);
+        final raw = await controller.runJavaScriptReturningResult(script);
+        _finish(decodeInstantViewWebResult(raw));
       } catch (_) {
         _finish(null);
       }
-    }
-  }
-
-  void _onMessage(JavaScriptMessage message) {
-    final raw = message.message.trim();
-    if (raw.isEmpty || raw == 'null') {
-      debugPrint('instantView.web: not readerable $url');
-      _finish(null);
-      return;
-    }
-    try {
-      final decoded = jsonDecode(raw);
-      _finish(decoded is Map<String, dynamic> ? decoded : null);
-    } catch (_) {
-      _finish(null);
     }
   }
 
