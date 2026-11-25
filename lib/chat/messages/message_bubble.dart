@@ -1157,6 +1157,12 @@ class _MessageBubbleState extends State<_ScopedMessageBubble>
     final token = message.contentFlashToken;
     if (token == _paintedContentFlashToken) return;
     _paintedContentFlashToken = token;
+    final age =
+        DateTime.now().millisecondsSinceEpoch - message.contentFlashAtMillis;
+    // A message edited while it was off-screen is mounted without a blink:
+    // the reader never watched that text change, and a flash on scroll-in
+    // would claim fresh news.
+    if (message.contentFlashAtMillis <= 0 || age > 2000) return;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) _contentFlash.forward(from: 0);
     });

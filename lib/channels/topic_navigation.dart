@@ -692,7 +692,8 @@ class _TopicTabsPlacementToggle extends StatelessWidget {
         behavior: HitTestBehavior.opaque,
         onTap: onTap,
         child: SizedBox(
-          width: 40,
+          width: 44,
+          height: double.infinity,
           child: Center(
             child: AppIcon(
               moveToBottom ? HeroAppIcons.arrowDown : HeroAppIcons.arrowUp,

@@ -1187,7 +1187,10 @@ extension ChatViewModelUpdates on ChatViewModel {
       // The update flash belongs to a body that really changed. Content
       // updates that repaint the same text (a media refresh, our own echo)
       // must not blink the bubble.
-      if (target.text != text) ++target.contentFlashToken;
+      if (target.text != text) {
+        ++target.contentFlashToken;
+        target.contentFlashAtMillis = DateTime.now().millisecondsSinceEpoch;
+      }
       target.text = text;
       target.textQuoteSource = text;
       target.textQuoteSourceEntities = entities ?? target.textEntities;

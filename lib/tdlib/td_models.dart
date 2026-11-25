@@ -987,6 +987,11 @@ class ChatMessage {
   /// the reader the text under their eyes just changed.
   int contentFlashToken = 0;
 
+  /// Wall-clock moment of the last [contentFlashToken] bump. A bubble that
+  /// only mounts later (scrolled to after the edit) must not blink for an
+  /// update the reader never saw arrive.
+  int contentFlashAtMillis = 0;
+
   bool isSending;
   bool isSendAcknowledged;
   int viewCount;

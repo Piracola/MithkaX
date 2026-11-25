@@ -88,6 +88,7 @@ void main() {
 
     expect(message.text, 'second answer');
     expect(message.contentFlashToken, 1);
+    expect(message.contentFlashAtMillis, greaterThan(0));
   });
 
   test('an identical content repaint does not bump the token', () {
@@ -151,12 +152,23 @@ void main() {
     // The bot rewrites the message: the body fades back in.
     message.text = 'second answer';
     message.contentFlashToken++;
+    message.contentFlashAtMillis = DateTime.now().millisecondsSinceEpoch;
     rebuild(() {});
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 32));
     expect(flash().opacity.value, lessThan(1));
 
     await tester.pump(const Duration(milliseconds: 400));
+    expect(flash().opacity.value, 1);
+
+    // An edit the reader scrolled past never blinks when the bubble finally
+    // mounts: the token moves but the moment is stale.
+    message.text = 'third answer';
+    message.contentFlashToken++;
+    message.contentFlashAtMillis = DateTime.now().millisecondsSinceEpoch - 5000;
+    rebuild(() {});
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 32));
     expect(flash().opacity.value, 1);
   });
 }
