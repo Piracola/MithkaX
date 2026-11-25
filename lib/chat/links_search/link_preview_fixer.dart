@@ -14,7 +14,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../tdlib/json_helpers.dart';
 import '../../tdlib/td_models.dart';
 
-/// Opt-in preview mirrors plus the URL scanning needed to pick one.
+/// Preview mirrors plus the URL scanning needed to pick one. On by default,
+/// like exteraless's `FixLinkPreview`; the switch in Chat behaviour turns it
+/// off.
 class LinkPreviewFixer extends ChangeNotifier {
   LinkPreviewFixer._();
 
@@ -75,7 +77,9 @@ class LinkPreviewFixer extends ChangeNotifier {
 
   void initialize(SharedPreferences preferences) {
     _preferences = preferences;
-    final value = preferences.getBool(preferenceKey) ?? false;
+    // exteraless ships the fix enabled (NaConfig default true), so a fresh
+    // install and an install that never touched the switch both get it.
+    final value = preferences.getBool(preferenceKey) ?? true;
     if (value == _enabled) return;
     _enabled = value;
     notifyListeners();

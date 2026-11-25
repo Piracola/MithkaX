@@ -154,7 +154,21 @@ void main() {
     });
   });
 
-  test('the override stays off until the reader opts in', () async {
+  test('the fix is on out of the box, like exteraless', () async {
+    final vm = model()..setDraft('https://x.com/user/status/1');
+
+    expect(LinkPreviewFixer.shared.enabled, isTrue);
+    expect(await vm.send(), isTrue);
+
+    expect(sentContent()['link_preview_options'], {
+      '@type': 'linkPreviewOptions',
+      'is_disabled': false,
+      'url': 'https://fixupx.com/user/status/1',
+    });
+  });
+
+  test('turning the switch off leaves the send alone', () async {
+    await LinkPreviewFixer.shared.setEnabled(false);
     final vm = model()..setDraft('https://x.com/user/status/1');
 
     expect(await vm.send(), isTrue);
