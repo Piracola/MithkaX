@@ -1,5 +1,4 @@
 import 'package:mithka/l10n/app_localizations.dart';
-
 import '../tdlib/json_helpers.dart';
 
 enum PrivacyVisibilityOption {

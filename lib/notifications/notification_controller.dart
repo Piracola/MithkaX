@@ -9,14 +9,13 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
-
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:mithka/l10n/app_localizations.dart';
+import 'package:mithka/platform/app_haptics.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-
 import '../app/chat_deep_link_controller.dart';
 import '../settings/country_chat_blocker.dart';
 import '../settings/hidden_sender_store.dart';
@@ -384,7 +383,10 @@ class NotificationController with WidgetsBindingObserver, ChangeNotifier {
       return;
     }
 
-    final messageText = _notificationText(content);
+    final messageText = _notificationText(
+      content,
+      isChannel: TDParse.chatKind(chat) == ChatKind.channel,
+    );
     if (KeywordBlocker.shared.matches(messageText)) return;
     // Same id space as ChatMessage.senderId: users positive, chats negative.
     final sender = raw.obj('sender_id');
@@ -454,7 +456,7 @@ class NotificationController with WidgetsBindingObserver, ChangeNotifier {
         unawaited(SystemSound.play(SystemSoundType.alert));
       }
       if (_notificationPreferences.inAppVibrate) {
-        unawaited(HapticFeedback.mediumImpact());
+        unawaited(AppHaptics.longPress());
       }
       return;
     }
@@ -1076,8 +1078,14 @@ class NotificationController with WidgetsBindingObserver, ChangeNotifier {
     );
   }
 
-  String _notificationText(Map<String, dynamic> content) {
-    final text = TDParse.messageText(content).replaceAll('\n', ' ').trim();
+  String _notificationText(
+    Map<String, dynamic> content, {
+    bool isChannel = false,
+  }) {
+    final text = TDParse.messageText(
+      content,
+      isChannel: isChannel,
+    ).replaceAll('\n', ' ').trim();
     return text.isEmpty
         ? AppStrings.t(AppStringKeys.chatSearchMessageResultLabel)
         : text;
@@ -1171,6 +1179,15 @@ class NotificationController with WidgetsBindingObserver, ChangeNotifier {
     if (target != null) _openTarget(target);
   }
 
+  /// Opens the chat named by a notification payload that reached the app
+  /// through a native surface (the UnifiedPush fallback notification). The
+  /// payload is the same JSON form [NotificationTarget.fromLocalPayload]
+  /// already understands.
+  void openPayload(String payload) {
+    final target = NotificationTarget.fromLocalPayload(payload);
+    if (target != null) _openTarget(target);
+  }
+
   Future<dynamic> _handleNativeTap(MethodCall call) async {
     if (call.method != 'notificationTap') return;
     await _openRemoteNotification(call.arguments);
@@ -1237,6 +1254,7 @@ class NotificationController with WidgetsBindingObserver, ChangeNotifier {
       messageId: target.messageId,
       accountUserId: target.accountUserId,
       accountSlot: target.accountSlot,
+      fromNotification: true,
     );
   }
 

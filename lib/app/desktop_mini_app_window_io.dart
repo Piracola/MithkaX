@@ -1,10 +1,8 @@
 import 'dart:async';
 import 'dart:io';
 import 'dart:typed_data';
-
 import 'package:flutter/material.dart';
 import 'package:multi_window_manager/multi_window_manager.dart';
-
 import '../tdlib/json_helpers.dart';
 import '../tdlib/td_client.dart';
 import 'chat_deep_link_controller.dart';
@@ -422,6 +420,7 @@ class _DesktopMiniAppMainBridge with WindowListener {
           messageId: request.messageId,
           accountSlot: binding.accountSlot,
           accountUserId: binding.accountUserId,
+          externalReply: request.externalReply,
         );
         try {
           await MultiWindowManager.current.show();

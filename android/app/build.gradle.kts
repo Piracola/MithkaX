@@ -141,6 +141,18 @@ dependencies {
     // the real media transport behind the CallMediaEngine seam; CallMediaPlugin
     // drives its 1:1 P2P API from the TDLib callStateReady payload.
     implementation("io.github.pytgcalls:ntgcalls:2.2.5")
+    // UnifiedPush distributor connector. The app talks to whichever
+    // distributor (ntfy, etc.) is installed; no Google dependency.
+    // The connector pulls the JVM `tink` artifact while flutter_secure_storage
+    // already brings `tink-android`; both ship the same classes, so dexing
+    // fails on duplicates. Keep one artifact — the Android build — and pin it
+    // to the connector's release so its API expectations still hold. 3.3.4
+    // shipped aar-metadata demanding compileSdk 37 (a packaging slip fixed in
+    // 3.3.5+); stay on the newest 3.3.x whose API is byte-identical.
+    implementation("org.unifiedpush.android:connector:3.3.6") {
+        exclude(group = "com.google.crypto.tink", module = "tink")
+    }
+    implementation("com.google.crypto.tink:tink-android:1.24.0")
     implementation("com.google.mlkit:language-id:17.0.6")
     implementation("com.google.mlkit:translate:17.0.3")
 }

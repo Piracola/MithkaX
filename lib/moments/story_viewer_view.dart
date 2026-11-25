@@ -9,9 +9,7 @@
 //
 
 import 'dart:async';
-
 import 'dart:io';
-
 import 'package:f_videoplayer/f_videoplayer.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -19,12 +17,11 @@ import 'package:flutter/services.dart';
 import 'package:mithka/l10n/app_localizations.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:video_player/video_player.dart';
-
 import '../app/ipad_window_chrome.dart';
 import '../app/primary_chat_launcher.dart';
 import '../chat/chat_picker_view.dart';
-import '../chat/custom_emoji.dart';
-import '../chat/link_handler.dart';
+import '../chat/links_search/link_handler.dart';
+import '../chat/stickers/custom_emoji.dart';
 import '../components/app_dialog.dart';
 import '../components/app_icons.dart';
 import '../components/app_interactive_surface.dart';
@@ -278,8 +275,7 @@ class _StoryViewerViewState extends State<StoryViewerView>
     });
 
     // Mark the story as viewed (best-effort). Ghost mode skips the report;
-    // the local seen markers then stay unupdated, the same trade-off
-    // AyuGram accepts.
+    // the local seen markers then stay unupdated — the accepted trade-off.
     if (!(allowTelegramTosViolations &&
         GhostModeController.shared.shouldBlockStories(widget.chatId).isBlock)) {
       TdClient.shared.send({
@@ -1397,7 +1393,10 @@ class _StoryViewerViewState extends State<StoryViewerView>
   Future<void> _shareStory() async {
     final picked = await Navigator.of(context).push<ChatSummary>(
       MaterialPageRoute(
-        builder: (_) => const ChatPickerView(title: AppStringKeys.storyShare),
+        builder: (_) => const ChatPickerView(
+          title: AppStringKeys.storyShare,
+          showFolders: true,
+        ),
       ),
     );
     if (picked == null) return;

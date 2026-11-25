@@ -9,9 +9,7 @@
 //
 
 import 'dart:async';
-
 import 'package:flutter/widgets.dart';
-
 import '../chat/chat_picker_view.dart';
 import '../components/app_icons.dart';
 import '../components/settings_selection_row.dart';

@@ -10,7 +10,6 @@
 
 import 'package:flutter/material.dart';
 import 'package:mithka/l10n/app_localizations.dart';
-
 import '../components/app_icons.dart';
 import '../components/ui_components.dart';
 import '../tdlib/json_helpers.dart';

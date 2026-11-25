@@ -4,18 +4,17 @@
 //  Runtime switches for the kept-message mirror (Telegram API Terms §1.4
 //  feature, only compiled into opted-in self-builds). Everything defaults
 //  to OFF: a fresh build records nothing until the user opts in, matching
-//  exteraless's EnableSaveDeletedMessages / EnableSaveEditsHistory which
+//  the reference kept-message clients' save switches, which
 //  also ship disabled.
 //
 //  The recording switches gate the STORE's write paths; the render switch
 //  gates the IN-CHAT ghost bubbles. Turning a recording switch off does not
 //  delete what was recorded — the data stays browsable in the history
-//  viewer until explicitly cleared, exactly like exteraless.
+//  viewer until explicitly cleared.
 //
 
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-
 import '../config/build_flags.dart';
 
 /// How a ghost bubble's deleted badge renders.
@@ -57,6 +56,8 @@ class MessageHistorySettings extends ChangeNotifier {
   static const _snapshotGroupsKey = 'message_history.snapshot_groups';
   static const _snapshotChannelsKey = 'message_history.snapshot_channels';
   static const _renderGhostsKey = 'message_history.render_ghosts';
+  static const _forwardProtectedAsCopyKey =
+      'message_history.forward_protected_as_copy';
   static const _badgeStyleKey = 'message_history.badge_style';
 
   bool _enableAll = false;
@@ -64,7 +65,7 @@ class MessageHistorySettings extends ChangeNotifier {
   bool _recordEdits = false;
   // Per-type switches default ON — the master switch and the deleted-record
   // switch remain the primary opt-ins, and the type dims only narrow them
-  // (exteraless semantics). Bot chats are the exception: recording service
+  // Bot chats are the exception: recording service
   // dialogs is an explicit opt-in.
   bool _recordPrivate = true;
   bool _recordGroups = true;
@@ -74,19 +75,22 @@ class MessageHistorySettings extends ChangeNotifier {
   bool _snapshotGroups = false;
   bool _snapshotChannels = false;
   bool _renderGhosts = false;
+  // exteraless ForwardProtectedAsCopy parity, except this fork ships it ON:
+  // the copy path only ever re-sends what the account can already read.
+  bool _forwardProtectedAsCopy = true;
   GhostBadgeStyle _badgeStyle = GhostBadgeStyle.icon;
 
   /// Master switch: OFF pauses all recording (deleted, edits and media
-  /// snapshots) without touching what was already kept — the exteraless
-  /// EnableDeletedInformation semantics. Still-off sub-switches stay off
+  /// snapshots) without touching what was already kept — the
+  /// pause semantics. Still-off sub-switches stay off
   /// when it turns back on.
   bool get enableAll => _enableAll && isAvailable;
 
   bool get recordDeleted => _recordDeleted && enableAll;
   bool get recordEdits => _recordEdits && enableAll;
 
-  /// Per conversation-type recording (exteraless SaveDeletedInPrivate /
-  /// InGroups / InChannels). A type that is off records nothing for its
+  /// Per conversation-type recording (private /
+  /// groups / channels). A type that is off records nothing for its
   /// chats — neither text nor media snapshots.
   bool get recordPrivate => _recordPrivate && recordDeleted;
   bool get recordGroups => _recordGroups && recordDeleted;
@@ -115,6 +119,10 @@ class MessageHistorySettings extends ChangeNotifier {
   /// what was already kept.
   bool get renderGhosts => _renderGhosts && isAvailable;
 
+  /// Forwarding out of a has_protected_content chat re-sends the content as
+  /// a copy instead of failing with the server's restriction error.
+  bool get forwardProtectedAsCopy => _forwardProtectedAsCopy && isAvailable;
+
   SharedPreferences? _prefs;
 
   /// Called from the app bootstrap; a no-op in builds without the feature.
@@ -132,6 +140,7 @@ class MessageHistorySettings extends ChangeNotifier {
     _snapshotGroups = prefs.getBool(_snapshotGroupsKey) ?? false;
     _snapshotChannels = prefs.getBool(_snapshotChannelsKey) ?? false;
     _renderGhosts = prefs.getBool(_renderGhostsKey) ?? false;
+    _forwardProtectedAsCopy = prefs.getBool(_forwardProtectedAsCopyKey) ?? true;
     _badgeStyle = GhostBadgeStyle.fromPrefs(prefs.getString(_badgeStyleKey));
     notifyListeners();
   }
@@ -217,6 +226,13 @@ class MessageHistorySettings extends ChangeNotifier {
     if (!isAvailable || _renderGhosts == value) return;
     _renderGhosts = value;
     _prefs?.setBool(_renderGhostsKey, value);
+    notifyListeners();
+  }
+
+  void setForwardProtectedAsCopy(bool value) {
+    if (!isAvailable || _forwardProtectedAsCopy == value) return;
+    _forwardProtectedAsCopy = value;
+    _prefs?.setBool(_forwardProtectedAsCopyKey, value);
     notifyListeners();
   }
 }

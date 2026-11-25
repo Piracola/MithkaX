@@ -3,7 +3,6 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:math' as math;
 import 'dart:typed_data';
-
 import 'package:f_videoplayer/f_videoplayer.dart';
 import 'package:f_videoplayer_pip/f_video_picture_in_picture.dart';
 import 'package:flutter/material.dart';
@@ -16,14 +15,14 @@ import 'package:flutter/rendering.dart'
         debugRepaintRainbowEnabled;
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:video_player/video_player.dart';
-
+import '../chat/media/video_stream_debugger.dart';
 import '../chat/video_player_view.dart';
-import '../chat/video_stream_debugger.dart';
 import '../components/app_icons.dart';
 import '../l10n/app_localizations.dart';
 import '../media/video_playback_reporting.dart';
 import '../tdlib/td_client.dart';
 import '../tdlib/td_image_loader.dart';
+import '../theme/app_theme.dart';
 import 'desktop_media_window_registry.dart';
 import 'video_split_controller.dart';
 
@@ -189,8 +188,10 @@ class DesktopVideoWindowApp extends StatelessWidget {
       title: arguments.title,
       debugShowCheckedModeBanner: false,
       theme: ThemeData.dark().copyWith(scaffoldBackgroundColor: Colors.black),
-      builder: (context, child) => DefaultTextStyle.merge(
-        style: const TextStyle(decoration: TextDecoration.none),
+      // The player's screens bring no text style of their own; without this
+      // default a Text that omits its weight draws at weight 900.
+      builder: (context, child) => DefaultTextStyle(
+        style: AppTextStyle.body(Colors.white),
         child: child ?? const SizedBox.shrink(),
       ),
       supportedLocales: AppLocalizations.supportedLocales,

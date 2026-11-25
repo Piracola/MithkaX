@@ -8,7 +8,6 @@
 import 'dart:async';
 import 'dart:io';
 import 'dart:math' as math;
-
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -16,13 +15,14 @@ import 'package:mithka/l10n/app_localizations.dart';
 import 'package:provider/provider.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-
+import '../app/deep_link_service.dart';
 import '../app/ipad_window_chrome.dart';
 import '../bot_api/bot_api_account.dart';
 import '../bot_api/bot_api_client.dart';
 import '../bot_api/bot_api_endpoint_config.dart';
 import '../components/app_icons.dart';
 import '../components/app_interactive_surface.dart';
+import '../components/brand_mark.dart';
 import '../components/country_flag.dart';
 import '../components/ui_components.dart';
 import '../platform/adaptive_platform.dart';
@@ -129,6 +129,19 @@ abstract final class _DesktopLoginMetrics {
 class LoginView extends StatefulWidget {
   const LoginView({super.key});
 
+  /// The pure core of the login step identity: the step-family mapping that
+  /// keeps same-form states (the phone column, including the logout chain
+  /// AuthInitializing → AuthWaitPhoneNumber → AuthClosed hops) on one key so
+  /// the step's AnimatedSwitcher never cross-fades a form against itself.
+  /// The instance method layers the bot/phone-override identities on top,
+  /// and AuthReloading is handled BEFORE this mapping (it sticks to the
+  /// previous identity — see _LoginViewState._stepIdentity).
+  @visibleForTesting
+  static String debugStepIdentityForTesting(AuthStep step) => switch (step) {
+    AuthInitializing() || AuthWaitPhoneNumber() || AuthClosed() => 'phone',
+    _ => step.runtimeType.toString(),
+  };
+
   @override
   State<LoginView> createState() => _LoginViewState();
 }
@@ -173,6 +186,16 @@ class _LoginViewState extends State<LoginView> {
   @override
   void initState() {
     super.initState();
+    final initialStep = context.read<AuthManager>().step;
+    // Mounting mid-reload (add-account rides the gate's splash→login
+    // hand-off through AuthReloading) must not seed the literal
+    // "AuthReloading" identity: a few hundred ms later the real phone form
+    // arrives, the key flips, and the switcher cross-fades the same form
+    // against itself — the add-account entry flicker. Seed the phone
+    // column; the sticky branch keeps later reloads on what's on screen.
+    _lastStepIdentity = initialStep is AuthReloading
+        ? 'phone'
+        : LoginView.debugStepIdentityForTesting(initialStep);
     ProxyStatusController.shared.ensureTracking();
     unawaited(_loadBotEndpoint());
     if (isMobilePlatform) {
@@ -375,7 +398,7 @@ class _LoginViewState extends State<LoginView> {
                         backToPhoneOnly: backToPhoneOnly,
                         showingPhone: showingPhone,
                       ),
-                    _penguinMark(_TouchLoginMetrics.brandMark),
+                    _brandMark(_TouchLoginMetrics.brandMark),
                     const SizedBox(width: AppSpacing.md),
                     Expanded(
                       child: Text(
@@ -505,13 +528,16 @@ class _LoginViewState extends State<LoginView> {
     );
   }
 
-  /// The penguin on its own, with no tile or tint behind it.
-  Widget _penguinMark(double size) => ExcludeSemantics(
+  /// The mark on its own, with no tile behind it, tinted to the login lane's
+  /// ink so it follows the light and dark appearance.
+  Widget _brandMark(double size) => ExcludeSemantics(
     child: Image(
-      image: const AssetImage('assets/penguin.png'),
+      image: const AssetImage(brandMarkAsset),
       width: size,
       height: size,
       fit: BoxFit.contain,
+      color: context.colors.textPrimary,
+      filterQuality: FilterQuality.high,
     ),
   );
 
@@ -672,7 +698,7 @@ class _LoginViewState extends State<LoginView> {
                     ),
                     child: Row(
                       children: [
-                        _penguinMark(_DesktopLoginMetrics.brandMark),
+                        _brandMark(_DesktopLoginMetrics.brandMark),
                         const SizedBox(width: AppSpacing.md),
                         Expanded(
                           child: Text(
@@ -850,7 +876,54 @@ class _LoginViewState extends State<LoginView> {
         const SizedBox(height: 18),
         _errorBanner(auth.errorMessage!),
       ],
+      // A tg:// or t.me link arrived from outside while logged out; it opens
+      // once login completes.
+      ListenableBuilder(
+        listenable: DeepLinkService.shared,
+        builder: (context, _) => DeepLinkService.shared.waitingForLogIn
+            ? Padding(
+                padding: const EdgeInsets.only(top: 18),
+                child: _pendingLinkBanner(),
+              )
+            : const SizedBox.shrink(),
+      ),
     ];
+  }
+
+  Widget _pendingLinkBanner() {
+    final c = context.colors;
+    return Container(
+      key: const ValueKey('login-pending-link'),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: c.linkBlue.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(AppRadius.card),
+        border: Border.all(
+          color: c.linkBlue.withValues(alpha: 0.28),
+          width: 0.8,
+        ),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(top: 1),
+            child: AppIcon(HeroAppIcons.link, size: 15, color: c.linkBlue),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              AppStrings.t(AppStringKeys.linkLogInToOpen),
+              style: TextStyle(
+                fontSize: 13,
+                height: 1.35,
+                color: c.textPrimary.withValues(alpha: 0.85),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   Widget _backButton(
@@ -1155,12 +1228,33 @@ class _LoginViewState extends State<LoginView> {
   }
 
   /// Stable identity of the visible step, so [AnimatedSwitcher] cross-fades
-  /// only when the flow actually moves between steps.
+  /// only when the flow actually moves between FORMS. Several auth states
+  /// render the same phone form (AuthReloading and AuthInitializing both
+  /// hand the default branch to the phone step) — re-keying on the raw
+  /// runtime type mounted a second copy of the form and cross-faded it
+  /// against itself, the "renders twice" flicker on add-account.
+  /// AuthMissingCredentials renders its own notice, so it keeps a distinct
+  /// identity from the working phone form. AuthClosed maps to the phone
+  /// form too: the logout chain LoggingOut → Closed → Initializing →
+  /// WaitPhoneNumber bounces between the gate's splash and login surfaces
+  /// (each a deliberate crossfade there), and re-keying the phone form at
+  /// the last hop would fade the freshly mounted form against itself.
   String _stepIdentity(AuthManager auth) {
     if (_showBotLogin) return 'bot';
     if (_forcePhone) return 'phone';
-    return auth.step.runtimeType.toString();
+    // AuthReloading is a re-read of the SAME client, not a form change:
+    // cancel-add-account / logout run form → AuthReloading → (gate takes
+    // over: splash or another account's ready sidebar). Mapping it to the
+    // phone column swapped the code/2FA form for the phone form mid-flight —
+    // the outgoing form cross-faded against a different incoming form while
+    // both stacked in the switcher's centered overlap ("a displaced form
+    // that vanishes last"). Stick to the identity already on screen; the
+    // gate's own crossfade takes it from there.
+    if (auth.step is AuthReloading) return _lastStepIdentity;
+    return _lastStepIdentity = LoginView.debugStepIdentityForTesting(auth.step);
   }
+
+  late String _lastStepIdentity;
 
   // MARK: Steps
 

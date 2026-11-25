@@ -1,51 +1,59 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/widgets.dart';
 
 import '../l10n/app_localizations.dart';
-import '../theme/app_theme.dart';
+import 'brand_mark.dart';
 
-/// Compact VIP indicator shown next to a Telegram Premium user's name.
+/// The app mark in Premium gold, shown next to a Telegram Premium user's name.
 class VipBadge extends StatelessWidget {
-  const VipBadge({super.key});
+  const VipBadge({super.key, this.size = 18});
 
-  static const _ink = Color(0xFF7A4A00);
+  final double size;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFFFFE08A), Color(0xFFF5A623)],
-        ),
-        borderRadius: BorderRadius.circular(AppRadius.md),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x33000000),
-            blurRadius: 2,
-            offset: Offset(0, 1),
-          ),
-        ],
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const ColorFiltered(
-            colorFilter: ColorFilter.mode(_ink, BlendMode.srcATop),
-            child: Text('🐧', style: TextStyle(fontSize: 13, height: 1.1)),
-          ),
-          const SizedBox(width: 2),
-          Text(
-            AppStringKeys.vipBadgeLabel.l10n(context),
-            style: const TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w600,
-              letterSpacing: 0.3,
-              color: _ink,
-              height: 1.1,
-            ),
-          ),
-        ],
+    return Semantics(
+      label: AppStringKeys.vipBadgeLabel.l10n(context),
+      image: true,
+      child: SizedBox.square(
+        dimension: size,
+        child: const CustomPaint(painter: _GoldMarkPainter()),
       ),
     );
   }
+}
+
+/// Fills [brandMarkGlyph] with the Premium gold gradient.
+///
+/// Drawn as path geometry rather than the raster mark: at 18 pt the badge sits
+/// beside a name in every list, and the glyph's rounded corners stay crisp
+/// only when they are vector edges.
+class _GoldMarkPainter extends CustomPainter {
+  const _GoldMarkPainter();
+
+  static const _gradient = LinearGradient(
+    begin: Alignment.topCenter,
+    end: Alignment.bottomCenter,
+    colors: [Color(0xFFF2BC2E), Color(0xFFC98204)],
+  );
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final scale = size.shortestSide / 24;
+    canvas.save();
+    canvas.translate(
+      (size.width - 24 * scale) / 2,
+      (size.height - 24 * scale) / 2,
+    );
+    canvas.scale(scale);
+    canvas.drawPath(
+      brandMarkGlyph,
+      Paint()
+        ..isAntiAlias = true
+        ..shader = _gradient.createShader(const Rect.fromLTWH(0, 0, 24, 24)),
+    );
+    canvas.restore();
+  }
+
+  @override
+  bool shouldRepaint(_GoldMarkPainter oldDelegate) => false;
 }

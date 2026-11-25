@@ -9,19 +9,20 @@
 import 'dart:async';
 import 'dart:io';
 import 'dart:math' as math;
-
 import 'package:file_picker/file_picker.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:mithka/l10n/app_localizations.dart';
+import 'package:mithka/platform/app_haptics.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-
 import '../app/active_conversation.dart';
 import '../app/adaptive_split_layout.dart';
 import '../app/app_navigator.dart';
+import '../app/chat_deep_link_controller.dart';
 import '../app/chat_pane.dart';
 import '../app/desktop_video_window.dart';
 import '../app/ipad_window_chrome.dart';
@@ -35,9 +36,14 @@ import '../channels/topic_list_actions.dart';
 import '../channels/topic_list_host.dart';
 import '../channels/topic_list_row.dart';
 import '../channels/topic_navigation.dart';
+import '../chats/chat_delete_dialog.dart';
+import '../chats/chat_delete_policy.dart';
+import '../chats/chat_list_view.dart';
+import '../chats/chat_removal_actions.dart';
 import '../chats/search_token_views.dart';
 import '../communities/community_models.dart';
 import '../communities/community_view.dart';
+import '../components/app_anchored_menu.dart';
 import '../components/app_confirm_dialog.dart';
 import '../components/app_dialog.dart';
 import '../components/app_icons.dart';
@@ -50,7 +56,9 @@ import '../components/toast.dart';
 import '../components/ui_components.dart';
 import '../config/build_flags.dart';
 import '../history/message_history_revision_view.dart';
+import '../history/message_history_settings.dart';
 import '../history/message_history_store.dart';
+import '../history/message_history_view.dart';
 import '../media/app_asset_picker.dart';
 import '../media/media_metadata.dart';
 import '../moments/moments_view.dart' show ChannelMomentsView;
@@ -80,80 +88,87 @@ import '../theme/content_size.dart';
 import '../theme/date_text.dart';
 import '../theme/telegram_cloud_theme.dart';
 import '../theme/theme_controller.dart';
-import 'ai_chat_translation_service.dart';
-import 'apple_pcc_unread_summary_provider.dart';
-import 'auto_translate_policy.dart';
-import 'blocked_message_runs.dart';
-import 'bot_api_access_warning.dart';
-import 'channel_direct_messages_service.dart';
-import 'channel_direct_messages_view.dart';
-import 'chat_appearance_message_preview.dart';
+import 'admin/channel_direct_messages_service.dart';
+import 'admin/channel_direct_messages_view.dart';
+import 'admin/chat_info_view.dart';
+import 'admin/group_management_view.dart';
+import 'admin/group_remark_controller.dart';
+import 'ai_translation/ai_chat_translation_service.dart';
+import 'ai_translation/apple_pcc_unread_summary_provider.dart';
+import 'ai_translation/auto_translate_policy.dart';
+import 'ai_translation/chat_translation_panel.dart';
+import 'ai_translation/message_translation_cache.dart';
+import 'ai_translation/openai_compatible_unread_summary_provider.dart';
+import 'ai_translation/telegram_ai_service.dart';
+import 'ai_translation/telegram_cocoon_unread_summary_provider.dart';
+import 'ai_translation/translation_fallback.dart';
+import 'ai_translation/unread_chat_summary_models.dart';
+import 'ai_translation/unread_chat_summary_service.dart';
+import 'ai_translation/unread_chat_summary_view.dart';
+import 'appearance/chat_appearance_message_preview.dart';
+import 'appearance/chat_wallpaper.dart';
+import 'channel_bottom_panel.dart';
 import 'chat_auto_scroll_policy.dart';
-import 'chat_community_service_card.dart';
 import 'chat_first_contact_card.dart';
 import 'chat_first_contact_info.dart';
 import 'chat_frame_scheduler.dart';
-import 'chat_info_view.dart';
 import 'chat_input_bar.dart';
-import 'chat_media_drop_region.dart';
 import 'chat_message_merge.dart';
-import 'chat_message_search_bar.dart';
-import 'chat_message_search_controller.dart';
 import 'chat_open_performance.dart';
 import 'chat_picker_view.dart';
 import 'chat_return_to_latest_coordinator.dart';
 import 'chat_scroll_metrics.dart';
 import 'chat_send_failure.dart';
 import 'chat_session_cache.dart';
-import 'chat_translation_panel.dart';
 import 'chat_unread_progress.dart';
 import 'chat_view_model.dart';
-import 'chat_wallpaper.dart';
-import 'checklist_composer_view.dart';
-import 'custom_emoji.dart';
-import 'emoji_store.dart';
+import 'composer/chat_media_drop_region.dart';
+import 'composer/checklist_composer_view.dart';
+import 'composer/media_send_preview_view.dart';
+import 'composer/outgoing_attachment.dart';
+import 'composer_reply_options_sheet.dart';
 import 'forum_topic_transcript.dart';
-import 'forward_markdown.dart';
-import 'forward_options.dart';
-import 'group_remark_controller.dart';
-import 'hide_sender_dialog.dart';
-import 'image_media_album_bubble.dart';
-import 'image_preview.dart';
-import 'internal_chat_link_router.dart';
-import 'link_handler.dart';
-import 'media_album_layout.dart';
-import 'media_download_service.dart';
-import 'media_library_saver.dart';
-import 'media_send_preview_view.dart';
-import 'media_spoiler.dart';
-import 'message_action_menu.dart';
-import 'message_action_menu_presentation.dart';
-import 'message_bubble.dart';
-import 'message_bubble_repository_view.dart';
-import 'message_quote_selection_dialog.dart';
-import 'message_reaction_availability.dart';
-import 'message_replies_sheet.dart';
-import 'message_swipe_reply.dart';
-import 'message_text_quote.dart';
-import 'message_translation_cache.dart';
-import 'music_player_controller.dart';
-import 'openai_compatible_unread_summary_provider.dart';
-import 'outgoing_attachment.dart';
-import 'poll_results_view.dart';
-import 'quick_reaction_choice.dart';
-import 'shared_contact_sheet.dart';
-import 'sticker_set_detail_view.dart';
-import 'sticker_viewer.dart';
-import 'telegram_ai_service.dart';
-import 'telegram_cocoon_unread_summary_provider.dart';
-import 'telegram_mini_app_view.dart';
+import 'forward_handoff.dart';
+import 'forward_options_sheet.dart';
+import 'links_search/chat_message_search_bar.dart';
+import 'links_search/chat_message_search_controller.dart';
+import 'links_search/internal_chat_link_router.dart';
+import 'links_search/link_handler.dart';
+import 'media/image_preview.dart';
+import 'media/media_download_service.dart';
+import 'media/media_library_saver.dart';
+import 'media/music_player_controller.dart';
+import 'media/video_playback_queue.dart';
+import 'messages/blocked_message_runs.dart';
+import 'messages/chat_community_service_card.dart';
+import 'messages/forward_markdown.dart';
+import 'messages/forward_options.dart';
+import 'messages/hide_sender_dialog.dart';
+import 'messages/image_media_album_bubble.dart';
+import 'messages/media_album_layout.dart';
+import 'messages/media_spoiler.dart';
+import 'messages/message_action_menu.dart';
+import 'messages/message_action_menu_presentation.dart';
+import 'messages/message_bubble.dart';
+import 'messages/message_bubble_repository_view.dart';
+import 'messages/message_quote_selection_dialog.dart';
+import 'messages/message_reaction_availability.dart';
+import 'messages/message_replies_sheet.dart';
+import 'messages/message_swipe_reply.dart';
+import 'messages/message_text_quote.dart';
+import 'messages/poll_results_view.dart';
+import 'messages/quick_reaction_choice.dart';
+import 'messages/shared_contact_sheet.dart';
+import 'mini_apps/bot_api_access_warning.dart';
+import 'mini_apps/telegram_mini_app_view.dart';
+import 'pinned_messages_view.dart';
+import 'protected_forward.dart';
+import 'stickers/custom_emoji.dart';
+import 'stickers/emoji_store.dart';
+import 'stickers/sticker_set_detail_view.dart';
+import 'stickers/sticker_viewer.dart';
 import 'transcript_entry_boundary.dart';
 import 'transcript_pivot_partition.dart';
-import 'translation_fallback.dart';
-import 'unread_chat_summary_models.dart';
-import 'unread_chat_summary_service.dart';
-import 'unread_chat_summary_view.dart';
-import 'video_playback_queue.dart';
 import 'video_player_view.dart';
 
 @visibleForTesting
@@ -992,6 +1007,8 @@ class ChatView extends StatefulWidget {
     this.forumTopicId,
     this.initialMessageId,
     this.seedMessage,
+    this.externalReplyHandoff,
+    this.forwardHandoff,
     this.showBackButton = true,
     this.headerHeight = 48,
     this.headerColor,
@@ -1018,6 +1035,15 @@ class ChatView extends StatefulWidget {
   final int? forumTopicId;
   final int? initialMessageId;
   final ChatMessage? seedMessage;
+
+  /// A reply carried over from another chat (see
+  /// `ComposerReplyOptionsSheet`'s reply-in-another-chat entry). The
+  /// composer starts with this cross-chat reply pending.
+  final ExternalReplyHandoff? externalReplyHandoff;
+
+  /// A forward carried over from the picking chat (forward-to-chat). The
+  /// composer starts with this forward pending as a reply-style preview.
+  final ForwardMessagesHandoff? forwardHandoff;
   final bool showBackButton;
 
   /// Minimum toolbar height; accessible title/status text can grow it.
@@ -1093,12 +1119,14 @@ class WideGroupChatHeaderActions extends StatelessWidget {
     required this.onOpenFullInfo,
     this.onToggleContext,
     this.showCallActions = true,
+    this.isChannel = false,
   });
 
   final ValueChanged<bool> onStartCall;
   final VoidCallback? onToggleContext;
   final VoidCallback onOpenFullInfo;
   final bool showCallActions;
+  final bool isChannel;
 
   @override
   Widget build(BuildContext context) => Row(
@@ -1121,7 +1149,11 @@ class WideGroupChatHeaderActions extends StatelessWidget {
       if (onToggleContext != null)
         _ChatHeaderAction(
           key: const ValueKey('chatHeaderGroupContextToggle'),
-          label: AppStringKeys.chatInfoGroupAnnouncement.l10n(context),
+          label:
+              (isChannel
+                      ? AppStringKeys.chatInfoChannelAnnouncement
+                      : AppStringKeys.chatInfoGroupAnnouncement)
+                  .l10n(context),
           icon: HeroAppIcons.grip,
           onTap: onToggleContext!,
         ),
@@ -1159,6 +1191,46 @@ class _ChatHeaderAction extends StatelessWidget {
         height: math.max(44, AppMetric.hitTarget),
         child: Center(
           child: AppIcon(icon, size: AppIconSize.nav, color: c.textPrimary),
+        ),
+      ),
+    );
+  }
+}
+
+/// The chat's overflow button — exteraless's `⋮` action-bar item.
+///
+/// Every chat type carries it, so the same secondary commands (search first)
+/// live in one predictable place. It is deliberately NOT the chat-info
+/// control: that one keeps its own glyph and opens the details page, while
+/// this one opens a menu — a vertical ellipsis never reads as the `☰`/gear
+/// info button beside it.
+class _ChatHeaderMenuButton extends StatelessWidget {
+  const _ChatHeaderMenuButton({required this.onPressed});
+
+  /// Receives the button's global rect so the menu hangs off it.
+  final ValueChanged<Rect> onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    return AppInteractiveSurface(
+      key: const ValueKey('chatHeaderMenu'),
+      semanticLabel: AppStringKeys.chatMenu.l10n(context),
+      onTap: () {
+        final box = context.findRenderObject() as RenderBox?;
+        if (box == null || !box.hasSize) return;
+        onPressed(box.localToGlobal(Offset.zero) & box.size);
+      },
+      borderRadius: BorderRadius.circular(AppRadius.md),
+      child: SizedBox(
+        width: math.max(44, AppMetric.hitTarget),
+        height: math.max(44, AppMetric.hitTarget),
+        child: Center(
+          child: AppIcon(
+            HeroAppIcons.ellipsisVertical,
+            size: AppIconSize.nav,
+            color: c.textPrimary,
+          ),
         ),
       ),
     );
@@ -1423,6 +1495,10 @@ class _ChatViewState extends State<ChatView> {
   final Set<int> _autoTranslationFailedMessageIds = <int>{};
   final Set<int> _autoTranslatedMessageIds = <int>{};
   bool _sendFailureDialogVisible = false;
+
+  /// Bot API access warning dismissal, keyed by chat so a topic switch does
+  /// not re-show a warning the user already dismissed in another topic.
+  static final Map<int, int> _dismissedBotApiWarningByChat = {};
   VoidCallback? _detachExitController;
   VoidCallback? _detachRevealLatestController;
   VoidCallback? _detachPaneBackHandler;
@@ -1494,6 +1570,22 @@ class _ChatViewState extends State<ChatView> {
             forumTopicId: _sessionKey.forumTopicId,
           )
         : null;
+    // A topic switch rebuilds this transcript; restore the chat-level
+    // language-detection result so the translation panel does not hide on
+    // the first frame and pop open a beat later.
+    final headerSnapshot = ChatHeaderStateCache.read(
+      _sessionKey.accountSlot,
+      _sessionKey.chatId,
+    );
+    if (headerSnapshot != null &&
+        headerSnapshot.chatLanguageDetectionComplete) {
+      _detectedChatLanguage = headerSnapshot.detectedChatLanguage;
+      _chatLanguageDetectionComplete = true;
+      _chatLanguageDetectedAt = headerSnapshot.chatLanguageDetectedAt;
+      _chatLanguageDetectionNewestMessageId =
+          headerSnapshot.chatLanguageDetectionNewestMessageId;
+    }
+    _dismissedBotApiWarningMask = _dismissedBotApiWarningByChat[widget.chatId];
     _olderHistoryExhaustedHint =
         _sessionRenderState?.olderHistoryExhausted ?? false;
     _sessionScrollSnapshot = widget.initialMessageId == null
@@ -1627,6 +1719,8 @@ class _ChatViewState extends State<ChatView> {
     _vm.addListener(_onModel);
     _vm.addListener(_publishTopicList);
     _setScrollTarget(widget.initialMessageId);
+    _adoptExternalReplyHandoff();
+    _adoptForwardHandoff();
     _vm.onAppear();
     _readSyncTimer = Timer.periodic(const Duration(seconds: 5), (_) {
       if (mounted && _viewTickerEnabled && _isAtLoadedBottom(80)) {
@@ -1978,6 +2072,12 @@ class _ChatViewState extends State<ChatView> {
         unawaited(_continueHistoryIfNearLatest());
       }
     } else if (_initialTranscriptReady) {
+      // A drag starting means the reader is leaving the composer: fold its
+      // open panels the same way the OS folds the keyboard on drag.
+      if (_lastTranscriptUserScrollDirection == ScrollDirection.idle &&
+          notification.direction != ScrollDirection.idle) {
+        _vm.dismissComposerPanels();
+      }
       // Once an older-page request is in flight, a turn toward the latest
       // messages means the user has abandoned the pull. A later model frame
       // must not reveal that page by jumping the viewport back to the oldest
@@ -2352,6 +2452,8 @@ class _ChatViewState extends State<ChatView> {
     final viewportRect = Offset.zero & viewportRenderObject.size;
     var changed = false;
     final newlyVisible = <ChatMessage>[];
+    final newlyVisiblePosts = <ChatMessage>[];
+    final onScreenPostIds = <int>{};
 
     for (final entry in _mountedTranscriptEntries.entries) {
       final itemRenderObject = entry.value;
@@ -2365,9 +2467,10 @@ class _ChatViewState extends State<ChatView> {
       final itemRect = itemOrigin & itemRenderObject.size;
       if (!itemRect.overlaps(viewportRect)) continue;
 
-      for (final message
-          in _trackedTranscriptEntries[entry.key]?.messages ??
-              const <ChatMessage>[]) {
+      final entryMessages =
+          _trackedTranscriptEntries[entry.key]?.messages ??
+          const <ChatMessage>[];
+      for (final message in entryMessages) {
         if (message.isOutgoing || message.isService) continue;
         final observation = _unreadProgress.observeVisibleIncoming(
           messageId: message.id,
@@ -2378,6 +2481,24 @@ class _ChatViewState extends State<ChatView> {
         }
         changed = observation.unreadCountChanged || changed;
       }
+      // A channel post's counters are only as fresh as the last time TDLib was
+      // asked about that post, and every client asks for the posts it shows —
+      // its own posts included. Report each post once per stay in the
+      // viewport; `retainVisibleChannelPosts` forgets the ones that leave so
+      // scrolling back refreshes them again.
+      if (_vm.isChannel) {
+        for (final message in entryMessages) {
+          if (message.isService || message.id <= 0) continue;
+          onScreenPostIds.add(message.id);
+          if (_unreadProgress.markChannelPostReported(messageId: message.id)) {
+            newlyVisiblePosts.add(message);
+          }
+        }
+      }
+    }
+
+    if (_vm.isChannel) {
+      _unreadProgress.retainVisibleChannelPosts(onScreenPostIds);
     }
 
     if (_showEntryUnreadBanner &&
@@ -2389,6 +2510,9 @@ class _ChatViewState extends State<ChatView> {
 
     if (newlyVisible.isNotEmpty) {
       _vm.markVisibleMessagesViewed(newlyVisible);
+    }
+    if (newlyVisiblePosts.isNotEmpty) {
+      _vm.reportChannelPostViews(newlyVisiblePosts);
     }
 
     if (changed && mounted) setState(() {});
@@ -3206,6 +3330,7 @@ class _ChatViewState extends State<ChatView> {
 
   void _onModel() {
     if (!mounted) return;
+    _maybeOpenCreatedBotTopic();
     final nextFullViewRevision = _vm.fullViewRevision;
     final requiresFullViewSync = chatViewRequiresFullSync(
       previousRevision: _fullViewRevision,
@@ -3640,6 +3765,7 @@ class _ChatViewState extends State<ChatView> {
       // Rebuild the rebased slivers before correcting their scroll coordinates.
       // Waiting for a frame alone leaves the old center layout in place.
       setState(() {});
+      WidgetsBinding.instance.ensureVisualUpdate();
       await WidgetsBinding.instance.endOfFrame;
       if (!mounted) return;
       if (_initialTranscriptPositioningAborted) {
@@ -3652,6 +3778,7 @@ class _ChatViewState extends State<ChatView> {
         // Rebasing a one-row center otherwise exposes empty space, then the
         // first gesture repairs it with a sudden jump to the newest message.
         for (var pass = 0; pass < 3; pass++) {
+          WidgetsBinding.instance.ensureVisualUpdate();
           await WidgetsBinding.instance.endOfFrame;
           if (!mounted || _initialTranscriptPositioningAborted) return;
           _scrollToBottom();
@@ -3823,6 +3950,13 @@ class _ChatViewState extends State<ChatView> {
     }
     var corrected = false;
     for (var i = 0; i < 3; i++) {
+      // Ask for the frame this loop is about to await. `endOfFrame` only
+      // schedules one itself from an idle phase, and this loop runs inside a
+      // post-frame callback: without the explicit request nothing draws the
+      // next frame, so the await never resumes and the transcript stays
+      // behind its skeleton (a widget-test harness that pumps only scheduled
+      // frames deadlocks here).
+      WidgetsBinding.instance.ensureVisualUpdate();
       await WidgetsBinding.instance.endOfFrame;
       if (!mounted ||
           !_scroll.hasClients ||
@@ -4476,38 +4610,99 @@ class _ChatViewState extends State<ChatView> {
     return ForwardMarkdownOffer(available: available, suggested: false);
   }
 
-  Future<void> _forwardSelected() async {
-    final ids = _orderedSelectedIds();
-    if (ids.isEmpty) return;
-    if (!_vm.canForwardContent) {
-      _showForwardFailure(const ForwardBlockedException());
-      return;
+  /// Protected-source forwarding entry. When the kept-messages toggle is on,
+  /// the regular flow runs and ChatViewModel.forwardMany internally re-sends
+  /// as a copy; the UI only swaps the failure toast for the migration toast.
+  bool get _protectedCopyEnabled =>
+      _vm.hasProtectedContent &&
+      MessageHistorySettings.shared.forwardProtectedAsCopy;
+
+  void _showProtectedCopyResult(ProtectedForwardPlan? plan) {
+    if (!mounted || plan == null) return;
+    if (plan.skippedIds.isNotEmpty) {
+      showToast(
+        context,
+        AppStrings.t(AppStringKeys.keptForwardCopyPartToast, {
+          'value1': plan.copiedCount,
+          'value2': plan.skippedIds.length,
+        }),
+      );
     }
+  }
+
+  /// Shared forward-to-chat flow (exteraless parity): the picker only chooses
+  /// the recipient, then the target chat opens with the forward pending in
+  /// its composer as a reply-style preview panel. Send happens there.
+  Future<void> _openForwardPicker({
+    required List<ChatMessage> messages,
+    required bool protectedCopy,
+  }) async {
+    final accountClientId = _vm.accountClientIdForForwarding;
     final result = await Navigator.of(context).push<ChatPickerResult>(
       MaterialPageRoute(
         builder: (_) => ChatPickerView(
           title: AppStringKeys.chatForwardToTitle,
           showForwardOptions: true,
-          markdownOffer: _forwardMarkdownOffer(ids),
+          accountSlot: _vm.accountSlot,
         ),
       ),
     );
     if (result == null || !mounted) return;
     final target = result.chat;
-    try {
-      await _vm.forwardMany(ids, target.id, options: result.forwardOptions);
-      if (!mounted) return;
-      showToast(
-        context,
-        AppStrings.t(AppStringKeys.chatMessagesForwardedCount, {
-          'value1': ids.length,
-        }),
+    if (target.id == _vm.chatId) {
+      // Forwarding to the same chat keeps the user here; the composer holds
+      // the pending forward instead of a new transcript.
+      _vm.adoptForwardHandoff(
+        ForwardMessagesHandoff(
+          fromChatId: _vm.chatId,
+          messages: messages,
+          accountSlot: _vm.accountSlot,
+          clientId: accountClientId,
+          hasCaption: forwardSelectionHasCaption(messages),
+          markdownOffer: _forwardMarkdownOffer([
+            for (final message in messages) message.id,
+          ]),
+          protectedCopy: protectedCopy,
+        ),
       );
       _exitSelection();
-    } catch (e) {
-      if (!mounted) return;
-      _showForwardFailure(e);
+      return;
     }
+    ChatDeepLinkController.shared.openChat(
+      chatId: target.id,
+      title: target.title,
+      accountSlot: _vm.accountSlot,
+      forwardHandoff: ForwardMessagesHandoff(
+        fromChatId: _vm.chatId,
+        messages: messages,
+        accountSlot: _vm.accountSlot,
+        clientId: accountClientId,
+        hasCaption: forwardSelectionHasCaption(messages),
+        markdownOffer: _forwardMarkdownOffer([
+          for (final message in messages) message.id,
+        ]),
+        protectedCopy: protectedCopy,
+      ),
+    );
+    _exitSelection();
+  }
+
+  Future<void> _forwardSelected() async {
+    final ids = _orderedSelectedIds();
+    if (ids.isEmpty) return;
+    if (!_vm.canForwardContent && !_protectedCopyEnabled) {
+      _showForwardFailure(const ForwardBlockedException());
+      return;
+    }
+    final byId = {for (final message in _vm.messages) message.id: message};
+    final messages = [
+      for (final id in ids)
+        if (byId[id] != null) byId[id]!,
+    ];
+    await _openForwardPicker(
+      messages: messages,
+      protectedCopy: _protectedCopyEnabled,
+    );
   }
 
   Future<void> _saveSelected() async {
@@ -4642,6 +4837,12 @@ class _ChatViewState extends State<ChatView> {
   /// messages below belong to, so the list stays attributable without opening
   /// each topic. Tapping it opens that topic's own transcript, matching the
   /// topic list's navigation.
+  ///
+  /// The row keeps a [AppSpacing.sm] top inset like the transcript's other
+  /// separator plates. A message hangs its detail timestamp 5px below its own
+  /// row (`MessageBubble`'s floating timestamp, shown on tap, hover and with
+  /// 「始终显示消息时间」), so a row that started flush with the message above
+  /// would have its badge plate painted over that timestamp.
   Widget _topicSectionHeader(int topicId) {
     final c = context.colors;
     final display = _topicSectionDisplay(topicId);
@@ -4649,7 +4850,7 @@ class _ChatViewState extends State<ChatView> {
     final foreground = servicePlateForeground(plate);
     return Padding(
       key: ValueKey('forum-topic-section-$topicId'),
-      padding: const EdgeInsets.only(bottom: AppSpacing.xs),
+      padding: const EdgeInsets.only(top: AppSpacing.sm, bottom: AppSpacing.xs),
       child: Center(
         child: GestureDetector(
           key: ValueKey('forum-topic-section-tap-$topicId'),
@@ -4812,7 +5013,9 @@ class _ChatViewState extends State<ChatView> {
       meName: _vm.meName,
       mePhoto: _vm.mePhoto,
       meId: _vm.meId,
-      showRepeat: _vm.canForwardContent && _isRepeatTail(messageIndex),
+      showRepeat:
+          (_vm.canForwardContent || _protectedCopyEnabled) &&
+          _isRepeatTail(messageIndex),
       onRepeat: () => _vm.repeatMessage(message),
       onLongPress: _isSelecting ? null : _showActionMenuForMessage,
       onDesktopQuoteChanged: _handleDesktopQuoteChanged,
@@ -4839,6 +5042,8 @@ class _ChatViewState extends State<ChatView> {
         isChannel: _vm.isChannel,
       ),
       channelHasLinkedDiscussion: _vm.hasLinkedDiscussion,
+      showChannelPostStats:
+          _vm.isChannel && context.read<ThemeController>().showChannelPostStats,
       onOpenImage: _openImage,
       onOpenImageGallery: _openImageGallery,
       onApplyMessageBubble: offersMessageBubbleApplyAction(message)
@@ -5779,6 +5984,8 @@ class _ChatViewState extends State<ChatView> {
         unawaited(_forwardMessage(message));
       case MessageAction.repeat:
         try {
+          // In a protected chat this rides the copy-forward route: a
+          // no-quote re-send of the message into the CURRENT chat.
           final preserveSender = context
               .read<ThemeController>()
               .preserveSenderWhenRepeating;
@@ -5789,6 +5996,7 @@ class _ChatViewState extends State<ChatView> {
           );
           if (!mounted) return;
           _scrollToBottom();
+          _showProtectedCopyResult(_vm.protectedForwardLastPlan);
         } catch (e) {
           if (!mounted) return;
           _showForwardFailure(e);
@@ -6459,6 +6667,7 @@ class _ChatViewState extends State<ChatView> {
   Future<void> _loadBotApiWarningDismissal() async {
     final prefs = await SharedPreferences.getInstance();
     final mask = prefs.getInt(_botApiWarningDismissalKey);
+    if (mask != null) _dismissedBotApiWarningByChat[widget.chatId] = mask;
     if (!mounted || mask == _dismissedBotApiWarningMask) return;
     setState(() => _dismissedBotApiWarningMask = mask);
   }
@@ -6466,6 +6675,7 @@ class _ChatViewState extends State<ChatView> {
   void _dismissBotApiAccessWarning() {
     final mask = _botApiWarningMask;
     if (mask == 0) return;
+    _dismissedBotApiWarningByChat[widget.chatId] = mask;
     setState(() => _dismissedBotApiWarningMask = mask);
     unawaited(
       SharedPreferences.getInstance().then(
@@ -6563,6 +6773,14 @@ class _ChatViewState extends State<ChatView> {
       _chatLanguageDetectionNewestMessageId = newestId;
       _chatLanguageDetectedAt = DateTime.now();
       _detectedChatLanguage = detected;
+      ChatHeaderStateCache.updateLanguageState(
+        accountSlot: TdClient.shared.activeSlot,
+        chatId: widget.chatId,
+        detectedChatLanguage: detected,
+        complete: true,
+        detectedAt: DateTime.now(),
+        newestMessageId: newestId,
+      );
       _scheduleAutomaticTranslations();
       setState(() {});
     }());
@@ -7052,41 +7270,15 @@ class _ChatViewState extends State<ChatView> {
   }
 
   Future<void> _forwardMessage(ChatMessage message) async {
-    if (!_vm.canForwardContent) {
+    if (!_vm.canForwardContent && !_protectedCopyEnabled) {
       _showForwardFailure(const ForwardBlockedException());
       return;
     }
-    final messageIds = _messagesForForward(
-      message,
-    ).map((candidate) => candidate.id).toList();
-    final result = await Navigator.of(context).push<ChatPickerResult>(
-      MaterialPageRoute(
-        builder: (_) => ChatPickerView(
-          title: AppStringKeys.chatForwardToTitle,
-          showForwardOptions: true,
-          markdownOffer: _forwardMarkdownOffer(messageIds),
-        ),
-      ),
+    final messages = _messagesForForward(message);
+    await _openForwardPicker(
+      messages: messages,
+      protectedCopy: _protectedCopyEnabled,
     );
-    if (result == null || !mounted) return;
-    final target = result.chat;
-    try {
-      await _vm.forwardMany(
-        messageIds,
-        target.id,
-        options: result.forwardOptions,
-      );
-      if (!mounted) return;
-      showToast(
-        context,
-        AppStrings.t(AppStringKeys.chatForwardedToName, {
-          'value1': target.title,
-        }),
-      );
-    } catch (e) {
-      if (!mounted) return;
-      _showForwardFailure(e);
-    }
   }
 
   void _showForwardFailure(Object error) {
@@ -7286,25 +7478,36 @@ class _ChatViewState extends State<ChatView> {
                                           : _header()),
                                 body: showPeerRestrictionBlock
                                     ? _restrictedPeerBlockPage()
-                                    : _withTopicNavigation(
-                                        Column(
-                                          children: [
-                                            Expanded(
-                                              child: _transcriptLayer(
-                                                searchPane: searchPane,
+                                    : _topicTabStrip(
+                                        _withTopicNavigation(
+                                          Column(
+                                            children: [
+                                              // The chat-level translation bar
+                                              // belongs to the transcript, not
+                                              // the header (search and selection
+                                              // swap the header out, so it hides
+                                              // with them).
+                                              if (_showsChatTranslationPanel &&
+                                                  !searching &&
+                                                  !_isSelecting)
+                                                _chatTranslationPanel(),
+                                              Expanded(
+                                                child: _transcriptLayer(
+                                                  searchPane: searchPane,
+                                                ),
                                               ),
-                                            ),
-                                            _chatMusicPlayer(),
-                                            // A narrow chat trades the composer
-                                            // for the hit navigator; a wide one
-                                            // keeps composing beside the results.
-                                            if (searching && !searchPane)
-                                              _searchNavigator()
-                                            else if (_isSelecting)
-                                              _selectionActionBar()
-                                            else
-                                              _composerArea(),
-                                          ],
+                                              _chatMusicPlayer(),
+                                              // A narrow chat trades the composer
+                                              // for the hit navigator; a wide one
+                                              // keeps composing beside the results.
+                                              if (searching && !searchPane)
+                                                _searchNavigator()
+                                              else if (_isSelecting)
+                                                _selectionActionBar()
+                                              else
+                                                _composerArea(),
+                                            ],
+                                          ),
                                         ),
                                       ),
                                 trailingPane: searchPane
@@ -7361,6 +7564,35 @@ class _ChatViewState extends State<ChatView> {
       generalAvatarTitle: _vm.peerTitle.isEmpty ? widget.title : _vm.peerTitle,
       generalAvatarPhoto: _vm.peerPhoto,
       child: child,
+    );
+  }
+
+  /// The topic tab strip: a folder-tab-styled selector pinned under the
+  /// header, shown for forum groups and bot topic chats on narrow layouts —
+  /// the whole chat included, where the "All" tab is the selected one. Wide
+  /// shells render their rail instead.
+  Widget _topicTabStrip(Widget child) {
+    if (!_topicsKnown || usesSplitSelectionLayout(MediaQuery.sizeOf(context))) {
+      return child;
+    }
+    final theme = context.watch<ThemeController>();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        TopicTabStrip(
+          chatId: widget.chatId,
+          topics: [
+            for (final topic in _vm.forumTopics) _topicNavigationItem(topic),
+          ],
+          selectedTopicId: widget.forumTopicId,
+          onSelected: _openTopicTranscript,
+          showUnreadBadges: theme.showFolderUnreadBadges,
+          badgeOverflowLabel: theme.unreadBadgeOverflowMode.format,
+          isLoading: _vm.forumTopicsLoading && _vm.forumTopics.isEmpty,
+          onLongPress: _showTopicTabMenu,
+        ),
+        Expanded(child: child),
+      ],
     );
   }
 
@@ -7433,7 +7665,10 @@ class _ChatViewState extends State<ChatView> {
         (isDark ? AppColors.dark.card : AppColors.light.card);
     final textColor = _effectiveIncomingTextColor() ?? c.textPrimary;
     final text = _vm.peerRestrictionText.trim().isEmpty
-        ? AppStringKeys.chatRestrictedTelegramTosMessage.l10n(context)
+        ? (_vm.isChannel
+                  ? AppStringKeys.chatRestrictedTelegramTosMessageChannel
+                  : AppStringKeys.chatRestrictedTelegramTosMessage)
+              .l10n(context)
         : _vm.peerRestrictionText.trim();
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 36),
@@ -8180,6 +8415,7 @@ class _ChatViewState extends State<ChatView> {
             label: AppStrings.t(AppStringKeys.notificationMentions),
             opening: _openingUnreadMention,
             onTap: _openUnreadMention,
+            onLongPress: _showReadAllMentionsMenu,
           ),
         if (_vm.unreadMentionCount > 0 && _vm.unreadReactionCount > 0)
           const SizedBox(height: AppSpacing.md),
@@ -8191,6 +8427,12 @@ class _ChatViewState extends State<ChatView> {
             label: AppStrings.t(AppStringKeys.notificationReactions),
             opening: _openingUnreadReaction,
             onTap: _openUnreadReaction,
+            // exteraless clears reactions on the long press itself, without
+            // the read-all menu it shows for mentions.
+            onLongPress: (_) {
+              unawaited(AppHaptics.longPress());
+              unawaited(_markAllReactionsRead());
+            },
           ),
       ],
     );
@@ -8203,48 +8445,60 @@ class _ChatViewState extends State<ChatView> {
     required String label,
     required bool opening,
     required VoidCallback onTap,
+    required ValueChanged<Rect> onLongPress,
   }) {
     final countLabel = count > 999 ? '999+' : '$count';
     return Semantics(
       button: true,
       label: '$label: $countLabel',
-      child: GestureDetector(
-        key: key,
-        behavior: HitTestBehavior.opaque,
-        onTap: opening ? null : onTap,
-        child: AnimatedOpacity(
-          duration: const Duration(milliseconds: 120),
-          opacity: opening ? 0.62 : 1,
-          child: Container(
-            height: 34,
-            constraints: const BoxConstraints(minWidth: 40),
-            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
-            decoration: BoxDecoration(
-              color: AppTheme.brand,
-              borderRadius: BorderRadius.circular(17),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.12),
-                  blurRadius: 6,
-                  offset: const Offset(0, 2),
-                ),
-              ],
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                AppIcon(icon, size: AppIconSize.lg, color: Colors.white),
-                const SizedBox(width: AppSpacing.xs),
-                Text(
-                  countLabel,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: AppTextSize.caption,
-                    fontWeight: AppTextWeight.semibold,
+      child: Builder(
+        builder: (pillContext) => GestureDetector(
+          key: key,
+          behavior: HitTestBehavior.opaque,
+          onTap: opening ? null : onTap,
+          // The menu hangs off the pill itself, so its anchor is this
+          // widget's own box — not the transcript or the press point.
+          onLongPress: opening
+              ? null
+              : () {
+                  final box = pillContext.findRenderObject() as RenderBox?;
+                  if (box == null || !box.hasSize) return;
+                  onLongPress(box.localToGlobal(Offset.zero) & box.size);
+                },
+          child: AnimatedOpacity(
+            duration: const Duration(milliseconds: 120),
+            opacity: opening ? 0.62 : 1,
+            child: Container(
+              height: 34,
+              constraints: const BoxConstraints(minWidth: 40),
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+              decoration: BoxDecoration(
+                color: AppTheme.brand,
+                borderRadius: BorderRadius.circular(17),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.12),
+                    blurRadius: 6,
+                    offset: const Offset(0, 2),
                   ),
-                ),
-              ],
+                ],
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  AppIcon(icon, size: AppIconSize.lg, color: Colors.white),
+                  const SizedBox(width: AppSpacing.xs),
+                  Text(
+                    countLabel,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: AppTextSize.caption,
+                      fontWeight: AppTextWeight.semibold,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ),
@@ -8276,6 +8530,35 @@ class _ChatViewState extends State<ChatView> {
       }
     }
     if (mounted) setState(() => _openingUnreadReaction = false);
+  }
+
+  /// The read-all menu behind a long press on the mention pill: one anchored
+  /// row that clears every mention, mirroring exteraless's ReadAllMentionsMenu
+  /// over the chat's side control. Reactions need no menu — that long press
+  /// clears them directly.
+  Future<void> _showReadAllMentionsMenu(Rect anchor) => showAppAnchoredMenu(
+    context: context,
+    anchor: anchor,
+    actions: [
+      AppMenuAction(
+        key: 'read-all-mentions',
+        label: AppStrings.t(AppStringKeys.chatListMarkAllRead),
+        icon: HeroAppIcons.check,
+        onSelected: () => unawaited(_markAllMentionsRead()),
+      ),
+    ],
+  );
+
+  Future<void> _markAllMentionsRead() async {
+    if (!await _vm.markAllMentionsRead() && mounted) {
+      showToast(context, AppStrings.t(AppStringKeys.mithkaxReadAllFailed));
+    }
+  }
+
+  Future<void> _markAllReactionsRead() async {
+    if (!await _vm.markAllReactionsRead() && mounted) {
+      showToast(context, AppStrings.t(AppStringKeys.mithkaxReadAllFailed));
+    }
   }
 
   // MARK: - Composer area (input bar / join bar / disabled bar)
@@ -8318,8 +8601,21 @@ class _ChatViewState extends State<ChatView> {
       );
     }
     if (!_vm.isMember && _vm.canJoin) return _joinBar();
-    // Subscribed to a channel you can't post in → mute/unmute (like official).
-    if (_vm.isChannel && _vm.isMember) return _channelMuteBar();
+    // Subscribed to a channel you can't post in → the channel bottom panel:
+    // stock mute/unmute, the discussion / direct-message actions, or nothing.
+    if (_vm.isChannel && _vm.isMember) {
+      return ChannelBottomPanel(
+        mode: context.watch<ThemeController>().channelBottomBarMode,
+        muted: _vm.isMuted,
+        hasDiscussion: _vm.hasLinkedDiscussion,
+        hasDirectMessages: _vm.hasDirectMessagesGroup,
+        onToggleMute: () => _vm.toggleMute(),
+        onOpenDiscussion: () =>
+            unawaited(_openChannelLinkedChat(_vm.linkedDiscussionChatId)),
+        onOpenDirectMessages: () =>
+            unawaited(_openChannelLinkedChat(_vm.directMessagesChatId)),
+      );
+    }
     return _disabledComposer(_vm.sendDisabledReason);
   }
 
@@ -8333,6 +8629,7 @@ class _ChatViewState extends State<ChatView> {
   bool _composerBarQuickRepliesEnabled = false;
   bool _composerBarShowCallAction = false;
   bool _composerBarSimpleMode = false;
+  String? _composerBarMediaKind;
 
   Widget _chatInputBar() {
     final themeController = context.watch<ThemeController>();
@@ -8341,13 +8638,15 @@ class _ChatViewState extends State<ChatView> {
     final quickRepliesEnabled = themeController.quickRepliesEnabled;
     final showCallAction = !_usesWideGroupHeader;
     final simpleMode = themeController.simpleMode;
+    final mediaSegment = themeController.mediaPanelSegment;
     final cached = _composerBarCache;
     if (cached != null &&
         _composerBarRequestInitialFocus == requestInitialFocus &&
         _composerBarEnterToSend == enterToSend &&
         _composerBarQuickRepliesEnabled == quickRepliesEnabled &&
         _composerBarShowCallAction == showCallAction &&
-        _composerBarSimpleMode == simpleMode) {
+        _composerBarSimpleMode == simpleMode &&
+        _composerBarMediaKind == mediaSegment) {
       return cached;
     }
     _composerBarRequestInitialFocus = requestInitialFocus;
@@ -8355,6 +8654,7 @@ class _ChatViewState extends State<ChatView> {
     _composerBarQuickRepliesEnabled = quickRepliesEnabled;
     _composerBarShowCallAction = showCallAction;
     _composerBarSimpleMode = simpleMode;
+    _composerBarMediaKind = mediaSegment;
     return _composerBarCache = ChatInputBar(
       vm: _vm,
       requestInitialFocus: requestInitialFocus,
@@ -8362,12 +8662,17 @@ class _ChatViewState extends State<ChatView> {
       quickRepliesEnabled: quickRepliesEnabled,
       showCallAction: showCallAction,
       simpleMode: simpleMode,
+      initialMediaKind: mediaSegment,
+      onMediaKindChanged: (v) => themeController.mediaPanelSegment = v,
       onStartCall: _startCall,
       onMessageSent: _onComposerMessageSent,
       onPanelGeometryChanged: _onComposerPanelGeometryChanged,
       onInputHeightChanged: _onComposerInputHeightChanged,
       onMediaSendTapped: _onComposerMediaSendTapped,
       onBotTopicCreated: _openTopicTranscript,
+      onReplyOptionsRequested: _showComposerReplyOptions,
+      onForwardOptionsRequested: _showComposerForwardOptions,
+      onReplySourceJump: _jumpToReplySource,
     );
   }
 
@@ -8475,40 +8780,22 @@ class _ChatViewState extends State<ChatView> {
     );
   }
 
-  Widget _channelMuteBar() {
-    final c = context.colors;
-    final muted = _vm.isMuted;
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTap: () => _vm.toggleMute(),
-      child: Container(
-        width: double.infinity,
-        padding: EdgeInsets.fromLTRB(
-          16,
-          14,
-          16,
-          14 + MediaQuery.paddingOf(context).bottom,
-        ),
-        decoration: BoxDecoration(
-          color: c.navBar,
-          border: Border(top: BorderSide(color: c.divider, width: 0.5)),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            AppIcon(HeroAppIcons.solidBell, size: 18, color: AppTheme.brand),
-            const SizedBox(width: 8),
-            Text(
-              (muted ? AppStringKeys.chatUnmute : AppStringKeys.callMute).l10n(
-                context,
-              ),
-              style: TextStyle(fontSize: 16, color: AppTheme.brand),
-            ),
-          ],
-        ),
-      ),
-    );
+  /// Opens the channel's linked chat (discussion group or direct messages)
+  /// from the bottom panel. The title paints the header until TDLib answers
+  /// with the real one, so the cached chat is read first.
+  Future<void> _openChannelLinkedChat(int chatId) async {
+    if (chatId == 0) return;
+    var title = '';
+    try {
+      final chat = await TdClient.shared.query({
+        '@type': 'getChat',
+        'chat_id': chatId,
+      });
+      title = chat.str('title') ?? '';
+    } catch (_) {}
+    if (title.isEmpty) title = _vm.peerTitle;
+    if (!mounted) return;
+    await openChatFromCurrentWindow(context, chatId: chatId, title: title);
   }
 
   /// Bottom bar with a 加入 / 申请加入 button for a joinable chat you can preview.
@@ -8519,7 +8806,9 @@ class _ChatViewState extends State<ChatView> {
         ? AppStringKeys.chatJoinRequestSent
         : (_vm.joinByRequest
               ? AppStringKeys.chatRequestToJoin
-              : AppStringKeys.chatJoinGroup);
+              : (_vm.isChannel
+                    ? AppStringKeys.chatJoinChannel
+                    : AppStringKeys.chatJoinGroup));
     return Container(
       padding: EdgeInsets.fromLTRB(
         16,
@@ -8587,7 +8876,9 @@ class _ChatViewState extends State<ChatView> {
         ? AppStringKeys.chatJoinRequestPending
         : (_vm.joinByRequest
               ? AppStringKeys.chatRequestToJoin
-              : AppStringKeys.chatJoinGroup);
+              : (_vm.isChannel
+                    ? AppStringKeys.chatJoinChannel
+                    : AppStringKeys.chatJoinGroup));
     return ChatHeaderTrailingPaneLayout(
       header: _header(),
       trailingPane: widget.trailingPane,
@@ -8721,13 +9012,6 @@ class _ChatViewState extends State<ChatView> {
                       icon: HeroAppIcons.tableCells,
                       onTap: () => unawaited(_openBotMenuApp(_vm.botMenu!)),
                     ),
-                  if (_canSearchMessages)
-                    _ChatHeaderAction(
-                      key: const ValueKey('chatHeaderSearch'),
-                      label: AppStringKeys.chatSearchInThisChat.l10n(context),
-                      icon: HeroAppIcons.magnifyingGlass,
-                      onTap: _openSearch,
-                    ),
                   if (_canViewAsMoments)
                     _ChatHeaderAction(
                       key: const ValueKey('chatHeaderViewAsMoments'),
@@ -8740,6 +9024,7 @@ class _ChatViewState extends State<ChatView> {
                       onStartCall: (isVideo) => unawaited(_startCall(isVideo)),
                       showCallActions:
                           Theme.of(context).platform != TargetPlatform.macOS,
+                      isChannel: _vm.isChannel,
                       onToggleContext: widget.onInfoPressed == null
                           ? null
                           : _handleInfoPressed,
@@ -8756,30 +9041,28 @@ class _ChatViewState extends State<ChatView> {
                           ? _handleInfoPressed
                           : _handleFullInfoPressed,
                     ),
-                  if (_showsTopicSurfaces) ...[
+                  if (_showsTopicSurfaces && _vm.canCreateForumTopics)
                     _ChatHeaderAction(
-                      key: const ValueKey('chatHeaderTopics'),
-                      label: AppStringKeys.topicChatAllTopics.l10n(context),
-                      icon: HeroAppIcons.hashtag,
-                      onTap: () {
-                        // A shell overlay the user dismissed comes back from
-                        // the header; other shells pick from the sheet.
-                        final host = _topicListOverlaid
-                            ? _shellTopicListHost
-                            : null;
-                        if (host != null && host.listHidden) {
-                          host.showList();
-                          return;
-                        }
-                        unawaited(_showTopicSelector());
-                      },
+                      // The title itself opens the topic list, so the header
+                      // carries the one action the list cannot: starting a
+                      // topic. A chat whose rights refuse creation shows no
+                      // button at all.
+                      key: const ValueKey('chatHeaderNewTopic'),
+                      label: AppStringKeys.groupAdministrationNewTopic.l10n(
+                        context,
+                      ),
+                      icon: HeroAppIcons.plus,
+                      onTap: () => unawaited(_openCreateTopicDialog()),
                     ),
-                  ],
+                  if (_showsChatMenu)
+                    _ChatHeaderMenuButton(
+                      onPressed: (anchor) =>
+                          unawaited(_showChatHeaderMenu(anchor)),
+                    ),
                 ],
               ),
             ),
           ),
-          if (_showsChatTranslationPanel) _chatTranslationPanel(),
           if (_showsBotApiAccessWarning)
             BotApiAccessWarning(
               showPrivacyWarning: _vm.showBotApiPrivacyWarning,
@@ -8811,6 +9094,477 @@ class _ChatViewState extends State<ChatView> {
   /// and a restricted channel have no posts to show there.
   bool get _canViewAsMoments =>
       _vm.isChannel && _vm.forumTopicId == null && _canSearchMessages;
+
+  /// The chat's overflow button — exteraless's `⋮` action-bar item — and the
+  /// column it opens.
+  ///
+  /// The column mirrors exteraless's `chat_menu_options` block for block:
+  /// search and the pinned-message browser on top, then the chat commands
+  /// (mute with its duration chooser, translation, linked chat, direct
+  /// messages, calls, auto-delete), then management for an admin, then the
+  /// transcript jumps (to the beginning, to a typed message id), and finally
+  /// the destructive tail. Search leads because it used to hold its own
+  /// header glyph; a menu that pushes the most-used command to the bottom
+  /// reads backwards. Theme and wallpaper stay in the details page — the
+  /// header column keeps to what acts on the conversation itself.
+  Future<void> _showChatHeaderMenu(Rect anchor) async {
+    final actions = _chatHeaderMenuActions();
+    if (actions.isEmpty) return;
+    await showAppAnchoredMenu(
+      context: context,
+      anchor: anchor,
+      actions: actions,
+      // The column belongs to the button it hangs from, the way exteraless
+      // anchors an action-bar submenu.
+      gap: AppSpacing.xs,
+      style: AppAnchoredMenuStyle.header,
+    );
+  }
+
+  /// The commands this chat offers from its header menu, in the order the
+  /// column draws them.
+  List<AppMenuAction> _chatHeaderMenuActions() {
+    final topic = _topicById(widget.forumTopicId);
+    final canCallPeer =
+        !_vm.isGroup &&
+        !_vm.peerIsBot &&
+        !_vm.isSavedMessages &&
+        !_vm.isSecretChat &&
+        _vm.canCallPeer;
+    final canVideoCallPeer = canCallPeer && _vm.canVideoCallPeer;
+    final canChangeAutoDelete = !_vm.isGroup && !_vm.isSavedMessages;
+    final canManageGroup = _vm.isGroup && _vm.canManageGroup;
+    final canLeave =
+        _vm.isGroup &&
+        _vm.isMember &&
+        !_vm.isChatCreator &&
+        !_vm.isSavedMessages;
+    final canDeleteChat = !_vm.isGroup && !_vm.isSavedMessages;
+    final canCloseTopic =
+        topic != null && !topic.isClosed && _vm.canCloseTopic(topic);
+    final callAvailabilityKnown = _vm.canCallPeer || _vm.canVideoCallPeer;
+    // A chat the user has not joined has no appearance of its own to set and
+    // no history to clear: its menu carries only the commands that read the
+    // chat (search, pinned, translation), never the ones that change it.
+    final inChat = _vm.isMember || !_vm.isGroup;
+    return [
+      if (_canSearchMessages)
+        AppMenuAction(
+          key: 'search',
+          label: AppStrings.t(AppStringKeys.chatSearchInThisChat),
+          icon: HeroAppIcons.magnifyingGlass,
+          onSelected: _openSearch,
+        ),
+      if (_vm.pinnedMessage != null)
+        AppMenuAction(
+          key: 'pinned-messages',
+          label: AppStrings.t(AppStringKeys.chatInfoPinnedHighlights),
+          icon: HeroAppIcons.pin,
+          onSelected: () => unawaited(_openPinnedMessages()),
+        ),
+      // Saved messages and a secret chat have nothing to silence; a chat the
+      // user has not joined has no subscription to mute either.
+      if (_vm.isMember && !_vm.isSecretChat && !_vm.isSavedMessages)
+        AppMenuAction(
+          key: 'mute',
+          label: AppStrings.t(
+            _vm.isMuted ? AppStringKeys.chatUnmute : AppStringKeys.chatMute,
+          ),
+          icon: _vm.isMuted ? HeroAppIcons.bell : HeroAppIcons.bellSlash,
+          sectionStart: true,
+          onSelected: () => unawaited(_muteFromMenu()),
+        ),
+      if (_canToggleChatTranslation)
+        AppMenuAction(
+          key: 'translate',
+          label: _automaticTranslationEnabled
+              ? AppStrings.t(AppStringKeys.chatTranslationShowOriginal)
+              : AppStrings.t(AppStringKeys.chatTranslationTranslateTo, {
+                  'value1': _translation.targetLanguageLabel.l10n(context),
+                }),
+          icon: HeroAppIcons.language,
+          onSelected: _toggleAutomaticTranslation,
+        ),
+      if (_vm.linkedDiscussionChatId != 0)
+        AppMenuAction(
+          key: 'linked-chat',
+          label: AppStrings.t(
+            _vm.isChannel
+                ? AppStringKeys.groupAdminDiscussionGroup
+                : AppStringKeys.chatLinkedChannel,
+          ),
+          icon: HeroAppIcons.users,
+          onSelected: () =>
+              unawaited(_openChannelLinkedChat(_vm.linkedDiscussionChatId)),
+        ),
+      if (_vm.hasDirectMessagesGroup && !_vm.isDirectMessagesGroup)
+        AppMenuAction(
+          key: 'direct-messages',
+          label: AppStrings.t(AppStringKeys.channelDirectMessages),
+          icon: HeroAppIcons.solidMessage,
+          onSelected: () =>
+              unawaited(_openChannelLinkedChat(_vm.directMessagesChatId)),
+        ),
+      if (callAvailabilityKnown &&
+          canCallPeer &&
+          !isDesktopTargetPlatform(Theme.of(context).platform))
+        AppMenuAction(
+          key: 'call',
+          label: AppStrings.t(AppStringKeys.composerVoiceCall),
+          icon: HeroAppIcons.phone,
+          onSelected: () => unawaited(_startCall(false)),
+        ),
+      if (callAvailabilityKnown &&
+          canVideoCallPeer &&
+          !isDesktopTargetPlatform(Theme.of(context).platform))
+        AppMenuAction(
+          key: 'video-call',
+          label: AppStrings.t(AppStringKeys.composerVideoCall),
+          icon: HeroAppIcons.video,
+          onSelected: () => unawaited(_startCall(true)),
+        ),
+      if (canChangeAutoDelete)
+        AppMenuAction(
+          key: 'auto-delete',
+          label: AppStrings.t(AppStringKeys.chatInfoAutoDeleteMessages),
+          icon: HeroAppIcons.clock,
+          onSelected: () => unawaited(_chooseAutoDeleteFromMenu()),
+        ),
+      if (canManageGroup)
+        AppMenuAction(
+          key: 'manage',
+          label: AppStrings.t(AppStringKeys.chatInfoManageGroup),
+          icon: HeroAppIcons.users,
+          sectionStart: true,
+          onSelected: _openGroupManagement,
+        ),
+      if (_vm.hasOlderHistory)
+        AppMenuAction(
+          key: 'to-beginning',
+          label: AppStrings.t(AppStringKeys.chatToBeginning),
+          icon: HeroAppIcons.arrowUp,
+          sectionStart: true,
+          onSelected: () => unawaited(_jumpToBeginning()),
+        ),
+      if (inChat)
+        AppMenuAction(
+          key: 'go-to-message',
+          label: AppStrings.t(AppStringKeys.chatGoToMessage),
+          icon: HeroAppIcons.arrowRight,
+          onSelected: () => unawaited(_goToMessageFromMenu()),
+        ),
+      if (inChat && allowTelegramTosViolations)
+        AppMenuAction(
+          key: 'kept-messages',
+          label: AppStrings.t(AppStringKeys.historyTitle),
+          icon: HeroAppIcons.archiveBox,
+          onSelected: _openKeptMessages,
+        ),
+      if (inChat && _vm.canClearHistory)
+        AppMenuAction(
+          key: 'clear-history',
+          label: AppStrings.t(AppStringKeys.chatInfoClearHistory),
+          icon: HeroAppIcons.trash,
+          destructive: true,
+          sectionStart: true,
+          onSelected: () => unawaited(_clearHistoryFromMenu()),
+        ),
+      if (canLeave)
+        AppMenuAction(
+          key: 'leave',
+          label: AppStrings.t(
+            _vm.isChannel
+                ? AppStringKeys.topicChatLeaveChannel
+                : AppStringKeys.chatInfoLeaveGroup,
+          ),
+          icon: HeroAppIcons.arrowRight,
+          destructive: true,
+          onSelected: () => unawaited(_leaveFromMenu()),
+        ),
+      if (canDeleteChat)
+        AppMenuAction(
+          key: 'delete-chat',
+          label: AppStrings.t(AppStringKeys.chatDelete),
+          icon: HeroAppIcons.trash,
+          destructive: true,
+          onSelected: () => unawaited(_deleteChatFromMenu()),
+        ),
+      if (canCloseTopic)
+        AppMenuAction(
+          key: 'close-topic',
+          label: AppStrings.t(AppStringKeys.topicChatCloseTopic),
+          icon: HeroAppIcons.lock,
+          sectionStart: true,
+          onSelected: () => unawaited(_toggleTopicClosed(topic)),
+        ),
+    ];
+  }
+
+  /// A join screen with nothing to act on gets no overflow button: a `⋮` that
+  /// opens an empty column is worse than no `⋮` at all.
+  bool get _showsChatMenu => _chatHeaderMenuActions().isNotEmpty;
+
+  /// The chat is translated on demand: the in-chat panel can turn it on, and
+  /// so can the menu — but only where there is something to translate.
+  bool get _canToggleChatTranslation =>
+      _hasAvailableTranslationOption &&
+      _translation.translateChats &&
+      _hasIncomingTranslatableMessages;
+
+  /// Mute with exteraless's durations. An already-muted chat unmutes on the
+  /// tap; otherwise the sheet asks until when.
+  Future<void> _muteFromMenu() async {
+    if (_vm.isMuted) {
+      await _vm.setMuteFor(0);
+      return;
+    }
+    final selected = await showAppCupertinoModalPopup<int>(
+      context: context,
+      builder: (sheet) => CupertinoActionSheet(
+        title: Text(AppStrings.t(AppStringKeys.chatMute)),
+        actions: [
+          for (final option in const [
+            (AppStringKeys.chatMuteFor1Hour, 60 * 60),
+            (AppStringKeys.chatMuteFor8Hours, 8 * 60 * 60),
+            (AppStringKeys.chatMuteFor2Days, 2 * 24 * 60 * 60),
+            (AppStringKeys.chatMuteForever, 2147483647),
+          ])
+            CupertinoActionSheetAction(
+              key: ValueKey('chat-menu-mute-${option.$2}'),
+              onPressed: () => Navigator.of(sheet).pop(option.$2),
+              child: Text(AppStrings.t(option.$1)),
+            ),
+        ],
+        cancelButton: CupertinoActionSheetAction(
+          onPressed: () => Navigator.of(sheet).pop(),
+          child: Text(AppStrings.t(AppStringKeys.countryPickerCancel)),
+        ),
+      ),
+    );
+    if (selected == null || !mounted) return;
+    await _vm.setMuteFor(selected);
+  }
+
+  /// The auto-delete chooser, same options and request as the details page.
+  Future<void> _chooseAutoDeleteFromMenu() async {
+    final selected = await showAppCupertinoModalPopup<int>(
+      context: context,
+      builder: (sheet) => CupertinoActionSheet(
+        title: Text(AppStrings.t(AppStringKeys.chatInfoAutoDeleteMessages)),
+        actions: [
+          for (final option in const [
+            (AppStringKeys.chatInfoAutoDeleteOff, 0),
+            (AppStringKeys.chatInfoAutoDeleteOneDay, 86400),
+            (AppStringKeys.chatInfoAutoDeleteSevenDays, 604800),
+            (AppStringKeys.chatInfoAutoDeleteOneMonth, 2592000),
+          ])
+            CupertinoActionSheetAction(
+              key: ValueKey('chat-menu-auto-delete-${option.$2}'),
+              onPressed: () => Navigator.of(sheet).pop(option.$2),
+              child: Text(AppStrings.t(option.$1)),
+            ),
+        ],
+        cancelButton: CupertinoActionSheetAction(
+          onPressed: () => Navigator.of(sheet).pop(),
+          child: Text(AppStrings.t(AppStringKeys.countryPickerCancel)),
+        ),
+      ),
+    );
+    if (selected == null || !mounted) return;
+    await _vm.setMessageAutoDeleteTime(selected);
+  }
+
+  void _openGroupManagement() {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => GroupManagementView(
+          chatId: _vm.chatId,
+          title: _chatDisplayTitle,
+          isChannel: _vm.isChannel,
+        ),
+      ),
+    );
+  }
+
+  void _openKeptMessages() {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => MessageHistoryView(chatId: _vm.chatId),
+      ),
+    );
+  }
+
+  /// The chat's own name, falling back to the title the pane was opened with.
+  String get _chatDisplayTitle =>
+      _vm.peerTitle.isEmpty ? widget.title : _vm.peerTitle;
+
+  /// exteraless's "to the beginning": the chat's very first message. TDLib
+  /// keeps message ids positive per chat, so id 1 is the oldest one, and the
+  /// transcript loads the page around it if it is not in memory.
+  ///
+  /// Inside a topic the transcript only holds that topic's messages, so the
+  /// chat's id 1 is not reachable from it — a topic's id *is* its first
+  /// message's id (1 for the General topic), which is the oldest row the
+  /// topic's history can return.
+  Future<void> _jumpToBeginning() {
+    final topicId = widget.forumTopicId;
+    final target = topicId == null || topicId <= 0 ? 1 : topicId;
+    return _scrollToMessage(target, forceAlignment: true);
+  }
+
+  /// exteraless's "Go To": prompt for a message id and land on it. The
+  /// transcript pages around the id, so it works for messages it has not
+  /// loaded yet; an id that does not exist simply navigates nowhere.
+  Future<void> _goToMessageFromMenu() async {
+    final input = await showAppTextEntryDialog(
+      context,
+      title: AppStrings.t(AppStringKeys.chatGoToMessage),
+      actionLabel: AppStrings.t(AppStringKeys.confirmOk),
+      hint: AppStrings.t(AppStringKeys.chatGoToMessageHint),
+      keyboardType: TextInputType.number,
+      allowEmpty: false,
+    );
+    if (!mounted || input == null) return;
+    final messageId = int.tryParse(input.trim());
+    if (messageId == null || messageId <= 0) return;
+    await _scrollToMessage(messageId, forceAlignment: true);
+  }
+
+  /// Clears this chat's history for this account and leaves the chat on
+  /// screen, emptied — the details page's flow, reachable from the menu.
+  Future<void> _clearHistoryFromMenu() async {
+    final confirmed = await showTwoStepClearHistoryDialog(
+      context,
+      chatTitle: _chatDisplayTitle,
+    );
+    if (!mounted || !confirmed) return;
+    try {
+      await clearChatHistoryForSelf(
+        chatId: _vm.chatId,
+        query: TdClient.shared.query,
+      );
+      TdClient.shared.emitLocalUpdate({
+        '@type': 'mithkaChatHistoryCleared',
+        'chat_id': _vm.chatId,
+      });
+    } catch (error) {
+      if (!mounted) return;
+      showToast(context, _chatRemovalErrorText(error));
+    }
+  }
+
+  /// Leaves a group or channel through the same two-stage gate and helpers the
+  /// details page uses, then closes the transcript like exteraless does.
+  Future<void> _leaveFromMenu() async {
+    final action = _vm.isChannel
+        ? AppStringKeys.topicChatLeaveChannel
+        : AppStringKeys.chatInfoLeaveGroup;
+    final impact = AppStrings.t(AppStringKeys.chatLeaveAndDeleteDescription, {
+      'value1': _chatDisplayTitle,
+    });
+    final confirmed = await showTwoStepDestructiveConfirmation(
+      context,
+      firstTitle: AppStrings.t(action),
+      firstMessage: impact,
+      firstConfirmText: AppStringKeys.confirmContinue,
+      finalTitle: AppStrings.t(AppStringKeys.chatDeleteFinalQuestion, {
+        'value1': _chatDisplayTitle,
+      }),
+      finalMessage:
+          '$impact\n\n${AppStringKeys.chatDeleteFinalWarning.l10n(context)}',
+      finalConfirmText: AppStrings.t(action),
+    );
+    if (!mounted || !confirmed) return;
+    try {
+      await leaveChatAndRemoveFromList(
+        chatId: _vm.chatId,
+        query: TdClient.shared.query,
+        onLeft: () =>
+            TdClient.shared.emitLocalUpdate(chatLeftLocalUpdate(_vm.chatId)),
+      );
+      if (mounted) _handleBack();
+    } catch (error) {
+      if (!mounted) return;
+      showToast(context, _chatRemovalErrorText(error));
+    }
+  }
+
+  /// Deletes a private chat: the same scope dialog and requests the chat list
+  /// uses, then closes the transcript.
+  Future<void> _deleteChatFromMenu() async {
+    ChatDeleteCapabilities capabilities;
+    try {
+      final chat = await TdClient.shared.query({
+        '@type': 'getChat',
+        'chat_id': _vm.chatId,
+      });
+      capabilities = chatDeleteCapabilities(chat);
+    } catch (_) {
+      capabilities = const ChatDeleteCapabilities.none();
+    }
+    if (!mounted) return;
+    if (!capabilities.canDelete) {
+      showToast(context, AppStringKeys.chatDeleteUnavailable);
+      return;
+    }
+    final scope = await showTwoStepChatDeleteDialog(
+      context,
+      title: AppStringKeys.chatListDeleteChatQuestion,
+      selfOnlyDescription: AppStringKeys.chatInfoClearHistoryDescription.l10n(
+        context,
+      ),
+      capabilities: capabilities,
+      isGroupOrChannel: false,
+      isSavedMessages: false,
+      chatTitle: _chatDisplayTitle,
+      selfConfirmText: AppStringKeys.chatDelete,
+    );
+    if (!mounted || scope == null) return;
+    try {
+      if (scope == ChatDeleteScope.self) {
+        await TdClient.shared.query(
+          deleteChatHistoryRequest(
+            chatId: _vm.chatId,
+            scope: ChatDeleteScope.self,
+          ),
+        );
+      } else {
+        await TdClient.shared.query({
+          '@type': 'deleteChat',
+          'chat_id': _vm.chatId,
+        });
+      }
+      TdClient.shared.emitLocalUpdate(chatLeftLocalUpdate(_vm.chatId));
+      if (mounted) _handleBack();
+    } catch (error) {
+      if (!mounted) return;
+      showToast(context, _chatRemovalErrorText(error));
+    }
+  }
+
+  String _chatRemovalErrorText(Object error) => switch (error) {
+    ChatRemovalUnavailable() => AppStrings.t(
+      AppStringKeys.chatDeleteUnavailable,
+    ),
+    ChatLeaveHistoryCleanupFailed() => AppStrings.t(
+      _vm.isChannel
+          ? AppStringKeys.chatLeaveHistoryCleanupFailedChannel
+          : AppStringKeys.chatLeaveHistoryCleanupFailed,
+    ),
+    TdError() => error.message,
+    _ => error.toString(),
+  };
+
+  /// Opens the chat's pinned-message browser — the same page the details view
+  /// links to.
+  Future<void> _openPinnedMessages() async {
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) =>
+            PinnedMessagesView(chatId: _vm.chatId, title: _chatDisplayTitle),
+      ),
+    );
+  }
 
   Future<void> _openChannelMoments() async {
     ChatSummary? channel;
@@ -8914,19 +9668,37 @@ class _ChatViewState extends State<ChatView> {
     );
     if (_showsTopicSurfaces) {
       return GestureDetector(
+        key: const ValueKey('chatHeaderTitle'),
         behavior: HitTestBehavior.opaque,
-        onTap: _showTopicSelector,
+        onTap: _openTopicList,
         child: content,
       );
     }
     if ((_vm.peerUserId ?? 0) > 0) {
       return GestureDetector(
+        key: const ValueKey('chatHeaderTitle'),
         behavior: HitTestBehavior.opaque,
         onTap: _openPeerProfile,
         child: content,
       );
     }
     return content;
+  }
+
+  /// Follows the topic a send just started from this bot topic chat's "All"
+  /// view: exteraless selects the freshly created topic's tab the moment the
+  /// send creates it, and the message must not stay stranded in a mixed list.
+  ///
+  /// The switch is scheduled for after the frame: the notification it rides in
+  /// on can arrive mid-send, and replacing this transcript synchronously would
+  /// tear it down under the caller.
+  void _maybeOpenCreatedBotTopic() {
+    final topicId = _vm.consumePendingBotTopicOpen();
+    if (topicId == null || topicId == widget.forumTopicId) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || _exitStatePrepared) return;
+      _openTopicTranscript(topicId);
+    });
   }
 
   /// Opens a topic, or the whole chat for null, as the ordinary chat
@@ -8969,6 +9741,10 @@ class _ChatViewState extends State<ChatView> {
       replaceWithAppChatRoute<void, void>(
         context,
         AppChatPageRoute<void>(
+          // An in-place topic swap: the new transcript replaces this one in a
+          // single frame so the header and tab strip never flash or slide.
+          transitionDuration: Duration.zero,
+          reverseTransitionDuration: Duration.zero,
           builder: (_) => ChatView(
             chatId: widget.chatId,
             title: widget.title,
@@ -9172,8 +9948,10 @@ class _ChatViewState extends State<ChatView> {
     if (topic == null) return;
     // The creator deletion carve-out depends on the topic's live history
     // (at most 11 messages, none from other users), so probe before the menu
-    // is offered. Rights-based eligibility is already known synchronously.
+    // is offered. Rights-based eligibility is already known synchronously, and
+    // a bot topic chat offers Delete without the probe.
     if (!topic.isGeneral &&
+        !_vm.isBotTopicChat &&
         _vm.canDeleteForumTopics != true &&
         _vm.creatorOfTopic(topic)) {
       await _vm.ensureTopicCreatorDeletable(topic.id);
@@ -9184,8 +9962,9 @@ class _ChatViewState extends State<ChatView> {
       topic: item,
       actions: topicRowActions(
         topic: item,
-        canManage: _vm.canManageTopics,
+        canManage: _vm.canPinAndEditTopics,
         canDelete: _vm.canDeleteTopic(topic),
+        canClose: _vm.canCloseTopic(topic),
         onMarkRead: () => _markTopicRead(topic),
         onTogglePinned: () => _toggleTopicPinned(topic),
         onToggleMuted: () => _toggleTopicMuted(topic),
@@ -9196,14 +9975,100 @@ class _ChatViewState extends State<ChatView> {
     );
   }
 
+  /// The tab's long press resolves the tab to its topic row and opens the
+  /// shared menu. A tab strip is a bar the menu belongs to, so the menu hugs
+  /// its bottom edge instead of hanging the default gap below it.
+  Future<void> _showTopicTabMenu(TopicNavigationItem item, Rect anchor) async {
+    final topic = _topicById(item.id);
+    if (topic == null) return;
+    await _showTopicMenu(topic, anchor, gap: AppSpacing.xs);
+  }
+
+  /// The topic menu, the way exteraless opens ItemOptions over a long-pressed
+  /// tab or list row: pin / edit / close-reopen / delete, each gated by the
+  /// rights the row menu uses. No name header — the tab or row under the
+  /// finger already names the topic. The creator deletion carve-out probes the
+  /// topic's live history before Delete can be offered; a bot topic chat has
+  /// no such probe.
+  Future<void> _showTopicMenu(
+    ForumTopicOption topic,
+    Rect anchor, {
+    double gap = 8,
+  }) async {
+    if (!topic.isGeneral &&
+        !_vm.isBotTopicChat &&
+        _vm.canDeleteForumTopics != true &&
+        _vm.creatorOfTopic(topic)) {
+      await _vm.ensureTopicCreatorDeletable(topic.id);
+      if (!mounted) return;
+    }
+    final actions = <AppMenuAction>[
+      if (_vm.canPinAndEditTopics)
+        AppMenuAction(
+          key: 'pin',
+          label: AppStrings.t(
+            topic.isPinned
+                ? AppStringKeys.chatListUnpin
+                : AppStringKeys.chatInfoPin,
+          ),
+          icon: HeroAppIcons.pin,
+          onSelected: () => unawaited(_toggleTopicPinned(topic)),
+        ),
+      if (_vm.canPinAndEditTopics && !topic.isGeneral)
+        AppMenuAction(
+          key: 'edit',
+          label: AppStrings.t(AppStringKeys.groupAdministrationEditTopic),
+          icon: HeroAppIcons.pen,
+          onSelected: () => unawaited(_editTopic(topic)),
+        ),
+      if (_vm.canCloseTopic(topic))
+        AppMenuAction(
+          key: 'close',
+          label: AppStrings.t(
+            topic.isClosed
+                ? AppStringKeys.topicChatReopenTopic
+                : AppStringKeys.topicChatCloseTopic,
+          ),
+          icon: topic.isClosed ? HeroAppIcons.eye : HeroAppIcons.lock,
+          onSelected: () => unawaited(_toggleTopicClosed(topic)),
+        ),
+      if (_vm.canDeleteTopic(topic))
+        AppMenuAction(
+          key: 'delete',
+          label: AppStrings.t(AppStringKeys.mithkaxDeleteTopic),
+          icon: HeroAppIcons.trash,
+          destructive: true,
+          onSelected: () => unawaited(_deleteTopic(topic)),
+        ),
+    ];
+    if (actions.isEmpty) return;
+    await showAppAnchoredMenu(
+      context: context,
+      anchor: anchor,
+      actions: actions,
+      gap: gap,
+    );
+  }
+
+  /// Opens the topic list the way the chat title's chevron promises: a
+  /// sidebar-placement shell whose list the user dismissed gets it back;
+  /// every other shell picks from the sheet.
+  void _openTopicList() {
+    final host = _topicListOverlaid ? _shellTopicListHost : null;
+    if (host != null && host.listHidden) {
+      host.showList();
+      return;
+    }
+    unawaited(_showTopicSelector());
+  }
+
   Future<void> _showTopicSelector() async {
     if (!_vm.supportsTopics) return;
     if (_vm.forumTopics.isEmpty && !_vm.forumTopicsLoading) {
       await _vm.loadForumTopics();
     }
     if (!mounted) return;
-    final topics = _vm.forumTopics;
-    if (topics.isEmpty) {
+    if (_vm.forumTopics.isEmpty) {
       showToast(
         context,
         _vm.forumTopicsLoading
@@ -9213,51 +10078,83 @@ class _ChatViewState extends State<ChatView> {
       return;
     }
     final c = context.colors;
+    // Desktop/wide-tablet layouts present the sheet centered with every
+    // corner rounded; only the phone bottom-sheet form rounds the top edge.
+    final centered = appModalUsesCenteredPresentation(
+      MediaQuery.sizeOf(context),
+    );
+    final currentTopicId = widget.forumTopicId;
     await showAppModalSheet<void>(
       context: context,
       backgroundColor: c.background,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
+      shape: RoundedRectangleBorder(
+        borderRadius: centered
+            ? BorderRadius.circular(AppRadius.xl)
+            : const BorderRadius.vertical(top: Radius.circular(18)),
       ),
       builder: (sheetContext) => SafeArea(
-        child: ListView.separated(
-          shrinkWrap: true,
-          padding: const EdgeInsets.symmetric(vertical: 8),
-          itemCount: topics.length + 1,
-          separatorBuilder: (_, _) =>
-              Divider(height: 1, indent: 56, color: c.divider),
-          itemBuilder: (_, index) {
-            final all = index == 0;
-            final topic = all ? null : topics[index - 1];
-            return ListTile(
-              leading: _forumTopicIcon(topic, all, c),
-              title: Text(
-                (all ? AppStringKeys.topicChatAllTopics : topic!.name).l10n(
-                  context,
-                ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(color: c.textPrimary, fontSize: 16),
-              ),
-              // The centered sheet variant lays tiles out at a narrow width;
-              // an unsized badge can exceed the whole row, so wrap it in a
-              // bounded box rather than handing the pill to ListTile directly.
-              trailing: topic == null || topic.unreadCount <= 0
-                  ? null
-                  : SizedBox(
-                      width: 64,
-                      child: Align(
-                        alignment: Alignment.centerRight,
-                        child: UnreadBadge(
-                          key: ValueKey('topic-selector-unread-${topic.id}'),
-                          count: topic.unreadCount,
-                          muted: topic.isMuted,
+        // Live, like the strip above the transcript: a message that lands
+        // while the list is open reorders its rows and bumps counters, and
+        // the transcript the user is in stays marked.
+        child: ListenableBuilder(
+          listenable: _vm,
+          builder: (_, _) {
+            final topics = _vm.forumTopics;
+            if (topics.isEmpty) return const SizedBox.shrink();
+            return ListView.separated(
+              key: const ValueKey('topic-selector-list'),
+              shrinkWrap: true,
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              itemCount: topics.length + 1,
+              separatorBuilder: (_, _) =>
+                  Divider(height: 1, indent: 56, color: c.divider),
+              itemBuilder: (_, index) {
+                final all = index == 0;
+                final topic = all ? null : topics[index - 1];
+                final current = topic?.id == currentTopicId;
+                return ChatListSelectionHighlight(
+                  key: ValueKey('topic-selector-row-${topic?.id ?? "all"}'),
+                  selected: current,
+                  // The same anchored menu the topic tabs open, but hung off
+                  // the finger that pressed the row: a long press on a list
+                  // row is a pointer gesture, so the menu has to open where
+                  // the finger is, not at the row's box.
+                  child: GestureDetector(
+                    onLongPressStart: topic == null
+                        ? null
+                        : (details) {
+                            final press = details.globalPosition;
+                            unawaited(
+                              _showTopicMenu(
+                                topic,
+                                Rect.fromLTWH(press.dx, press.dy, 0, 0),
+                              ),
+                            );
+                          },
+                    child: ListTile(
+                      leading: _forumTopicIcon(topic, all, c, current: current),
+                      title: Text(
+                        (all ? AppStringKeys.topicChatAllTopics : topic!.name)
+                            .l10n(context),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: current ? AppTheme.brand : c.textPrimary,
+                          fontSize: 16,
+                          fontWeight: current ? FontWeight.w600 : null,
                         ),
                       ),
+                      // The centered sheet variant lays tiles out at a narrow
+                      // width; an unsized badge can exceed the whole row, so
+                      // wrap the trailing slot in a bounded box.
+                      trailing: _topicSelectorTrailing(topic, all, current),
+                      onTap: () {
+                        Navigator.of(sheetContext).pop();
+                        _openTopicTranscript(topic?.id);
+                      },
                     ),
-              onTap: () {
-                Navigator.of(sheetContext).pop();
-                _openTopicTranscript(topic?.id);
+                  ),
+                );
               },
             );
           },
@@ -9266,14 +10163,51 @@ class _ChatViewState extends State<ChatView> {
     );
   }
 
-  Widget _forumTopicIcon(ForumTopicOption? topic, bool all, AppColors c) {
+  /// The selector row's trailing slot: a brand check for the transcript the
+  /// user is already in, the unread pill for the others (both when the open
+  /// topic was manually marked unread).
+  Widget? _topicSelectorTrailing(
+    ForumTopicOption? topic,
+    bool all,
+    bool current,
+  ) {
+    final unread = !all && topic != null && topic.unreadCount > 0;
+    if (!current && !unread) return null;
+    return SizedBox(
+      width: 64,
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.end,
+        children: [
+          if (current)
+            AppIcon(HeroAppIcons.check, size: 18, color: AppTheme.brand),
+          if (unread) ...[
+            if (current) const SizedBox(width: AppSpacing.xs + 2),
+            UnreadBadge(
+              key: ValueKey('topic-selector-unread-${topic.id}'),
+              count: topic.unreadCount,
+              muted: topic.isMuted,
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _forumTopicIcon(
+    ForumTopicOption? topic,
+    bool all,
+    AppColors c, {
+    bool current = false,
+  }) {
     if (all) {
       return AppIcon(HeroAppIcons.hashtag, color: AppTheme.brand, size: 24);
     }
     final iconId = topic?.iconCustomEmojiId ?? 0;
     if (iconId != 0) return CustomEmojiView(id: iconId, size: 24);
     final rawColor = topic?.iconColor ?? 0;
-    final color = rawColor == 0
+    final color = current
+        ? AppTheme.brand
+        : rawColor == 0
         ? c.textSecondary
         : Color(0xFF000000 | (rawColor & 0xFFFFFF));
     return AppIcon(HeroAppIcons.solidMessage, color: color, size: 24);
@@ -9422,7 +10356,7 @@ class _ChatViewState extends State<ChatView> {
             button(
               HeroAppIcons.forward.data,
               _forwardSelected,
-              actionEnabled: _vm.canForwardContent,
+              actionEnabled: _vm.canForwardContent || _protectedCopyEnabled,
             ),
             button(
               HeroAppIcons.star.data,
@@ -10084,6 +11018,7 @@ class _ChatViewState extends State<ChatView> {
           child: CustomScrollView(
             key: _transcriptViewportKey,
             controller: _scroll,
+            keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
             center: _newerTranscriptSliverKey,
             physics: const ClampingScrollPhysics(
               parent: AlwaysScrollableScrollPhysics(),
@@ -11106,6 +12041,9 @@ class _ChatViewState extends State<ChatView> {
           isChannel: _vm.isChannel,
         ),
         channelHasLinkedDiscussion: _vm.hasLinkedDiscussion,
+        showChannelPostStats:
+            _vm.isChannel &&
+            context.read<ThemeController>().showChannelPostStats,
         selecting: _isSelecting,
         selectedMessageIds: _selectedMessageIds,
         outgoingBubbleColor: _effectiveOutgoingColor(),
@@ -11244,6 +12182,156 @@ class _ChatViewState extends State<ChatView> {
     _vm.setReply(current, quote: validated);
   }
 
+  /// Long-pressing the reply banner jumps to the original message. A
+  /// cross-chat reply's source lives outside this transcript, so only a
+  /// same-chat target can be jumped to.
+  void _jumpToReplySource(ChatMessage message) {
+    if (_vm.replyToChatId != null) return;
+    unawaited(_jumpToMessage(message.id));
+  }
+
+  /// Tapping the pending-forward banner opens the forward options sheet:
+  /// hide sender / remove caption (independent toggles with the caption→copy
+  /// rule), render markdown, change recipient, apply, cancel.
+  Future<void> _showComposerForwardOptions() async {
+    final forward = _vm.pendingForward;
+    if (forward == null) return;
+    final result = await showAppModalSheet<ForwardOptionsResult>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (_) => ForwardOptionsHost(
+        onForwardOptionsChanged: () => _vm.notifyForwardOptionsChanged(),
+        child: ForwardOptionsSheet(forward: forward),
+      ),
+    );
+    if (result == null || !mounted) return;
+    if (result is ForwardOptionsApply) return;
+    if (result is ForwardOptionsCancel) {
+      _vm.clearPendingForward();
+      return;
+    }
+    if (result is ForwardOptionsChangeRecipient) {
+      await _openForwardPicker(
+        messages: forward.messages,
+        protectedCopy: forward.protectedCopy,
+      );
+    }
+  }
+
+  /// Tapping the reply banner opens the reply options sheet: quote a range,
+  /// carry the reply into another chat, or drop it.
+  Future<void> _showComposerReplyOptions() async {
+    final target = _vm.replyTo;
+    if (target == null) return;
+    final canQuote = _vm.canQuoteText && canQuoteMessageText(target);
+    final canReplyInAnotherChat = await _vm.canReplyInAnotherChat(target);
+    if (!mounted) return;
+    final limit = await _vm.messageQuoteLengthLimit();
+    if (!mounted) return;
+    final result = await showAppModalSheet<ComposerReplyOptionsResult>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      // The preview's selection handles drag inside the sheet; the
+      // drag-to-dismiss recognizer would fight them ("stuck" handle drags).
+      enableDrag: false,
+      builder: (_) => ComposerReplyOptionsSheet(
+        message: target,
+        canQuote: canQuote,
+        canReplyInAnotherChat: canReplyInAnotherChat,
+        quoteLengthLimit: limit,
+        initialQuote: _vm.replyQuote,
+      ),
+    );
+    if (result == null || !mounted) return;
+    if (result is ComposerReplyOptionsRemove) {
+      _vm.setReply(null);
+      return;
+    }
+    if (result is ComposerReplyOptionsQuote) {
+      final current =
+          _vm.messages.where((m) => m.id == target.id).firstOrNull ?? target;
+      _vm.setReply(current, quote: result.quote);
+      return;
+    }
+    if (result is ComposerReplyOptionsAnotherChat) {
+      await _replyInAnotherChat(target, quoteParam: result.quote);
+      return;
+    }
+    // Apply: the reply stays as it is (the sheet may have cleared its quote
+    // locally; nothing to commit).
+  }
+
+  /// Moves the pending reply into a chat picked from the chat list. The
+  /// destination composer receives the reply as a cross-chat reply, so its
+  /// send addresses the source message where it actually lives.
+  Future<void> _replyInAnotherChat(
+    ChatMessage message, {
+    MessageTextQuote? quoteParam,
+  }) async {
+    final result = await Navigator.of(context).push<ChatPickerResult>(
+      MaterialPageRoute(
+        builder: (_) => const ChatPickerView(
+          title: AppStringKeys.chatReplyInAnotherChatTitle,
+        ),
+      ),
+    );
+    if (result == null || !mounted) return;
+    final targetChat = result.chat;
+    final sourceChatId = _vm.replyToChatId ?? _vm.chatId;
+    if (targetChat.id == sourceChatId) return;
+    // Read the composer draft before navigating: the current view model may
+    // be disposed once the destination transcript opens.
+    final draftText = _vm.composerFormattedDraft;
+    final quote = quoteParam ?? _vm.replyQuote;
+    ChatDeepLinkController.shared.openChat(
+      chatId: targetChat.id,
+      title: targetChat.title,
+      externalReply: ExternalReplyHandoff(
+        sourceChatId: sourceChatId,
+        message: ChatMessagePayload(
+          id: message.id,
+          isOutgoing: message.isOutgoing,
+          date: message.date,
+          senderName: message.senderName,
+          text: message.text,
+        ),
+        quote: quote,
+        draftText: draftText,
+      ),
+    );
+    _vm.setReply(null);
+  }
+
+  /// Installs a reply carried over from another chat ("reply in another
+  /// chat"): the composer starts with the cross-chat reply pending and the
+  /// draft text typed before the move. Consumed once; a later rebuild of the
+  /// same widget re-runs this against an already-cleared handoff field.
+  void _adoptExternalReplyHandoff() {
+    final handoff = widget.externalReplyHandoff;
+    if (handoff == null) return;
+    if (handoff.sourceChatId == widget.chatId) return;
+    _vm.setExternalReply(
+      ChatMessage(
+        id: handoff.message.id,
+        isOutgoing: handoff.message.isOutgoing,
+        date: handoff.message.date,
+        senderName: handoff.message.senderName,
+        text: handoff.message.text,
+      ),
+      handoff.sourceChatId,
+      quote: handoff.quote as MessageTextQuote?,
+    );
+    if (handoff.draftText.isNotEmpty) {
+      _vm.setDraft(handoff.draftText);
+    }
+  }
+
+  void _adoptForwardHandoff() {
+    final handoff = widget.forwardHandoff;
+    if (handoff == null) return;
+    _vm.adoptForwardHandoff(handoff);
+  }
+
   Future<void> _toggleMessageReaction(
     ChatMessage message,
     MessageReaction reaction,
@@ -11335,8 +12423,6 @@ class _ChatViewState extends State<ChatView> {
         context.watch<ThemeController>().mobileMessageActionMenuStyle ==
             MobileMessageActionMenuStyle.dropdown;
     final verticalMenu = desktopMenu || mobileDropdown;
-    final pointerAnchored =
-        verticalMenu && rect != null && rect.width == 0 && rect.height == 0;
     final reactionAvailability = _actionReactionAvailability;
     final showReactions = messageActionShowsReactionControls(
       isCall: target.isCall,
@@ -11346,6 +12432,7 @@ class _ChatViewState extends State<ChatView> {
       message: target,
       isPinned: _vm.pinnedMessage?.id == target.id,
       allowForwarding: _vm.canForwardContent,
+      allowProtectedCopyForward: _protectedCopyEnabled && !target.isService,
       allowTranslation:
           _hasAvailableTranslationOption &&
           _translationSourceText(target).trim().isNotEmpty,
@@ -11388,52 +12475,48 @@ class _ChatViewState extends State<ChatView> {
         !target.isCall &&
         (reactionAvailability == null || reactionAvailability.canAdd);
     final desktopStripH = desktopStrip
-        ? MenuReactionBar.height + _menuReactionGap
+        ? MenuReactionBar.heightFor(context) + _menuReactionGap
         : 0.0;
     final reactionH = !showReactions
         ? 0.0
         : _reactionExpanded
         ? _expandedPickerSize.height
-        : 48.0;
-    final menuH = showActionMenu
-        ? math.min(
-            actionMenu.preferredHeightFor(context),
-            math.max(0.0, bottomSafe - topSafe - desktopStripH),
-          )
-        : 0.0;
-    const gap = 8.0;
-    final menuGap = showActionMenu ? gap : 0.0;
-
-    double reactionTop, menuTop;
-    if (rect != null) {
-      // Reaction picker stays near the pressed message; the action menu is
-      // hidden while the picker is expanded.
-      reactionTop = (rect.top - reactionH - gap).clamp(
-        topSafe,
-        bottomSafe - reactionH,
-      );
-      menuTop = (verticalMenu ? rect.top : rect.bottom + gap).clamp(
-        topSafe,
-        bottomSafe - menuH,
-      );
+        : QuickReactionBar.heightFor(context);
+    final preferredMenuH = actionMenu.preferredHeightFor(context);
+    double reactionTop, menuTop, menuH;
+    if (desktopMenu) {
+      // The pair travels as one block, placed by desktopOrigin below: the
+      // strip is the menu's upper storey, so it never covers the menu.
+      menuH = showActionMenu
+          ? math.min(
+              preferredMenuH,
+              math.max(0.0, bottomSafe - topSafe - desktopStripH),
+            )
+          : 0.0;
+      reactionTop = 0;
+      menuTop = 0;
     } else {
-      reactionTop = (screenH - reactionH - menuH - menuGap) / 2;
-      menuTop = reactionTop + reactionH + menuGap;
+      // Phone overlay: the strip stays above the message and the menu never
+      // crosses it — a message near the bottom flips the menu above the strip
+      // instead of letting it climb over the reactions.
+      final placement = MessageActionMenu.placeMobileOverlay(
+        anchor: rect,
+        preferredMenuHeight: preferredMenuH,
+        stripHeight: reactionH,
+        topSafe: topSafe,
+        bottomSafe: bottomSafe,
+        viewportHeight: screenH,
+        menuStartsAtAnchorTop: verticalMenu,
+      );
+      reactionTop = placement.stripTop;
+      menuTop = placement.menuTop;
+      menuH = showActionMenu ? placement.menuHeight : 0.0;
     }
     final align = outgoing ? Alignment.centerRight : Alignment.centerLeft;
     final verticalMenuWidth = math.min(
-      MessageActionMenu.desktopPreferredWidth,
+      actionMenu.preferredWidthFor(context),
       math.max(0.0, screenW - 20),
     );
-    final pointerMenuOrigin = pointerAnchored
-        ? MessageActionMenu.verticalOriginForPointer(
-            pointer: rect.topLeft,
-            viewport: screenSize,
-            menuSize: Size(verticalMenuWidth, menuH),
-            topSafe: topSafe,
-            bottomSafe: bottomSafe,
-          )
-        : const Offset(10, 0);
     final boundedActionMenu = verticalMenu
         ? SizedBox(width: verticalMenuWidth, height: menuH, child: actionMenu)
         : actionMenu;
@@ -11491,18 +12574,10 @@ class _ChatViewState extends State<ChatView> {
           ),
         if (showActionMenu)
           Positioned(
-            top: desktopMenu
-                ? desktopOrigin.dy + desktopStripH
-                : pointerAnchored
-                ? pointerMenuOrigin.dy
-                : menuTop,
-            left: desktopMenu
-                ? desktopOrigin.dx
-                : pointerAnchored
-                ? pointerMenuOrigin.dx
-                : 10,
-            right: desktopMenu || pointerAnchored ? null : 10,
-            child: desktopMenu || pointerAnchored
+            top: desktopMenu ? desktopOrigin.dy + desktopStripH : menuTop,
+            left: desktopMenu ? desktopOrigin.dx : 10,
+            right: desktopMenu ? null : 10,
+            child: desktopMenu
                 ? boundedActionMenu
                 : Align(alignment: align, child: boundedActionMenu),
           ),
@@ -11529,6 +12604,7 @@ class _ChatViewState extends State<ChatView> {
 
   Widget _expandedReactionPicker(MessageReactionAvailability availability) {
     final store = EmojiStore.shared;
+    final palette = MessageActionPalette.of(context);
     final packs = availability.allowArbitraryCustom
         ? store.customPacks
         : const <CustomEmojiPack>[];
@@ -11536,17 +12612,15 @@ class _ChatViewState extends State<ChatView> {
       width: _expandedPickerSize.width,
       height: _expandedPickerSize.height,
       decoration: BoxDecoration(
-        color: const Color(0xFF2C2C2E),
+        color: palette.surface,
         borderRadius: BorderRadius.circular(AppRadius.lg),
-        boxShadow: [
-          BoxShadow(color: Colors.black.withValues(alpha: 0.3), blurRadius: 12),
-        ],
+        boxShadow: [BoxShadow(color: palette.shadow, blurRadius: 12)],
       ),
       clipBehavior: Clip.antiAlias,
       child: Column(
         children: [
-          Expanded(child: _reactionContent(packs, availability)),
-          _reactionTabStrip(packs),
+          Expanded(child: _reactionContent(packs, availability, palette)),
+          _reactionTabStrip(packs, palette),
         ],
       ),
     );
@@ -11555,6 +12629,7 @@ class _ChatViewState extends State<ChatView> {
   Widget _reactionContent(
     List<CustomEmojiPack> packs,
     MessageReactionAvailability availability,
+    MessageActionPalette palette,
   ) {
     const reactionEmojiSize = 26.0;
     if (_reactionTab != 'standard') {
@@ -11580,7 +12655,7 @@ class _ChatViewState extends State<ChatView> {
                     child: CustomEmojiView(
                       id: item.customEmojiId,
                       size: reactionEmojiSize,
-                      color: Colors.white,
+                      color: palette.foreground,
                     ),
                   ),
                 ),
@@ -11602,7 +12677,7 @@ class _ChatViewState extends State<ChatView> {
                   ? CustomEmojiView(
                       id: reaction.customEmojiId,
                       size: reactionEmojiSize,
-                      color: Colors.white,
+                      color: palette.foreground,
                     )
                   : Text(
                       reaction.emoji,
@@ -11614,11 +12689,11 @@ class _ChatViewState extends State<ChatView> {
     );
   }
 
-  Widget _reactionTabStrip(List packs) {
+  Widget _reactionTabStrip(List packs, MessageActionPalette palette) {
     return Container(
       height: 46,
-      decoration: const BoxDecoration(
-        border: Border(top: BorderSide(color: Color(0xFF3A3A3C), width: 0.5)),
+      decoration: BoxDecoration(
+        border: Border(top: BorderSide(color: palette.divider, width: 0.5)),
       ),
       child: ListView(
         scrollDirection: Axis.horizontal,
@@ -11626,10 +12701,10 @@ class _ChatViewState extends State<ChatView> {
         children: [
           _reactionTab2(
             'standard',
-            const AppIcon(
+            AppIcon(
               HeroAppIcons.solidFaceSmile,
               size: 22,
-              color: Colors.white70,
+              color: palette.foreground.withValues(alpha: 0.7),
             ),
           ),
           for (final pack in packs)
@@ -11639,12 +12714,12 @@ class _ChatViewState extends State<ChatView> {
                   ? CustomEmojiView(
                       id: pack.emoji.first.customEmojiId,
                       size: 26,
-                      color: Colors.white,
+                      color: palette.foreground,
                     )
-                  : const AppIcon(
+                  : AppIcon(
                       HeroAppIcons.objectGroup,
                       size: 20,
-                      color: Colors.white70,
+                      color: palette.foreground.withValues(alpha: 0.7),
                     ),
             ),
           GestureDetector(
@@ -11663,14 +12738,14 @@ class _ChatViewState extends State<ChatView> {
                 ),
               );
             },
-            child: const SizedBox(
+            child: SizedBox(
               width: 40,
               height: 36,
               child: Center(
                 child: AppIcon(
                   HeroAppIcons.gear,
                   size: 21,
-                  color: Colors.white70,
+                  color: palette.foreground.withValues(alpha: 0.7),
                 ),
               ),
             ),

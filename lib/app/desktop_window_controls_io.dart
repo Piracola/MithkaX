@@ -1,5 +1,4 @@
 import 'dart:io';
-
 import 'package:multi_window_manager/multi_window_manager.dart';
 
 bool get usesFlutterDesktopWindowControls =>

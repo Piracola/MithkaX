@@ -9,7 +9,6 @@
 
 import 'dart:async';
 import 'dart:ui' as ui;
-
 import 'package:f_videoplayer/f_videoplayer.dart';
 import 'package:f_videoplayer_fvp/f_videoplayer_fvp.dart';
 import 'package:firebase_analytics/firebase_analytics.dart';
@@ -24,7 +23,6 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-
 import 'app/app_navigator.dart';
 import 'app/app_performance_controller.dart';
 import 'app/app_version.dart';
@@ -49,31 +47,37 @@ import 'auth/account_store.dart';
 import 'auth/auth_manager.dart';
 import 'call/call_manager.dart';
 import 'call/call_overlay_host.dart';
-import 'chat/animated_sticker_view.dart';
+import 'chat/admin/group_remark_controller.dart';
 import 'chat/chat_view.dart';
 import 'chat/chat_view_model.dart';
-import 'chat/gift_tint.dart';
-import 'chat/group_remark_controller.dart';
-import 'chat/link_preview_fixer.dart';
-import 'chat/music_player_controller.dart';
+import 'chat/favorite_sticker_store.dart';
+import 'chat/group_scheduled_deletion.dart';
+import 'chat/links_search/link_preview_fixer.dart';
+import 'chat/media/music_player_controller.dart';
+import 'chat/messages/gift_tint.dart';
+import 'chat/stickers/animated_sticker_view.dart';
 import 'chats/chat_folder_tag_controller.dart';
+import 'chats/local_folder_order_store.dart';
 import 'chats/local_pin_store.dart';
 import 'components/drawer_controller.dart' as dc;
 import 'config/build_flags.dart';
-import 'firebase_options.dart';
 import 'history/message_history_settings.dart';
 import 'history/message_history_store.dart';
 import 'l10n/app_locale_controller.dart';
 import 'l10n/app_localizations.dart';
+import 'media/android_webm_route.dart';
+import 'media/looping_media_playback.dart';
 import 'media/video_playback_reporting.dart';
 import 'media/video_view_compatibility.dart';
 import 'notifications/in_app_notification_banner.dart';
 import 'notifications/notification_controller.dart';
 import 'notifications/notification_preferences.dart';
 import 'notifications/push_device_registrar.dart';
+import 'platform/app_haptics.dart';
 import 'platform/application_exit_coordinator.dart';
 import 'platform/firebase_configuration.dart';
 import 'platform/ohos_support.dart';
+import 'platform/process_engine.dart';
 import 'platform/system_ui.dart';
 import 'pro/mithka_pro_service.dart';
 import 'security/local_app_lock_controller.dart';
@@ -207,6 +211,26 @@ Future<void> main(List<String> arguments) async {
 }
 
 Future<void> _bootstrapAndRunApp() async {
+  // Backstop for the one thing that can abort the whole process: a second
+  // FlutterEngine in this process. TDLib's receive lock is a process-wide
+  // native static, and the engine that owned it cannot release it after its VM
+  // is destroyed, so the newcomer's first `td_receive` hits
+  //   [Client.cpp:285] Receive must not be called simultaneously...
+  // Native already turns a duplicate launch into `onNewIntent` on the live
+  // instance; this closes the window before it does, and covers every launch
+  // path (deep links, shares, launcher aliases, recents entries).
+  if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
+    final engine = await processEngineState();
+    if (engine.hasLiveSiblingEngine) {
+      // A configuration change creates this engine before the old Activity's
+      // onDestroy returns; give that beat a moment before deciding.
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+      if ((await processEngineState()).hasLiveSiblingEngine) {
+        await SystemNavigator.pop();
+        return;
+      }
+    }
+  }
   // Register before AuthManager starts TDLib. Flutter's macOS delegate waits
   // for this cancelable exit response, so even a very early Quit drains native
   // clients before AppKit unloads libtdjson.
@@ -224,6 +248,16 @@ Future<void> _bootstrapAndRunApp() async {
   // launch, and nothing below depends on it — the widget tree attaches to
   // AuthManager's stream whenever it is ready.
   final auth = AuthManager()..start();
+  // Seed the version Telegram's Devices screen shows. PackageInfo is a
+  // platform-channel read, so it cannot block the launch: TDLib boots with
+  // the legacy placeholder and every later setTdlibParameters (login, slot
+  // restore, hot restart) carries the real value.
+  unawaited(
+    AppVersion.load().then((version) {
+      TdClient.applicationVersionProvider = () =>
+          version.version.isNotEmpty ? version.version : '1.0';
+    }),
+  );
   registerOhosDartPluginFallbacks();
   _initializeVideoBackend();
   final isMobile = isMobilePlatform;
@@ -263,6 +297,7 @@ Future<void> _bootstrapAndRunApp() async {
   KeywordBlocker.shared.initialize(prefs);
   LinkPreviewFixer.shared.initialize(prefs);
   HiddenSenderStore.shared.initialize(prefs);
+  AppHaptics.shared.initialize(prefs);
   CountryMessageFilter.shared.initialize(prefs);
   // Compile-time gated: reads persisted ghost-mode prefs and pushes the
   // `online` TDLib option only in opted-in self-built binaries.
@@ -278,6 +313,7 @@ Future<void> _bootstrapAndRunApp() async {
   if (allowTelegramTosViolations) {
     MessageHistorySettings.shared.initialize(prefs);
     LocalPremium.shared.initialize(prefs);
+    LocalFolderOrderStore.shared.initialize(prefs);
     MessageHistoryStore.shared.initialize(prefs);
     unawaited(MessageHistoryStore.shared.ensureLoaded());
     MessageHistoryStore.shared.startObserving();
@@ -286,6 +322,11 @@ Future<void> _bootstrapAndRunApp() async {
   // preferences; the store is inert (and reads nothing) until its switch is
   // turned on.
   LocalPinStore.shared.initialize(prefs);
+  // Same shape for sticker favorites beyond the server cap.
+  FavoriteStickerStore.shared.initialize(prefs);
+  // Client-side auto-delete for groups without a server-side timer; reloads
+  // whatever became due while the app was not running.
+  GroupScheduledDeletionController.shared.initialize(prefs);
   // Preload Telegram blocked-user list so chat filters have data right away.
   unawaited(BlockedUserService.shared.loadBlockedUsers());
   // Firebase + analytics + Sentry tags are several platform-channel round
@@ -319,7 +360,7 @@ bool _shouldUseFvp() {
 void _initializeVideoBackend({bool installGlobalLogHandler = true}) {
   try {
     if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
-      FVideoFvpBackend.ensureAndroidAlphaWebmDecoderInitialized();
+      installAndroidWebmRoute();
       return;
     }
     if (!_shouldUseFvp()) return;
@@ -333,6 +374,7 @@ void _initializeVideoBackend({bool installGlobalLogHandler = true}) {
           // video_player has no HarmonyOS implementation of its own.
           FVideoFvpPlatform.ohos,
         },
+        videoDecoders: fvpVideoDecoders(defaultTargetPlatform),
         installGlobalLogHandler: installGlobalLogHandler,
       ),
     );
@@ -354,9 +396,14 @@ Future<void> _initTelemetry() async {
       AppVersion.load(),
     ).wait;
     if (hasFirebaseConfiguration) {
-      await Firebase.initializeApp(
-        options: DefaultFirebaseOptions.currentPlatform,
-      );
+      // Do not pass DefaultFirebaseOptions here. On Android the build's
+      // google-services.json has already created the [DEFAULT] FirebaseApp
+      // through FirebaseInitProvider; initializing again with the hardcoded
+      // FlutterFire options throws "FirebaseApp name [DEFAULT] already
+      // exists", which used to abort this whole telemetry block. Omitting the
+      // options makes FlutterFire adopt the native app (and its project) and
+      // keeps push registration on the same project as the FCM receiver.
+      await Firebase.initializeApp();
       await FirebaseAnalytics.instance.setAnalyticsCollectionEnabled(true);
       await FirebaseAnalytics.instance.setDefaultEventParameters(
         appVersion.analyticsParameters,
@@ -522,13 +569,20 @@ class _MithkaAppState extends State<MithkaApp> with WidgetsBindingObserver {
     // so it waits for a gap in the scheduler instead of the launch frames.
     unawaited(
       SchedulerBinding.instance.scheduleTask<void>(
-        _theme.loadSelectedEmojiFontIfAvailable,
+        // The selected emoji font is usually cached and loads in one file
+        // read; on a fresh install this is also where the default Apple
+        // font downloads (45 MB, off the launch frames). Registering a
+        // colour font is a UI-thread cost that must never ride the launch
+        // frames.
+        () async {
+          await _theme.loadSelectedEmojiFontIfAvailable();
+        },
         Priority.idle,
       ),
     );
     _autoDownload.initialize(widget.prefs);
     _auth.start();
-    DeepLinkService.shared.start();
+    DeepLinkService.shared.start(auth: _auth, appLock: _appLock);
     HandoffService.shared.start(
       accounts: _accounts,
       auth: _auth,
@@ -583,6 +637,7 @@ class _MithkaAppState extends State<MithkaApp> with WidgetsBindingObserver {
   void _handleActiveAccountChange() {
     MusicPlayerController.shared.setActiveAccountSlot(_accounts.activeSlot);
     _groupRemarks.setActiveAccountUserId(_accounts.activeUserId);
+    FavoriteStickerStore.shared.setActiveAccountUserId(_accounts.activeUserId);
     unawaited(_folderTags.refresh());
     _theme.setActiveAccountSlot(
       _accounts.activeSlot,
@@ -687,6 +742,7 @@ class _MithkaAppState extends State<MithkaApp> with WidgetsBindingObserver {
         KeywordBlocker.shared.initialize(widget.prefs);
         HiddenSenderStore.shared.initialize(widget.prefs);
         CountryMessageFilter.shared.initialize(widget.prefs);
+        GroupScheduledDeletionController.shared.initialize(widget.prefs);
         if (allowTelegramTosViolations) {
           GhostModeController.shared.initialize(widget.prefs);
           MessageHistorySettings.shared.initialize(widget.prefs);
@@ -994,11 +1050,11 @@ class _MithkaAppState extends State<MithkaApp> with WidgetsBindingObserver {
                 ),
               );
             },
-            // Rebuild the whole tree when the active account changes.
-            home: KeyedSubtree(
-              key: ValueKey((accounts.activeSlot, accounts.activeUserId)),
-              child: const ContentView(),
-            ),
+            // Rebuild the tree when the active account changes; the
+            // identity key lives INSIDE ContentView's ready surface now, so
+            // the auth gate (and its add-account crossfade) survives the
+            // slot change instead of being torn down with this subtree.
+            home: const ContentView(),
           );
         },
       ),

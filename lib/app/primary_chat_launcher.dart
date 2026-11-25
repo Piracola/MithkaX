@@ -1,5 +1,4 @@
 import 'package:flutter/widgets.dart';
-
 import '../chat/chat_view.dart';
 import 'adaptive_split_layout.dart';
 import 'app_navigator.dart';

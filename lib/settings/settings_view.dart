@@ -7,19 +7,17 @@
 //
 
 import 'dart:async';
-
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
-
 import '../app/adaptive_split_layout.dart';
 import '../app/app_version.dart';
 import '../app/ipad_window_chrome.dart';
 import '../app/top_corner_cluster.dart';
 import '../auth/account_store.dart';
 import '../auth/auth_manager.dart';
-import '../chat/chat_sticker_packs_view.dart';
+import '../chat/stickers/chat_sticker_packs_view.dart';
 import '../components/app_icons.dart';
 import '../components/app_interactive_surface.dart';
 import '../components/ui_components.dart';
@@ -769,6 +767,8 @@ class _SettingsViewState extends State<SettingsView> {
           'devices',
           'passkeys',
           'delete account',
+          'scheduled deletion',
+          'auto-delete',
         ],
       ),
       _SettingsDestination(
@@ -851,6 +851,7 @@ class _SettingsViewState extends State<SettingsView> {
           'theme',
           'font',
           'icon',
+          'emoji',
           'wallpaper',
           'bubbles',
           'message bubbles',

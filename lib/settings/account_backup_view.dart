@@ -1,11 +1,9 @@
 import 'dart:async';
 import 'dart:io';
-
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
-
 import '../auth/account_backup_service.dart';
 import '../auth/account_store.dart';
 import '../auth/auth_manager.dart';

@@ -7,11 +7,9 @@
 //
 
 import 'dart:math' as math;
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
-
 import '../app/ipad_window_chrome.dart';
 import '../l10n/app_localizations.dart';
 import '../platform/adaptive_platform.dart';
@@ -1030,6 +1028,7 @@ class SettingsRow extends StatelessWidget {
     this.trailing,
     this.titleColor,
     this.subtitle,
+    this.subtitleMaxLines = 2,
     this.enabled = true,
   });
 
@@ -1043,6 +1042,10 @@ class SettingsRow extends StatelessWidget {
   final Widget? trailing;
   final Color? titleColor;
   final String? subtitle;
+
+  /// Null lets an explanatory subtitle wrap in full, as [SettingsSwitchRow]
+  /// subtitles do; the default keeps short descriptions to two lines.
+  final int? subtitleMaxLines;
   final bool enabled;
 
   /// The height a settings row of [height] actually resolves to. Exposed so a
@@ -1114,8 +1117,10 @@ class SettingsRow extends StatelessWidget {
                       const SizedBox(height: AppSpacing.xxs),
                       Text(
                         subtitle!.l10n(context),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
+                        maxLines: subtitleMaxLines,
+                        overflow: subtitleMaxLines == null
+                            ? null
+                            : TextOverflow.ellipsis,
                         style: AppTextStyle.footnote(c.textTertiary),
                       ),
                     ],

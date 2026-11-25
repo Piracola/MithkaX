@@ -1,10 +1,8 @@
 import 'dart:async';
-
 import 'package:flutter/material.dart' show Scrollbar;
-import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
+import 'package:mithka/platform/app_haptics.dart';
 import 'package:provider/provider.dart';
-
 import '../components/toast.dart';
 import '../components/ui_components.dart';
 import '../l10n/app_localizations.dart';
@@ -415,7 +413,7 @@ class _ContentSizeSliderState extends State<ContentSizeSlider> {
       _lastDragIndex = index;
     }
     if (current != index) {
-      unawaited(HapticFeedback.selectionClick());
+      unawaited(AppHaptics.tap());
     }
     widget.onChanged(contentSizePresets[index]);
   }

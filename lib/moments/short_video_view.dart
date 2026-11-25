@@ -1,9 +1,7 @@
 import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:mithka/l10n/app_localizations.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-
 import '../app/app_navigator.dart';
 import '../app/ipad_window_chrome.dart';
 import '../chat/chat_picker_view.dart';

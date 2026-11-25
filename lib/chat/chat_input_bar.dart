@@ -10,11 +10,11 @@
 import 'dart:async';
 import 'dart:io';
 import 'dart:math' as math;
-
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart' show defaultTargetPlatform, kIsWeb;
 import 'package:flutter/gestures.dart' show kTouchSlop;
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart' show RenderAbstractViewport;
 import 'package:flutter/semantics.dart' show CustomSemanticsAction;
 import 'package:flutter/services.dart';
 import 'package:flutter_sound/flutter_sound.dart';
@@ -24,11 +24,11 @@ import 'package:latlong2/latlong.dart';
 import 'package:logger/logger.dart' show Level;
 import 'package:mithka/components/app_text_selection_toolbar.dart';
 import 'package:mithka/l10n/app_localizations.dart';
+import 'package:mithka/platform/app_haptics.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:provider/provider.dart';
 import 'package:record/record.dart' as desktop_record;
-
 import '../app/desktop_utility_window.dart';
 import '../app/diagnostic_breadcrumbs.dart';
 import '../components/app_dialog.dart';
@@ -42,8 +42,10 @@ import '../components/ui_components.dart';
 import '../media/app_asset_picker.dart';
 import '../media/camera_capture.dart';
 import '../media/media_metadata.dart';
+import '../platform/adaptive_platform.dart';
 import '../platform/desktop_clipboard_images.dart';
 import '../platform/desktop_screenshot.dart';
+import '../platform/keyboard_image_paste.dart';
 import '../platform/keyboard_modifiers.dart';
 import '../platform/ohos_support.dart';
 import '../settings/ai_settings_controller.dart';
@@ -61,52 +63,61 @@ import '../theme/app_motion.dart';
 import '../theme/app_theme.dart';
 import '../theme/content_size.dart';
 import '../theme/theme_controller.dart';
-import 'ai_reply_service.dart';
-import 'audio_search_view.dart';
-import 'bot_button_presentation.dart';
-import 'bot_platform_service.dart';
-import 'channel_direct_messages_service.dart';
-import 'channel_direct_messages_view.dart';
+import 'admin/channel_direct_messages_service.dart';
+import 'admin/channel_direct_messages_view.dart';
+import 'ai_translation/ai_reply_service.dart';
+import 'ai_translation/telegram_ai_editor_view.dart';
+import 'ai_translation/telegram_ai_service.dart';
 import 'chat_view_model.dart';
-import 'checklist_composer_view.dart';
-import 'contact_share_picker_view.dart';
-import 'custom_emoji.dart';
-import 'desktop_composer_height.dart';
-import 'desktop_voice_message_controller.dart';
-import 'desktop_voice_waveform.dart';
-import 'emoji_panel.dart';
-import 'emoji_panel_layout.dart';
-import 'emoji_recents_store.dart';
-import 'emoji_store.dart';
-import 'emoji_text_controller.dart';
-import 'gif_item.dart';
-import 'gif_preview.dart';
-import 'gif_store.dart';
-import 'image_edit_view.dart';
-import 'link_handler.dart';
-import 'location_picker_view.dart';
-import 'media_library_saver.dart';
-import 'media_send_preview_view.dart';
-import 'message_send_options.dart';
-import 'outgoing_attachment.dart';
-import 'poll_composer_view.dart';
-import 'rich_message_bot_relay.dart';
-import 'rich_message_source.dart';
-import 'rich_text_composer_view.dart';
-import 'scheduled_messages_view.dart';
-import 'sticker_item.dart';
-import 'sticker_preview.dart';
-import 'sticker_set_studio_view.dart';
-import 'sticker_store.dart';
-import 'telegram_ai_editor_view.dart';
-import 'telegram_ai_service.dart';
-import 'telegram_mini_app_view.dart';
-import 'video_note_preview_view.dart';
-import 'video_note_recorder_view.dart';
-import 'voice_draft_card.dart';
-import 'voice_note_trimmer.dart';
-import 'voice_recording_clock.dart';
-import 'voice_recording_session.dart';
+import 'composer/checklist_composer_view.dart';
+import 'composer/contact_share_picker_view.dart';
+import 'composer/desktop_composer_height.dart';
+import 'composer/desktop_voice_message_controller.dart';
+import 'composer/desktop_voice_waveform.dart';
+import 'composer/location_picker_view.dart';
+import 'composer/media_send_preview_view.dart';
+import 'composer/message_send_options.dart';
+import 'composer/outgoing_attachment.dart';
+import 'composer/poll_composer_view.dart';
+import 'composer/rich_message_bot_relay.dart';
+import 'composer/rich_message_source.dart';
+import 'composer/rich_text_composer_view.dart';
+import 'composer/scheduled_messages_view.dart';
+import 'composer/video_note_preview_view.dart';
+import 'composer/video_note_recorder_view.dart';
+import 'composer/voice_draft_card.dart';
+import 'composer/voice_note_trimmer.dart';
+import 'composer/voice_recording_clock.dart';
+import 'composer/voice_recording_session.dart';
+import 'composer_reply_options_sheet.dart';
+import 'favorite_sticker_store.dart';
+import 'forward_handoff.dart';
+import 'links_search/link_handler.dart';
+import 'media/audio_search_view.dart';
+import 'media/image_edit_view.dart';
+import 'media/media_download_service.dart';
+import 'media/media_library_saver.dart';
+import 'media_tile_action_sheet.dart';
+import 'messages/bot_button_presentation.dart';
+import 'messages/forward_options.dart' show isForwardProtectedError;
+import 'mini_apps/bot_platform_service.dart';
+import 'mini_apps/telegram_mini_app_view.dart';
+import 'stickers/custom_emoji.dart';
+import 'stickers/emoji_catalog.dart';
+import 'stickers/emoji_panel.dart';
+import 'stickers/emoji_panel_layout.dart';
+import 'stickers/emoji_recents_store.dart';
+import 'stickers/emoji_store.dart';
+import 'stickers/emoji_text_controller.dart';
+import 'stickers/gif_item.dart';
+import 'stickers/gif_preview.dart';
+import 'stickers/gif_store.dart';
+import 'stickers/sticker_export_service.dart';
+import 'stickers/sticker_item.dart';
+import 'stickers/sticker_preview.dart';
+import 'stickers/sticker_set_detail_view.dart';
+import 'stickers/sticker_set_studio_view.dart';
+import 'stickers/sticker_store.dart';
 
 enum _Panel { none, function, emoji, sticker, voice }
 
@@ -496,6 +507,9 @@ typedef _ComposerVmState = ({
   Object? selectedSender,
   bool canChooseSender,
   bool peerIsBot,
+  int? replyToId,
+  int? replyToChatId,
+  int? replyQuoteRevision,
 });
 
 /// Incoming chat updates are frequent while a user is typing. Rebuilding the
@@ -539,7 +553,12 @@ class ChatInputBar extends StatefulWidget {
     this.quickRepliesEnabled = true,
     this.showCallAction = true,
     this.simpleMode = false,
+    this.initialMediaKind,
+    this.onMediaKindChanged,
     this.onBotTopicCreated,
+    this.onReplyOptionsRequested,
+    this.onForwardOptionsRequested,
+    this.onReplySourceJump,
     this.quickReplyLoader,
     this.quickReplySender,
     this.onVoicePanelOpenedForTesting,
@@ -581,7 +600,28 @@ class ChatInputBar extends StatefulWidget {
   /// the strip's other tools move into the More panel. The native desktop
   /// composer ignores it.
   final bool simpleMode;
+
+  /// The media panel segment ('emoji'/'sticker'/'gif') the panel should open
+  /// on; chat_view restores the last-used segment from preferences. Null (and
+  /// any unrecognized value) means emoji.
+  final String? initialMediaKind;
+
+  /// Reports every segment switch so the caller can persist the last-used
+  /// segment. Fires only on real changes, never on restore.
+  final ValueChanged<String>? onMediaKindChanged;
   final ValueChanged<int>? onBotTopicCreated;
+
+  /// Tapping the reply banner's body asks the host to present the reply
+  /// options sheet (quote selection, reply in another chat). Null leaves the
+  /// banner body inert; hosts that cannot present options keep tap-to-nothing.
+  final VoidCallback? onReplyOptionsRequested;
+
+  /// Tapping the pending-forward banner's body asks the host to present the
+  /// forward options sheet (hide sender, remove caption, render markdown).
+  final VoidCallback? onForwardOptionsRequested;
+
+  /// Long-pressing the reply banner jumps to the original message.
+  final ValueChanged<ChatMessage>? onReplySourceJump;
   @visibleForTesting
   final Future<List<BusinessQuickReplyShortcut>> Function()? quickReplyLoader;
   @visibleForTesting
@@ -652,6 +692,9 @@ class _ChatInputBarState extends State<ChatInputBar>
   static const _maximumPendingClipboardAttachments = 10;
   static const _gifTabId = -2;
   static const _stickerSearchTabId = -3;
+
+  /// Strip pseudo-id for the favorites section (not a real pack id).
+  static const _favoritesTabId = -4;
   static const _emojiSearchTab = 'search';
   static const _imageMimeTypes = <String>[
     'image/png',
@@ -686,11 +729,53 @@ class _ChatInputBarState extends State<ChatInputBar>
   int? _syncedEditingMessageId;
   int _syncedComposerRevision = -1;
   int _syncedComposerFocusTick = 0;
+  int _syncedComposerDismissTick = 0;
   _Panel _panel = _Panel.none;
+
+  /// Reply banner hint alternation (reference client parity): until the user
+  /// has opened the reply-options panel once, the banner's preview line
+  /// periodically swaps with a "tap for reply options" hint so the tap
+  /// affordance is discoverable.
+  bool? _replyHintSeen;
+  Timer? _replyHintTimer;
+  bool _replyHintShowing = false;
+  int _replyHintTick = 0;
 
   _MediaKind _mediaKind = _MediaKind.emoji;
   String _emojiTab = 'standard'; // 'standard' or a custom-emoji pack id
   int? _stickerPack; // active sticker pack id
+
+  /// The sticker panel's own vertical scroller: favorites, the recents
+  /// pseudo-pack and every installed pack stack in one continuous list, with
+  /// the pack strip above anchoring into it.
+  final _stickerPanelScroll = ScrollController();
+
+  /// The emoji panel's own vertical scroller: the standard catalog categories
+  /// and the custom-emoji packs stack in one continuous list.
+  final _emojiPanelScroll = ScrollController();
+
+  /// Guards the sticker strip's scroll-following tab highlight against
+  /// re-entrancy: a tab tap animates the panel scroll to that pack, and the
+  /// resulting ScrollEnd must not be re-read as the user scrolling.
+  bool _stickerPanelAnimatingToPack = false;
+
+  /// The sticker pack header the panel scroll currently anchors to, kept as
+  /// a stable pack id so rebuilds (store loads, search toggles) never lose
+  /// the selection.
+  int _stickerAnchorPackId = StickerStore.recentPackId;
+
+  /// Guards the emoji strip's scroll-following highlight the same way a tab
+  /// tap animates the panel scroll to a category.
+  bool _emojiPanelAnimatingToSection = false;
+
+  /// The offset the active panel scroller sat at when search replaced it,
+  /// restored on cancel so leaving search never loses the user's place.
+  double? _panelScrollRestoreOffset;
+
+  /// Sticker pack loads this panel session already started, keyed by pack id
+  /// and cleared when the load settles, so a rebuild storm over an unloaded
+  /// section cannot re-issue the same getStickerSet query.
+  final Map<int, Future<void>> _stickerPackLoads = {};
   Timer? _panelSearchTimer;
   int _panelSearchGeneration = 0;
   bool _panelSearchLoading = false;
@@ -823,6 +908,16 @@ class _ChatInputBarState extends State<ChatInputBar>
   @override
   void initState() {
     super.initState();
+    // The panel reopens on the last-used segment; anything unknown (including
+    // null) keeps the emoji default set on the field above.
+    switch (widget.initialMediaKind) {
+      case 'sticker':
+        _mediaKind = _MediaKind.sticker;
+      case 'gif':
+        _mediaKind = _MediaKind.gif;
+      case 'emoji' || null:
+        _mediaKind = _MediaKind.emoji;
+    }
     WidgetsBinding.instance.addObserver(this);
     _syncedVmState = _renderedVmState;
     _botPlatform =
@@ -838,6 +933,11 @@ class _ChatInputBarState extends State<ChatInputBar>
       hasFocus: () => _focus.hasFocus,
       isVisible: _isDesktopComposerVisible,
     );
+    KeyboardImagePaste.register(
+      _desktopActionOwner,
+      hasFocus: () => _focus.hasFocus,
+      onImage: _queueKeyboardPastedImage,
+    );
     _desktopScreenshotHotkeyRegistration = DesktopHotkeyRegistry.instance
         .register(
           DesktopHotkeyAction.screenshot,
@@ -850,12 +950,27 @@ class _ChatInputBarState extends State<ChatInputBar>
     _wasEditingMessage = vm.editingMessage != null;
     _syncedEditingMessageId = vm.editingMessage?.id;
     _syncedComposerFocusTick = vm.composerFocusTick;
+    _syncedComposerDismissTick = vm.composerDismissTick;
     _controller.setFormattedText(
       vm.composerFormattedDraft,
       vm.composerDraftEntities,
     );
     _controller.addListener(_onTextChanged);
     _panelSearch.addListener(_queuePanelSearch);
+    _replyHintTimer = Timer.periodic(const Duration(seconds: 6), (_) {
+      // Stop alternating once the flag loads as seen; otherwise flip only
+      // while a reply banner is actually showing.
+      if (_replyHintSeen != false || vm.replyTo == null) return;
+      if (!mounted) return;
+      setState(() {
+        _replyHintShowing = !_replyHintShowing;
+        _replyHintTick++;
+      });
+    });
+    composerReplyOptionsHintSeen().then((seen) {
+      if (!mounted) return;
+      setState(() => _replyHintSeen = seen);
+    });
     _focus.addListener(() {
       var needsRebuild = false;
       var panelChanged = false;
@@ -885,6 +1000,7 @@ class _ChatInputBarState extends State<ChatInputBar>
     EmojiRecentsStore.shared.addListener(_onStore);
     StickerStore.shared.addListener(_onStore);
     GifStore.shared.addListener(_onStore);
+    FavoriteStickerStore.shared.addListener(_onStore);
     _botPlatformUpdates = TdClient.shared
         .updatesOf('updateNewGuestQuery')
         .listen(_handleBotPlatformUpdate);
@@ -1387,6 +1503,9 @@ class _ChatInputBarState extends State<ChatInputBar>
     selectedSender: vm.selectedMessageSender,
     canChooseSender: vm.canChooseMessageSender,
     peerIsBot: vm.peerIsBot,
+    replyToId: vm.replyTo?.id,
+    replyToChatId: vm.replyToChatId,
+    replyQuoteRevision: vm.replyQuote?.position,
   );
 
   void _syncFromVm() {
@@ -1400,6 +1519,12 @@ class _ChatInputBarState extends State<ChatInputBar>
     if (focusRequested) {
       _syncedComposerFocusTick = focusTick;
       _focusComposerForTranscriptReply();
+    }
+    final dismissTick = vm.composerDismissTick;
+    final dismissRequested = dismissTick != _syncedComposerDismissTick;
+    if (dismissRequested) {
+      _syncedComposerDismissTick = dismissTick;
+      _setPanel(_Panel.none);
     }
     final hadText = _hasText;
     final controllerTextBeforeSync = _controller.text;
@@ -1552,6 +1677,7 @@ class _ChatInputBarState extends State<ChatInputBar>
     super.didUpdateWidget(oldWidget);
     if (!identical(oldWidget.vm, widget.vm)) {
       _syncedComposerFocusTick = widget.vm.composerFocusTick;
+      _syncedComposerDismissTick = widget.vm.composerDismissTick;
       _cancelVoiceRecording();
       _discardDesktopVoiceDraft();
       _discardVoiceDraft(rebuild: false);
@@ -1596,12 +1722,14 @@ class _ChatInputBarState extends State<ChatInputBar>
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    _replyHintTimer?.cancel();
     _voiceDisposed = true;
     _recordCancelled = true;
     _clearVoicePresses();
     _desktopComposerHeightLoadGeneration++;
     _desktopScreenshotHotkeyRegistration?.dispose();
     DesktopChatComposerActions._unregister(_desktopActionOwner);
+    KeyboardImagePaste.unregister(_desktopActionOwner);
     // OverlayPortal tears its overlay down with this element. Calling hide()
     // while the portal is already being unmounted asserts because it no
     // longer has a z-order slot, so only clear our logical state here.
@@ -1625,10 +1753,13 @@ class _ChatInputBarState extends State<ChatInputBar>
     EmojiRecentsStore.shared.removeListener(_onStore);
     StickerStore.shared.removeListener(_onStore);
     GifStore.shared.removeListener(_onStore);
+    FavoriteStickerStore.shared.removeListener(_onStore);
     if (widget.quickReplyLoader == null) {
       BusinessQuickReplyService.shared.removeListener(_syncQuickReplyCache);
     }
     _controller.dispose();
+    _stickerPanelScroll.dispose();
+    _emojiPanelScroll.dispose();
     _panelSearch
       ..removeListener(_queuePanelSearch)
       ..dispose();
@@ -1845,9 +1976,9 @@ class _ChatInputBarState extends State<ChatInputBar>
     };
   }
 
-  /// The sticker tab to show: an explicit pick while it still names a tab in
-  /// the loaded list, otherwise the first installed set, and recents when no
-  /// set is installed at all.
+  /// The sticker tab the panel anchors to: an explicit pick while it still
+  /// names a tab in the loaded list, otherwise the first installed set, and
+  /// recents when no set is installed at all.
   int get _activeStickerTab {
     final selected = _stickerPack;
     if (selected == _stickerSearchTabId) return _stickerSearchTabId;
@@ -1857,6 +1988,49 @@ class _ChatInputBarState extends State<ChatInputBar>
       }
     }
     return StickerStore.shared.defaultPackId;
+  }
+
+  /// Finds a pack by id in the loaded list, or null.
+  StickerPack? _findStickerPack(int id) {
+    for (final pack in StickerStore.shared.packs) {
+      if (pack.id == id) return pack;
+    }
+    return null;
+  }
+
+  void _selectEmojiTab(String tab) {
+    if (_emojiTab == tab) return;
+    setState(() => _emojiTab = tab);
+    if (tab == _emojiSearchTab && _panelSearch.text.trim().isNotEmpty) {
+      _queuePanelSearch();
+    }
+  }
+
+  /// Selecting a sticker tab scrolls the panel's continuous pack list to that
+  /// pack (the strip and the list stay in sync in both directions).
+  void _selectStickerTab(int tab) {
+    if (tab != _stickerSearchTabId) {
+      // A pack tab scrolls the continuous list; the search tab swaps content
+      // instead and needs no anchor.
+      if (_stickerPack != tab) {
+        setState(() => _stickerPack = tab);
+      }
+      _scrollStickerPanelToPack(tab);
+      if (tab == _gifTabId) {
+        GifStore.shared.loadIfNeeded();
+      } else if (tab == StickerStore.recentPackId) {
+        StickerStore.shared.loadIfNeeded();
+      } else {
+        final pack = _findStickerPack(tab);
+        if (pack != null) _ensureStickerPackLoaded(pack);
+      }
+      return;
+    }
+    if (_stickerPack == _stickerSearchTabId) return;
+    setState(() => _stickerPack = _stickerSearchTabId);
+    if (_panelSearch.text.trim().isNotEmpty) {
+      _queuePanelSearch();
+    }
   }
 
   void _setPanel(_Panel next) {
@@ -1873,28 +2047,6 @@ class _ChatInputBarState extends State<ChatInputBar>
     widget.onPanelGeometryChanged?.call();
   }
 
-  void _selectEmojiTab(String tab) {
-    if (_emojiTab == tab) return;
-    setState(() => _emojiTab = tab);
-    if (tab == _emojiSearchTab && _panelSearch.text.trim().isNotEmpty) {
-      _queuePanelSearch();
-    }
-  }
-
-  void _selectStickerTab(int tab) {
-    if (_stickerPack == tab) return;
-    setState(() => _stickerPack = tab);
-    if (tab == _stickerSearchTabId && _panelSearch.text.trim().isNotEmpty) {
-      _queuePanelSearch();
-    } else if (tab == _gifTabId) {
-      GifStore.shared.loadIfNeeded();
-    } else if (tab == StickerStore.recentPackId) {
-      StickerStore.shared.loadIfNeeded();
-    } else {
-      StickerStore.shared.loadPack(tab);
-    }
-  }
-
   void _selectMediaKind(_MediaKind kind) {
     if (_mediaKind == kind) return;
     var stickerPack = _stickerPack;
@@ -1907,17 +2059,19 @@ class _ChatInputBarState extends State<ChatInputBar>
       _mediaKind = kind;
       _stickerPack = stickerPack;
     });
+    widget.onMediaKindChanged?.call(kind.name);
     switch (kind) {
       case _MediaKind.emoji:
         EmojiStore.shared.loadIfNeeded();
         EmojiRecentsStore.shared.loadIfNeeded();
       case _MediaKind.sticker:
+        FavoriteStickerStore.shared.loadIfNeeded();
         final activeId = _activeStickerTab;
         if (activeId == StickerStore.recentPackId ||
             activeId == _stickerSearchTabId) {
           StickerStore.shared.loadIfNeeded();
         } else {
-          StickerStore.shared.loadPack(activeId);
+          _ensureStickerPackLoaded(_findStickerPack(activeId));
         }
       case _MediaKind.gif:
         GifStore.shared.loadIfNeeded();
@@ -1927,11 +2081,13 @@ class _ChatInputBarState extends State<ChatInputBar>
     }
   }
 
-  /// Toggles the unified media panel from the composer's media button.
+  /// Toggles the media panel from the composer's media button.
   ///
   /// Opening keeps the last-used segment (emoji until the user picks
   /// another); tapping again closes the panel. Switching segments inside an
-  /// open panel goes through [_selectMediaKind] instead.
+  /// open panel goes through [_selectMediaKind] instead. Each kind renders
+  /// its own content area, so a persisted non-emoji segment needs no scroll
+  /// restoration: the panel simply builds that kind's panel first.
   void _toggleMediaPanel() {
     if (_mediaPanelOpen) {
       _toggle(_Panel.none);
@@ -1943,6 +2099,7 @@ class _ChatInputBarState extends State<ChatInputBar>
         EmojiRecentsStore.shared.loadIfNeeded();
       case _MediaKind.sticker:
         StickerStore.shared.loadIfNeeded();
+        FavoriteStickerStore.shared.loadIfNeeded();
       case _MediaKind.gif:
         GifStore.shared.loadIfNeeded();
     }
@@ -2273,12 +2430,12 @@ class _ChatInputBarState extends State<ChatInputBar>
     // A live recording keeps its status line; the failed action (pause or
     // resume) leaves the recording as it was, so only the haptic reports it.
     if (_recording) {
-      unawaited(HapticFeedback.heavyImpact());
+      unawaited(AppHaptics.error());
       return;
     }
     if (_voiceInlineError == error) return;
     setState(() => _voiceInlineError = error);
-    unawaited(HapticFeedback.heavyImpact());
+    unawaited(AppHaptics.error());
   }
 
   void _clearVoiceInlineError() {
@@ -2384,7 +2541,7 @@ class _ChatInputBarState extends State<ChatInputBar>
     }
     if (_voiceDisposed || !mounted) return;
     setState(() => _recording = true);
-    unawaited(HapticFeedback.mediumImpact());
+    unawaited(AppHaptics.tap());
     await _recProgress?.cancel();
     final clock = VoiceRecordingClock();
     _recProgress = r.onProgress?.listen((event) {
@@ -2996,6 +3153,36 @@ class _ChatInputBarState extends State<ChatInputBar>
         _focus.requestFocus();
       } catch (error) {
         if (mounted) showToast(context, '$error');
+      }
+      return;
+    }
+    // A pending forward rides the send button first (exteraless parity: the
+    // preview panel's send commits the forward; any typed text follows as a
+    // normal message).
+    if (vm.pendingForward != null) {
+      final canAttemptSend = await vm.prepareMessageSend();
+      if (!mounted || !canAttemptSend) return;
+      try {
+        await vm.sendPendingForward();
+        if (!mounted) return;
+        widget.onMessageSent();
+        final plan = vm.protectedForwardLastPlan;
+        if (plan != null && plan.skippedIds.isNotEmpty) {
+          showToast(
+            context,
+            AppStrings.t(AppStringKeys.keptForwardCopyPartToast, {
+              'value1': plan.copiedCount,
+              'value2': plan.skippedIds.length,
+            }),
+          );
+        }
+        if (_controller.text.trim().isNotEmpty) {
+          await _sendCurrentText();
+        } else {
+          _focus.requestFocus();
+        }
+      } catch (error) {
+        if (mounted) _showForwardFailureFromComposer(error);
       }
       return;
     }
@@ -3928,6 +4115,8 @@ class _ChatInputBarState extends State<ChatInputBar>
               children: [
                 if (editingMessage != null)
                   _editBanner(editingMessage)
+                else if (vm.pendingForward != null)
+                  _forwardBanner(vm.pendingForward!)
                 else if (vm.replyTo != null)
                   _replyBanner(vm.replyTo!),
                 if (editingMessage == null)
@@ -3975,14 +4164,16 @@ class _ChatInputBarState extends State<ChatInputBar>
                   else if (editingMessage == null)
                     _iconStrip(),
                 ],
-                if (editingMessage == null &&
-                    !desktopComposer &&
-                    _panel == _Panel.function)
-                  simpleComposer ? _simpleMorePanel() : _functionPanel(),
-                if (editingMessage == null &&
-                    !desktopComposer &&
-                    (_panel == _Panel.emoji || _panel == _Panel.sticker))
-                  _mediaPanel(),
+                if (editingMessage == null && !desktopComposer)
+                  _animatedDockedPanel(
+                    visible: _panel == _Panel.function,
+                    builder: simpleComposer ? _simpleMorePanel : _functionPanel,
+                  ),
+                if (editingMessage == null && !desktopComposer)
+                  _animatedDockedPanel(
+                    visible: _panel == _Panel.emoji || _panel == _Panel.sticker,
+                    builder: _mediaPanel,
+                  ),
                 if (editingMessage == null && _panel == _Panel.voice)
                   _voicePanel(),
               ],
@@ -4736,47 +4927,241 @@ class _ChatInputBarState extends State<ChatInputBar>
 
   Widget _replyBanner(ChatMessage m) {
     final c = context.colors;
-    return Padding(
-      padding: const EdgeInsets.only(left: 12, right: 12, top: 8),
-      child: Container(
-        height: 38,
-        padding: const EdgeInsets.symmetric(horizontal: 12),
-        decoration: BoxDecoration(
-          color: c.searchFill,
-          borderRadius: BorderRadius.circular(AppRadius.control),
-        ),
-        child: Row(
-          children: [
-            Expanded(
-              child: Text(
-                _replyLine(m),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(fontSize: 13, color: c.textSecondary),
-              ),
-            ),
-            const SizedBox(width: 8),
-            GestureDetector(
-              onTap: () => vm.setReply(null),
-              child: AppIcon(
-                HeroAppIcons.xmark,
-                size: 18,
-                color: c.textTertiary,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  String _replyLine(ChatMessage m) {
+    final externalChatId = vm.replyToChatId;
+    final quote = vm.replyQuote;
     final name = m.isOutgoing
         ? vm.meName
         : (m.senderName?.isNotEmpty ?? false)
         ? m.senderName!
         : vm.peerTitle;
-    return '$name:${vm.replyQuote?.text ?? _replyPreview(m)}';
+    final preview = quote?.text ?? _replyPreview(m);
+    final title = externalChatId == null
+        ? (quote != null
+              ? AppStrings.t(AppStringKeys.composerReplyToQuoteName, {
+                  'value1': name,
+                })
+              : AppStrings.t(AppStringKeys.composerReplyToName, {
+                  'value1': name,
+                }))
+        : AppStrings.t(AppStringKeys.composerReplyToExternalName, {
+            'value1': name,
+          });
+    final thumb = m.image?.thumbnail ?? m.image;
+    return SizedBox(
+      key: const ValueKey('composerReplyBanner'),
+      height: 46,
+      child: Row(
+        children: [
+          // Leading icon block: 52x46, matching the reference client's
+          // reply-panel icon slot so the banner reads as one strip.
+          SizedBox(
+            width: 52,
+            height: 46,
+            child: Center(
+              child: AppIcon(
+                quote != null ? HeroAppIcons.quoteLeft : HeroAppIcons.reply,
+                size: 19,
+                color: c.linkBlue,
+              ),
+            ),
+          ),
+          Expanded(
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: widget.onReplyOptionsRequested,
+              onLongPress: () => widget.onReplySourceJump?.call(m),
+              child: SizedBox(
+                height: 46,
+                child: Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: AppTextStyle.body(
+                          c.linkBlue,
+                          weight: AppTextWeight.semibold,
+                        ),
+                      ),
+                      if (preview.isNotEmpty)
+                        AnimatedSwitcher(
+                          duration: const Duration(milliseconds: 150),
+                          child: _replyHintShowing && _replyHintSeen == false
+                              ? Text(
+                                  key: ValueKey(
+                                    'composerReplyHint-$_replyHintTick',
+                                  ),
+                                  AppStrings.t(
+                                    AppStringKeys.composerReplyTapHint,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: AppTextStyle.body(c.textSecondary),
+                                )
+                              : Text(
+                                  key: ValueKey(
+                                    'composerReplyPreview-$_replyHintTick',
+                                  ),
+                                  preview,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: AppTextStyle.body(c.textSecondary),
+                                ),
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+          if (thumb != null) ...[
+            ClipRRect(
+              borderRadius: BorderRadius.circular(6),
+              child: SizedBox(
+                width: 34,
+                height: 34,
+                child: TDImage(photo: thumb, cacheWidth: 68, cacheHeight: 68),
+              ),
+            ),
+            const SizedBox(width: 8),
+          ],
+          // Close: 52x46 with a circular ripple, mirroring the reference
+          // client's reply-close hit target.
+          SizedBox(
+            width: 52,
+            height: 46,
+            child: AppInteractiveSurface(
+              key: const ValueKey('composerReplyClose'),
+              semanticLabel: AppStringKeys.confirmCancel.l10n(context),
+              onTap: () => vm.setReply(null),
+              borderRadius: BorderRadius.circular(19),
+              child: Center(
+                child: AppIcon(
+                  HeroAppIcons.xmark,
+                  size: 17,
+                  color: c.textTertiary,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// The pending-forward banner (forward-to-chat, exteraless parity): the
+  /// same strip language as the reply banner, with the option toggles the
+  /// reference client's forward preview panel carries. Tapping the body
+  /// opens the forward options sheet; the close button cancels the forward.
+  Widget _forwardBanner(PendingForward forward) {
+    final c = context.colors;
+    final first = forward.messages.first;
+    final count = forward.messages.length;
+    final title = count > 1
+        ? AppStrings.t(AppStringKeys.chatForwardPendingCount, {'value1': count})
+        : AppStrings.t(AppStringKeys.chatForwardPending);
+    final previewLines = <String>[
+      for (final message in forward.messages.take(2))
+        if (_forwardPreviewLine(message).isNotEmpty)
+          _forwardPreviewLine(message),
+      if (count > 2)
+        AppStrings.t(AppStringKeys.chatForwardPendingMore, {
+          'value1': count - 2,
+        }),
+    ];
+    final thumb = first.image?.thumbnail ?? first.image;
+    return SizedBox(
+      key: const ValueKey('composerForwardBanner'),
+      height: 46,
+      child: Row(
+        children: [
+          SizedBox(
+            width: 52,
+            height: 46,
+            child: Center(
+              child: AppIcon(HeroAppIcons.forward, size: 19, color: c.linkBlue),
+            ),
+          ),
+          Expanded(
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: widget.onForwardOptionsRequested,
+              child: SizedBox(
+                height: 46,
+                child: Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: AppTextStyle.body(
+                          c.linkBlue,
+                          weight: AppTextWeight.semibold,
+                        ),
+                      ),
+                      if (previewLines.isNotEmpty)
+                        Text(
+                          previewLines.join('  '),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: AppTextStyle.body(c.textSecondary),
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+          if (thumb != null) ...[
+            ClipRRect(
+              borderRadius: BorderRadius.circular(6),
+              child: SizedBox(
+                width: 34,
+                height: 34,
+                child: TDImage(photo: thumb, cacheWidth: 68, cacheHeight: 68),
+              ),
+            ),
+            const SizedBox(width: 8),
+          ],
+          SizedBox(
+            width: 52,
+            height: 46,
+            child: AppInteractiveSurface(
+              key: const ValueKey('composerForwardClose'),
+              semanticLabel: AppStringKeys.confirmCancel.l10n(context),
+              onTap: () => vm.clearPendingForward(),
+              borderRadius: BorderRadius.circular(19),
+              child: Center(
+                child: AppIcon(
+                  HeroAppIcons.xmark,
+                  size: 17,
+                  color: c.textTertiary,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _forwardPreviewLine(ChatMessage m) => _replyPreview(m);
+
+  void _showForwardFailureFromComposer(Object error) {
+    showToast(
+      context,
+      isForwardProtectedError(error)
+          ? AppStringKeys.chatForwardProtected
+          : AppStrings.t(AppStringKeys.chatForwardFailed, {'value1': error}),
+    );
   }
 
   String _replyPreview(ChatMessage m) {
@@ -4851,6 +5236,7 @@ class _ChatInputBarState extends State<ChatInputBar>
         EmojiRecentsStore.shared.loadIfNeeded();
       case _MediaKind.sticker:
         StickerStore.shared.loadIfNeeded();
+        FavoriteStickerStore.shared.loadIfNeeded();
       case _MediaKind.gif:
         GifStore.shared.loadIfNeeded();
     }
@@ -5973,11 +6359,13 @@ class _ChatInputBarState extends State<ChatInputBar>
         _hasText ||
         editing ||
         _pendingClipboardAttachments.isNotEmpty ||
-        voiceDraft != null;
+        voiceDraft != null ||
+        vm.pendingForward != null;
     final replyTarget = _currentAiReplyTarget();
     final aiReplyWorking =
         replyTarget != null && _aiReplyWorkingTargetId == replyTarget.id;
     final showAiReply =
+        (aiReplyWorking || aiSettings?.replyButtonEnabled == true) &&
         !editing &&
         (!hasText || aiReplyWorking) &&
         replyTarget != null &&
@@ -7149,9 +7537,11 @@ class _ChatInputBarState extends State<ChatInputBar>
             (!_hasText && _pendingClipboardAttachments.isEmpty));
     final replyTarget = _currentAiReplyTarget();
     final aiReplyWorking = _aiReplyWorkingTargetId != null;
+    final aiReplyButtonEnabled = aiSettings?.replyButtonEnabled == true;
     final canUseAiReply =
         aiReplyWorking ||
-        (!_hasText &&
+        (aiReplyButtonEnabled &&
+            !_hasText &&
             replyTarget != null &&
             _canOfferAiReply(replyTarget, aiSettings));
     final canUseAiEditor =
@@ -7351,25 +7741,27 @@ class _ChatInputBarState extends State<ChatInputBar>
             active: false,
             onTap: () => unawaited(_openRichTextComposer()),
           ),
-          _desktopIcon(
-            key: const ValueKey('desktopComposerAiReplyAction'),
-            icon: aiReplyWorking
-                ? HeroAppIcons.xmark
-                : HeroAppIcons.wandMagicSparkles,
-            semanticLabel: aiReplyWorking
-                ? AppStringKeys.confirmCancel.l10n(context)
-                : AppStringKeys.aiReplyAction.l10n(context),
-            active: aiReplyWorking,
-            enabled: canUseAiReply,
-            onTap: aiReplyWorking
-                ? () => _invalidateAiReplyGeneration(clearProgress: true)
-                : replyTarget == null
-                ? null
-                : () => unawaited(_generateAiReply(replyTarget)),
-            onLongPress: !aiReplyWorking && canUseAiReply && replyTarget != null
-                ? () => unawaited(_showAiReplyModelPicker(replyTarget))
-                : null,
-          ),
+          if (aiReplyWorking || aiReplyButtonEnabled)
+            _desktopIcon(
+              key: const ValueKey('desktopComposerAiReplyAction'),
+              icon: aiReplyWorking
+                  ? HeroAppIcons.xmark
+                  : HeroAppIcons.wandMagicSparkles,
+              semanticLabel: aiReplyWorking
+                  ? AppStringKeys.confirmCancel.l10n(context)
+                  : AppStringKeys.aiReplyAction.l10n(context),
+              active: aiReplyWorking,
+              enabled: canUseAiReply,
+              onTap: aiReplyWorking
+                  ? () => _invalidateAiReplyGeneration(clearProgress: true)
+                  : replyTarget == null
+                  ? null
+                  : () => unawaited(_generateAiReply(replyTarget)),
+              onLongPress:
+                  !aiReplyWorking && canUseAiReply && replyTarget != null
+                  ? () => unawaited(_showAiReplyModelPicker(replyTarget))
+                  : null,
+            ),
           _desktopIcon(
             key: const ValueKey('desktopComposerAiEditorAction'),
             icon: HeroAppIcons.palette,
@@ -8076,6 +8468,18 @@ class _ChatInputBarState extends State<ChatInputBar>
     unawaited(_sendInsertedImage(content));
   }
 
+  Future<void> _queueKeyboardPastedImage(
+    Uint8List data,
+    String mimeType,
+  ) async {
+    // Same rules as a context-menu paste: an edit keeps its media, and the
+    // field is read-only while a voice draft sends.
+    if (vm.editingMessage != null || (_voiceDraft?.sending ?? false)) return;
+    await _queueClipboardImageData(
+      DesktopClipboardImageData(data: data, mimeType: mimeType),
+    );
+  }
+
   Future<void> _sendInsertedImage(KeyboardInsertedContent content) async {
     if (!content.mimeType.toLowerCase().startsWith('image/')) return;
     var data = content.data;
@@ -8442,6 +8846,22 @@ class _ChatInputBarState extends State<ChatInputBar>
     final relay = RichMessageBotRelay();
     var sentAny = false;
     _showRelayProgress();
+    // A relayed copy is a forward the view model never builds, so the "All"
+    // view's topic is resolved here, once for the whole burst, and handed to
+    // every copy: a rich document must not open one topic per segment.
+    RichMessageSendSegment? titledSegment;
+    for (final segment in segments) {
+      if (segment.isHtml) {
+        titledSegment = segment;
+        break;
+      }
+    }
+    final topicRef = titledSegment == null
+        ? await widget.vm.botTopicRefForSend()
+        : await widget.vm.botTopicRefForSend(
+            html: titledSegment.html,
+            blocks: titledSegment.blocks,
+          );
     try {
       for (final segment in segments) {
         if (segment.isHtml) {
@@ -8464,9 +8884,11 @@ class _ChatInputBarState extends State<ChatInputBar>
             tdClient: TdClient.shared,
             files: files,
             blocks: segment.blocks,
+            topicRef: topicRef,
             onProgress: _updateRelayProgress,
           );
           sentAny = true;
+          widget.vm.announceBotTopicRef(topicRef);
         } else {
           for (final attachment in segment.attachments) {
             await relay.sendAttachmentAndCopy(
@@ -8475,9 +8897,11 @@ class _ChatInputBarState extends State<ChatInputBar>
               currentUserId: currentUserId,
               targetChatId: widget.vm.chatId,
               tdClient: TdClient.shared,
+              topicRef: topicRef,
               onProgress: _updateRelayProgress,
             );
             sentAny = true;
+            widget.vm.announceBotTopicRef(topicRef);
           }
         }
       }
@@ -9087,23 +9511,78 @@ class _ChatInputBarState extends State<ChatInputBar>
     );
   }
 
-  // MARK: - Unified media panel (emoji / stickers / GIF)
+  /// A docked panel slot that grows and shrinks with the house motion
+  /// language instead of swapping instantly: opening (button tap) and
+  /// collapsing (toggle, transcript-drag dismiss, send) both animate. The
+  /// outgoing child stays in the tree while the slot collapses, so its state
+  /// (scroll offsets, store subscriptions) survives a same-panel reopen only
+  /// through the panel's own persistence — never through this animation.
+  Widget _animatedDockedPanel({
+    required bool visible,
+    required Widget Function() builder,
+  }) {
+    final reduceMotion = AppMotion.isReduced(context);
+    // Collapse runs on the accelerate curve (content leaving gets out of the
+    // way quickly — the drag-dismiss the user called "not clean"), expansion
+    // keeps the standard decelerate. AnimatedSize has no reverseCurve, so the
+    // snappier collapse comes from the shorter reverseDuration alone.
+    return AnimatedSize(
+      duration: reduceMotion
+          ? Duration.zero
+          : AppMotion.duration(context, AppMotion.responsive),
+      reverseDuration: reduceMotion
+          ? Duration.zero
+          : AppMotion.duration(context, AppMotion.quick),
+      curve: AppMotion.standard,
+      alignment: Alignment.topCenter,
+      clipBehavior: Clip.none,
+      child: AnimatedSwitcher(
+        duration: reduceMotion
+            ? Duration.zero
+            : AppMotion.duration(context, AppMotion.quick),
+        switchInCurve: Curves.easeOutCubic,
+        switchOutCurve: Curves.easeInCubic,
+        transitionBuilder: (child, animation) =>
+            FadeTransition(opacity: animation, child: child),
+        child: visible
+            ? KeyedSubtree(
+                key: const ValueKey('dockedPanelContent'),
+                child: builder(),
+              )
+            : const SizedBox(width: double.infinity),
+      ),
+    );
+  }
 
-  /// One picker with a segmented selector (Emoji | Stickers | GIF) above each
-  /// kind's own tab strip and content, painted on the composer's own surface
-  /// so it continues the input bar instead of reading as a separate block.
-  /// Rendered for both `_Panel.emoji` and `_Panel.sticker`.
+  // MARK: - Media panel (emoji / stickers / GIF)
+
+  /// One picker with a segmented selector (Emoji | Stickers | GIF) above the
+  /// active kind's own strip and content, painted on the composer's own
+  /// surface so it continues the input bar instead of reading as a separate
+  /// block. The kinds switch instantly — there is no inter-kind scrolling.
+  /// Rendered for both `_Panel.emoji` and `_Panel.sticker`, and by the
+  /// desktop media popover.
   Widget _mediaPanel({double height = 376}) {
+    final searchSelected = _isPanelSearchSelected;
     return Container(
       key: const ValueKey('composerMediaPanel'),
       height: height,
       color: _composerDockedSurfaceColor,
       child: Column(
         children: [
-          _mediaKindSegmentControl(),
-          _mediaSecondaryStrip(),
-          if (_isPanelSearchSelected) _panelSearchField(),
-          Expanded(child: _mediaContent()),
+          Row(
+            children: [
+              Expanded(child: _mediaKindSegmentControl()),
+              _mediaPanelSearchButton(active: searchSelected),
+            ],
+          ),
+          if (searchSelected) ...[
+            _panelSearchField(),
+            Expanded(child: _panelSearchContent()),
+          ] else ...[
+            _mediaSecondaryStrip(),
+            Expanded(child: _mediaContent()),
+          ],
         ],
       ),
     );
@@ -9122,6 +9601,875 @@ class _ChatInputBarState extends State<ChatInputBar>
       _MediaKind.gif =>
         _gifSearchSelected ? _gifSearchContent() : _gifContent(),
     };
+  }
+
+  Widget _gifContent() {
+    final store = GifStore.shared;
+    final items = store.items;
+    if (items.isEmpty) {
+      return Center(
+        child: Text(
+          store.loading
+              ? AppStrings.t(AppStringKeys.composerLoadingGifs)
+              : AppStrings.t(AppStringKeys.composerNoGifs),
+          style: TextStyle(fontSize: 13, color: context.colors.textSecondary),
+        ),
+      );
+    }
+    return GridView.builder(
+      key: const ValueKey('gifPanelGrid'),
+      padding: const EdgeInsets.all(8),
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 3,
+        childAspectRatio: 1.2,
+        mainAxisSpacing: 4,
+        crossAxisSpacing: 4,
+      ),
+      itemCount: items.length,
+      itemBuilder: (_, index) => _gifTile(items[index]),
+    );
+  }
+
+  // MARK: Sticker panel
+
+  /// The packs the sticker panel lists vertically, in strip order: recents
+  /// first when non-empty, then every installed pack. Favorites render as
+  /// their own leading section inside the list.
+  List<StickerPack> _stickerPanelPacks() {
+    final packs = StickerStore.shared.packs
+        .where((p) => p.id != StickerStore.recentPackId)
+        .toList(growable: false);
+    final recents = StickerStore.shared.packs
+        .where((p) => p.id == StickerStore.recentPackId)
+        .toList(growable: false);
+    return [...recents, ...packs];
+  }
+
+  /// The sticker panel: favorites + every pack stacked in ONE continuously
+  /// scrollable list (a pack's grid flows into the next pack's header), with
+  /// the pack strip on top anchoring into it in both directions.
+  Widget _stickerContent() {
+    final store = StickerStore.shared;
+    final packs = _stickerPanelPacks();
+    final favorites = FavoriteStickerStore.shared.items;
+    if (packs.isEmpty && favorites.isEmpty) {
+      return Center(
+        child: Text(
+          store.loading
+              ? AppStrings.t(AppStringKeys.composerLoadingEmoji)
+              : AppStrings.t(AppStringKeys.composerNoEmoji),
+          style: TextStyle(fontSize: 13, color: context.colors.textSecondary),
+        ),
+      );
+    }
+    return NotificationListener<ScrollNotification>(
+      onNotification: _onStickerPanelScrollNotification,
+      child: CustomScrollView(
+        key: const ValueKey('stickerPanelScroll'),
+        controller: _stickerPanelScroll,
+        slivers: [
+          const SliverToBoxAdapter(child: SizedBox(height: 8)),
+          if (favorites.isNotEmpty) ...[
+            Builder(
+              builder: (context) {
+                _favoritesHeaderContext = context;
+                return SliverToBoxAdapter(
+                  child: _mediaSubsectionHeader(
+                    const ValueKey('mediaStickerPack-favorites'),
+                    AppStrings.t(AppStringKeys.mediaFavorites),
+                  ),
+                );
+              },
+            ),
+            SliverPadding(
+              padding: const EdgeInsets.all(12),
+              sliver: SliverGrid(
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 4,
+                  mainAxisSpacing: 8,
+                  crossAxisSpacing: 8,
+                ),
+                delegate: SliverChildBuilderDelegate(
+                  (context, index) => _stickerTile(favorites[index]),
+                  childCount: favorites.length,
+                ),
+              ),
+            ),
+          ],
+          for (final pack in packs) ...[
+            SliverToBoxAdapter(child: _mediaStickerPackHeader(pack)),
+            if (!pack.loaded && pack.stickers.isEmpty)
+              const SliverToBoxAdapter(
+                child: Padding(
+                  padding: EdgeInsets.symmetric(vertical: 14),
+                  child: SizedBox(
+                    height: 24,
+                    child: Center(
+                      child: SizedBox(
+                        width: 22,
+                        height: 22,
+                        child: CircularProgressIndicator.adaptive(
+                          strokeWidth: 2,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              )
+            else
+              SliverPadding(
+                padding: const EdgeInsets.all(12),
+                sliver: SliverGrid(
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 4,
+                    mainAxisSpacing: 8,
+                    crossAxisSpacing: 8,
+                  ),
+                  delegate: SliverChildBuilderDelegate(
+                    (context, index) => _stickerTile(
+                      pack.stickers[index],
+                      recent: pack.id == StickerStore.recentPackId,
+                    ),
+                    childCount: pack.stickers.length,
+                  ),
+                ),
+              ),
+          ],
+          const SliverToBoxAdapter(child: SizedBox(height: 8)),
+        ],
+      ),
+    );
+  }
+
+  /// Scroll-follow for the sticker strip: the highlighted tab is the pack
+  /// whose header last crossed the viewport top, exactly the anchor logic the
+  /// unified panel used scoped to packs.
+  bool _onStickerPanelScrollNotification(ScrollNotification notification) {
+    if (notification is! ScrollEndNotification &&
+        notification is! ScrollUpdateNotification) {
+      return false;
+    }
+    if (_stickerPanelAnimatingToPack) {
+      if (notification is ScrollEndNotification) {
+        _stickerPanelAnimatingToPack = false;
+      }
+      return false;
+    }
+    if (!_stickerPanelScroll.hasClients) return false;
+    if (_isPanelSearchSelected) return false;
+    final packId = _stickerPackAtViewportTop();
+    if (packId == null || packId == _stickerAnchorPackId) return false;
+    if (packId == _stickerSearchTabId || packId == _gifTabId) return false;
+    setState(() => _stickerAnchorPackId = packId);
+    return false;
+  }
+
+  /// The pack whose header sits at (or just above) the viewport top.
+  int? _stickerPackAtViewportTop() {
+    final position = _stickerPanelScroll.position;
+    // Favorites render ahead of every pack: while the favorites header is
+    // above the viewport top (and the first pack's header is not), the strip
+    // highlights the favorites pseudo-tab.
+    if (FavoriteStickerStore.shared.items.isNotEmpty) {
+      final favoritesOffset = _packHeaderContextOffset(_favoritesHeaderContext);
+      final firstPack = _stickerPanelPacks().firstOrNull;
+      final firstPackOffset = firstPack == null
+          ? null
+          : _packHeaderScrollOffset(firstPack.id, position);
+      if (favoritesOffset != null &&
+          position.pixels + 2.0 >= favoritesOffset &&
+          (firstPackOffset == null ||
+              position.pixels + 2.0 < firstPackOffset)) {
+        return _favoritesTabId;
+      }
+    }
+    final packs = _stickerPanelPacks();
+    if (packs.isEmpty) return null;
+    // The scroll cannot advance past maxScrollExtent, so the last packs'
+    // headers may never reach the top. At the end of the scroll the tail is
+    // what the user is looking at: the last pack wins.
+    if (position.pixels >= position.maxScrollExtent - 0.5) {
+      return packs.last.id;
+    }
+    int? best;
+    for (final pack in packs) {
+      final offset = _packHeaderScrollOffset(pack.id, position);
+      if (offset != null && position.pixels + 2.0 >= offset) best = pack.id;
+    }
+    return best ?? packs.first.id;
+  }
+
+  /// The scroll offset that puts a pack header at the viewport top, measured
+  /// through the header's live render box so it stays exact even while
+  /// earlier packs load or resize.
+  double? _packHeaderScrollOffset(int packId, ScrollPosition position) {
+    return _packHeaderContextOffset(_packHeaderContexts[packId]);
+  }
+
+  double? _packHeaderContextOffset(BuildContext? context) {
+    if (context == null) return null;
+    final box = context.findRenderObject();
+    if (box is! RenderBox || !box.attached || !box.hasSize) return null;
+    final viewport = RenderAbstractViewport.maybeOf(box);
+    if (viewport == null) return null;
+    return viewport.getOffsetToReveal(box, 0).offset;
+  }
+
+  /// Pack header BuildContexts registered as the list builds, keyed by pack
+  /// id, so the strip's anchor math can measure any pack's header — even ones
+  /// scrolled far off-screen stay registered once built (forward slivers all
+  /// lay out in a CustomScrollView).
+  final Map<int, BuildContext> _packHeaderContexts = {};
+
+  /// Tab tapped (or the panel reopened on a persisted pack): scroll so that
+  /// pack's header sits at the top of the viewport.
+  void _scrollStickerPanelToPack(int packId) {
+    if (!_stickerPanelScroll.hasClients) {
+      // The search overlay can still be unwinding from this same tap: retry
+      // once the panel scroll has rebuilt and attached.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted &&
+            !_isPanelSearchSelected &&
+            _stickerPanelScroll.hasClients) {
+          _scrollStickerPanelToPack(packId);
+        }
+      });
+      return;
+    }
+    final position = _stickerPanelScroll.position;
+    final target = _packHeaderScrollOffset(packId, position);
+    if (target == null) return;
+    final clamped = target.clamp(
+      position.minScrollExtent,
+      position.maxScrollExtent,
+    );
+    if ((clamped - position.pixels).abs() < 0.5) return;
+    _stickerPanelAnimatingToPack = true;
+    _stickerPanelScroll.animateTo(
+      clamped,
+      duration: AppMotion.duration(context, AppMotion.routeReverse),
+      curve: AppMotion.standard,
+    );
+  }
+
+  /// Starts the pack's first load the moment its section builds without
+  /// contents; one in-flight load per pack per session, retried after a
+  /// failure because the entry is removed when the future settles.
+  void _ensureStickerPackLoaded(StickerPack? pack) {
+    if (pack == null || pack.loaded || pack.stickers.isNotEmpty) return;
+    if (_stickerPackLoads.containsKey(pack.id)) return;
+    final load = StickerStore.shared
+        .loadPack(pack.id)
+        .whenComplete(() => _stickerPackLoads.remove(pack.id));
+    _stickerPackLoads[pack.id] = load;
+  }
+
+  /// A sticker pack's header row; lazily starts the pack's first load the
+  /// moment the section builds without contents and registers its context
+  /// for the strip's anchor math.
+  Widget _mediaStickerPackHeader(StickerPack pack) {
+    _ensureStickerPackLoaded(pack);
+    final title = pack.id == StickerStore.recentPackId
+        ? AppStrings.t(AppStringKeys.stickerStoreRecent)
+        : pack.title;
+    return Builder(
+      builder: (context) {
+        _packHeaderContexts[pack.id] = context;
+        return _mediaSubsectionHeader(
+          ValueKey('mediaStickerPack-${pack.id}'),
+          title,
+        );
+      },
+    );
+  }
+
+  /// The horizontally scrollable pack strip above the sticker panel: the
+  /// search entry, recents, favorites when any exist, then one thumbnail per
+  /// installed pack. Tapping a tab scrolls the panel list to that pack;
+  /// scrolling the list highlights the pack at the top.
+  Widget _stickerTabStrip() {
+    final c = context.colors;
+    final packs = StickerStore.shared.packs;
+    final activeId = _activeStickerTab;
+    final installed = packs.where((p) => p.id != StickerStore.recentPackId);
+    final hasFavorites = FavoriteStickerStore.shared.items.isNotEmpty;
+    final hasRecents = packs.any((p) => p.id == StickerStore.recentPackId);
+    return Container(
+      key: const ValueKey('stickerPanelTabs'),
+      decoration: BoxDecoration(
+        color: c.inputBarBackground,
+        border: Border(bottom: BorderSide(color: c.divider, width: 0.5)),
+      ),
+      child: SizedBox(
+        height: 50,
+        child: ListView(
+          scrollDirection: Axis.horizontal,
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          children: [
+            _emojiTabButton(
+              key: const ValueKey('stickerSearchTab'),
+              selected: activeId == _stickerSearchTabId,
+              onTap: () => _selectStickerTab(_stickerSearchTabId),
+              child: AppIcon(
+                HeroAppIcons.magnifyingGlass,
+                size: 20,
+                color: activeId == _stickerSearchTabId
+                    ? AppTheme.brand
+                    : c.textSecondary,
+              ),
+            ),
+            if (hasFavorites)
+              _emojiTabButton(
+                key: const ValueKey('stickerFavoritesTab'),
+                selected: _stickerAnchorPackId == _favoritesTabId,
+                onTap: _scrollStickerPanelToFavorites,
+                child: AppIcon(
+                  HeroAppIcons.solidStar,
+                  size: 20,
+                  color: _stickerAnchorPackId == _favoritesTabId
+                      ? AppTheme.brand
+                      : c.textSecondary,
+                ),
+              ),
+            if (hasRecents)
+              _emojiTabButton(
+                key: const ValueKey('stickerRecentsTab'),
+                selected: activeId == StickerStore.recentPackId,
+                onTap: () => _selectStickerTab(StickerStore.recentPackId),
+                child: AppIcon(
+                  HeroAppIcons.clock,
+                  size: 20,
+                  color: activeId == StickerStore.recentPackId
+                      ? AppTheme.brand
+                      : c.textSecondary,
+                ),
+              ),
+            for (final pack in installed)
+              _emojiTabButton(
+                key: ValueKey('stickerPackTab-${pack.id}'),
+                selected: pack.id == activeId,
+                onTap: () => _selectStickerTab(pack.id),
+                child: pack.cover != null
+                    ? StickerTabPreview(item: pack.cover!)
+                    : Text(
+                        pack.title.isEmpty ? '' : pack.title.characters.first,
+                        style: TextStyle(color: c.textPrimary),
+                      ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// The favorites pseudo-tab scrolls the panel list to the favorites
+  /// section header (it is not a real pack, so it has no pack id).
+  void _scrollStickerPanelToFavorites() {
+    final ctx = _favoritesHeaderContext;
+    if (ctx == null) return;
+    final box = ctx.findRenderObject();
+    if (box is! RenderBox || !box.attached || !_stickerPanelScroll.hasClients) {
+      return;
+    }
+    final viewport = RenderAbstractViewport.maybeOf(box);
+    if (viewport == null) return;
+    final position = _stickerPanelScroll.position;
+    final target = viewport
+        .getOffsetToReveal(box, 0)
+        .offset
+        .clamp(position.minScrollExtent, position.maxScrollExtent);
+    setState(() => _stickerAnchorPackId = _favoritesTabId);
+    if ((target - position.pixels).abs() < 0.5) return;
+    _stickerPanelAnimatingToPack = true;
+    _stickerPanelScroll.animateTo(
+      target,
+      duration: AppMotion.duration(context, AppMotion.routeReverse),
+      curve: AppMotion.standard,
+    );
+  }
+
+  BuildContext? _favoritesHeaderContext;
+
+  // MARK: Emoji panel
+
+  /// The emoji panel: the standard catalog categories plus one section per
+  /// custom-emoji pack, stacked in ONE continuously scrollable list under the
+  /// panel's own category strip.
+  Widget _emojiContent() {
+    return NotificationListener<ScrollNotification>(
+      onNotification: _onEmojiPanelScrollNotification,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final columns = emojiPanelColumnCount(constraints.maxWidth);
+          _emojiPanelColumns = columns;
+          return CustomScrollView(
+            key: const ValueKey('emojiPanelScroll'),
+            controller: _emojiPanelScroll,
+            slivers: [
+              const SliverToBoxAdapter(child: SizedBox(height: 8)),
+              ...standardEmojiSectionSlivers(
+                context: context,
+                columns: columns,
+                hasRecents:
+                    EmojiRecentsStore.shared.renderableEntries.isNotEmpty,
+                insert: _controller.insertText,
+                insertCustom: _controller.insertCustomEmoji,
+              ),
+              for (final pack in EmojiStore.shared.customPacks) ...[
+                SliverToBoxAdapter(
+                  child: _mediaSubsectionHeader(
+                    ValueKey('mediaEmojiPack-${pack.id}'),
+                    pack.title,
+                  ),
+                ),
+                SliverPadding(
+                  padding: const EdgeInsets.symmetric(horizontal: 10),
+                  sliver: SliverGrid(
+                    gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: columns,
+                      mainAxisExtent: emojiPanelCellExtent,
+                    ),
+                    delegate: SliverChildBuilderDelegate((context, index) {
+                      final item = pack.emoji[index];
+                      return item.customEmojiId != 0
+                          ? EmojiPanelCell(
+                              customItem: item,
+                              onTap: () => _controller.insertCustomEmoji(
+                                item.customEmojiId,
+                                item.emoji,
+                              ),
+                            )
+                          : const SizedBox();
+                    }, childCount: pack.emoji.length),
+                  ),
+                ),
+              ],
+              const SliverToBoxAdapter(child: SizedBox(height: 8)),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  /// The horizontally scrollable strip above the emoji panel: the search
+  /// entry, then the recents and standard category icons, then one thumbnail
+  /// per custom-emoji pack. Tapping an entry scrolls the panel to it.
+  Widget _emojiTabStrip() {
+    final c = context.colors;
+    final packs = EmojiStore.shared.customPacks;
+    final hasRecents = EmojiRecentsStore.shared.renderableEntries.isNotEmpty;
+    return Container(
+      key: const ValueKey('emojiPanelTabs'),
+      decoration: BoxDecoration(
+        color: c.inputBarBackground,
+        border: Border(bottom: BorderSide(color: c.divider, width: 0.5)),
+      ),
+      child: SizedBox(
+        height: 50,
+        child: ListView(
+          scrollDirection: Axis.horizontal,
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          children: [
+            _emojiTabButton(
+              key: const ValueKey('emojiSearchTab'),
+              selected: _emojiTab == _emojiSearchTab,
+              onTap: () => _selectEmojiTab(_emojiSearchTab),
+              child: AppIcon(
+                HeroAppIcons.magnifyingGlass,
+                size: 20,
+                color: _emojiTab == _emojiSearchTab
+                    ? AppTheme.brand
+                    : c.textSecondary,
+              ),
+            ),
+            if (hasRecents)
+              _emojiTabButton(
+                key: const ValueKey('emojiRecentsTab'),
+                selected: _emojiTab == 'recent',
+                onTap: () => _scrollEmojiPanelTo('recent'),
+                child: AppIcon(
+                  HeroAppIcons.clock,
+                  size: 20,
+                  color: _emojiTab == 'recent'
+                      ? AppTheme.brand
+                      : c.textSecondary,
+                ),
+              ),
+            for (var i = 0; i < EmojiCatalog.categories.length; i++)
+              _emojiTabButton(
+                key: ValueKey('emojiCategoryTab-$i'),
+                selected: _emojiTab == _emojiCategoryTabId(i),
+                onTap: () => _scrollEmojiPanelTo(_emojiCategoryTabId(i)),
+                child: AppIcon(
+                  _emojiCategoryIcons[i],
+                  size: 20,
+                  color: _emojiTab == _emojiCategoryTabId(i)
+                      ? AppTheme.brand
+                      : c.textSecondary,
+                ),
+              ),
+            for (final pack in packs)
+              _emojiTabButton(
+                key: ValueKey('emojiPackTab-${pack.id}'),
+                selected: _emojiTab == 'pack-${pack.id}',
+                onTap: () => _scrollEmojiPanelTo('pack-${pack.id}'),
+                child:
+                    pack.emoji.isNotEmpty && pack.emoji.first.customEmojiId != 0
+                    ? CustomEmojiView(
+                        id: pack.emoji.first.customEmojiId,
+                        size: 28,
+                        color: c.textPrimary,
+                      )
+                    : (pack.cover != null
+                          ? TDImage(photo: pack.cover, cornerRadius: 4)
+                          : Text(
+                              pack.title.isEmpty
+                                  ? ''
+                                  : pack.title.characters.first,
+                              style: TextStyle(color: c.textPrimary),
+                            )),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// One icon per catalog category, mirroring the standalone pane's strip.
+  static const List<AppIconData> _emojiCategoryIcons = [
+    HeroAppIcons.faceSmile,
+    HeroAppIcons.user,
+    HeroAppIcons.bug,
+    HeroAppIcons.cake,
+    HeroAppIcons.trophy,
+    HeroAppIcons.locationPin,
+    HeroAppIcons.lightbulb,
+    HeroAppIcons.hashtag,
+  ];
+
+  String _emojiCategoryTabId(int index) => 'category-$index';
+
+  /// Scrolls the emoji panel so the named section's header sits at the top:
+  /// 'recent', 'category-i' or 'pack-id'.
+  void _scrollEmojiPanelTo(String sectionId) {
+    if (_emojiTab != sectionId) {
+      setState(() => _emojiTab = sectionId);
+    }
+    final target = _emojiSectionTarget(sectionId);
+    if (target == null) return;
+    if (!_emojiPanelScroll.hasClients) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && _emojiPanelScroll.hasClients) {
+          _scrollEmojiPanelTo(sectionId);
+        }
+      });
+      return;
+    }
+    final position = _emojiPanelScroll.position;
+    final clamped = target.clamp(
+      position.minScrollExtent,
+      position.maxScrollExtent,
+    );
+    if ((clamped - position.pixels).abs() < 0.5) return;
+    _emojiPanelAnimatingToSection = true;
+    _emojiPanelScroll.animateTo(
+      clamped,
+      duration: AppMotion.duration(context, AppMotion.routeReverse),
+      curve: AppMotion.standard,
+    );
+  }
+
+  /// Analytic offset of an emoji section header, exactly like the standalone
+  /// pane computes them: headers and grid rows both have fixed extents, so
+  /// the sum is exact however far off-screen the section is.
+  double? _emojiSectionTarget(String sectionId) {
+    final columns = _emojiPanelColumns;
+    if (columns == null) return null;
+    var offset = 8.0; // top spacer
+    if (EmojiRecentsStore.shared.renderableEntries.isNotEmpty) {
+      if (sectionId == 'recent') return offset;
+      offset +=
+          emojiSectionHeaderExtent +
+          (EmojiRecentsStore.shared.renderableEntries.length / columns)
+                  .ceilToDouble() *
+              emojiPanelCellExtent;
+    }
+    for (var i = 0; i < EmojiCatalog.categories.length; i++) {
+      if (sectionId == _emojiCategoryTabId(i)) return offset;
+      offset +=
+          emojiSectionHeaderExtent +
+          (EmojiCatalog.categories[i].emojis.length / columns).ceilToDouble() *
+              emojiPanelCellExtent;
+    }
+    for (final pack in EmojiStore.shared.customPacks) {
+      if (sectionId == 'pack-${pack.id}') {
+        return offset;
+      }
+      offset +=
+          _emojiPackHeaderExtent +
+          (pack.emoji.length / columns).ceilToDouble() * emojiPanelCellExtent;
+    }
+    return null;
+  }
+
+  /// Column count for the emoji panel's analytic offset math, captured from
+  /// the live layout so the strip and the grid agree.
+  int? _emojiPanelColumns;
+
+  static const double _emojiPackHeaderExtent = 26;
+
+  /// Scroll-follow for the emoji strip: the highlighted entry is the section
+  /// whose header last crossed the viewport top.
+  bool _onEmojiPanelScrollNotification(ScrollNotification notification) {
+    if (notification is! ScrollEndNotification &&
+        notification is! ScrollUpdateNotification) {
+      return false;
+    }
+    if (_emojiPanelAnimatingToSection) {
+      if (notification is ScrollEndNotification) {
+        _emojiPanelAnimatingToSection = false;
+      }
+      return false;
+    }
+    if (!_emojiPanelScroll.hasClients) return false;
+    if (_isPanelSearchSelected) return false;
+    final pixels = _emojiPanelScroll.position.pixels;
+    final sectionId = _emojiSectionAt(pixels);
+    if (sectionId == null || sectionId == _emojiTab) return false;
+    if (sectionId == _emojiSearchTab) return false;
+    setState(() => _emojiTab = sectionId);
+    return false;
+  }
+
+  /// The section id whose header last scrolled to (or past) the viewport top.
+  String? _emojiSectionAt(double pixels) {
+    final columns = _emojiPanelColumns;
+    if (columns == null) return null;
+    var offset = 8.0;
+    String? best;
+    bool sawAny = false;
+    if (EmojiRecentsStore.shared.renderableEntries.isNotEmpty) {
+      sawAny = true;
+      best = 'recent';
+      offset +=
+          emojiSectionHeaderExtent +
+          (EmojiRecentsStore.shared.renderableEntries.length / columns)
+                  .ceilToDouble() *
+              emojiPanelCellExtent;
+    }
+    for (var i = 0; i < EmojiCatalog.categories.length; i++) {
+      if (pixels + 2.0 >= offset) {
+        best = _emojiCategoryTabId(i);
+      }
+      offset +=
+          emojiSectionHeaderExtent +
+          (EmojiCatalog.categories[i].emojis.length / columns).ceilToDouble() *
+              emojiPanelCellExtent;
+    }
+    for (final pack in EmojiStore.shared.customPacks) {
+      if (pixels + 2.0 >= offset) {
+        best = 'pack-${pack.id}';
+      }
+      offset +=
+          _emojiPackHeaderExtent +
+          (pack.emoji.length / columns).ceilToDouble() * emojiPanelCellExtent;
+    }
+    return sawAny || best != null ? best : null;
+  }
+
+  Widget _emojiTabButton({
+    Key? key,
+    required bool selected,
+    required VoidCallback onTap,
+    required Widget child,
+  }) {
+    return GestureDetector(
+      key: key,
+      behavior: HitTestBehavior.opaque,
+      onTap: onTap,
+      child: Container(
+        width: 44,
+        height: 44,
+        alignment: Alignment.center,
+        margin: const EdgeInsets.symmetric(horizontal: 3),
+        decoration: BoxDecoration(
+          color: selected ? context.colors.searchFill : Colors.transparent,
+          borderRadius: BorderRadius.circular(AppRadius.control),
+        ),
+        child: SizedBox(width: 28, height: 28, child: Center(child: child)),
+      ),
+    );
+  }
+
+  /// The GIF segment's secondary strip is a search bar plus the saved-GIFs
+  /// tab, mirroring the emoji and sticker search tabs.
+  Widget _gifTabStrip() {
+    final c = context.colors;
+    return Container(
+      key: const ValueKey('gifPanelTabs'),
+      decoration: BoxDecoration(
+        color: c.inputBarBackground,
+        border: Border(bottom: BorderSide(color: c.divider, width: 0.5)),
+      ),
+      child: SizedBox(
+        height: 50,
+        child: ListView(
+          scrollDirection: Axis.horizontal,
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          children: [
+            _emojiTabButton(
+              key: const ValueKey('gifSearchTab'),
+              selected: _gifSearchSelected,
+              onTap: () => _selectStickerTab(_stickerSearchTabId),
+              child: AppIcon(
+                HeroAppIcons.magnifyingGlass,
+                size: 20,
+                color: _gifSearchSelected ? AppTheme.brand : c.textSecondary,
+              ),
+            ),
+            _emojiTabButton(
+              key: const ValueKey('gifSavedTab'),
+              selected: !_gifSearchSelected,
+              onTap: () => _selectStickerTab(_gifTabId),
+              child: AppIcon(
+                HeroAppIcons.gif,
+                size: 22,
+                color: !_gifSearchSelected ? AppTheme.brand : c.textSecondary,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// A lighter-weight sub-header for a subsection (sticker pack, custom-emoji
+  /// pack) inside a section.
+  Widget _mediaSubsectionHeader(Key key, String label) {
+    final c = context.colors;
+    return SizedBox(
+      key: key,
+      height: 26,
+      child: Align(
+        alignment: AlignmentDirectional.centerStart,
+        child: Padding(
+          padding: const EdgeInsetsDirectional.only(start: 14, top: 4),
+          child: Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: c.textTertiary,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// The trailing search affordance on the segment-control row. Tapping it
+  /// enters the existing panel-search mode for the active section kind and
+  /// swaps the unified scroll for the search results; tapping it again leaves
+  /// search and restores the previous scroll offset.
+  Widget _mediaPanelSearchButton({required bool active}) {
+    final c = context.colors;
+    return Semantics(
+      button: true,
+      label: AppStringKeys.composerMediaSearch.l10n(context),
+      child: GestureDetector(
+        key: const ValueKey('mediaPanelSearchButton'),
+        behavior: HitTestBehavior.opaque,
+        onTap: _togglePanelSearch,
+        child: SizedBox(
+          width: 38,
+          height: 38,
+          child: Center(
+            child: AppIcon(
+              HeroAppIcons.magnifyingGlass,
+              size: 19,
+              color: active ? AppTheme.brand : c.textSecondary,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// The search content replacing the unified scroll while search is active:
+  /// the existing per-kind search result grids, unchanged.
+  Widget _panelSearchContent() {
+    return switch (_mediaKind) {
+      _MediaKind.emoji => _emojiSearchContent(),
+      _MediaKind.sticker => _stickerSearchContent(),
+      _MediaKind.gif => _gifSearchContent(),
+    };
+  }
+
+  /// The active kind's panel scroller, whose offset the search overlay
+  /// remembers and restores. GIF keeps no panel scroll (its content is a
+  /// plain grid at the top).
+  ScrollController? get _activePanelScroll => switch (_mediaKind) {
+    _MediaKind.emoji => _emojiPanelScroll,
+    _MediaKind.sticker => _stickerPanelScroll,
+    _MediaKind.gif => null,
+  };
+
+  /// Enters/leaves the panel-search overlay, remembering where the active
+  /// kind's panel scroll sat so leaving restores the user's place.
+  void _togglePanelSearch() {
+    if (_isPanelSearchSelected) {
+      final restore = _panelScrollRestoreOffset;
+      setState(() {
+        _exitPanelSearchTabs();
+        _panelScrollRestoreOffset = null;
+      });
+      final controller = _activePanelScroll;
+      if (restore != null && controller != null && controller.hasClients) {
+        final position = controller.position;
+        // correctBy never animates and never throws overscroll notifications;
+        // clamping to the live extents keeps a shrunken content height
+        // (a pack list that reloads, for example) from restoring past the end.
+        final target = restore.clamp(
+          position.minScrollExtent,
+          position.maxScrollExtent,
+        );
+        position.correctBy(target - position.pixels);
+      }
+      return;
+    }
+    setState(() {
+      final controller = _activePanelScroll;
+      _panelScrollRestoreOffset = controller != null && controller.hasClients
+          ? controller.position.pixels
+          : null;
+      switch (_mediaKind) {
+        case _MediaKind.emoji:
+          _emojiTab = _emojiSearchTab;
+        case _MediaKind.sticker:
+          _stickerPack = _stickerSearchTabId;
+        case _MediaKind.gif:
+          _stickerPack = _stickerSearchTabId;
+      }
+    });
+    if (_panelSearch.text.trim().isNotEmpty) {
+      _queuePanelSearch();
+    }
+  }
+
+  /// Returns the tab selectors to their non-search values (called from inside
+  /// a setState block).
+  void _exitPanelSearchTabs() {
+    switch (_mediaKind) {
+      case _MediaKind.emoji:
+        if (_emojiTab == _emojiSearchTab) _emojiTab = 'standard';
+      case _MediaKind.sticker:
+        if (_stickerPack == _stickerSearchTabId) _stickerPack = null;
+      case _MediaKind.gif:
+        if (_stickerPack == _stickerSearchTabId) _stickerPack = _gifTabId;
+    }
   }
 
   Widget _mediaKindSegmentControl() {
@@ -9218,6 +10566,11 @@ class _ChatInputBarState extends State<ChatInputBar>
             // itself instead of passing through grey on the way to
             // transparent black.
             child: AnimatedContainer(
+              key: selected
+                  ? ValueKey(
+                      'mediaSegmentSelected-${_segmentKindLabel(item.key)}',
+                    )
+                  : null,
               duration: reduceMotion
                   ? Duration.zero
                   : const Duration(milliseconds: 180),
@@ -9255,44 +10608,19 @@ class _ChatInputBarState extends State<ChatInputBar>
     );
   }
 
-  Widget _gifTabStrip() {
-    final c = context.colors;
-    return Container(
-      key: const ValueKey('gifPanelTabs'),
-      decoration: BoxDecoration(
-        color: c.inputBarBackground,
-        border: Border(bottom: BorderSide(color: c.divider, width: 0.5)),
-      ),
-      child: SizedBox(
-        height: 50,
-        child: ListView(
-          scrollDirection: Axis.horizontal,
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-          children: [
-            _emojiTabButton(
-              key: const ValueKey('gifSearchTab'),
-              selected: _gifSearchSelected,
-              onTap: () => _selectStickerTab(_stickerSearchTabId),
-              child: AppIcon(
-                HeroAppIcons.magnifyingGlass,
-                size: 20,
-                color: _gifSearchSelected ? AppTheme.brand : c.textSecondary,
-              ),
-            ),
-            _emojiTabButton(
-              key: const ValueKey('gifSavedTab'),
-              selected: !_gifSearchSelected,
-              onTap: () => _selectStickerTab(_gifTabId),
-              child: AppIcon(
-                HeroAppIcons.gif,
-                size: 22,
-                color: !_gifSearchSelected ? AppTheme.brand : c.textSecondary,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
+  /// Maps a segment key like `mediaSegment-gif` to its kind label, so the
+  /// selected segment's highlight carries an assertable
+  /// `mediaSegmentSelected-<kind>` key.
+  String _segmentKindLabel(Key? key) {
+    if (key is ValueKey<String>) {
+      final value = key.value;
+      final dash = value.lastIndexOf('-');
+      if (dash >= 0 && dash + 1 < value.length) {
+        return value.substring(dash + 1);
+      }
+      return value;
+    }
+    return key?.toString() ?? '';
   }
 
   Widget _gifSearchContent() {
@@ -9316,52 +10644,6 @@ class _ChatInputBarState extends State<ChatInputBar>
         }
         return _gifTile(_gifSearchResults[index], search: true);
       },
-    );
-  }
-
-  Widget _emojiContent() {
-    if (_emojiTab == _emojiSearchTab) {
-      if (_panelSearch.text.trim().isEmpty) return const SizedBox.shrink();
-      return _emojiSearchContent();
-    }
-    final store = EmojiStore.shared;
-    if (_emojiTab != 'standard') {
-      final id = int.tryParse(_emojiTab);
-      CustomEmojiPack? pack;
-      for (final p in store.customPacks) {
-        if (p.id == id) {
-          pack = p;
-          break;
-        }
-      }
-      if (pack != null) {
-        final packEmoji = pack.emoji;
-        return LayoutBuilder(
-          builder: (context, constraints) => GridView.builder(
-            padding: const EdgeInsets.all(12),
-            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: emojiPanelColumnCount(constraints.maxWidth),
-            ),
-            itemCount: packEmoji.length,
-            itemBuilder: (context, index) {
-              final item = packEmoji[index];
-              return item.customEmojiId != 0
-                  ? EmojiPanelCell(
-                      customItem: item,
-                      onTap: () => _controller.insertCustomEmoji(
-                        item.customEmojiId,
-                        item.emoji,
-                      ),
-                    )
-                  : const SizedBox();
-            },
-          ),
-        );
-      }
-    }
-    return StandardEmojiPane(
-      insertText: _controller.insertText,
-      insertCustomEmoji: _controller.insertCustomEmoji,
     );
   }
 
@@ -9478,94 +10760,6 @@ class _ChatInputBarState extends State<ChatInputBar>
             style: TextStyle(fontSize: 13, color: context.colors.textSecondary),
           ),
   );
-
-  Widget _emojiTabStrip() {
-    final c = context.colors;
-    final packs = EmojiStore.shared.customPacks;
-    return Container(
-      key: const ValueKey('emojiPanelTabs'),
-      decoration: BoxDecoration(
-        color: c.inputBarBackground,
-        border: Border(bottom: BorderSide(color: c.divider, width: 0.5)),
-      ),
-      child: SizedBox(
-        height: 50,
-        child: ListView(
-          scrollDirection: Axis.horizontal,
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-          children: [
-            _emojiTabButton(
-              key: const ValueKey('emojiSearchTab'),
-              selected: _emojiTab == _emojiSearchTab,
-              onTap: () => _selectEmojiTab(_emojiSearchTab),
-              child: AppIcon(
-                HeroAppIcons.magnifyingGlass,
-                size: 20,
-                color: _emojiTab == _emojiSearchTab
-                    ? AppTheme.brand
-                    : c.textSecondary,
-              ),
-            ),
-            _emojiTabButton(
-              selected: _emojiTab == 'standard',
-              onTap: () => _selectEmojiTab('standard'),
-              child: AppIcon(
-                HeroAppIcons.solidFaceSmile,
-                size: 20,
-                color: _emojiTab == 'standard'
-                    ? AppTheme.brand
-                    : c.textSecondary,
-              ),
-            ),
-            for (final pack in packs)
-              _emojiTabButton(
-                selected: _emojiTab == pack.id.toString(),
-                onTap: () => _selectEmojiTab(pack.id.toString()),
-                child:
-                    pack.emoji.isNotEmpty && pack.emoji.first.customEmojiId != 0
-                    ? CustomEmojiView(
-                        id: pack.emoji.first.customEmojiId,
-                        size: 28,
-                        color: c.textPrimary,
-                      )
-                    : (pack.cover != null
-                          ? TDImage(photo: pack.cover, cornerRadius: 4)
-                          : Text(
-                              pack.title.isEmpty
-                                  ? ''
-                                  : pack.title.characters.first,
-                              style: TextStyle(color: c.textPrimary),
-                            )),
-              ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _emojiTabButton({
-    Key? key,
-    required bool selected,
-    required VoidCallback onTap,
-    required Widget child,
-  }) {
-    return GestureDetector(
-      key: key,
-      behavior: HitTestBehavior.opaque,
-      onTap: onTap,
-      child: Container(
-        width: 44,
-        height: 44,
-        alignment: Alignment.center,
-        margin: const EdgeInsets.symmetric(horizontal: 3),
-        decoration: BoxDecoration(
-          color: selected ? context.colors.searchFill : Colors.transparent,
-          borderRadius: BorderRadius.circular(AppRadius.control),
-        ),
-        child: SizedBox(width: 28, height: 28, child: Center(child: child)),
-      ),
-    );
-  }
 
   void _closeDesktopVoicePanel() {
     _cancelVoiceRecording();
@@ -10286,60 +11480,12 @@ class _ChatInputBarState extends State<ChatInputBar>
     );
   }
 
-  Widget _stickerContent() {
-    final store = StickerStore.shared;
-    final packs = store.packs;
-    final activeId = _activeStickerTab;
-    if (activeId == _stickerSearchTabId) return _stickerSearchContent();
-    if (packs.isEmpty) {
-      return Center(
-        child: Text(
-          store.loading
-              ? AppStrings.t(AppStringKeys.composerLoadingEmoji)
-              : AppStrings.t(AppStringKeys.composerNoEmoji),
-          style: TextStyle(fontSize: 13, color: context.colors.textSecondary),
-        ),
-      );
-    }
-    StickerPack? pack;
-    for (final p in packs) {
-      if (p.id == activeId) {
-        pack = p;
-        break;
-      }
-    }
-    pack ??= packs.first;
-    if (!pack.loaded && pack.stickers.isEmpty) {
-      store.loadPack(pack.id);
-      return const Center(
-        child: SizedBox(
-          width: 24,
-          height: 24,
-          child: CircularProgressIndicator.adaptive(strokeWidth: 2),
-        ),
-      );
-    }
-    final stickers = pack.stickers;
-    // Lazy builder so only on-screen stickers spin up an animation/decoder.
-    return _stickerGrid(stickers);
-  }
-
-  Widget _stickerGrid(List<StickerItem> stickers, {bool search = false}) {
-    return GridView.builder(
-      padding: const EdgeInsets.all(12),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 4,
-        mainAxisSpacing: 8,
-        crossAxisSpacing: 8,
-      ),
-      itemCount: stickers.length,
-      itemBuilder: (context, i) => _stickerTile(stickers[i], search: search),
-    );
-  }
-
-  Future<void> _sendStickerItem(StickerItem item) async {
+  Future<void> _sendStickerItem(
+    StickerItem item, {
+    MessageSendConfiguration? config,
+  }) async {
     widget.onMediaSendTapped?.call();
-    final sent = await widget.vm.sendSticker(item);
+    final sent = await widget.vm.sendSticker(item, sendConfiguration: config);
     if (!mounted) return;
     if (sent) {
       _finishPanelSend();
@@ -10351,30 +11497,239 @@ class _ChatInputBarState extends State<ChatInputBar>
     }
   }
 
-  Widget _gifContent() {
-    final store = GifStore.shared;
-    final items = store.items;
-    if (items.isEmpty) {
-      return Center(
-        child: Text(
-          store.loading
-              ? AppStrings.t(AppStringKeys.composerLoadingGifs)
-              : AppStrings.t(AppStringKeys.composerNoGifs),
-          style: TextStyle(fontSize: 13, color: context.colors.textSecondary),
+  Future<void> _sendGifItem(
+    GifItem item, {
+    MessageSendConfiguration? config,
+  }) async {
+    widget.onMediaSendTapped?.call();
+    final sent = await widget.vm.sendGif(item, sendConfiguration: config);
+    if (!mounted) return;
+    if (sent) {
+      _finishPanelSend();
+    } else {
+      showToast(context, AppStrings.t(AppStringKeys.composerGifSendFailed));
+    }
+  }
+
+  /// Long-press haptic matching the reference client's long-press tick, on
+  /// touch platforms only.
+  void _mediaTileLongPressHaptic() {
+    final platform = Theme.of(context).platform;
+    if (platform == TargetPlatform.android || platform == TargetPlatform.iOS) {
+      unawaited(AppHaptics.longPress());
+    }
+  }
+
+  /// The composer side of the media-tile action sheet: descriptor plus the
+  /// actions each row performs. A row the caller passes null for is hidden.
+  void _showStickerTileActions(StickerItem item, {required bool isRecentTile}) {
+    _mediaTileLongPressHaptic();
+    unawaited(
+      showMediaTileActionSheet(
+        context,
+        MediaTileDescriptor.sticker(
+          item,
+          FavoriteStickerStore.shared.isFavorite(item.id),
+          isRecentTile,
+        ),
+        MediaTileActions(
+          send: () => unawaited(_sendStickerItem(item)),
+          sendWithoutSound: () => unawaited(
+            _sendStickerItem(
+              item,
+              config: const MessageSendConfiguration(disableNotification: true),
+            ),
+          ),
+          schedule: () => unawaited(_scheduleStickerSend(item)),
+          toggleFavorite: () => unawaited(_toggleStickerFavorite(item)),
+          viewSet: () => _openStickerSet(item.setId),
+          save: () => unawaited(_exportStickerTile(item)),
+          copy: () => unawaited(_copyStickerFile(item)),
+          removeFromRecent: isRecentTile
+              ? () => widget.vm.removeRecentSticker(item.id)
+              : null,
+        ),
+      ),
+    );
+  }
+
+  void _showGifTileActions(GifItem item) {
+    _mediaTileLongPressHaptic();
+    unawaited(
+      showMediaTileActionSheet(
+        context,
+        MediaTileDescriptor.gif(item, false),
+        MediaTileActions(
+          send: () => unawaited(_sendGifItem(item)),
+          sendWithoutSound: () => unawaited(
+            _sendGifItem(
+              item,
+              config: const MessageSendConfiguration(disableNotification: true),
+            ),
+          ),
+          schedule: () => unawaited(_scheduleGifSend(item)),
+          save: () => unawaited(_saveGifTile(item)),
+        ),
+      ),
+    );
+  }
+
+  /// The tile menu's Schedule: the same owned picker the send-options sheet
+  /// opens, pre-armed to send this sticker once a future date is confirmed.
+  Future<void> _scheduleStickerSend(StickerItem item) async {
+    final config = await _pickTileScheduleConfiguration();
+    if (config == null) return;
+    await _sendStickerItem(item, config: config);
+  }
+
+  Future<void> _scheduleGifSend(GifItem item) async {
+    final config = await _pickTileScheduleConfiguration();
+    if (config == null) return;
+    await _sendGifItem(item, config: config);
+  }
+
+  /// Opens the app's owned schedule picker (the one showMessageSendOptionsSheet
+  /// uses) and turns the picked date into a send configuration.
+  Future<MessageSendConfiguration?> _pickTileScheduleConfiguration() async {
+    final now = DateTime.now();
+    final selected = await showOwnedSchedulePicker(
+      context: context,
+      initial: now.add(const Duration(hours: 1)),
+      firstDate: now,
+      lastDate: now.add(const Duration(days: 366)),
+    );
+    if (selected == null || !selected.isAfter(now)) return null;
+    return MessageSendConfiguration(scheduleAt: selected);
+  }
+
+  Future<void> _toggleStickerFavorite(StickerItem item) async {
+    final store = FavoriteStickerStore.shared;
+    if (store.isFavorite(item.id)) {
+      await store.remove(item);
+    } else {
+      await store.add(item);
+    }
+  }
+
+  void _openStickerSet(int setId) {
+    if (setId == 0) {
+      showToast(
+        context,
+        AppStrings.t(AppStringKeys.stickerSetDetailActionFailed),
+      );
+      return;
+    }
+    unawaited(
+      Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => StickerSetDetailView(setId: setId),
+        ),
+      ),
+    );
+  }
+
+  /// Save/export a panel sticker tile. There is no message to anchor on, so
+  /// the tile's file is wrapped in a synthetic one the way the set export
+  /// already wraps set entries internally.
+  Future<void> _exportStickerTile(StickerItem item) async {
+    final file = TdFileRef(id: item.id);
+    final message = ChatMessage(
+      id: item.id,
+      isOutgoing: false,
+      text: '',
+      date: DateTime.now().millisecondsSinceEpoch ~/ 1000,
+      image: item.isAnimated || item.isVideo ? null : file,
+      animatedSticker: item.isAnimated ? file : null,
+      videoSticker: item.isVideo ? file : null,
+    );
+    final desktop = isDesktopTargetPlatform(Theme.of(context).platform);
+    final result = await StickerExportService.export(
+      message,
+      format: StickerExportFormat.png,
+      destination: desktop
+          ? StickerExportDestination.files
+          : StickerExportDestination.photos,
+    );
+    if (!mounted) return;
+    if (result != StickerExportResult.cancelled) {
+      showToast(
+        context,
+        AppStrings.t(
+          result == StickerExportResult.saved
+              ? (desktop
+                    ? AppStringKeys.stickerExportSavedToFiles
+                    : AppStringKeys.chatSavedToPhotos)
+              : result == StickerExportResult.permissionDenied
+              ? AppStringKeys.chatSaveToPhotosPermissionDenied
+              : AppStringKeys.stickerExportFailed,
         ),
       );
     }
-    return GridView.builder(
-      padding: const EdgeInsets.all(8),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 3,
-        childAspectRatio: 1.2,
-        mainAxisSpacing: 4,
-        crossAxisSpacing: 4,
-      ),
-      itemCount: items.length,
-      itemBuilder: (_, index) => _gifTile(items[index]),
-    );
+  }
+
+  /// Desktop webp sticker copy: puts the resolved local file path on the
+  /// clipboard. The sheet gates the row to static desktop stickers; a vanished
+  /// file reports instead of throwing into the zone.
+  Future<void> _copyStickerFile(StickerItem item) async {
+    try {
+      final path = await TdFileCenter.shared.pathFor(
+        item.thumb ?? TdFileRef(id: item.id),
+      );
+      if (path == null || path.isEmpty) throw StateError('no local file');
+      await Clipboard.setData(ClipboardData(text: path));
+      if (!mounted) return;
+      showToast(context, AppStrings.t(AppStringKeys.profileDetailCopied));
+    } catch (_) {
+      if (!mounted) return;
+      showToast(
+        context,
+        AppStrings.t(AppStringKeys.stickerSetDetailActionFailed),
+      );
+    }
+  }
+
+  /// Save a panel GIF tile. Mobile adds the downloaded mp4 to the photo
+  /// library like a chat GIF message; a desktop host has no album, so the
+  /// file goes through the same save panel MediaDownloadService already
+  /// uses for chat media.
+  Future<void> _saveGifTile(GifItem item) async {
+    final desktop = isDesktopTargetPlatform(Theme.of(context).platform);
+    if (desktop) {
+      final outcome = await MediaDownloadService.saveMedia(
+        file: item.file,
+        isVideo: true,
+      );
+      if (!mounted) return;
+      final feedback = MediaDownloadService.feedbackFor(outcome);
+      if (feedback != null) showToast(context, feedback);
+      return;
+    }
+    try {
+      final path = await TdFileCenter.shared.pathFor(item.file);
+      if (path == null || path.isEmpty) {
+        throw StateError('no local file');
+      }
+      final file = File(path);
+      if (!await file.exists()) throw StateError('file missing');
+      final result = await MediaLibrarySaver.savePreparedFile(
+        file,
+        isVideo: true,
+      );
+      if (!mounted) return;
+      showToast(
+        context,
+        AppStrings.t(switch (result) {
+          MediaLibrarySaveResult.saved => AppStringKeys.chatSavedToPhotos,
+          MediaLibrarySaveResult.permissionDenied =>
+            AppStringKeys.chatSaveToPhotosPermissionDenied,
+          MediaLibrarySaveResult.unsupported ||
+          MediaLibrarySaveResult.failed => AppStringKeys.chatSaveToPhotosFailed,
+        }),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      showToast(context, AppStrings.t(AppStringKeys.chatSaveToPhotosFailed));
+    }
   }
 
   Widget _stickerSearchContent() {
@@ -10382,23 +11737,38 @@ class _ChatInputBarState extends State<ChatInputBar>
     if (_stickerSearchResults.isEmpty) {
       return _panelSearchState();
     }
-    return _stickerGrid(_stickerSearchResults, search: true);
+    return GridView.builder(
+      padding: const EdgeInsets.all(12),
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 4,
+        mainAxisSpacing: 8,
+        crossAxisSpacing: 8,
+      ),
+      itemCount: _stickerSearchResults.length,
+      itemBuilder: (context, index) =>
+          _stickerTile(_stickerSearchResults[index], search: true),
+    );
   }
 
-  Widget _stickerTile(StickerItem item, {bool search = false}) =>
-      GestureDetector(
-        key: ValueKey(
-          search ? 'stickerSearch-${item.id}' : 'sticker-${item.id}',
-        ),
-        behavior: HitTestBehavior.opaque,
-        onTap: () => unawaited(_sendStickerItem(item)),
-        child: StickerPreview(item: item),
-      );
+  Widget _stickerTile(
+    StickerItem item, {
+    bool search = false,
+    bool recent = false,
+  }) => GestureDetector(
+    key: ValueKey(search ? 'stickerSearch-${item.id}' : 'sticker-${item.id}'),
+    behavior: HitTestBehavior.opaque,
+    onTap: () => unawaited(_sendStickerItem(item)),
+    // Search results are not recents, so only the pack grid passes
+    // recent: true; favorites tiles know their state through the store.
+    onLongPress: () => _showStickerTileActions(item, isRecentTile: recent),
+    child: StickerPreview(item: item),
+  );
 
   Widget _gifTile(GifItem item, {bool search = false}) => GestureDetector(
     key: ValueKey(search ? 'gifSearch-${item.id}' : 'gif-${item.id}'),
     behavior: HitTestBehavior.opaque,
     onTap: () => unawaited(_sendGifItem(item)),
+    onLongPress: () => _showGifTileActions(item),
     child: widget.gifPreviewBuilder?.call(item) ?? GifPreview(item: item),
   );
 
@@ -10435,76 +11805,6 @@ class _ChatInputBarState extends State<ChatInputBar>
       ),
     ),
   );
-
-  Future<void> _sendGifItem(GifItem item) async {
-    widget.onMediaSendTapped?.call();
-    final sent = await widget.vm.sendGif(item);
-    if (!mounted) return;
-    if (sent) {
-      _finishPanelSend();
-    } else {
-      showToast(context, AppStrings.t(AppStringKeys.composerGifSendFailed));
-    }
-  }
-
-  Widget _stickerTabStrip() {
-    final c = context.colors;
-    final packs = StickerStore.shared.packs;
-    final activeId = _activeStickerTab;
-    final installed = packs.where((p) => p.id != StickerStore.recentPackId);
-    return Container(
-      key: const ValueKey('stickerPanelTabs'),
-      decoration: BoxDecoration(
-        color: c.inputBarBackground,
-        border: Border(bottom: BorderSide(color: c.divider, width: 0.5)),
-      ),
-      child: SizedBox(
-        height: 50,
-        child: ListView(
-          scrollDirection: Axis.horizontal,
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-          children: [
-            _emojiTabButton(
-              key: const ValueKey('stickerSearchTab'),
-              selected: activeId == _stickerSearchTabId,
-              onTap: () => _selectStickerTab(_stickerSearchTabId),
-              child: AppIcon(
-                HeroAppIcons.magnifyingGlass,
-                size: 20,
-                color: activeId == _stickerSearchTabId
-                    ? AppTheme.brand
-                    : c.textSecondary,
-              ),
-            ),
-            _emojiTabButton(
-              key: const ValueKey('stickerRecentsTab'),
-              selected: activeId == StickerStore.recentPackId,
-              onTap: () => _selectStickerTab(StickerStore.recentPackId),
-              child: AppIcon(
-                HeroAppIcons.clock,
-                size: 20,
-                color: activeId == StickerStore.recentPackId
-                    ? AppTheme.brand
-                    : c.textSecondary,
-              ),
-            ),
-            for (final pack in installed)
-              _emojiTabButton(
-                key: ValueKey('stickerPackTab-${pack.id}'),
-                selected: pack.id == activeId,
-                onTap: () => _selectStickerTab(pack.id),
-                child: pack.cover != null
-                    ? StickerTabPreview(item: pack.cover!)
-                    : Text(
-                        pack.title.isEmpty ? '' : pack.title.characters.first,
-                        style: TextStyle(color: c.textPrimary),
-                      ),
-              ),
-          ],
-        ),
-      ),
-    );
-  }
 
   // Kept for re-exposing the studio from a more appropriate surface later.
   // ignore: unused_element

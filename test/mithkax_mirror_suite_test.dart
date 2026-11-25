@@ -361,6 +361,46 @@ void main() {
     });
 
     test(
+      'databaseBytes counts the mirror file and the media snapshots',
+      () async {
+        // Nothing recorded and no file yet: the database reads as empty.
+        expect(await store.databaseBytes(), 0);
+
+        await start();
+        await emit({
+          '@type': 'updateNewMessage',
+          '@client_id': _clientA,
+          'message': _message(1201, 1, text: 'sized'),
+        });
+        await store.persistNowForTesting();
+        final file = File('${dir.path}/message-history.json');
+        expect(await file.exists(), isTrue);
+        final fileBytes = await file.length();
+        expect(fileBytes, greaterThan(0));
+
+        // Snapshot bytes count on top of the mirror file.
+        final mediaDir = Directory('${dir.path}/media');
+        await mediaDir.create();
+        await File(
+          '${mediaDir.path}/8101_1_1_m.jpg',
+        ).writeAsBytes(List.filled(2048, 7), flush: true);
+        final snapshotter = MessageMediaSnapshotter.forTesting()
+          ..dir = mediaDir;
+        store.mediaSnapshotter = snapshotter;
+        addTearDown(() => store.mediaSnapshotter = null);
+        expect(await store.databaseBytes(), fileBytes + 2048);
+
+        // A wiped database drops the snapshots; only the rewritten (empty)
+        // mirror file remains.
+        store.clearAll();
+        await store.persistNowForTesting();
+        expect(snapshotter.usedBytes, 0);
+        expect(await store.databaseBytes(), await file.length());
+        expect(await file.length(), lessThan(fileBytes));
+      },
+    );
+
+    test(
       'a via-bot human group message does not flip its chat to bot',
       () async {
         await start();

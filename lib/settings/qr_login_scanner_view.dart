@@ -1,9 +1,7 @@
 import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:mithka/l10n/app_localizations.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
-
 import '../components/app_icons.dart';
 import '../components/scanner_circle_button.dart';
 import '../components/toast.dart';

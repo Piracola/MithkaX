@@ -1,39 +1,39 @@
 import 'dart:async';
-
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-
 import '../auth/account_store.dart';
 import '../auth/auth_manager.dart';
 import '../call/call_manager.dart';
 import '../call/call_overlay_host.dart';
 import '../call/calls_view.dart';
-import '../chat/audio_search_view.dart';
-import '../chat/chat_info_view.dart';
-import '../chat/chat_sticker_packs_view.dart';
+import '../chat/admin/chat_info_view.dart';
+import '../chat/admin/group_remark_controller.dart';
+import '../chat/ai_translation/telegram_ai_editor_view.dart';
+import '../chat/ai_translation/telegram_ai_service.dart';
 import '../chat/chat_view.dart';
 import '../chat/chat_view_model.dart';
-import '../chat/checklist_composer_view.dart';
-import '../chat/contact_share_picker_view.dart';
-import '../chat/group_remark_controller.dart';
-import '../chat/link_preview_fixer.dart';
-import '../chat/location_picker_view.dart';
-import '../chat/music_player_controller.dart';
-import '../chat/outgoing_attachment.dart';
-import '../chat/poll_composer_view.dart';
-import '../chat/rich_message_bot_relay.dart';
-import '../chat/rich_message_source.dart';
-import '../chat/rich_text_composer_view.dart';
-import '../chat/scheduled_messages_view.dart';
-import '../chat/shared_media_view.dart';
-import '../chat/telegram_ai_editor_view.dart';
-import '../chat/telegram_ai_service.dart';
-import '../chat/video_playback_preferences.dart';
+import '../chat/composer/checklist_composer_view.dart';
+import '../chat/composer/contact_share_picker_view.dart';
+import '../chat/composer/location_picker_view.dart';
+import '../chat/composer/outgoing_attachment.dart';
+import '../chat/composer/poll_composer_view.dart';
+import '../chat/composer/rich_message_bot_relay.dart';
+import '../chat/composer/rich_message_source.dart';
+import '../chat/composer/rich_text_composer_view.dart';
+import '../chat/composer/scheduled_messages_view.dart';
+import '../chat/group_scheduled_deletion.dart';
+import '../chat/links_search/link_preview_fixer.dart';
+import '../chat/media/audio_search_view.dart';
+import '../chat/media/music_player_controller.dart';
+import '../chat/media/shared_media_view.dart';
+import '../chat/media/video_playback_preferences.dart';
+import '../chat/stickers/chat_sticker_packs_view.dart';
 import '../chats/chat_folder_tag_controller.dart';
+import '../chats/local_folder_order_store.dart';
 import '../chats/search_view.dart';
 import '../components/confirm_dialog.dart';
 import '../components/toast.dart';
@@ -55,8 +55,10 @@ import '../settings/country_message_filter.dart';
 import '../settings/desktop_hotkey_controller.dart';
 import '../settings/developer_mode_controller.dart';
 import '../settings/edit_profile_view.dart';
+import '../settings/ghost_mode_controller.dart';
 import '../settings/hidden_sender_store.dart';
 import '../settings/keyword_blocker.dart';
+import '../settings/local_premium.dart';
 import '../settings/rich_message_relay_config.dart';
 import '../settings/safety_notice_controller.dart';
 import '../settings/sensitive_content_controller.dart';
@@ -70,6 +72,7 @@ import '../theme/app_theme.dart';
 import '../theme/theme_controller.dart';
 import 'app_navigator.dart';
 import 'app_performance_controller.dart';
+import 'app_root_text_style.dart';
 import 'chat_deep_link_controller.dart';
 import 'desktop_utility_window_models.dart';
 import 'desktop_utility_window_stub.dart'
@@ -232,6 +235,12 @@ class _DesktopUtilityWindowAppState extends State<DesktopUtilityWindowApp> {
       ..addListener(_handleHiddenSendersChanged);
     CountryMessageFilter.shared.initialize(widget.prefs);
     MusicPlayerController.shared.initialize(widget.prefs);
+    // Settings-only seed for the scheduled-deletion page this window hosts;
+    // the deletion queue itself runs in the main engine's process.
+    GroupScheduledDeletionController.shared.initialize(
+      widget.prefs,
+      startScheduler: false,
+    );
     // Telegram §1.4 surfaces reached from a utility window (chat info's kept
     // messages row and per-chat recording switch): these singletons are
     // process-wide and this window runs in its own process, so without the
@@ -240,6 +249,13 @@ class _DesktopUtilityWindowAppState extends State<DesktopUtilityWindowApp> {
     if (allowTelegramTosViolations) {
       MessageHistorySettings.shared.initialize(widget.prefs);
       MessageHistoryStore.shared.initialize(widget.prefs);
+      // The settings window reaches the kept-messages hub (ghost mode, local
+      // premium) and the edit-profile window reads premium surfaces — both
+      // controllers default to inert without their prefs, so a toggle there
+      // would read wrong and write nothing.
+      GhostModeController.shared.initialize(widget.prefs);
+      LocalPremium.shared.initialize(widget.prefs);
+      LocalFolderOrderStore.shared.initialize(widget.prefs);
     }
     _autoDownload.initialize(widget.prefs);
     _notificationPreferences.initialize(widget.prefs);
@@ -875,15 +891,9 @@ class _DesktopUtilityWindowAppState extends State<DesktopUtilityWindowApp> {
                   boldText: media.boldText,
                 ),
               ),
-              // Cupertino-rooted screens (SearchView and friends) sit under no
-              // text style of their own, so any Text that omits a decoration
-              // inherits Flutter's yellow "unstyled" underline. A Material
-              // ancestor would also fix it, but the app avoids Material
-              // surfaces and only the text default is actually missing.
-              child: DefaultTextStyle.merge(
-                style: const TextStyle(decoration: TextDecoration.none),
-                child: child ?? const SizedBox.shrink(),
-              ),
+              // Screens bring no text style of their own; without this default a
+              // Text that omits its weight draws at Flutter's unstyled weight 900.
+              child: AppRootTextStyle(theme: _theme, child: child),
             );
             final appSurface = Stack(
               children: [

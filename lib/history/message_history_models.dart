@@ -120,6 +120,14 @@ class MessageHistoryEntry {
     required this.deletedAt,
     required this.events,
     this.mediaPath = '',
+    this.mediaWidth = 0,
+    this.mediaHeight = 0,
+    this.mediaDuration = 0,
+    this.mediaFileName = '',
+    this.mediaMimeType = '',
+    this.mediaFileId = 0,
+    this.mediaSourcePath = '',
+    this.mediaPosterPath = '',
     this.hasLiveChat = true,
     this.topicId = 0,
   });
@@ -157,6 +165,36 @@ class MessageHistoryEntry {
   /// directory, empty when no snapshot exists.
   final String mediaPath;
 
+  /// Pixel size of the file behind [mediaPath] (0 when unknown). The viewer
+  /// and the in-chat ghost bubble size the preview from it, so a tall photo
+  /// does not paint as a square and a snapshot upgrade keeps the aspect.
+  final int mediaWidth;
+  final int mediaHeight;
+
+  /// Playback length of the snapped media in seconds, 0 for still content.
+  final int mediaDuration;
+
+  /// Display name and MIME type of the snapped media (documents, audio,
+  /// video); empty when the content carries none.
+  final String mediaFileName;
+  final String mediaMimeType;
+
+  /// TDLib file id the snapshot was (or will be) taken from. It is also the
+  /// handle used to catch a download that completes after the message was
+  /// recorded — a kept copy has no message on Telegram's side any more, so
+  /// this is the only way back to the file.
+  final int mediaFileId;
+
+  /// TDLib's local path for [mediaFileId] at record time. A restart has no
+  /// file id → path mapping; this lets the loader re-check a file that had
+  /// already finished downloading.
+  final String mediaSourcePath;
+
+  /// Snapshot of the media's own thumbnail (video cover, sticker preview).
+  /// The file behind [mediaPath] is the playable/original one — a player
+  /// cannot paint it as a still — so this is what the bubble previews.
+  final String mediaPosterPath;
+
   /// False once TDLib reported the chat gone (deleted account/chat): the
   /// kept copy renders in the ghost style because there is no chat to open.
   final bool hasLiveChat;
@@ -168,6 +206,13 @@ class MessageHistoryEntry {
   final int topicId;
 
   bool get isEdited => events.isNotEmpty;
+
+  /// Whether this copy is history the viewer should list: the message was
+  /// deleted or it carries an edit trail. A plain active copy exists only as
+  /// the base a future deletion or edit needs, so the viewer stays a history
+  /// view instead of a second inbox.
+  bool get hasHistory =>
+      state == MessageHistoryState.deleted || events.isNotEmpty;
 
   String get key => '$accountUserId:$chatId:$messageId';
 
@@ -190,7 +235,15 @@ class MessageHistoryEntry {
       other.mediaPath == mediaPath &&
       other.hasLiveChat == hasLiveChat &&
       other.topicId == topicId &&
-      listEquals(other.events, events);
+      listEquals(other.events, events) &&
+      other.mediaWidth == mediaWidth &&
+      other.mediaHeight == mediaHeight &&
+      other.mediaDuration == mediaDuration &&
+      other.mediaFileName == mediaFileName &&
+      other.mediaMimeType == mediaMimeType &&
+      other.mediaFileId == mediaFileId &&
+      other.mediaSourcePath == mediaSourcePath &&
+      other.mediaPosterPath == mediaPosterPath;
 
   @override
   int get hashCode => Object.hash(
@@ -207,6 +260,13 @@ class MessageHistoryEntry {
     hasLiveChat,
     topicId,
     Object.hashAll(events),
+    mediaWidth,
+    mediaHeight,
+    mediaDuration,
+    mediaFileName,
+    mediaMimeType,
+    mediaFileId,
+    mediaSourcePath,
   );
 
   MessageHistoryEntry copyWith({
@@ -218,6 +278,14 @@ class MessageHistoryEntry {
     int? deletedAt,
     List<MessageHistoryEvent>? events,
     String? mediaPath,
+    int? mediaWidth,
+    int? mediaHeight,
+    int? mediaDuration,
+    String? mediaFileName,
+    String? mediaMimeType,
+    int? mediaFileId,
+    String? mediaSourcePath,
+    String? mediaPosterPath,
     bool? hasLiveChat,
     int? topicId,
   }) => MessageHistoryEntry(
@@ -232,6 +300,14 @@ class MessageHistoryEntry {
     deletedAt: deletedAt ?? this.deletedAt,
     events: events ?? this.events,
     mediaPath: mediaPath ?? this.mediaPath,
+    mediaWidth: mediaWidth ?? this.mediaWidth,
+    mediaHeight: mediaHeight ?? this.mediaHeight,
+    mediaDuration: mediaDuration ?? this.mediaDuration,
+    mediaFileName: mediaFileName ?? this.mediaFileName,
+    mediaMimeType: mediaMimeType ?? this.mediaMimeType,
+    mediaFileId: mediaFileId ?? this.mediaFileId,
+    mediaSourcePath: mediaSourcePath ?? this.mediaSourcePath,
+    mediaPosterPath: mediaPosterPath ?? this.mediaPosterPath,
     hasLiveChat: hasLiveChat ?? this.hasLiveChat,
     topicId: topicId ?? this.topicId,
   );
@@ -248,6 +324,14 @@ class MessageHistoryEntry {
     'deletedAt': deletedAt,
     'events': [for (final event in events) event.toJson()],
     if (mediaPath.isNotEmpty) 'media': mediaPath,
+    if (mediaWidth > 0) 'mediaW': mediaWidth,
+    if (mediaHeight > 0) 'mediaH': mediaHeight,
+    if (mediaDuration > 0) 'mediaDur': mediaDuration,
+    if (mediaFileName.isNotEmpty) 'mediaName': mediaFileName,
+    if (mediaMimeType.isNotEmpty) 'mediaMime': mediaMimeType,
+    if (mediaFileId > 0) 'mediaFile': mediaFileId,
+    if (mediaSourcePath.isNotEmpty) 'mediaSrc': mediaSourcePath,
+    if (mediaPosterPath.isNotEmpty) 'mediaPoster': mediaPosterPath,
     if (!hasLiveChat) 'noChat': true,
     if (topicId > 0) 'topic': topicId,
   };
@@ -276,6 +360,14 @@ class MessageHistoryEntry {
     final deletedAt = json['deletedAt'];
     final events = json['events'];
     final media = json['media'];
+    final mediaW = json['mediaW'];
+    final mediaH = json['mediaH'];
+    final mediaDur = json['mediaDur'];
+    final mediaName = json['mediaName'];
+    final mediaMime = json['mediaMime'];
+    final mediaFile = json['mediaFile'];
+    final mediaSrc = json['mediaSrc'];
+    final mediaPoster = json['mediaPoster'];
     final noChat = json['noChat'];
     final topic = json['topic'];
     return MessageHistoryEntry(
@@ -297,6 +389,14 @@ class MessageHistoryEntry {
                 .toList()
           : const [],
       mediaPath: media is String ? media : '',
+      mediaWidth: mediaW is int ? mediaW : 0,
+      mediaHeight: mediaH is int ? mediaH : 0,
+      mediaDuration: mediaDur is int ? mediaDur : 0,
+      mediaFileName: mediaName is String ? mediaName : '',
+      mediaMimeType: mediaMime is String ? mediaMime : '',
+      mediaFileId: mediaFile is int ? mediaFile : 0,
+      mediaSourcePath: mediaSrc is String ? mediaSrc : '',
+      mediaPosterPath: mediaPoster is String ? mediaPoster : '',
       hasLiveChat: noChat is bool ? !noChat : true,
       topicId: topic is int ? topic : 0,
     );

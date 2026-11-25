@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
-
 import '../components/app_icons.dart';
+import '../components/brand_mark.dart';
 import '../l10n/app_localizations.dart';
 import '../theme/app_motion.dart';
 import '../theme/app_theme.dart';
@@ -87,10 +87,12 @@ class _TermsSheet extends StatelessWidget {
                     children: [
                       ClipRRect(
                         borderRadius: BorderRadius.circular(AppRadius.card),
-                        child: const Image(
-                          image: AssetImage('assets/penguin.png'),
+                        child: Image(
+                          image: const AssetImage(brandMarkAsset),
                           width: 48,
                           height: 48,
+                          color: c.textPrimary,
+                          filterQuality: FilterQuality.high,
                         ),
                       ),
                       const SizedBox(width: 14),

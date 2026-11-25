@@ -12,8 +12,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mithka/app/desktop_navigation_rail.dart';
 import 'package:mithka/auth/account_store.dart';
 import 'package:mithka/auth/auth_manager.dart';
-import 'package:mithka/chat/message_bubble.dart';
-import 'package:mithka/chat/message_reply_count_badge.dart';
+import 'package:mithka/chat/messages/message_bubble.dart';
+import 'package:mithka/chat/messages/message_reply_count_badge.dart';
 import 'package:mithka/components/drawer_controller.dart' as dc;
 import 'package:mithka/config/build_flags.dart';
 import 'package:mithka/history/message_history_settings.dart';
@@ -23,8 +23,8 @@ import 'package:mithka/l10n/app_localizations.dart';
 import 'package:mithka/profile/profile_proxy_button.dart';
 import 'package:mithka/profile/profile_view.dart';
 import 'package:mithka/settings/advanced_settings_view.dart';
+import 'package:mithka/settings/kept_messages_settings_view.dart';
 import 'package:mithka/settings/message_history_transfer_view.dart';
-import 'package:mithka/settings/mithkax_settings_view.dart';
 import 'package:mithka/settings/translation_controller.dart';
 import 'package:mithka/tdlib/td_models.dart';
 import 'package:mithka/theme/app_theme.dart';
@@ -188,7 +188,7 @@ void main() {
       });
 
       testWidgets('hub page lays out without overflow ($name)', (tester) async {
-        await _pump(tester, const MithkaXSettingsView(), size);
+        await _pump(tester, const KeptMessagesSettingsView(), size);
         expect(
           find.byKey(const ValueKey('history-enable-all')),
           findsOneWidget,
@@ -217,25 +217,26 @@ void main() {
   });
 
   group('advanced entry', () {
-    testWidgets('Advanced hosts the Ayu entry and it opens the hub', (
-      tester,
-    ) async {
-      await _pump(tester, const AdvancedSettingsView());
-      final entry = find.byKey(const ValueKey('mithkax-features'));
-      if (!_enabled) {
-        expect(entry, findsNothing);
-        return;
-      }
-      await tester.scrollUntilVisible(entry, 300);
-      expect(entry, findsOneWidget);
-      expect(
-        find.text(AppStrings.t(AppStringKeys.mithkaxSettingsTitle)),
-        findsWidgets,
-      );
-      await tester.tap(entry);
-      await tester.pumpAndSettle();
-      expect(find.byType(MithkaXSettingsView), findsOneWidget);
-    });
+    testWidgets(
+      'Advanced hosts the experimental-features entry and it opens the hub',
+      (tester) async {
+        await _pump(tester, const AdvancedSettingsView());
+        final entry = find.byKey(const ValueKey('kept-features'));
+        if (!_enabled) {
+          expect(entry, findsNothing);
+          return;
+        }
+        await tester.scrollUntilVisible(entry, 300);
+        expect(entry, findsOneWidget);
+        expect(
+          find.text(AppStrings.t(AppStringKeys.keptSettingsTitle)),
+          findsWidgets,
+        );
+        await tester.tap(entry);
+        await tester.pumpAndSettle();
+        expect(find.byType(KeptMessagesSettingsView), findsOneWidget);
+      },
+    );
   });
 
   group('sidebar shortcut', () {

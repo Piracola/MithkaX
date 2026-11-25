@@ -1,9 +1,7 @@
 import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:mithka/l10n/app_localizations.dart';
-
 import '../auth/telegram_passkey_service.dart';
 import '../components/app_icons.dart';
 import '../components/app_interactive_surface.dart';

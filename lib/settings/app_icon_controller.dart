@@ -1,9 +1,6 @@
-import 'dart:async';
-
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-
 import '../l10n/app_localizations.dart';
 import '../pro/mithka_pro_service.dart';
 
@@ -574,6 +571,75 @@ enum AppIconVariant {
     requiresSupporter: true,
     penguinCount: 3,
     colors: [Color(0xFFFFFFFF), Color(0xFF0B0B0D)],
+  ),
+
+  // MithkaX's own identity. These live in their own section of the picker
+  // (AppIconVariant.mithkaXSection), never in the standard motif grid, and
+  // [mithkaxDefault] is what a fresh install ships: the manifest-enabled
+  // launcher alias carries its artwork.
+  //
+  // Every fork mark is a FIXED appearance: day plates carry no `darkAsset` and
+  // no `mipmap-night-*` twin, and the night plates are their own entries. A
+  // launcher re-resolving night resources under the user's chosen tile made the
+  // icon change on its own — the six tiles are now exactly what you get.
+  mithkaxDefault(
+    key: 'mithkax_default',
+    labelKey: AppStringKeys.mithkaxIconAurora,
+    asset: 'assets/app_icons/mithkax_default.png',
+    pickerAsset: 'assets/app_icons/picker/standard-mithkax_default.webp',
+    mithkaX: true,
+    penguinCount: 0,
+    colors: [Color(0xFF0598FF), Color(0xFF006BFF)],
+  ),
+  mithkaxGreen(
+    key: 'mithkax_green',
+    labelKey: AppStringKeys.mithkaxIconVerdant,
+    asset: 'assets/app_icons/mithkax_green.png',
+    pickerAsset: 'assets/app_icons/picker/standard-mithkax_green.webp',
+    mithkaX: true,
+    penguinCount: 0,
+    colors: [Color(0xFF0CE06D), Color(0xFF04AF52)],
+  ),
+  mithkaxFlame(
+    key: 'mithkax_flame',
+    labelKey: AppStringKeys.mithkaxIconBlaze,
+    asset: 'assets/app_icons/mithkax_flame.png',
+    pickerAsset: 'assets/app_icons/picker/standard-mithkax_flame.webp',
+    mithkaX: true,
+    penguinCount: 0,
+    colors: [Color(0xFFFF8E2B), Color(0xFFE02112)],
+  ),
+
+  // The night plates as selectable marks of their own. A launcher does not
+  // reliably re-resolve `mipmap-night-*` on a uiMode change, so the dark art
+  // is also offered explicitly: these entries carry the dark plate as their
+  // one and only asset, and therefore stay dark at any time of day.
+  mithkaxDefaultNight(
+    key: 'mithkax_default_night',
+    labelKey: AppStringKeys.mithkaxIconAuroraNight,
+    asset: 'assets/app_icons/mithkax_default_night.png',
+    pickerAsset: 'assets/app_icons/picker/standard-mithkax_default_night.webp',
+    mithkaX: true,
+    penguinCount: 0,
+    colors: [Color(0xFF1E1F23), Color(0xFF0A84FF)],
+  ),
+  mithkaxGreenNight(
+    key: 'mithkax_green_night',
+    labelKey: AppStringKeys.mithkaxIconVerdantNight,
+    asset: 'assets/app_icons/mithkax_green_night.png',
+    pickerAsset: 'assets/app_icons/picker/standard-mithkax_green_night.webp',
+    mithkaX: true,
+    penguinCount: 0,
+    colors: [Color(0xFF1E1F23), Color(0xFF0CE06D)],
+  ),
+  mithkaxFlameNight(
+    key: 'mithkax_flame_night',
+    labelKey: AppStringKeys.mithkaxIconBlazeNight,
+    asset: 'assets/app_icons/mithkax_flame_night.png',
+    pickerAsset: 'assets/app_icons/picker/standard-mithkax_flame_night.webp',
+    mithkaX: true,
+    penguinCount: 0,
+    colors: [Color(0xFF1E1F23), Color(0xFFFF8526)],
   );
 
   const AppIconVariant({
@@ -588,6 +654,7 @@ enum AppIconVariant {
     this.freeMotif,
     this.background,
     this.penguinCount = 1,
+    this.mithkaX = false,
   });
 
   final String key;
@@ -628,6 +695,12 @@ enum AppIconVariant {
     AppIconVariant.letterMNeutral => AppStringKeys.appIconLetterMNeutral,
     AppIconVariant.aurora => AppStringKeys.appIconLetterMTelegramBlue,
     AppIconVariant.letterMGradient => AppStringKeys.appIconLetterMPinkPurple,
+    AppIconVariant.mithkaxDefault => AppStringKeys.mithkaxIconAurora,
+    AppIconVariant.mithkaxGreen => AppStringKeys.mithkaxIconVerdant,
+    AppIconVariant.mithkaxFlame => AppStringKeys.mithkaxIconBlaze,
+    AppIconVariant.mithkaxDefaultNight => AppStringKeys.mithkaxIconAuroraNight,
+    AppIconVariant.mithkaxGreenNight => AppStringKeys.mithkaxIconVerdantNight,
+    AppIconVariant.mithkaxFlameNight => AppStringKeys.mithkaxIconBlazeNight,
     _ => labelKey,
   };
   String? get pickerLabelKey =>
@@ -641,18 +714,33 @@ enum AppIconVariant {
   final bool requiresSupporter;
   final String? darkAsset;
 
+  /// Belongs to the picker's dedicated "Mithka X icons" section instead of the
+  /// motif grid: the fork's own marks, not a penguin/letter motif on a
+  /// background.
+  final bool mithkaX;
+
   String previewAsset(Brightness brightness) =>
       brightness == Brightness.dark ? darkAsset ?? asset : asset;
 
+  /// Picker art is an opaque plate carrying its real background: the nine
+  /// standard motif icons and the fork's own Mithka X icons. Nothing else has
+  /// one; every other variant previews its transparent sticker art.
+  bool get hasPlate => isStandard || mithkaX;
+
   /// Opaque 256px picker preview of [previewAsset] (with its real background):
-  /// `standard-<launcher file>.webp` in `assets/app_icons/picker/`. Only the
-  /// nine standard icons ([isStandard]) have one.
-  String standardPickerAsset(Brightness brightness) {
-    assert(isStandard, '$key has no standard picker preview');
+  /// `standard-<launcher file>.webp` in `assets/app_icons/picker/`.
+  String platedPickerAsset(Brightness brightness) {
+    assert(hasPlate, '$key has no plated picker preview');
     final name = previewAsset(
       brightness,
     ).split('/').last.replaceAll('.png', '');
     return 'assets/app_icons/picker/standard-$name.webp';
+  }
+
+  /// Only the nine standard icons call this; kept as the motif-grid name.
+  String standardPickerAsset(Brightness brightness) {
+    assert(isStandard, '$key has no standard picker preview');
+    return platedPickerAsset(brightness);
   }
 
   /// Complete compatibility catalogue; first 20 positions remain unchanged.
@@ -673,83 +761,20 @@ enum AppIconVariant {
     letterMGradient,
   ];
 
+  /// The "Mithka X icons" section, in display order. [mithkaxDefault] is the
+  /// identity a fresh install ships with.
+  static const mithkaXSection = <AppIconVariant>[
+    mithkaxDefault,
+    mithkaxGreen,
+    mithkaxFlame,
+    mithkaxDefaultNight,
+    mithkaxGreenNight,
+    mithkaxFlameNight,
+  ];
+
   static List<AppIconVariant> get supporterVariants => values
       .where((variant) => variant.requiresSupporter)
       .toList(growable: false);
-
-  /// The 48 penguins in their fixed catalogue order, picker assets
-  /// 01-pilot … 48-stargazing; index 0 is the first. Never sort or reorder
-  /// it, least of all by translated name: it defines each day's free penguin.
-  /// ios/Runner/AppDelegate.swift (`dailyPenguinOrder`) and
-  /// android/.../MainActivity.kt (`paidIcons`) hold identical native lists
-  /// for their guards; change all three together.
-  static const dailyPenguinOrder = <AppIconVariant>[
-    pilot,
-    headphones,
-    winter,
-    astronaut,
-    crown,
-    party,
-    sleepy,
-    heart,
-    coffee,
-    detective,
-    gamer,
-    fishing,
-    skateboard,
-    surfboard,
-    basketball,
-    football,
-    tennis,
-    skiing,
-    painter,
-    guitar,
-    drummer,
-    photographer,
-    magician,
-    chef,
-    reader,
-    scientist,
-    gardener,
-    mailCarrier,
-    pirate,
-    dragon,
-    bubblegum,
-    raincoat,
-    noodles,
-    iceCream,
-    sunflower,
-    ninja,
-    highFive,
-    hug,
-    seesaw,
-    dance,
-    pillowFight,
-    snowball,
-    parade,
-    choir,
-    stack,
-    picnic,
-    paperPlanes,
-    stargazing,
-  ];
-
-  /// Whole UTC days since the Unix epoch: floor(unixSeconds / 86400).
-  static int _utcDay(DateTime time) =>
-      (time.millisecondsSinceEpoch / Duration.millisecondsPerDay).floor();
-
-  /// The penguin free to choose on the UTC day containing [time]:
-  /// [dailyPenguinOrder] at floor(unixSeconds / 86400) mod 48.
-  static AppIconVariant dailyPenguinAt(DateTime time) =>
-      dailyPenguinOrder[_utcDay(time) % dailyPenguinOrder.length];
-
-  /// The next 00:00 UTC strictly after [time], when the free penguin changes.
-  /// Nothing changes the applied icon then.
-  static DateTime nextDailyPenguinChange(DateTime time) =>
-      DateTime.fromMillisecondsSinceEpoch(
-        (_utcDay(time) + 1) * Duration.millisecondsPerDay,
-        isUtc: true,
-      );
 
   static List<AppIconVariant> forPlatform(TargetPlatform platform) => [
     ...visibleFree,
@@ -757,7 +782,24 @@ enum AppIconVariant {
   ].toList(growable: false);
 
   /// Recognized-only lookup: initialization must not lose an unknown raw ID.
+  /// Keys this catalogue shipped once and no longer offers. An install that
+  /// still holds one resolves to the mark that replaced it instead of rearing
+  /// up as an unknown identity: a stale preference is history, not a choice.
+  static const _retiredKeys = <String, AppIconVariant>{
+    'mithkax_monochrome': mithkaxDefault,
+    // The six original fork marks shrunk to the three-icon set. A green mark
+    // kept its successor; every other retired plate resolves to the default.
+    'mithkax_jade': mithkaxGreen,
+    'mithkax_shadow_light': mithkaxDefault,
+    'mithkax_shadow_dark': mithkaxDefault,
+    'mithkax_google_light': mithkaxDefault,
+    'mithkax_google_dark': mithkaxDefault,
+    'mithkax_glitch': mithkaxDefault,
+  };
+
   static AppIconVariant? recognizedFromKey(String? key) {
+    final retired = _retiredKeys[key];
+    if (retired != null) return retired;
     for (final variant in knownValues) {
       if (variant.key == key) return variant;
     }
@@ -799,10 +841,8 @@ class AppIconController extends ChangeNotifier {
     this._prefs, {
     MithkaProService? proService,
     TargetPlatform? platform,
-    DateTime Function()? now,
   }) : _pro = proService ?? MithkaProService.shared,
-       _platform = platform ?? defaultTargetPlatform,
-       _now = now ?? DateTime.now {
+       _platform = platform ?? defaultTargetPlatform {
     _pro.addListener(_entitlementChanged);
   }
 
@@ -812,87 +852,27 @@ class AppIconController extends ChangeNotifier {
   final SharedPreferences _prefs;
   final MithkaProService _pro;
   final TargetPlatform _platform;
-  final DateTime Function() _now;
   bool _disposed = false;
 
   bool get supporterAvailable => supporterIconsAvailableForPlatform(_platform);
   bool get activeSupporter => _pro.isPro;
   MithkaProService get proService => _pro;
-  List<AppIconVariant> get availableVariants =>
-      AppIconVariant.forPlatform(_platform);
+  List<AppIconVariant> get availableVariants => [
+    ...AppIconVariant.forPlatform(_platform),
+    ...AppIconVariant.mithkaXSection,
+  ];
   // MithkaX: all supporter icons are free in this fork.
   bool isLocked(AppIconVariant icon) => false;
-
-  /// Today's free penguin, read from the clock on every call. Null where the
-  /// 48 are not offered and for an active Supporter, who may choose any.
-  AppIconVariant? get dailyPenguin => supporterAvailable && !activeSupporter
-      ? AppIconVariant.dailyPenguinAt(_now())
-      : null;
-
-  /// The next 00:00 UTC, when [dailyPenguin] moves on. The applied icon stays.
-  DateTime get nextDailyPenguinChange =>
-      AppIconVariant.nextDailyPenguinChange(_now());
-
-  // Independent of Supporter state: today's penguin never needs a store query.
-  bool _isTodaysPenguin(AppIconVariant icon) =>
-      supporterAvailable && icon == AppIconVariant.dailyPenguinAt(_now());
 
   void _entitlementChanged() {
     if (!_disposed) notifyListeners();
   }
 
-  // Day rollover. The free penguin is computed from the clock whenever it is
-  // read; this only tells listeners when it moves, while anyone is listening.
-  Timer? _dayTimer;
-  AppIconVariant? _knownDailyPenguin;
-
-  @override
-  void addListener(VoidCallback listener) {
-    super.addListener(listener);
-    _syncDailyPenguin();
-  }
-
-  @override
-  void removeListener(VoidCallback listener) {
-    super.removeListener(listener);
-    if (!hasListeners) {
-      _dayTimer?.cancel();
-      _dayTimer = null;
-    }
-  }
-
-  /// Rechecks the UTC day, e.g. on app resume, when a suspended timer may be
-  /// late. Notifies only when today's penguin has changed.
-  void refreshDailyPenguin() {
-    if (_syncDailyPenguin()) notifyListeners();
-  }
-
-  // Re-arms the boundary timer; true when the free penguin changed.
-  bool _syncDailyPenguin() {
-    if (_disposed || !supporterAvailable) return false;
-    final now = _now();
-    final today = AppIconVariant.dailyPenguinAt(now);
-    final changed = _knownDailyPenguin != null && _knownDailyPenguin != today;
-    _knownDailyPenguin = today;
-    _dayTimer?.cancel();
-    _dayTimer = null;
-    if (hasListeners) {
-      final delay = AppIconVariant.nextDailyPenguinChange(now).difference(now);
-      _dayTimer = Timer(
-        delay < const Duration(seconds: 1) ? const Duration(seconds: 1) : delay,
-        () {
-          _dayTimer = null;
-          refreshDailyPenguin();
-        },
-      );
-    }
-    return changed;
-  }
-
-  // MithkaX ships the neutral letter mark as its default identity.
-  AppIconVariant _variant = AppIconVariant.letterMNeutral;
+  // MithkaX ships its own gradient mark as the default identity.
+  AppIconVariant _variant = AppIconVariant.mithkaxDefault;
   bool _supported = false;
   bool _loading = false;
+  bool _everChoseExplicitly = false;
 
   /// Compatibility getter only. UI selected traits MUST use isCurrent;
   /// currentVariant is null when the bridge/preference supplies an unknown ID.
@@ -930,12 +910,17 @@ class AppIconController extends ChangeNotifier {
   bool get supported => _supported;
   bool get loading => _loading;
 
+  /// True until the user's first explicit icon choice lands. Android applies
+  /// such a switch when the user leaves the app (see MainActivity's
+  /// `applyPendingLauncherIcon`), so nothing here closes or restarts it.
+  bool get firstChangePending => supported && !_everChoseExplicitly;
+
   Future<void> initialize() async {
     final saved = _prefs.getString(_selectedKey);
-    // MithkaX ships the neutral letter mark as its default identity; the
-    // original pink-purple penguin remains one tap away in the picker.
+    // MithkaX ships its own gradient mark as the default identity; every other
+    // icon, the neutral letter mark included, stays one tap away in the picker.
     _retainKey(
-      saved ?? 'letter_m_neutral',
+      saved ?? 'mithkax_default',
       RetainedUnknownIconSource.savedPreference,
     );
     try {
@@ -947,6 +932,14 @@ class AppIconController extends ChangeNotifier {
       }
       // Startup is read-only for known AND unknown identities. Native-current
       // precedence is in memory; only an explicit successful choice writes prefs.
+      // A saved explicit choice (or a native current that is not the shipped
+      // default) means the manifest-enabled alias was already disabled once, so
+      // the one-time close on first change is behind us.
+      _everChoseExplicitly =
+          saved != null ||
+          (current != null &&
+              current.isNotEmpty &&
+              current != 'mithkax_default');
     } catch (_) {
       _supported = false;
     }
@@ -961,37 +954,31 @@ class AppIconController extends ChangeNotifier {
     _loading = true;
     notifyListeners();
     try {
-      // Today's penguin needs no store query. The day is rechecked at apply
-      // time: after a rollover the tapped penguin takes the Supporter path,
-      // and the native guard recomputes the day itself in any case.
-      // MithkaX: no supporter verification — every icon is free.
-      if (next.requiresSupporter && !_isTodaysPenguin(next)) {
-        // unlocked by design
-      }
+      // MithkaX: no supporter verification — every icon is free, and the
+      // native bridge only checks that the key exists.
       if (_disposed) return false;
       if (isCurrent(next)) return true;
       await _channel.invokeMethod<void>('setIcon', {'name': next.key});
+      // No exit on Android: native defers the alias switch while this window's
+      // task is based on an alias it would disable, applies it when the user
+      // leaves (Home/Recents) and retires the task then, so the next open is a
+      // clean start on the new icon without the app closing in front of anyone.
       _variant = next;
       _retainedUnknownState = null;
+      _everChoseExplicitly = true;
       return await _prefs.setString(_selectedKey, next.key);
     } catch (_) {
       // A rejected native change does not persist or optimistically select it.
       return false;
     } finally {
       _loading = false;
-      if (!_disposed) {
-        // A daily choice native rejected at a rollover shows the new day.
-        _syncDailyPenguin();
-        notifyListeners();
-      }
+      if (!_disposed) notifyListeners();
     }
   }
 
   @override
   void dispose() {
     _disposed = true;
-    _dayTimer?.cancel();
-    _dayTimer = null;
     _pro.removeListener(_entitlementChanged);
     super.dispose();
   }

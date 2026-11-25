@@ -8,10 +8,8 @@
 //
 
 import 'dart:io' show Platform;
-
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
-
 import 'top_corner_cluster.dart';
 
 /// Extra top inset, in logical pixels, reserved for the iPadOS window

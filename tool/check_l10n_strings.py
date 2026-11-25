@@ -50,6 +50,7 @@ ALLOWED_VISIBLE_VALUES = {
     "",
     "A",
     "AI",
+    "Apple Color Emoji",
     "GitHub",
     "H",
     "H$level",
@@ -69,9 +70,9 @@ ALLOWED_VISIBLE_VALUES = {
     "· · ·",
     "\\u00B7 \\u00B7 \\u00B7",
     "github.com/iebb/mithka",
+    "github.com/TiaraBasori/MithkaX",
     "ieb",
-    "mithka.ieb.app",
-    "t.me/mithka",
+    "t.me/MithkaX",
     "telegram.org/tos",
 }
 SUSPICIOUS_RENDER_FIELDS = {
@@ -95,15 +96,18 @@ CONTENT_RENDER_EXPRESSIONS = {
     # DesktopNavigationAction labels are localized at construction
     # (AppStrings.t in main_tab_view), not at render.
     "action.label",
+    # ChatFolderPopupMenu.title arrives already localized (filter.title.l10n
+    # at the call site in chat_list_view).
+    "widget.title",
 }
 
 # Files whose Han/kana/hangul content is classification DATA, not UI copy:
 # the unread-summary short-reply corpus and the AI editor's native language
 # names (each language written in itself, like the appLocale* keys).
 RAW_SCRIPT_EXEMPT_PATHS = {
-    "lib/chat/pangu_url_tlds.dart",
-    "lib/chat/telegram_ai_editor_view.dart",
-    "lib/chat/unread_chat_summary_service.dart",
+    "lib/chat/ai_translation/telegram_ai_editor_view.dart",
+    "lib/chat/ai_translation/unread_chat_summary_service.dart",
+    "lib/chat/links_search/pangu_url_tlds.dart",
 }
 
 

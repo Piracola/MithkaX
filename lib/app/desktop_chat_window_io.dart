@@ -1,15 +1,14 @@
 import 'dart:async';
 import 'dart:io';
 import 'dart:typed_data';
-
 import 'package:flutter/material.dart';
 import 'package:multi_window_manager/multi_window_manager.dart';
-
 import '../settings/hidden_sender_store.dart';
 import '../tdlib/json_helpers.dart';
 import '../tdlib/td_client.dart';
 import 'chat_deep_link_controller.dart';
 import 'desktop_chat_window_models.dart';
+import 'desktop_child_window_startup.dart';
 import 'desktop_utility_window.dart';
 
 const _subscribeMethod = 'mithka.chat.td.subscribe';
@@ -270,6 +269,7 @@ Map<String, dynamic> _sanitizeTdObject(Map<String, dynamic> source) =>
 
 class _DesktopChatMainBridge with WindowListener {
   final DesktopChatWindowRegistry _registry = DesktopChatWindowRegistry();
+  final DesktopChildWindowStartup _startup = DesktopChildWindowStartup();
   final Map<int, DesktopChatWindowArguments> _argumentsByWindow = {};
   final Map<int, TdAccountLease> _accountLeasesByWindow = {};
   final Set<int> _subscribedWindows = {};
@@ -321,6 +321,7 @@ class _DesktopChatMainBridge with WindowListener {
     _argumentsByWindow.clear();
     _subscribedWindows.clear();
     _registry.clear();
+    _startup.clear();
     _accountUserIdForSlot = null;
   }
 
@@ -354,7 +355,9 @@ class _DesktopChatMainBridge with WindowListener {
     if (!_identityIsCurrent(arguments)) return false;
     MultiWindowManager? createdWindow;
     try {
-      final active = await MultiWindowManager.current.getActiveWindowIds();
+      final active = _startup.live(
+        await MultiWindowManager.current.getActiveWindowIds(),
+      );
       final existing = _registry.activeWindowFor(arguments.key, active);
       if (existing != null) {
         final window = MultiWindowManager.fromWindowId(existing);
@@ -407,6 +410,7 @@ class _DesktopChatMainBridge with WindowListener {
     _argumentsByWindow[windowId] = arguments;
     _accountLeasesByWindow[windowId] = lease;
     _registry.register(arguments.key, windowId);
+    _startup.begin(windowId);
     return true;
   }
 
@@ -472,6 +476,7 @@ class _DesktopChatMainBridge with WindowListener {
           messageId: request.messageId,
           accountSlot: registered.accountSlot,
           accountUserId: registered.accountUserId,
+          externalReply: request.externalReply,
         );
         try {
           await MultiWindowManager.current.show();
@@ -672,7 +677,11 @@ class _DesktopChatMainBridge with WindowListener {
   }
 
   void _handleActiveWindowsChanged() {
-    final active = MultiWindowManager.current.activeWindows.value.toSet();
+    // A child that has not been shown yet is not listed as active on Linux;
+    // only a window that was shown and then left the list has closed.
+    final active = _startup.live(
+      MultiWindowManager.current.activeWindows.value,
+    );
     for (final windowId in _argumentsByWindow.keys.toList(growable: false)) {
       if (!active.contains(windowId)) _removeWindow(windowId);
     }
@@ -686,6 +695,7 @@ class _DesktopChatMainBridge with WindowListener {
     _subscribedWindows.remove(windowId);
     _pendingUpdatesByWindow.remove(windowId);
     _registry.removeWindow(windowId);
+    _startup.end(windowId);
   }
 
   @override

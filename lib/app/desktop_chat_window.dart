@@ -1,21 +1,19 @@
 import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-
 import '../auth/account_store.dart' show AccountSummary;
 import '../call/call_manager.dart';
 import '../call/call_overlay_host.dart';
-import '../chat/chat_info_view.dart';
-import '../chat/chat_members_view.dart';
+import '../chat/admin/chat_info_view.dart';
+import '../chat/admin/chat_members_view.dart';
+import '../chat/admin/group_remark_controller.dart';
 import '../chat/chat_view.dart';
 import '../chat/chat_view_model.dart';
 import '../chat/desktop_chat_context_pane.dart';
-import '../chat/group_remark_controller.dart';
-import '../chat/link_preview_fixer.dart';
-import '../chat/music_player_controller.dart';
+import '../chat/links_search/link_preview_fixer.dart';
+import '../chat/media/music_player_controller.dart';
 import '../chats/chat_folder_tag_controller.dart';
 import '../config/build_flags.dart';
 import '../history/message_history_settings.dart';
@@ -36,6 +34,7 @@ import '../theme/app_theme.dart';
 import '../theme/theme_controller.dart';
 import 'adaptive_split_layout.dart';
 import 'app_navigator.dart';
+import 'app_root_text_style.dart';
 import 'chat_deep_link_controller.dart';
 import 'desktop_chat_window_models.dart';
 import 'desktop_chat_window_stub.dart'
@@ -376,15 +375,9 @@ class _DesktopChatWindowAppState extends State<DesktopChatWindowApp> {
                   boldText: media.boldText,
                 ),
               ),
-              // Cupertino-rooted screens (SearchView and friends) sit under no
-              // text style of their own, so any Text that omits a decoration
-              // inherits Flutter's yellow "unstyled" underline. A Material
-              // ancestor would also fix it, but the app avoids Material
-              // surfaces and only the text default is actually missing.
-              child: DefaultTextStyle.merge(
-                style: const TextStyle(decoration: TextDecoration.none),
-                child: child ?? const SizedBox.shrink(),
-              ),
+              // Screens bring no text style of their own; without this default a
+              // Text that omits its weight draws at Flutter's unstyled weight 900.
+              child: AppRootTextStyle(theme: _theme, child: child),
             );
             final appSurface = Stack(
               children: [

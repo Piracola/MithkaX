@@ -49,6 +49,7 @@ enum VideoNoteExportError: Error, Sendable {
     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
   ) -> Bool {
     configureNativeSentryIfNeeded()
+    startAirCrashReportsIfAvailable()
     // flutter_local_notifications registers through FlutterAppDelegate. iOS
     // only forwards tap callbacks to it when the app delegate is explicitly
     // installed as the notification-center delegate.
@@ -144,6 +145,18 @@ enum VideoNoteExportError: Error, Sendable {
     ]
   }
 
+  /// AirFeedback crash reports (MetricKit), alongside Sentry. MetricKit
+  /// allows several subscribers, so this does not affect Sentry. The key is
+  /// AirFeedback's public ingest key: it can only submit reports.
+  private func startAirCrashReportsIfAvailable() {
+    guard #available(iOS 16.0, *) else { return }
+    AirCrashReports.start(
+      apiKey: "ak_production_Knmbmr-NVDAz2VycHPJpjcU06Cr73h9T-6qdA9PrW70",
+      endpoint: "https://apps.air.build/v1/ingest/crashes",
+      teamID: "7P8CLHDH5G"
+    )
+  }
+
   private func configureNativeSentryIfNeeded() {
     guard !SentrySDK.isEnabled else { return }
     let info = Bundle.main.infoDictionary ?? [:]
@@ -212,6 +225,12 @@ enum VideoNoteExportError: Error, Sendable {
     case "pixel_gradient": return "MithkaPixelGradient"
     case "letter_m_neutral": return "MithkaLetterMNeutral"
     case "letter_m_gradient": return "MithkaLetterMGradient"
+    case "mithkax_default": return "MithkaDefault"
+    case "mithkax_green": return "MithkaGreen"
+    case "mithkax_flame": return "MithkaFlame"
+    case "mithkax_default_night": return "MithkaDefaultNight"
+    case "mithkax_green_night": return "MithkaGreenNight"
+    case "mithkax_flame_night": return "MithkaFlameNight"
     case "skateboard": return "MithkaSkateboard"
     case "surfboard": return "MithkaSurfboard"
     case "basketball": return "MithkaBasketball"
@@ -278,6 +297,12 @@ enum VideoNoteExportError: Error, Sendable {
     case "MithkaPixelGradient": return "pixel_gradient"
     case "MithkaLetterMNeutral": return "letter_m_neutral"
     case "MithkaLetterMGradient": return "letter_m_gradient"
+    case "MithkaDefault": return "mithkax_default"
+    case "MithkaGreen": return "mithkax_green"
+    case "MithkaFlame": return "mithkax_flame"
+    case "MithkaDefaultNight": return "mithkax_default_night"
+    case "MithkaGreenNight": return "mithkax_green_night"
+    case "MithkaFlameNight": return "mithkax_flame_night"
     case "MithkaSkateboard": return "skateboard"
     case "MithkaSurfboard": return "surfboard"
     case "MithkaBasketball": return "basketball"
@@ -460,24 +485,11 @@ enum VideoNoteExportError: Error, Sendable {
         result(FlutterMethodNotImplemented)
         return
       }
-      let pasteboard = UIPasteboard.general
-      if let data = pasteboard.data(forPasteboardType: "com.compuserve.gif") {
-        result(["mimeType": "image/gif", "data": FlutterStandardTypedData(bytes: data)])
+      guard let image = KeyboardImagePasteBridge.pasteboardImage() else {
+        result(nil)
         return
       }
-      if let data = pasteboard.data(forPasteboardType: "public.png") {
-        result(["mimeType": "image/png", "data": FlutterStandardTypedData(bytes: data)])
-        return
-      }
-      if let data = pasteboard.data(forPasteboardType: "public.jpeg") {
-        result(["mimeType": "image/jpeg", "data": FlutterStandardTypedData(bytes: data)])
-        return
-      }
-      if let image = pasteboard.image, let data = image.pngData() {
-        result(["mimeType": "image/png", "data": FlutterStandardTypedData(bytes: data)])
-        return
-      }
-      result(nil)
+      result(["mimeType": image.mimeType, "data": FlutterStandardTypedData(bytes: image.data)])
     }
     let mediaEditorChannel = FlutterMethodChannel(
       name: "mithka/media_editor",
@@ -623,6 +635,7 @@ enum VideoNoteExportError: Error, Sendable {
     mediaDropBridge = MediaDropBridge(
       messenger: engineBridge.applicationRegistrar.messenger()
     )
+    KeyboardImagePasteBridge.install(messenger: engineBridge.applicationRegistrar.messenger())
 
     let fontsChannel = FlutterMethodChannel(
       name: "mithka/fonts",
@@ -678,34 +691,11 @@ enum VideoNoteExportError: Error, Sendable {
           result(FlutterError(code: "invalid_icon", message: "Unknown app icon", details: nil))
           return
         }
-        let freeIconNames: Set<String> = [
-          "default", "white", "blue", "purple", "pixel", "aurora", "prism", "signal",
-          "pixel_neutral", "pixel_gradient", "letter_m_neutral", "letter_m_gradient",
-        ]
-        // The 48 penguins in their fixed catalogue order (01-pilot …
-        // 48-stargazing). Must match AppIconVariant.dailyPenguinOrder in
-        // lib/settings/app_icon_controller.dart and paidIcons in
-        // MainActivity.kt; never sort it.
-        let dailyPenguinOrder: [String] = [
-          "pilot", "headphones", "winter", "astronaut", "crown", "party",
-          "sleepy", "heart", "coffee", "detective", "gamer", "fishing",
-          "skateboard", "surfboard", "basketball", "football", "tennis", "skiing",
-          "painter", "guitar", "drummer", "photographer", "magician", "chef",
-          "reader", "scientist", "gardener", "mail-carrier", "pirate", "dragon",
-          "bubblegum", "raincoat", "noodles", "ice-cream", "sunflower", "ninja",
-          "high-five", "hug", "seesaw", "dance", "pillow-fight", "snowball",
-          "parade", "choir", "stack", "picnic", "paper-planes", "stargazing",
-        ]
+        // nativeIconName is the single source of truth for "an icon that
+        // exists"; "default" hands the system back its own primary icon.
+        // MithkaX ships every icon free, so membership is the whole check —
+        // there is no daily rotation and no entitlement to consult.
         Task { @MainActor in
-          // Today's penguin is free without a subscription. Compute the UTC
-          // day here at apply time, never trusting Dart:
-          // floor(unixSeconds / 86400) mod 48.
-          let utcDay = Int((Date().timeIntervalSince1970 / 86_400).rounded(.down))
-          let count = dailyPenguinOrder.count
-          let dailyPenguin = dailyPenguinOrder[((utcDay % count) + count) % count]
-          // Mithka X: every icon ships free; no supporter entitlement check.
-          _ = dailyPenguin
-          _ = freeIconNames
           UIApplication.shared.setAlternateIconName(nativeName) { error in
             if let error {
               result(

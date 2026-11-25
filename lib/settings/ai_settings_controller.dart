@@ -1,10 +1,8 @@
 import 'dart:convert';
 import 'dart:io';
-
 import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-
 import 'ai_endpoint_style.dart';
 import 'apple_pcc_api.dart';
 import 'openai_compatible_models_api.dart';
@@ -321,6 +319,14 @@ class AiSettingsController extends ChangeNotifier {
       'ai.feature.reply.model_candidate.v1';
   static const replyPromptPreferenceKey = 'ai.feature.reply.prompt.v1';
   static const replyPromptMaximumCharacters = 1000;
+
+  /// Whether the composer offers its AI Reply button beside the input.
+  ///
+  /// Off by default: the feature writes straight into the composer, so it
+  /// stays an opt-in surface rather than a permanent control in every chat.
+  static const replyButtonPreferenceKey = 'ai.composer.reply_button.enabled';
+  static const defaultReplyButtonEnabled = false;
+
   static const summaryPromptPreferenceKey = 'ai.feature.summary.prompt.v1';
   static const summaryPromptMaximumCharacters = 1000;
   static const applePccModelCandidateId = 'builtin:apple_pcc';
@@ -342,6 +348,7 @@ class AiSettingsController extends ChangeNotifier {
   Future<void>? _initialization;
   bool _initialized = false;
   bool _enabled = defaultUnreadSummaryEnabled;
+  bool _replyButtonEnabled = defaultReplyButtonEnabled;
   AiProviderMode _provider = AiProviderMode.applePcc;
   List<AiServerProvider> _serverProviders = const [];
   List<AiModelProfile> _modelProfiles = const [];
@@ -357,6 +364,7 @@ class AiSettingsController extends ChangeNotifier {
 
   bool get initialized => _initialized;
   bool get enabled => _enabled;
+  bool get replyButtonEnabled => _replyButtonEnabled;
   AiProviderMode get provider => _provider;
   List<AiServerProvider> get serverProviders => _serverProviders;
   List<AiModelProfile> get modelProfiles => _modelProfiles;
@@ -577,6 +585,9 @@ class AiSettingsController extends ChangeNotifier {
         defaultUnreadSummaryEnabled,
       );
     }
+    _replyButtonEnabled =
+        _preferences.getBool(replyButtonPreferenceKey) ??
+        defaultReplyButtonEnabled;
     _provider = AiProviderMode.fromStorage(
       _preferences.getString(providerPreferenceKey),
     );
@@ -729,6 +740,13 @@ class AiSettingsController extends ChangeNotifier {
     if (_enabled == value) return;
     await _preferences.setBool(enabledPreferenceKey, value);
     _enabled = value;
+    notifyListeners();
+  }
+
+  Future<void> setReplyButtonEnabled(bool value) async {
+    if (_replyButtonEnabled == value) return;
+    await _preferences.setBool(replyButtonPreferenceKey, value);
+    _replyButtonEnabled = value;
     notifyListeners();
   }
 

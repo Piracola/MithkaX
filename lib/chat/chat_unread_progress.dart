@@ -204,6 +204,24 @@ class ChatUnreadProgress {
     return initialUnread && _seenInitialMessageIds.add(messageId);
   }
 
+  /// Channel posts already reported to TDLib while they stayed on screen.
+  final Set<int> _reportedChannelPostIds = <int>{};
+
+  /// Records one channel post intersecting the laid-out viewport.
+  ///
+  /// True only while the post stays on screen. TDLib refreshes a channel
+  /// post's counters solely from a `messages.getMessagesViews` answer, and it
+  /// asks for one exactly when `viewMessages` names the post — so a post that
+  /// left the viewport must be reportable again, or its counts would stay at
+  /// whatever the page that first loaded it carried.
+  bool markChannelPostReported({required int messageId}) =>
+      _reportedChannelPostIds.add(messageId);
+
+  /// Forgets the reports of posts that are no longer on screen, so scrolling
+  /// back to one reports it again.
+  void retainVisibleChannelPosts(Set<int> visibleMessageIds) =>
+      _reportedChannelPostIds.retainAll(visibleMessageIds);
+
   /// Records one incoming message intersecting the laid-out viewport.
   ///
   /// [shouldReportViewed] is true only on the first observation so callers can

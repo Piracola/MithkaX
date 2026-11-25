@@ -1,8 +1,6 @@
 import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-
 import '../auth/account_store.dart';
 import '../components/app_icons.dart';
 import '../components/app_interactive_surface.dart';

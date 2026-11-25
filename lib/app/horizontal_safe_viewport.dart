@@ -1,9 +1,7 @@
 import 'dart:ui' show DisplayFeature;
-
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
-
 import 'top_corner_cluster.dart';
 
 /// Reserves side-mounted system chrome for every route, sheet, and overlay.

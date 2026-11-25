@@ -10,7 +10,6 @@ import 'dart:async';
 import 'dart:io';
 import 'dart:math' as math;
 import 'dart:ui' as ui;
-
 import 'package:f_videoplayer/f_videoplayer.dart';
 import 'package:f_videoplayer_pip/f_video_picture_in_picture.dart';
 import 'package:flutter/foundation.dart';
@@ -22,8 +21,8 @@ import 'package:mithka/l10n/app_localizations.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:video_player/video_player.dart';
-
 import '../app/app_navigator.dart';
+import '../app/chat_deep_link_controller.dart';
 import '../app/ipad_window_chrome.dart';
 import '../app/video_split_controller.dart';
 import '../components/app_icons.dart';
@@ -48,15 +47,16 @@ import '../theme/app_motion.dart';
 import '../theme/app_theme.dart';
 import '../theme/theme_controller.dart';
 import 'chat_picker_view.dart';
-import 'forward_options.dart';
-import 'media_download_service.dart';
-import 'media_library_saver.dart';
-import 'td_video_stream_server.dart';
-import 'video_playback_preferences.dart';
-import 'video_playback_queue.dart';
-import 'video_stream_debugger.dart';
+import 'forward_handoff.dart';
+import 'media/media_download_service.dart';
+import 'media/media_library_saver.dart';
+import 'media/td_video_stream_server.dart';
+import 'media/video_playback_preferences.dart';
+import 'media/video_playback_queue.dart';
+import 'media/video_stream_debugger.dart';
+import 'messages/forward_markdown.dart';
 
-export 'td_video_stream_server.dart';
+export 'media/td_video_stream_server.dart';
 
 typedef VideoPictureInPictureRestoreCallback =
     FutureOr<bool> Function(FVideoPictureInPictureSnapshot snapshot);
@@ -5671,32 +5671,25 @@ class _VideoPlayerViewState extends State<VideoPlayerView>
     );
     if (result == null || !mounted) return;
     final target = result.chat;
-    try {
-      await forwardMessagesWithOptions(
-        client: TdClient.shared,
-        targetChatId: target.id,
+    ChatDeepLinkController.shared.openChat(
+      chatId: target.id,
+      title: target.title,
+      forwardHandoff: ForwardMessagesHandoff(
         fromChatId: sourceChatId,
-        messageIds: [messageId],
-        options: result.forwardOptions,
-      );
-      if (mounted) {
-        showToast(
-          context,
-          AppStrings.t(AppStringKeys.chatForwardedToName, {
-            'value1': target.title,
-          }),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        showToast(
-          context,
-          isForwardProtectedError(e)
-              ? AppStringKeys.chatForwardProtected
-              : AppStrings.t(AppStringKeys.chatForwardFailed, {'value1': e}),
-        );
-      }
-    }
+        messages: [
+          ChatMessage(
+            id: messageId,
+            isOutgoing: false,
+            text: widget.title,
+            date: 0,
+          ),
+        ],
+        accountSlot: TdClient.shared.activeSlot,
+        clientId: TdClient.shared.activeClientId,
+        hasCaption: false,
+        markdownOffer: const ForwardMarkdownOffer.none(),
+      ),
+    );
   }
 
   static String _fmt(Duration d) {

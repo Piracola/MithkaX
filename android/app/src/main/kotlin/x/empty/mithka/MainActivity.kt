@@ -1,5 +1,6 @@
 package x.empty.mithka
 
+import android.app.ActivityManager
 import android.content.ClipData
 import android.content.ClipDescription
 import android.content.ClipboardManager
@@ -57,11 +58,17 @@ class MainActivity : FlutterFragmentActivity() {
     private var downloadStorage: DownloadStoragePlugin? = null
     private var mithkaPro: MithkaProPlugin? = null
     private var nowPlaying: NowPlayingPlugin? = null
+    private var externalLinks: ExternalLinksPlugin? = null
+    private var pushBridge: PushServiceBridge? = null
+    private var haptics: HapticsPlugin? = null
     private var mediaDropChannel: MethodChannel? = null
     private var shareIntentChannel: MethodChannel? = null
-    private var pendingSharePayload: Map<String, Any?>? = null
+    private var shareDeliveryPending = false
     private var acceptingImageDrop = false
     private var fullscreenSystemUi = false
+
+    /** Set when the user leaves through Home or Recents, cleared on return. */
+    private var leftByUser = false
     private val translators = mutableMapOf<String, Translator>()
     private val languageIdentifierDelegate = lazy<LanguageIdentifier> {
         LanguageIdentification.getClient()
@@ -69,11 +76,117 @@ class MainActivity : FlutterFragmentActivity() {
     private val languageIdentifier by languageIdentifierDelegate
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        // Let Flutter paint under the status bar and gesture/nav bar.
+        // The engine outlives the Activity (see CachedEngine), so this may be a
+        // re-attach to a Dart VM that is already running: nothing may be
+        // initialised twice, but this window's intent must still be delivered.
+        val warm = CachedEngine.isWarm
+        // The cached engine has to exist BEFORE the fragment resolves it: with a
+        // cached id the fragment never creates (or destroys) one, which is what
+        // keeps it alive across Activities.
+        CachedEngine.acquire(this)
         WindowCompat.setDecorFitsSystemWindows(window, false)
         super.onCreate(savedInstanceState)
         requestHighestRefreshRate()
-        pendingSharePayload = parseIncomingShareIntent(intent)
+        if (!warm) {
+            incomingSharePayload = parseIncomingShareIntent(intent)
+            PushServiceBridge.captureTap(this, intent)
+        }
+        // Telegram-family self-heal (exteraless LauncherIconController
+        // .tryFixLauncherIconIfNeeded): an app update that removes the alias
+        // the user had chosen can leave EVERY alias disabled — the launcher
+        // then resolves the launch intent against a dead component and the
+        // app vanishes from the home screen. Repair on a background thread
+        // (up to 62 serialized PackageManager reads must never ride the
+        // launch frames).
+        Thread { ensureLauncherAliasEnabled() }.start()
+        if (warm) {
+            // Dart is already running and will never see this Activity's
+            // creation. A deep link, share or notification tap that OPENED this
+            // window has to travel the warm path instead: onNewIntent hands it
+            // to app_links, the share channel and the push bridge.
+            val incoming = intent
+            if (incoming != null && incoming.action != Intent.ACTION_MAIN) {
+                onNewIntent(Intent(incoming))
+            }
+        }
+    }
+
+    private fun ensureLauncherAliasEnabled() {
+        // The common case is answered by ONE binder read: the primordial
+        // manifest-enabled alias still in (or explicitly) its DEFAULT state
+        // resolves as live — either the user never chose an icon, or the
+        // choice was made through this build's own switcher.
+        //
+        // This runs on a bare `Thread`, and Android installs its
+        // KillApplicationHandler as the DEFAULT uncaught-exception handler for
+        // every thread: one RuntimeException out of the PackageManager while
+        // the launcher's PACKAGE_CHANGED storm is still settling kills the
+        // process on the loading page. Repair is best-effort — never fatal.
+        try {
+            val primordialState = packageManager.getComponentEnabledSetting(
+                primordialDefaultAlias,
+            )
+            if (primordialState == PackageManager.COMPONENT_ENABLED_STATE_DEFAULT ||
+                primordialState == PackageManager.COMPONENT_ENABLED_STATE_ENABLED
+            ) {
+                return
+            }
+            for ((_, className) in launcherAliases()) {
+                val state = packageManager.getComponentEnabledSetting(
+                    ComponentName(packageName, className),
+                )
+                if (state == PackageManager.COMPONENT_ENABLED_STATE_ENABLED) {
+                    return
+                }
+            }
+            // Nothing is live: re-root the launcher at the shipped default so this
+            // launch already resolves, and the home screen gets its icon back.
+            packageManager.setComponentEnabledSetting(
+                primordialDefaultAlias,
+                PackageManager.COMPONENT_ENABLED_STATE_ENABLED,
+                PackageManager.DONT_KILL_APP,
+            )
+        } catch (error: Exception) {
+            Log.w("MainActivity", "Could not repair the launcher alias", error)
+        }
+    }
+
+    /// Refreshes the recents/switcher entry so it always shows the app name
+    /// and the current launcher icon. Flutter sets the task description via
+    /// SystemChrome.setApplicationSwitcherDescription with icon=0
+    /// (PlatformPlugin), which wipes the manifest icon; this re-applies the
+    /// icon for the alias that is actually live.
+    ///
+    /// The PackageManager reads live off the main thread: currentLauncherIcon()
+    /// can cost up to 40+ serialized binder reads, and doing them on the UI
+    /// thread during onResume blocks the first Flutter render frame
+    /// (cold-start crash-once after an icon switch).
+    private fun updateTaskDescription() {
+        Thread {
+            // Like ensureLauncherAliasEnabled: this thread's failures must not
+            // reach the default handler — a TaskDescription built while
+            // PackageManager is busy is not worth a process death.
+            try {
+                val current = currentLauncherIcon()
+                // Resource names cannot carry '-'; catalogued keys such as
+                // `ice-cream` ship as `ic_launcher_ice_cream`, so a raw
+                // interpolation answers 0 and the recents entry gets an icon
+                // resource of id 0 instead of the mark.
+                val resName = if (current == "default") {
+                    "ic_launcher"
+                } else {
+                    "ic_launcher_" + current.replace('-', '_')
+                }
+                val iconRes = resources.getIdentifier(resName, "mipmap", packageName)
+                runOnUiThread {
+                    val taskDescription =
+                        android.app.ActivityManager.TaskDescription("Mithka X", iconRes, 0)
+                    setTaskDescription(taskDescription)
+                }
+            } catch (error: Exception) {
+                Log.w("MainActivity", "Could not refresh the task description", error)
+            }
+        }.start()
     }
 
     /**
@@ -113,9 +226,14 @@ class MainActivity : FlutterFragmentActivity() {
 
     override fun onResume() {
         super.onResume()
+        leftByUser = false
         mithkaPro?.onActivityResumed()
         FVideoPictureInPicturePlugin.onActivityResumed(this)
         if (fullscreenSystemUi) applyFullscreenSystemUi()
+        // Flutter sets the task description via SystemChrome.setApplicationSwitcherDescription
+        // with icon=0 (PlatformPlugin), which wipes the manifest icon from the recents view.
+        // Refresh it here so the app always shows its name and current icon in the switcher.
+        updateTaskDescription()
     }
 
     override fun onWindowFocusChanged(hasFocus: Boolean) {
@@ -143,10 +261,17 @@ class MainActivity : FlutterFragmentActivity() {
     override fun onStop() {
         FVideoPictureInPicturePlugin.onActivityStopped(this)
         super.onStop()
+        // The user went Home or to Recents (a floating video only stops here
+        // once it is dismissed): nothing of this window is on screen, so a
+        // deferred icon switch can retire it now.
+        if (leftByUser && !isInPictureInPictureMode && !isChangingConfigurations) {
+            applyPendingLauncherIcon(closeTask = true)
+        }
     }
 
     override fun onUserLeaveHint() {
         super.onUserLeaveHint()
+        leftByUser = true
         FVideoPictureInPicturePlugin.onUserLeaveHint(this)
     }
 
@@ -167,9 +292,34 @@ class MainActivity : FlutterFragmentActivity() {
         )
     }
 
+    /** Flutter's supported way to keep one engine for the whole process. */
+    override fun getCachedEngineId(): String = CachedEngine.ID
+
+    override fun shouldDestroyEngineWithHost(): Boolean = false
+
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
+        // This runs on EVERY attach, and with a cached engine that is no longer
+        // the same thing as a new engine: the FlutterEngine, its plugins and
+        // Dart symbols must be set up once per engine, while the channels below
+        // capture this Activity and are re-registered on each attach.
+        //
+        // `flutterEngineOrdinal` therefore counts ENGINES, not attachments. It
+        // stays 1 for the whole process now; Dart's re-entry reclaim only ever
+        // fires if someone reverts to a per-Activity engine.
+        if (configuredEngine !== flutterEngine) {
+            configuredEngine = flutterEngine
+            flutterEngineOrdinal += 1
+            registerPlugins(flutterEngine)
+        }
+        CachedEngine.noteAttach()
         webProxyBridge = WebProxyBridge(this, flutterEngine.dartExecutor.binaryMessenger)
-        registerPlugins(flutterEngine)
+        pushBridge = PushServiceBridge(
+            this,
+            flutterEngine.dartExecutor.binaryMessenger,
+        )
+        // Re-created per attach: the tick is drawn on THIS window's decor view.
+        haptics?.dispose()
+        haptics = HapticsPlugin(this, flutterEngine.dartExecutor.binaryMessenger)
         downloadStorage = DownloadStoragePlugin(
             this,
             flutterEngine.dartExecutor.binaryMessenger,
@@ -201,6 +351,10 @@ class MainActivity : FlutterFragmentActivity() {
             applicationContext,
             flutterEngine.dartExecutor.binaryMessenger,
         )
+        externalLinks = ExternalLinksPlugin(
+            this,
+            flutterEngine.dartExecutor.binaryMessenger,
+        )
         val plugin = CallMediaPlugin(
             applicationContext,
             flutterEngine.dartExecutor.binaryMessenger,
@@ -215,20 +369,32 @@ class MainActivity : FlutterFragmentActivity() {
         // and the installed version name (the semver compared to the latest tag).
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "mithka/app_info")
             .setMethodCallHandler { call, result ->
-                if (call.method == "info") {
-                    val pkg = packageManager.getPackageInfo(packageName, 0)
-                    result.success(
+                when (call.method) {
+                    "info" -> {
+                        val pkg = packageManager.getPackageInfo(packageName, 0)
+                        result.success(
+                            mapOf(
+                                "abis" to Build.SUPPORTED_ABIS.toList(),
+                                "version" to (pkg.versionName ?: ""),
+                                "sdkInt" to Build.VERSION.SDK_INT,
+                                "manufacturer" to Build.MANUFACTURER,
+                                "model" to Build.MODEL,
+                                "hardware" to Build.HARDWARE,
+                            ),
+                        )
+                    }
+                    // 1 = this process has never hosted a FlutterEngine before.
+                    // Dart reclaims a previous engine's native TDLib clients
+                    // only when this answers 2 or more AND the owning activity
+                    // has actually been destroyed.
+                    "engineState" -> result.success(
                         mapOf(
-                            "abis" to Build.SUPPORTED_ABIS.toList(),
-                            "version" to (pkg.versionName ?: ""),
-                            "sdkInt" to Build.VERSION.SDK_INT,
-                            "manufacturer" to Build.MANUFACTURER,
-                            "model" to Build.MODEL,
-                            "hardware" to Build.HARDWARE,
+                            "ordinal" to flutterEngineOrdinal,
+                            "destroyedOrdinal" to flutterEngineDestroyedOrdinal,
                         ),
                     )
-                } else {
-                    result.notImplemented()
+                    "engineOrdinal" -> result.success(flutterEngineOrdinal)
+                    else -> result.notImplemented()
                 }
             }
 
@@ -249,86 +415,70 @@ class MainActivity : FlutterFragmentActivity() {
             .setMethodCallHandler { call, result ->
                 when (call.method) {
                     "isSupported" -> result.success(true)
-                    "currentIcon" -> result.success(currentLauncherIcon())
+                    // Up to 61 serialized PackageManager binder reads; on the
+                    // cold start right after the first icon switch these land
+                    // while PackageManager is still churning through the 60
+                    // component-state writes and their PACKAGE_CHANGED
+                    // broadcasts, which froze the loading page's main thread
+                    // until ANR (crash-once-then-fine). Off the main thread,
+                    // the loading page keeps painting and the Dart future just
+                    // resolves a few ms later.
+                    "currentIcon" -> Thread {
+                        try {
+                            val current = currentLauncherIcon()
+                            runOnUiThread { result.success(current) }
+                        } catch (e: Exception) {
+                            runOnUiThread {
+                                result.error(
+                                    "app_icon_failed",
+                                    e.localizedMessage,
+                                    null,
+                                )
+                            }
+                        }
+                    }.start()
                     "setIcon" -> {
                         val args = call.arguments as? Map<*, *>
                         val name = args?.get("name") as? String ?: "default"
-                        val freeIcons = setOf(
-                            "default", "white", "blue", "purple",
-                            "pixel", "aurora", "prism", "signal",
-                            "pixel_neutral",
-                            "pixel_gradient",
-                            "letter_m_neutral",
-                            "letter_m_gradient",
-                        )
-                        // The 48 penguins in their fixed catalogue order (01-pilot …
-                        // 48-stargazing). Must match AppIconVariant.dailyPenguinOrder in
-                        // lib/settings/app_icon_controller.dart and dailyPenguinOrder in
-                        // AppDelegate.swift; never sort it.
-                        val paidIcons = listOf(
-                            "pilot", "headphones", "winter", "astronaut",
-                            "crown", "party", "sleepy", "heart",
-                            "coffee", "detective", "gamer", "fishing",
-                            "skateboard",
-                            "surfboard",
-                            "basketball",
-                            "football",
-                            "tennis",
-                            "skiing",
-                            "painter",
-                            "guitar",
-                            "drummer",
-                            "photographer",
-                            "magician",
-                            "chef",
-                            "reader",
-                            "scientist",
-                            "gardener",
-                            "mail-carrier",
-                            "pirate",
-                            "dragon",
-                            "bubblegum",
-                            "raincoat",
-                            "noodles",
-                            "ice-cream",
-                            "sunflower",
-                            "ninja",
-                            "high-five",
-                            "hug",
-                            "seesaw",
-                            "dance",
-                            "pillow-fight",
-                            "snowball",
-                            "parade",
-                            "choir",
-                            "stack",
-                            "picnic",
-                            "paper-planes",
-                            "stargazing",
-                        )
-                        fun applyIcon() {
-                            runOnUiThread {
-                                try {
-                                    setLauncherIcon(name)
+                        // launcherAliases() is the single source of truth
+                        // for "an icon that exists": keying this gate off it
+                        // keeps a newly catalogued icon switchable. A second,
+                        // hand-maintained key list once held the twelve
+                        // standard marks and the 48 penguins but not the
+                        // fork's own two marks, so every tap on those
+                        // answered "cannot change the app icon"
+                        // (invalid_icon) instead of switching. Nothing is
+                        // gated here: every icon ships free in MithkaX.
+                        if (!launcherAliases().containsKey(name)) {
+                            result.error("invalid_icon", "Unknown app icon", null)
+                            return@setMethodCallHandler
+                        }
+                        // All 61 component writes go through the package
+                        // manager's serialized write lock. Doing them on the
+                        // platform main thread freezes every frame while the
+                        // writes land — and, right after the first switch,
+                        // while PACKAGE_CHANGED broadcasts storm every
+                        // launcher. A background thread keeps the switch UI
+                        // (and its result callback) off that lock.
+                        Thread {
+                            try {
+                                setLauncherIcon(name)
+                                runOnUiThread {
                                     result.success(null)
-                                } catch (e: Exception) {
-                                    result.error("app_icon_failed", e.localizedMessage, null)
+                                    // The alias just went live: refresh the recents
+                                    // entry so it shows the new icon immediately.
+                                    updateTaskDescription()
+                                }
+                            } catch (e: Exception) {
+                                runOnUiThread {
+                                    result.error(
+                                        "app_icon_failed",
+                                        e.localizedMessage,
+                                        null,
+                                    )
                                 }
                             }
-                        }
-                        // Today's penguin is free without Play billing evidence and on
-                        // every distribution. Compute the UTC day here at apply time,
-                        // never trusting Dart: floor(unixSeconds / 86400) mod 48.
-                        val utcDay = Math.floorDiv(System.currentTimeMillis(), 86_400_000L)
-                        val dailyPenguin =
-                            paidIcons[Math.floorMod(utcDay, paidIcons.size.toLong()).toInt()]
-                        when (name) {
-                            in freeIcons -> applyIcon()
-                            dailyPenguin -> applyIcon()
-                            // MithkaX: every icon ships free; no supporter check.
-                            in paidIcons -> applyIcon()
-                            else -> result.error("invalid_icon", "Unknown app icon", null)
-                        }
+                        }.start()
                     }
                     else -> result.notImplemented()
                 }
@@ -659,9 +809,11 @@ class MainActivity : FlutterFragmentActivity() {
         shareIntentChannel?.setMethodCallHandler { call, result ->
             when (call.method) {
                 "initial" -> {
-                    val payload = pendingSharePayload
-                    pendingSharePayload = null
-                    result.success(payload)
+                    // Deliberately non-consuming: a delivery that landed before
+                    // Dart registered its handler is recovered by the next
+                    // poll (MainTabView asks again on every mount), and Dart
+                    // drops duplicates by the payload id.
+                    result.success(incomingSharePayload)
                 }
                 "copyFiles" -> {
                     val uris = (call.arguments as? List<*>)
@@ -670,7 +822,16 @@ class MainActivity : FlutterFragmentActivity() {
                         ?.take(MAX_SHARED_FILES)
                         ?: emptyList()
                     Thread {
-                        val files = copySharedFiles(uris)
+                        // A result MUST always come back: Dart awaits this
+                        // reply, and a bare thread dying on a provider
+                        // SecurityException would leave the share intake
+                        // waiting for the life of the process.
+                        val files = try {
+                            copySharedFiles(uris)
+                        } catch (error: Throwable) {
+                            Log.w("Mithka", "Unable to copy shared files", error)
+                            emptyList()
+                        }
                         runOnUiThread { result.success(files) }
                     }.start()
                 }
@@ -684,18 +845,49 @@ class MainActivity : FlutterFragmentActivity() {
                 else -> result.notImplemented()
             }
         }
+        // A share that OPENED this window arrived while the FlutterFragment was
+        // still queued (FlutterFragmentActivity adds it with commit()), so the
+        // channel did not exist yet. Hand it over now.
+        if (shareDeliveryPending) {
+            shareDeliveryPending = false
+            incomingSharePayload?.let { payload ->
+                shareIntentChannel?.invokeMethod("share", payload)
+            }
+        }
+    }
+
+    /**
+     * Hands an inbound share to Dart.
+     *
+     * `shareIntentChannel` is created in `configureFlutterEngine`, which runs
+     * when this Activity's FlutterFragment attaches — and
+     * `FlutterFragmentActivity` adds that fragment with `commit()`, i.e. on the
+     * NEXT main-loop pass. A share that opens a new window therefore reaches
+     * `onNewIntent` while the channel is still null, and `Activity.runOnUiThread`
+     * runs its action INLINE when called on the UI thread (it only posts from
+     * another thread), so `runOnUiThread { channel?.invokeMethod(...) }` dropped
+     * the payload without a trace. Keep it pending and flush it from
+     * [configureShareIntentChannel]; the payload also stays process-wide for
+     * Dart's `initial` poll.
+     */
+    private fun deliverShareToDart(payload: Map<String, Any?>) {
+        val channel = shareIntentChannel
+        if (channel == null) {
+            shareDeliveryPending = true
+            return
+        }
+        channel.invokeMethod("share", payload)
     }
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
+        PushServiceBridge.captureTap(this, intent)
         val payload = parseIncomingShareIntent(intent) ?: return
         // Keep a copy for the initial() handshake as well. The payload id lets
         // Dart de-duplicate it if both paths race during a warm start.
-        pendingSharePayload = payload
-        runOnUiThread {
-            shareIntentChannel?.invokeMethod("share", payload)
-        }
+        incomingSharePayload = payload
+        deliverShareToDart(payload)
     }
 
     private fun parseIncomingShareIntent(intent: Intent?): Map<String, Any?>? {
@@ -733,27 +925,36 @@ class MainActivity : FlutterFragmentActivity() {
         val copied = mutableListOf<Map<String, Any?>>()
         for (uriString in uriStrings) {
             val uri = runCatching { Uri.parse(uriString) }.getOrNull() ?: continue
-            val mimeType = contentResolver.getType(uri)
-                ?: "application/octet-stream"
-            val displayName = contentResolver.query(
-                uri,
-                arrayOf(OpenableColumns.DISPLAY_NAME),
-                null,
-                null,
-                null,
-            )?.use { cursor ->
-                if (cursor.moveToFirst()) cursor.getString(0) else null
-            }
-            val fileName = sharedFileName(displayName, mimeType)
-            val destination = File(
-                cacheDir,
-                "mithka-share-${System.nanoTime()}-$fileName",
-            )
+            var destination: File? = null
             try {
+                // getType/query read the PROVIDER: a provider can refuse the
+                // grant or throw while the sending app is being torn down. That
+                // failure belongs to this one file, not to the whole batch.
+                val mimeType = contentResolver.getType(uri)
+                    ?: "application/octet-stream"
+                val displayName = contentResolver.query(
+                    uri,
+                    arrayOf(OpenableColumns.DISPLAY_NAME),
+                    null,
+                    null,
+                    null,
+                )?.use { cursor ->
+                    if (cursor.moveToFirst()) cursor.getString(0) else null
+                }
+                val fileName = sharedFileName(displayName, mimeType)
+                val file = File(
+                    cacheDir,
+                    "mithka-share-${System.nanoTime()}-$fileName",
+                )
+                destination = file
                 val input = contentResolver.openInputStream(uri)
-                if (input == null) continue
+                if (input == null) {
+                    file.delete()
+                    destination = null
+                    continue
+                }
                 input.use {
-                    destination.outputStream().use { output ->
+                    file.outputStream().use { output ->
                         val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
                         var copiedBytes = 0L
                         while (true) {
@@ -768,12 +969,12 @@ class MainActivity : FlutterFragmentActivity() {
                     }
                 }
                 copied += mapOf(
-                    "path" to destination.absolutePath,
+                    "path" to file.absolutePath,
                     "fileName" to fileName,
                     "mimeType" to mimeType,
                 )
             } catch (error: Exception) {
-                destination.delete()
+                destination?.delete()
                 Log.w("Mithka", "Unable to copy shared file", error)
             }
         }
@@ -810,6 +1011,40 @@ class MainActivity : FlutterFragmentActivity() {
     companion object {
         private const val MAX_SHARED_FILES = 10
         private const val MAX_SHARED_FILE_BYTES = 512L * 1024L * 1024L
+
+        /// FlutterEngines this process has attached so far. Android reuses a
+        /// finished activity's process, so the app can be entered again with a
+        /// second engine while the first engine's native TDLib clients are
+        /// still alive; Dart keys its stale-client reclaim off this counter.
+        @Volatile
+        private var flutterEngineOrdinal = 0
+
+        /// The engine this Activity configured last: plugins and the engine
+        /// ordinal are engine-scoped, while `configureFlutterEngine` runs on
+        /// every attach.
+        private var configuredEngine: FlutterEngine? = null
+
+        /// Highest ordinal whose Activity has been destroyed. A new engine may
+        /// be created while the previous one is still tearing down (a config
+        /// change re-creates the Activity before the old onDestroy returns), so
+        /// the reclaim must not touch clients whose engine may still be alive.
+        @Volatile
+        private var flutterEngineDestroyedOrdinal = 0
+
+        /** A launcher icon chosen while its switch would close this window. */
+        private const val PENDING_LAUNCHER_ICON = "pending"
+
+        /**
+         * The share that opened this process's current window.
+         *
+         * Process-wide on purpose: a warm attach creates a NEW Activity for the
+         * share (the running window sits on an icon alias, a different
+         * component), and the Dart side that answers `initial` may belong to an
+         * engine that was started by the previous Activity. Dart drops
+         * duplicates by the payload id, so re-reading it is safe.
+         */
+        @Volatile
+        private var incomingSharePayload: Map<String, Any?>? = null
     }
 
     private fun handleMediaDragEvent(event: DragEvent): Boolean {
@@ -914,8 +1149,14 @@ class MainActivity : FlutterFragmentActivity() {
         "fishing" to "$packageName.MainActivityFishing",
         "pixel_neutral" to "$packageName.MainActivityPixelNeutral",
         "pixel_gradient" to "$packageName.MainActivityPixelGradient",
-        "letter_m_neutral" to "$packageName.MainActivityLetterMNeutral",
+        "letter_m_neutral" to "$packageName.MainActivityLetterMNeutralAlt",
         "letter_m_gradient" to "$packageName.MainActivityLetterMGradient",
+        "mithkax_default" to "$packageName.MainActivityMithkaXDefaultAlt",
+        "mithkax_green" to "$packageName.MainActivityMithkaXGreen",
+        "mithkax_flame" to "$packageName.MainActivityMithkaXFlame",
+        "mithkax_default_night" to "$packageName.MainActivityMithkaXDefaultNight",
+        "mithkax_green_night" to "$packageName.MainActivityMithkaXGreenNight",
+        "mithkax_flame_night" to "$packageName.MainActivityMithkaXFlameNight",
         "skateboard" to "$packageName.MainActivitySkateboard",
         "surfboard" to "$packageName.MainActivitySurfboard",
         "basketball" to "$packageName.MainActivityBasketball",
@@ -954,19 +1195,34 @@ class MainActivity : FlutterFragmentActivity() {
         "stargazing" to "$packageName.MainActivityStargazing",
     )
 
+    // The manifest-enabled alias MithkaX ships with: the Mithka X default mark.
+    // The COMPONENT NAME is historical (it shipped the neutral letter mark
+    // first) and must never be renamed — an update that replaces an enabled
+    // component with a differently named enabled one adds a second home-screen
+    // icon beside every user whose explicit choice lives in package
+    // restrictions. It lives OUTSIDE launcherAliases(): after the first
+    // explicit choice it is always DISABLED, and re-selecting the default icon
+    // routes through the MithkaXDefaultAlt clone instead (manifest-disabled, so
+    // leaving it again is a STATE_DEFAULT transition that does not force-close
+    // the task).
+    private val primordialDefaultAlias: ComponentName
+        get() = ComponentName(packageName, "$packageName.MainActivityLetterMNeutral")
+
     private fun currentLauncherIcon(): String {
+        pendingLauncherIcon()?.let { return it }
         val aliases = launcherAliases()
-        // Choosing any icon explicitly disables the default alias, so one that
-        // is still in its manifest state means no icon was ever chosen. That is
-        // the common case, and without this check it costs one binder call per
-        // alias on the main thread during launch before falling through.
-        val defaultState = packageManager.getComponentEnabledSetting(
-            ComponentName(packageName, aliases.getValue("default")),
+        // The manifest ships exactly one enabled alias (the primordial neutral
+        // letter mark); it still being in its manifest state means no icon was
+        // ever chosen. That is the common case, and without this check it
+        // costs one binder call per alias during launch before falling
+        // through.
+        val primordialState = packageManager.getComponentEnabledSetting(
+            primordialDefaultAlias,
         )
-        if (defaultState == PackageManager.COMPONENT_ENABLED_STATE_DEFAULT ||
-            defaultState == PackageManager.COMPONENT_ENABLED_STATE_ENABLED
+        if (primordialState == PackageManager.COMPONENT_ENABLED_STATE_DEFAULT ||
+            primordialState == PackageManager.COMPONENT_ENABLED_STATE_ENABLED
         ) {
-            return "default"
+            return "mithkax_default"
         }
         for ((key, className) in aliases) {
             val component = ComponentName(packageName, className)
@@ -975,14 +1231,83 @@ class MainActivity : FlutterFragmentActivity() {
                 return key
             }
         }
-        // MithkaX ships the neutral letter mark as the default identity.
-        return "letter_m_neutral"
+        // MithkaX ships the Mithka X mark as the default identity.
+        return "mithkax_default"
     }
 
+    /**
+     * Switches the launcher icon, or defers the switch while it would close
+     * the window on screen.
+     *
+     * Each icon is an activity-alias, and the task Android opened from the
+     * launcher keeps that alias as its base intent. When an alias is disabled,
+     * the system finishes every task based on it ("disabled-package") once it
+     * processes the change: within a couple of seconds on Android 16, and on
+     * other versions as late as the next time the user opens the app from the
+     * new icon, which brings that same task back. Either way the app closed in
+     * front of the user. So a task based on an alias this switch disables keeps
+     * its alias until the user leaves the app; [applyPendingLauncherIcon] then
+     * switches and retires the task, and the next open starts a fresh one.
+     */
     private fun setLauncherIcon(name: String) {
         val aliases = launcherAliases()
-        // MithkaX ships the neutral letter mark as the default identity.
-        val target = if (aliases.containsKey(name)) name else "letter_m_neutral"
+        // MithkaX ships the Mithka X mark as the default identity.
+        val target = if (aliases.containsKey(name)) name else "mithkax_default"
+        // The primordial alias lives outside launcherAliases() but is still an
+        // activity-alias this switch disables, so a task based on it closes
+        // exactly like one based on any other alias.
+        val baseAliases = aliases.values + primordialDefaultAlias.className
+        val base = currentTaskBaseComponent()
+        val baseIsOtherAlias = base == null ||
+            (base.packageName == packageName &&
+                baseAliases.contains(base.className) &&
+                base.className != aliases[target])
+        if (baseIsOtherAlias) {
+            launcherIconPrefs().edit().putString(PENDING_LAUNCHER_ICON, target).apply()
+            return
+        }
+        applyLauncherIcon(target)
+    }
+
+    private fun launcherIconPrefs() =
+        getSharedPreferences("mithka_launcher_icon", Context.MODE_PRIVATE)
+
+    private fun pendingLauncherIcon(): String? =
+        launcherIconPrefs().getString(PENDING_LAUNCHER_ICON, null)
+            ?.takeIf { launcherAliases().containsKey(it) }
+
+    /** Applies a deferred switch; [closeTask] retires the window it was waiting on. */
+    private fun applyPendingLauncherIcon(closeTask: Boolean) {
+        val pending = pendingLauncherIcon() ?: return
+        try {
+            applyLauncherIcon(pending)
+        } catch (e: Exception) {
+            Log.w("MainActivity", "Could not apply the chosen launcher icon", e)
+            return
+        }
+        // This task is based on an alias that is now disabled; the system
+        // would finish it shortly anyway, possibly after the user came back.
+        if (closeTask) finishAndRemoveTask()
+    }
+
+    /** The component that opened this window's task, or null if unknown. */
+    private fun currentTaskBaseComponent(): ComponentName? = try {
+        getSystemService(ActivityManager::class.java)?.appTasks?.firstNotNullOfOrNull { task ->
+            val info = task.taskInfo
+            val id = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                info.taskId
+            } else {
+                @Suppress("DEPRECATION")
+                info.persistentId
+            }
+            if (id == taskId) info.baseIntent.component else null
+        }
+    } catch (e: Exception) {
+        null
+    }
+
+    private fun applyLauncherIcon(target: String) {
+        val aliases = launcherAliases()
 
         // Enable the target alias first so there's never a window where no
         // launcher icon alias is active — that can cause a crash when the
@@ -994,15 +1319,34 @@ class MainActivity : FlutterFragmentActivity() {
             PackageManager.DONT_KILL_APP,
         )
 
+        // The manifest-enabled primordial alias must be explicitly
+        // disabled whenever another alias (including the default clone) is
+        // the target — STATE_DEFAULT would resolve it back to ENABLED and
+        // put a second launcher icon on the home screen. This transition
+        // (ENABLED -> DISABLED at runtime) is the one and only switch that
+        // Android answers by closing the app: it happens exactly once, on
+        // the user's first icon choice away from the shipped default.
+        packageManager.setComponentEnabledSetting(
+            primordialDefaultAlias,
+            PackageManager.COMPONENT_ENABLED_STATE_DISABLED,
+            PackageManager.DONT_KILL_APP,
+        )
+
         for ((key, className) in aliases) {
             if (key == target) continue
             val component = ComponentName(packageName, className)
+            // Every alias in the map ships disabled in the manifest. Returning
+            // a non-target alias to STATE_DEFAULT resolves to the same disabled
+            // alias but keeps the runtime transition off the ENABLED ->
+            // DISABLED path Android uses to force-close the task, so switches
+            // after the first never visibly close the app.
             packageManager.setComponentEnabledSetting(
                 component,
-                PackageManager.COMPONENT_ENABLED_STATE_DISABLED,
+                PackageManager.COMPONENT_ENABLED_STATE_DEFAULT,
                 PackageManager.DONT_KILL_APP,
             )
         }
+        launcherIconPrefs().edit().remove(PENDING_LAUNCHER_ICON).apply()
     }
 
     private fun listSystemFonts(): List<String> {
@@ -1095,6 +1439,7 @@ class MainActivity : FlutterFragmentActivity() {
             add("com.mr.flutter.plugin.filepicker.FilePickerPlugin")
             add("io.flutter.plugins.firebase.analytics.FlutterFirebaseAnalyticsPlugin")
             add("io.flutter.plugins.firebase.core.FlutterFirebaseCorePlugin")
+            add("io.flutter.plugins.firebase.messaging.FlutterFirebaseMessagingPlugin")
             add("com.dexterous.flutterlocalnotifications.FlutterLocalNotificationsPlugin")
             add("io.flutter.plugins.flutter_plugin_android_lifecycle.FlutterAndroidLifecyclePlugin")
             add("com.it_nomads.fluttersecurestorage.FlutterSecureStoragePlugin")
@@ -1337,6 +1682,8 @@ class MainActivity : FlutterFragmentActivity() {
     }
 
     override fun cleanUpFlutterEngine(flutterEngine: FlutterEngine) {
+        pushBridge?.dispose()
+        pushBridge = null
         downloadStorage?.dispose()
         downloadStorage = null
         webProxyBridge?.dispose()
@@ -1354,6 +1701,8 @@ class MainActivity : FlutterFragmentActivity() {
         mithkaPro = null
         nowPlaying?.dispose()
         nowPlaying = null
+        externalLinks?.dispose()
+        externalLinks = null
         callMedia?.dispose()
         callMedia = null
         super.cleanUpFlutterEngine(flutterEngine)
@@ -1361,6 +1710,13 @@ class MainActivity : FlutterFragmentActivity() {
 
     override fun onDestroy() {
         FVideoPictureInPicturePlugin.onActivityDestroyed(this)
+        // Back out of the app finishes this window anyway.
+        if (isFinishing) applyPendingLauncherIcon(closeTask = false)
         super.onDestroy()
+        // The engine (and with it TDLib) belongs to the process, so a finished
+        // Activity is NOT an exit: the next launch re-attaches this engine and
+        // resumes. Killing the process here would take the live engine down and
+        // make the following tap land in a dying process with no window to show
+        // — the "fast Back then reopen does nothing" report.
     }
 }

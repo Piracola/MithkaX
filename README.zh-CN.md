@@ -2,7 +2,7 @@
 
 ![Mithka X](docs/images/mithka-github-banner.png)
 
-[English](README.md) | 简体中文
+[English](README.md) | 简体中文 | [日本語](README.ja.md)
 
 Mithka X 是 [Mithka](https://github.com/iebb/mithka) 的非官方分支。Mithka
 是基于 Flutter 与 [TDLib](https://core.telegram.org/tdlib) 的跨平台

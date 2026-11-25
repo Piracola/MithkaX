@@ -97,6 +97,11 @@ def check():
             errors.append(f"Picker must use optimized WebP: {path.relative_to(ROOT)}")
         elif path.stat().st_size > 64 * 1024:
             errors.append(f"Picker exceeds 64 KiB: {path.relative_to(ROOT)}")
+    # Xcode flattens every Icon Composer bundle into six full-colour 1024px
+    # renditions (~4 MB each icon), so alternates ship as palette appiconsets.
+    for icon in (ROOT / "ios/Runner").glob("*.icon"):
+        if icon.name != "Pengram.icon":
+            errors.append(f"Alternate icons must use an appiconset: {icon.name}")
     values = inventory()
     if values["picker_bytes"] > 2 * 1024**2:
         errors.append("Picker catalogue exceeds 2 MiB")
@@ -168,7 +173,10 @@ def optimize():
     before = inventory()
     native_paths = [*ICONS.glob("*.png"), *NATIVE.rglob("*.png")]
     native_paths += composer_pngs()
-    native_paths += [ROOT / "assets/app_icon.png", ROOT / "assets/penguin.png"]
+    native_paths += [
+        ROOT / "assets/app_icon.png",
+        ROOT / "assets/brand_mark.png",
+    ]
     groups = {}
     for path in native_paths:
         digest = hashlib.sha256(path.read_bytes()).hexdigest()

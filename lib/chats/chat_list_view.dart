@@ -11,13 +11,13 @@
 import 'dart:async';
 import 'dart:math' as math;
 import 'dart:ui' as ui;
-
 import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:mithka/l10n/app_localizations.dart';
+import 'package:mithka/platform/app_haptics.dart';
 import 'package:provider/provider.dart';
-
 import '../app/adaptive_split_layout.dart';
 import '../app/app_navigator.dart';
 import '../app/bottom_bar_layout.dart';
@@ -29,10 +29,14 @@ import '../auth/account_store.dart';
 import '../auth/auth_manager.dart';
 import '../chat/chat_picker_view.dart';
 import '../chat/chat_view.dart';
-import '../chat/custom_emoji.dart';
-import '../chat/link_handler.dart';
+import '../chat/forward_handoff.dart';
+import '../chat/links_search/link_handler.dart';
+import '../chat/stickers/custom_emoji.dart';
 import '../communities/community_models.dart';
 import '../communities/community_view.dart';
+import '../components/anchored_menu_overlay.dart';
+import '../components/app_anchored_menu.dart';
+import '../components/app_confirm_dialog.dart';
 import '../components/app_icons.dart';
 import '../components/app_interactive_surface.dart';
 import '../components/app_press_ripple.dart';
@@ -66,7 +70,10 @@ import 'chat_list_view_model.dart';
 import 'chat_removal_actions.dart';
 import 'chat_row_metrics.dart';
 import 'chat_row_view.dart';
+import 'chat_selection_actions.dart';
+import 'chat_selection_header.dart';
 import 'filtered_chats_view.dart';
+import 'local_folder_order_store.dart';
 import 'qr_scanner_view.dart';
 import 'search_view.dart';
 
@@ -416,6 +423,7 @@ class ChatListSelection {
     this.initialMessageId,
     this.forumTopicId,
     this.composerFocusRequestId = 0,
+    this.pendingForwardHandoff,
   });
 
   ChatListSelection.fromChat(
@@ -426,7 +434,8 @@ class ChatListSelection {
        chat = chat,
        resolvedKind = chat.kind,
        initialMessageId = null,
-       forumTopicId = null;
+       forumTopicId = null,
+       pendingForwardHandoff = null;
 
   final int chatId;
   final String title;
@@ -438,6 +447,11 @@ class ChatListSelection {
   /// into the group chat; null shows the whole chat.
   final int? forumTopicId;
   final int composerFocusRequestId;
+
+  /// A forward picked in another chat (forward-to-chat). Non-null only on the
+  /// selection a forward flow creates; it is handed to the transcript's
+  /// composer once and never re-applied on rebuilds.
+  final ForwardMessagesHandoff? pendingForwardHandoff;
 
   ChatKind? get kind => chat?.kind ?? resolvedKind;
   bool get isForum => chat?.isForum ?? false;
@@ -451,6 +465,7 @@ class ChatListSelection {
     initialMessageId: initialMessageId,
     forumTopicId: forumTopicId,
     composerFocusRequestId: composerFocusRequestId,
+    pendingForwardHandoff: pendingForwardHandoff,
   );
 
   /// Whether [other] would land on the transcript this selection already
@@ -472,6 +487,7 @@ class ChatListSelection {
     resolvedKind: resolvedKind,
     forumTopicId: topicId,
     composerFocusRequestId: composerFocusRequestId,
+    pendingForwardHandoff: pendingForwardHandoff,
   );
 }
 
@@ -541,20 +557,13 @@ class ChatListSelectionHighlight extends StatelessWidget {
 /// Live archive-list data handed to the adaptive shell when Archived Chats
 /// should replace only the list pane.
 ///
-/// The chat list remains mounted behind that pane, so [chatsProvider] and
-/// [updates] continue to expose current archive contents while it is open.
+/// The chat list remains mounted behind that pane, so the model keeps
+/// exposing current archive contents — and the pane's edit mode drives the
+/// same batch commands (unarchive, mute, delete, read, folders) the list does.
 class ArchivedChatListSelection {
-  const ArchivedChatListSelection({
-    required this.chatsProvider,
-    required this.updates,
-    required this.onClearUnread,
-    this.onUnarchive,
-  });
+  const ArchivedChatListSelection({required this.model});
 
-  final List<ChatSummary> Function() chatsProvider;
-  final Listenable updates;
-  final ValueChanged<ChatSummary> onClearUnread;
-  final ValueChanged<ChatSummary>? onUnarchive;
+  final ChatListViewModel model;
 }
 
 bool chatListPreviewSupportsQuickReply(ChatSummary chat) =>
@@ -591,6 +600,41 @@ ArchivedChatsDisplayMode effectiveChatListArchiveDisplayMode(
   bool isWeb = kIsWeb,
 }) => requested.effectiveForPlatform(platform: platform, isWeb: isWeb);
 
+/// Scroll physics for the chat list.
+///
+/// With a pull-down archive slot, top overscroll must move the viewport (the
+/// archive row is revealed by the negative offset itself), so the list keeps
+/// elastic physics on every platform — damped by [ChatListArchivePullPhysics]
+/// so the pull has the reference client's parallax (45% → 20% of the finger
+/// travel) instead of the elastic curve's lighter resistance. Without the
+/// slot there is nothing to reveal and the list falls back to the platform
+/// default — an Android-style glow with zero content displacement instead of
+/// a long rubber-band. This mirrors how the reference client gates its
+/// archive pull-down on `hasHiddenArchive()`: the elasticity is a property of
+/// the interaction being available, not of the list.
+///
+/// While a folder swipe drag is steering the pager [folderDragActive] the list
+/// is not draggable at all, so a vertical scroll already in flight is cancelled
+/// instead of stacking on top of the horizontal folder travel — the Flutter
+/// counterpart of the reference client calling
+/// requestDisallowInterceptTouchEvent from its pager.
+///
+/// The branches use different physics *types* on purpose: Scrollable only
+/// rebuilds its ScrollPosition when the physics type chain changes, so a
+/// same-type physics whose flag flipped would keep driving the position with
+/// the stale instance.
+ScrollPhysics _chatListScrollPhysics(
+  bool pullDownArchiveSlot, {
+  bool folderDragActive = false,
+  double rowHeight = 0,
+}) => folderDragActive
+    ? const NeverScrollableScrollPhysics()
+    : pullDownArchiveSlot
+    ? AlwaysScrollableScrollPhysics(
+        parent: ChatListArchivePullPhysics(rowHeight: rowHeight),
+      )
+    : const AlwaysScrollableScrollPhysics();
+
 /// Returns the distance that leading chat-list content must move up to cancel
 /// the viewport's native top overscroll in the same frame.
 double chatListTopOverscrollOffset(
@@ -598,18 +642,95 @@ double chatListTopOverscrollOffset(
   double minScrollExtent = 0,
 }) => math.max(0.0, minScrollExtent - scrollPixels).toDouble();
 
+/// Pull-down archive geometry, ported from the reference client's
+/// `PullForegroundDrawable` constants:
+///
+/// * [kArchivePullSnapHeight] — the archive arms only once 85% of its row is
+///   out. Revealing at 45% of a row (the previous value) made the gesture a
+///   hair trigger next to the reference client.
+/// * [kArchivePullStartParallax] / [kArchivePullEndParallax] — a finger delta
+///   moves the list by 45% of its length at the start, easing down to 20% as
+///   the row comes fully out. That damping is the "it stalls, pull harder"
+///   feel of the interaction.
+/// * [kArchivePullMinPullingTime] — a pull that has not lasted this long
+///   never opens the archive, so a quick flick over the top edge cannot
+///   reveal it.
+const double kArchivePullSnapHeight = 0.85;
+const double kArchivePullStartParallax = 0.45;
+const double kArchivePullEndParallax = 0.25;
+const Duration kArchivePullMinPullingTime = Duration(milliseconds: 200);
+
 /// Whether the current pull has crossed the archive reveal threshold.
 bool chatListShouldRevealPullDownArchive({
   required double pullOffset,
   required double rowHeight,
-}) => pullOffset >= rowHeight * 0.45;
+}) => rowHeight > 0 && pullOffset >= rowHeight * kArchivePullSnapHeight;
 
-/// Whether forward scrolling has moved far enough to hide the archive row.
+/// Reference-client damping for the pull-down archive.
+///
+/// While the archive row is still coming out, a finger delta moves the list
+/// by `startPullParallax − endPullParallax · k` of its length, where `k` is
+/// the fraction of the row already revealed. Flutter's own elastic friction
+/// is far lighter at these small overscrolls, which is what made the mithka
+/// pull feel effortless: it reached the old 45% threshold after a short
+/// swipe. With this curve the row crawls out from under the finger and only
+/// speeds up as it fills the slot, exactly like `PullForegroundDrawable`.
+///
+/// Only the top-edge pull is damped; every other direction and edge keeps
+/// [BouncingScrollPhysics] behaviour. The class must stay distinct from
+/// [BouncingScrollPhysics] so a live [ScrollPosition] can tell the two apart
+/// when the archive slot appears or disappears.
+class ChatListArchivePullPhysics extends BouncingScrollPhysics {
+  const ChatListArchivePullPhysics({required this.rowHeight, super.parent});
+
+  /// Height of one chat row — `k` is measured in revealed rows.
+  final double rowHeight;
+
+  @override
+  double applyPhysicsToUserOffset(ScrollMetrics position, double offset) {
+    // `offset` is the finger's own delta: positive while the list is being
+    // pulled down past its top edge (the caller subtracts the returned value
+    // from `pixels`, so returning a fraction of it is the parallax).
+    if (offset > 0 &&
+        rowHeight > 0 &&
+        position.pixels <= position.minScrollExtent) {
+      final revealed =
+          ((position.minScrollExtent - position.pixels) / rowHeight).clamp(
+            0.0,
+            1.0,
+          );
+      final parallax =
+          kArchivePullStartParallax - kArchivePullEndParallax * revealed;
+      return offset * parallax;
+    }
+    return super.applyPhysicsToUserOffset(position, offset);
+  }
+
+  @override
+  bool operator ==(Object other) =>
+      super == other &&
+      other is ChatListArchivePullPhysics &&
+      other.rowHeight == rowHeight;
+
+  @override
+  int get hashCode => Object.hash(super.hashCode, rowHeight);
+}
+
+/// Whether forward scrolling has carried the revealed archive row out of the
+/// list.
+///
+/// The reference client keeps the archive row as an ordinary list item: it
+/// scrolls up with the chats and, the moment it leaves the viewport, the
+/// adapter drops the item (`firstVisibleItemPosition != 0` → archive state
+/// HIDDEN) and lays the list out from the first chat. There is no sticky
+/// header and no collapse animation — the row has to be pulled out again.
+/// [leadingExtent] is the search row above it, which scrolls away first.
 bool chatListShouldHidePullDownArchive({
   required double scrollPixels,
   required double minScrollExtent,
   required double rowHeight,
-}) => scrollPixels - minScrollExtent > rowHeight * 0.5;
+  double leadingExtent = 0,
+}) => scrollPixels - minScrollExtent >= leadingExtent + rowHeight;
 
 /// Keeps leading pull-down content visually fixed while the surrounding list
 /// uses bouncing scroll physics.
@@ -649,6 +770,203 @@ class ChatListTopOverscrollPin extends StatelessWidget {
   }
 }
 
+/// MithkaX's arrival transition for the pulled-out archive row.
+///
+/// The reference client grows the row out of an archive-coloured bloom and
+/// bounces the assistant avatar (`PullForegroundDrawable.startOutAnimation`:
+/// 250ms `EASE_OUT_QUINT`, then a 7% avatar bounce). MithkaX keeps the bloom
+/// but turns it into light around the avatar: the archive's amber tight, the
+/// app's own brand colour spilling wider on a dark canvas. The content fades
+/// in and drops into place from under the folder strip, and the halo is gone
+/// by the time the row has settled.
+class ChatListPullDownArchiveReveal extends StatefulWidget {
+  const ChatListPullDownArchiveReveal({super.key, required this.child});
+
+  final Widget child;
+
+  @override
+  State<ChatListPullDownArchiveReveal> createState() =>
+      _ChatListPullDownArchiveRevealState();
+}
+
+class _ChatListPullDownArchiveRevealState
+    extends State<ChatListPullDownArchiveReveal>
+    with SingleTickerProviderStateMixin {
+  /// One clock for the whole arrival. The slot's own extent grows first
+  /// (AppMotion.deliberate, ~280ms) with the row's background — the same
+  /// colour as the list — so what the eye sees is the chats settling; the
+  /// content then blooms in only once the slot is nearly full, which keeps a
+  /// half-height avatar from ever being visible. The glow peaks as the slot
+  /// finishes and dies out over the following ~250ms.
+  static const Duration _duration = Duration(milliseconds: 420);
+
+  late final AnimationController _controller = AnimationController(
+    vsync: this,
+    duration: _duration,
+  );
+
+  late final Animation<double> _content = CurvedAnimation(
+    parent: _controller,
+    curve: const Interval(0.36, 0.85, curve: AppMotion.standard),
+  );
+
+  late final Animation<double> _glow = _controller.drive(
+    TweenSequence<double>([
+      TweenSequenceItem(
+        tween: Tween<double>(
+          begin: 0,
+          end: 1,
+        ).chain(CurveTween(curve: Curves.easeOut)),
+        weight: 50,
+      ),
+      TweenSequenceItem(
+        tween: Tween<double>(
+          begin: 1,
+          end: 0,
+        ).chain(CurveTween(curve: Curves.easeInCubic)),
+        weight: 50,
+      ),
+    ]),
+  );
+
+  bool _started = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_started) return;
+    _started = true;
+    // A reduced-motion session gets the settled row, not a flicker.
+    if (AppMotion.isReduced(context)) {
+      _controller.value = 1;
+    } else {
+      _controller.forward();
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _glow,
+      // The row subtree is built once: only the wrappers animate, so the row
+      // never re-measures its text at 60fps.
+      child: AnimatedBuilder(
+        animation: _content,
+        child: widget.child,
+        builder: (context, child) => Opacity(
+          key: const ValueKey('archive-reveal-content'),
+          opacity: _content.value,
+          child: Transform.translate(
+            // Comes down out of the folder strip as it fades in.
+            offset: Offset(0, -8 * (1 - _content.value)),
+            child: child,
+          ),
+        ),
+      ),
+      builder: (context, child) => CustomPaint(
+        key: const ValueKey('archive-reveal-glow'),
+        foregroundPainter: ChatListArchiveRevealGlow(
+          progress: _glow.value,
+          archiveColor: archivedChatsAccent,
+          brandColor: AppTheme.brand,
+          dark: Theme.of(context).brightness == Brightness.dark,
+        ),
+        child: child,
+      ),
+    );
+  }
+}
+
+/// The light the archive row arrives on, falling from above.
+///
+/// Everything vertical: the slot's top edge — the seam under the folder strip
+/// — carries the brightest band, and the wash dies out before the row's
+/// bottom, so the row reads as lit from over the pull rather than glowing
+/// around its avatar. The archive's amber is the light's own colour; on a dark
+/// canvas a wider, fainter band of the app's brand colour trails underneath
+/// it.
+///
+/// Dark surfaces get additive light ([BlendMode.plus]); a light row can only
+/// be tinted, because adding colour to white stays white, so there the light
+/// is a soft warm wash rather than a brightness lift.
+class ChatListArchiveRevealGlow extends CustomPainter {
+  const ChatListArchiveRevealGlow({
+    required this.progress,
+    required this.archiveColor,
+    required this.brandColor,
+    required this.dark,
+  });
+
+  /// Envelope value, 0 when the light is gone.
+  final double progress;
+
+  final Color archiveColor;
+  final Color brandColor;
+
+  /// Additive light has far more room on a dark canvas; on a light one the
+  /// wash turns into haze, so it is both shallower and fainter there.
+  final bool dark;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (progress <= 0) return;
+    final rect = Offset.zero & size;
+    // The brand band reaches lower and wider, so it has to be dimmer to stay
+    // an ambient glow rather than a second light source.
+    if (dark) {
+      _band(canvas, rect, brandColor, 0.11 * progress, const [
+        (0.0, 1.0),
+        (0.55, 0.32),
+        (1.0, 0.0),
+      ]);
+    }
+    _band(canvas, rect, archiveColor, (dark ? 0.30 : 0.15) * progress, const [
+      (0.0, 1.0),
+      (0.42, 0.46),
+      (0.78, 0.10),
+      (1.0, 0.0),
+    ]);
+  }
+
+  /// A vertical wash anchored at the row's top edge: [ramp] pairs a stop with
+  /// the fraction of the peak alpha the light has there.
+  void _band(
+    Canvas canvas,
+    Rect rect,
+    Color color,
+    double peakAlpha,
+    List<(double, double)> ramp,
+  ) {
+    final paint = Paint()
+      // Light on a dark canvas is additive; on a light one it can only be a
+      // soft tint, because adding colour to white stays white.
+      ..blendMode = dark ? BlendMode.plus : BlendMode.srcOver
+      ..shader = LinearGradient(
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+        colors: [
+          for (final (_, alpha) in ramp)
+            color.withValues(alpha: peakAlpha * alpha),
+        ],
+        stops: [for (final (stop, _) in ramp) stop],
+      ).createShader(rect);
+    canvas.drawRect(rect, paint);
+  }
+
+  @override
+  bool shouldRepaint(ChatListArchiveRevealGlow oldDelegate) =>
+      oldDelegate.progress != progress ||
+      oldDelegate.archiveColor != archiveColor ||
+      oldDelegate.brandColor != brandColor ||
+      oldDelegate.dark != dark;
+}
+
 /// Animates the pull-down archive row without letting viewport overscroll move
 /// the row's painted position.
 class ChatListPullDownArchiveSlot extends StatelessWidget {
@@ -665,20 +983,28 @@ class ChatListPullDownArchiveSlot extends StatelessWidget {
   final double rowHeight;
   final bool visible;
   final Widget child;
-  final Duration duration;
+
+  /// Reveal clock for the row sliding into its slot; null drops or raises the
+  /// row in a single frame. AnimatedSize with a zero duration re-dirties
+  /// itself inside layout, so the instant case must not use it at all.
+  final Duration? duration;
 
   @override
   Widget build(BuildContext context) {
+    final content = visible
+        ? SizedBox(height: rowHeight, child: child)
+        : const SizedBox(width: double.infinity);
+    final clock = duration;
     return ChatListTopOverscrollPin(
       controller: controller,
-      child: AnimatedSize(
-        duration: duration,
-        curve: Curves.easeOutCubic,
-        alignment: Alignment.topCenter,
-        child: visible
-            ? SizedBox(height: rowHeight, child: child)
-            : const SizedBox(width: double.infinity),
-      ),
+      child: clock == null
+          ? content
+          : AnimatedSize(
+              duration: clock,
+              curve: Curves.easeOutCubic,
+              alignment: Alignment.topCenter,
+              child: content,
+            ),
     );
   }
 }
@@ -758,12 +1084,19 @@ class ChatListConnectionStatusView extends StatelessWidget {
                 ),
               ),
             const SizedBox(width: AppSpacing.xs),
-            Text(
-              label,
-              key: labelKey,
-              style: TextStyle(
-                fontSize: AppTextSize.tiny,
-                color: muted ? c.textTertiary : c.textSecondary,
+            // The status word is the only flexible part of the row: a scaled
+            // up label (or a long locale) shrinks it to an ellipsis instead of
+            // overflowing the header beside the dot.
+            Flexible(
+              child: Text(
+                label,
+                key: labelKey,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: AppTextSize.tiny,
+                  color: muted ? c.textTertiary : c.textSecondary,
+                ),
               ),
             ),
           ],
@@ -1129,7 +1462,7 @@ class ChatListView extends StatefulWidget {
 }
 
 class _ChatListViewState extends State<ChatListView>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   static const _searchPillExtent =
       AppSpacing.md + AppMetric.searchHeight + AppSpacing.sm;
 
@@ -1176,6 +1509,27 @@ class _ChatListViewState extends State<ChatListView>
   int _pendingScrollAttempts = 0;
   bool _toggleUnreadTargetNext = true;
   bool _archiveRevealed = false;
+
+  /// Frame timestamp of the top-edge pull that is currently stretching the
+  /// list, or null when the pull is at rest. The reveal needs
+  /// [kArchivePullMinPullingTime] of sustained pull, the same budget the
+  /// reference client enforces before it shows the archive — without it a
+  /// quick flick over the top edge opens the archive by accident.
+  Duration? _archivePullStartedAt;
+
+  /// True while a finger is on the list. The reference client only arms its
+  /// archive latch while `isDragging`; keeping the same condition here also
+  /// stops the spring-back after a fast flick from opening the archive a
+  /// third of a second later, when the frame clock finally passes the minimum
+  /// pulling time.
+  bool _archivePullPointerActive = false;
+
+  /// True for the build that removes the archive row from the layout. The
+  /// drop happens off-screen and its extent is handed back to the scroll
+  /// offset in the same frame, so the row must leave instantly instead of
+  /// collapsing over the reveal animation's 180ms clock.
+  bool _archiveDropInstant = false;
+
   double _refreshPullDistance = 0;
   bool _isRefreshing = false;
   bool _viewTickerEnabled = true;
@@ -1191,6 +1545,48 @@ class _ChatListViewState extends State<ChatListView>
   int _nextComposerFocusRequestId = 0;
   OverlayEntry? _desktopChatMenuEntry;
   OverlayEntry? _desktopPlusMenuEntry;
+
+  // Multi-select edit mode (exteraless's dialog action mode): a long press on
+  // a row's body enters selection instead of opening the peek; a long press on
+  // the avatar still peeks. Rows toggle membership, and the header becomes a
+  // command bar over the selected set.
+  final Set<int> _selectedChatIds = {};
+  bool _selectionMode = false;
+
+  /// The chat whose long press opened edit mode. Its row is drag-enabled
+  /// from that same gesture, before the mode flag rebuilds the list.
+  int? _pendingSelectionModeChatId;
+
+  /// True while the gesture that opened edit mode is still down — exteraless's
+  /// allowMoving: lifting it must neither toggle membership nor drag.
+  bool _selectionEntryGestureDown = false;
+
+  /// Edit-mode pinned drag: the dragged chat and the net slots it has
+  /// crossed, shown as row shifts until the drop commits one reorder.
+  int? _draggedChatId;
+
+  /// True only for the build that clears the drag shifts together with the
+  /// reorder — see [_dragShiftWrapper].
+  bool _shiftsClearInstantly = false;
+  final Map<int, int> _dragSlotsById = {};
+
+  /// Coordinate space for the drag proxy — the list area below the header.
+  final GlobalKey _dragProxyScopeKey = GlobalKey();
+
+  /// Overlay drag proxy (exteraless's ItemTouchHelper overdraw child): the
+  /// dragged row's pixels render above the whole list while the row itself
+  /// stays in its slot holding the gesture. [_dragProxyTop] is the proxy's
+  /// current top edge in the list coordinate space; on drop the proxy glides
+  /// to the row's final slot before the commit rebuilds the list.
+  int? _dragProxyChatId;
+  double _dragProxyTop = 0;
+  double _dragProxyHeight = 0;
+  double _dragProxyOriginTop = 0;
+
+  /// The edit-mode bar, keyed so "Add to folder" can hang its folder picker
+  /// off the overflow button.
+  final GlobalKey<ChatSelectionHeaderState> _selectionHeaderKey =
+      GlobalKey<ChatSelectionHeaderState>();
 
   static const double _refreshPullThreshold = 72;
 
@@ -1307,36 +1703,119 @@ class _ChatListViewState extends State<ChatListView>
       listen: false,
       width: _lastRowWidth,
     );
-    final archiveMode = effectiveChatListArchiveDisplayMode(
-      theme.archivedChatsDisplayMode,
-    );
-    final archiveEnabled =
-        _model.isAllFilter &&
-        _model.archived.isNotEmpty &&
-        archiveMode == ArchivedChatsDisplayMode.pullDown;
-    if (archiveEnabled && position.hasContentDimensions) {
+    if (_pullDownArchiveEnabled && position.hasContentDimensions) {
       final pullOffset = chatListTopOverscrollOffset(
         position.pixels,
         minScrollExtent: position.minScrollExtent,
       );
-      if (!_archiveRevealed &&
-          chatListShouldRevealPullDownArchive(
-            pullOffset: pullOffset,
-            rowHeight: rowHeight,
-          )) {
-        setState(() => _archiveRevealed = true);
+      if (pullOffset <= 0) {
+        _archivePullStartedAt = null;
+      } else {
+        _archivePullStartedAt ??=
+            SchedulerBinding.instance.currentSystemFrameTimeStamp;
+      }
+      if (_pullDownArchiveArmed(position, rowHeight)) {
+        _revealPullDownArchive();
       } else if (_archiveRevealed &&
           chatListShouldHidePullDownArchive(
             scrollPixels: position.pixels,
             minScrollExtent: position.minScrollExtent,
-            rowHeight: rowHeight,
+            rowHeight: _archiveExtent(),
+            leadingExtent: _leadingListControlsExtent(theme),
           )) {
-        setState(() => _archiveRevealed = false);
+        _dropRevealedPullDownArchive(position);
       }
     }
     if (position.extentAfter < rowHeight * 8) {
       _model.loadMore();
     }
+  }
+
+  /// The pull-down archive exists at all: the All folder, at least one
+  /// archived chat, and the pull-down display mode.
+  bool get _pullDownArchiveEnabled {
+    final theme = context.read<ThemeController>();
+    return _model.isAllFilter &&
+        _model.archived.isNotEmpty &&
+        effectiveChatListArchiveDisplayMode(theme.archivedChatsDisplayMode) ==
+            ArchivedChatsDisplayMode.pullDown;
+  }
+
+  /// Whether the current pull satisfies the reference client's reveal gates:
+  /// 85% of the row is out (`SNAP_HEIGHT`), the pull has spent
+  /// [kArchivePullMinPullingTime], and a finger still owns the list.
+  ///
+  /// The time is read off the frame clock, which widget tests advance with
+  /// `pump`, so the harness and the device measure the same thing.
+  bool _pullDownArchiveArmed(ScrollPosition position, double rowHeight) {
+    if (_archiveRevealed || !_archivePullPointerActive) return false;
+    if (!_pullDownArchiveEnabled) return false;
+    final startedAt = _archivePullStartedAt;
+    if (startedAt == null) return false;
+    if (SchedulerBinding.instance.currentSystemFrameTimeStamp - startedAt <
+        kArchivePullMinPullingTime) {
+      return false;
+    }
+    return chatListShouldRevealPullDownArchive(
+      pullOffset: chatListTopOverscrollOffset(
+        position.pixels,
+        minScrollExtent: position.minScrollExtent,
+      ),
+      rowHeight: rowHeight,
+    );
+  }
+
+  /// The reference client commits the reveal on ACTION_UP as well: a pull
+  /// that is already past the snap height and the minimum time shows the
+  /// archive when the finger lifts, even if no further scroll event arrives
+  /// to re-check it.
+  void _armPullDownArchiveOnRelease() {
+    if (!_scrollController.hasClients) return;
+    final position = _scrollController.position;
+    final rowHeight = chatListRowExtentFor(
+      context,
+      listen: false,
+      width: _lastRowWidth,
+    );
+    if (_pullDownArchiveArmed(position, rowHeight)) {
+      _revealPullDownArchive();
+    }
+  }
+
+  /// Latches the archive row open.
+  ///
+  /// The reference client fires a KEYBOARD_TAP haptic the moment the pull
+  /// passes its snap height and the archive becomes showable — the same
+  /// `performHapticFeedback(KEYBOARD_TAP)` this `tap()` sends.
+  void _revealPullDownArchive() {
+    unawaited(AppHaptics.tap());
+    setState(() {
+      _archiveRevealed = true;
+      _archiveDropInstant = false;
+    });
+  }
+
+  /// Drops the revealed archive row once the user has scrolled it out of the
+  /// list, exactly like the reference client's adapter — the row is an
+  /// ordinary list item, not a sticky header, so it has to be pulled out
+  /// again.
+  ///
+  /// The row leaves the layout while it is already off-screen, so the sliver
+  /// shrinks above the viewport. Handing that height back to the offset in
+  /// the same frame keeps the chat rows exactly where they are. It has to be
+  /// instant: an AnimatedSize collapse would shave the extent over 180ms
+  /// under an offset that was already corrected, dragging the list down.
+  void _dropRevealedPullDownArchive(ScrollPosition position) {
+    final removed = _archiveExtent();
+    setState(() {
+      _archiveRevealed = false;
+      _archiveDropInstant = true;
+    });
+    final target = math.max(
+      position.minScrollExtent,
+      position.pixels - removed,
+    );
+    if (target < position.pixels) position.setPixels(target);
   }
 
   @override
@@ -1442,8 +1921,8 @@ class _ChatListViewState extends State<ChatListView>
       return;
     }
     if (chat.supportsTopics) {
-      // Forum/topic chats always open in the regular chat transcript; the
-      // topic feed surface is gone.
+      // Forum and bot topic chats open in the regular transcript; the
+      // header's topic tab strip switches topics inline.
       unawaited(
         pushAppChatRoute(
           context,
@@ -1566,6 +2045,10 @@ class _ChatListViewState extends State<ChatListView>
     _dismissDesktopPlusMenu();
     setState(() => _showPlusMenu = false);
     switch (label) {
+      case AppStringKeys.topicChatSearch:
+        Navigator.of(
+          context,
+        ).push(MaterialPageRoute<void>(builder: (_) => const SearchView()));
       case AppStringKeys.chatListScanQrCode:
         _openQrScanner();
       case AppStringKeys.chatListCreateGroup:
@@ -1677,44 +2160,112 @@ class _ChatListViewState extends State<ChatListView>
     await openLink(context, value, keepTelegramInApp: true);
   }
 
-  /// Opens the folder's command sheet.
+  /// Opens the folder's popup menu.
   ///
-  /// The "All chats" tab has no folder to edit or extend, so it offers only the
-  /// list-wide read and order commands.
-  Future<void> _showFolderMenu(ChatFilterOption filter) async {
+  /// The "All chats" tab has no folder to edit, extend or delete, so it
+  /// offers only the list-wide read and order commands. Every real folder
+  /// gains the destructive delete row exteraless shows at the bottom of the
+  /// same popup.
+  Future<void> _showFolderMenu(ChatFilterOption filter, Rect anchor) async {
     final folderId = filter.folderId;
-    await showChatFolderActionSheet(
+    await showAppAnchoredMenu(
       context: context,
-      title: filter.title.l10n(context),
+      anchor: anchor,
+      header: filter.title.l10n(context),
       actions: [
         if (folderId != null)
-          ChatFolderMenuAction(
+          AppMenuAction(
             key: 'edit',
             label: AppStrings.t(AppStringKeys.chatFolderManagementEditFolder),
             icon: HeroAppIcons.pen,
             onSelected: () => unawaited(_editFolder(filter)),
           ),
         if (folderId != null)
-          ChatFolderMenuAction(
+          AppMenuAction(
             key: 'add-chat',
             label: AppStrings.t(AppStringKeys.chatFolderManagementAddChat),
             icon: HeroAppIcons.plus,
             onSelected: () => unawaited(_addChatToFolder(filter)),
           ),
-        ChatFolderMenuAction(
+        AppMenuAction(
           key: 'mark-read',
           label: AppStrings.t(AppStringKeys.chatFolderManagementMarkAllRead),
           icon: HeroAppIcons.check,
           onSelected: () => unawaited(_markFolderRead(filter)),
         ),
-        ChatFolderMenuAction(
+        AppMenuAction(
           key: 'reorder',
           label: AppStrings.t(AppStringKeys.chatFolderManagementReorderFolders),
           icon: HeroAppIcons.bars,
           onSelected: () => unawaited(_reorderFolders()),
         ),
+        if (folderId != null)
+          AppMenuAction(
+            key: 'delete',
+            label: AppStrings.t(AppStringKeys.chatFolderManagementDeleteFolder),
+            icon: HeroAppIcons.trash,
+            destructive: true,
+            onSelected: () => unawaited(_deleteFolder(filter)),
+          ),
       ],
     );
+  }
+
+  /// Deletes a folder after a confirmation, offering to also leave chats
+  /// that exist only inside a shared folder — the same flow the management
+  /// screen's delete button runs.
+  Future<void> _deleteFolder(ChatFilterOption filter) async {
+    final id = filter.folderId;
+    if (id == null) return;
+    final client = TdClient.shared;
+    final clientId = client.activeClientId;
+    final service = ChatFolderService(
+      query: (request) => client.queryTo(request, clientId),
+    );
+    final confirmed = await showAppConfirmDialog(
+      context,
+      title: AppStrings.t(AppStringKeys.passkeysDeleteMessage, {
+        'value1': filter.title.l10n(context),
+      }),
+      confirmText: AppStringKeys.chatInfoRemove,
+    );
+    if (!confirmed || !mounted || client.activeClientId != clientId) return;
+    try {
+      var leaveChatIds = const <int>[];
+      try {
+        final suggested = await service.chatsToLeave(id);
+        if (suggested.isNotEmpty && mounted) {
+          final leave = await showAppConfirmDialog(
+            context,
+            title: AppStrings.t(
+              suggested.length == 1
+                  ? AppStringKeys.chatFolderManagementAlsoLeaveOneChat
+                  : AppStringKeys.chatFolderManagementAlsoLeaveChats,
+              {'value1': suggested.length},
+            ),
+            confirmText: AppStringKeys.chatInfoLeaveGroup,
+            cancelText: AppStrings.t(
+              AppStringKeys.chatFolderManagementKeepChats,
+            ),
+          );
+          if (leave) leaveChatIds = suggested;
+        }
+      } catch (_) {
+        // Ordinary folders don't have chats suggested for leaving.
+      }
+      if (!mounted || client.activeClientId != clientId) return;
+      await service.delete(id, leaveChatIds: leaveChatIds);
+    } catch (error) {
+      if (mounted) {
+        showToast(
+          context,
+          AppStrings.t(
+            AppStringKeys.chatFolderManagementCouldnTDeleteFolderValue1,
+            {'value1': error},
+          ),
+        );
+      }
+    }
   }
 
   /// Opens the full folder editor and writes the returned draft back.
@@ -1842,6 +2393,17 @@ class _ChatListViewState extends State<ChatListView>
       query: (request) => client.queryTo(request, clientId),
     );
     final update = client.latestChatFoldersUpdate;
+    final accounts = context.read<AccountStore?>();
+    final userId = _meId ?? accounts?.activeUserId;
+    // Only a server Premium account may set the main list's position; the
+    // local-premium switch stands in for it on this device. With neither,
+    // the sheet keeps All chats pinned and shows a lock instead of a grip.
+    final canMoveMainList =
+        LocalPremium.shared.enabled ||
+        (accounts?.activeSummary?.isPremium ?? false);
+    final serverPosition = update?.integer('main_chat_list_position') ?? 0;
+    final mainListPosition =
+        LocalFolderOrderStore.shared.positionFor(userId) ?? serverPosition;
     try {
       var folders = await service.load(update);
       if (!mounted || client.activeClientId != clientId) return;
@@ -1863,8 +2425,12 @@ class _ChatListViewState extends State<ChatListView>
       await showChatFolderReorderSheet(
         context: context,
         folders: folders,
-        mainListPosition: update?.integer('main_chat_list_position') ?? 0,
+        mainListPosition: mainListPosition,
         service: service,
+        canMoveMainList: canMoveMainList,
+        onMainListPositionSaved: (position) {
+          LocalFolderOrderStore.shared.setPosition(userId, position);
+        },
         // The sheet outlives this surface; a save after the account changed
         // would write the old folder order into the replacement account.
         canSave: () => mounted && client.activeClientId == clientId,
@@ -1880,6 +2446,16 @@ class _ChatListViewState extends State<ChatListView>
         );
       }
     }
+  }
+
+  /// The pressed folder tab's rect in global coordinates, so its popup menu
+  /// can hang off the tab itself; empty when the tab has no render object
+  /// yet (the menu then refuses to open).
+  Rect _folderTabRect(Key key) {
+    final context = (key as GlobalKey).currentContext;
+    final box = context?.findRenderObject() as RenderBox?;
+    if (box == null || !box.hasSize) return Rect.zero;
+    return box.localToGlobal(Offset.zero) & box.size;
   }
 
   void _selectFilter(ChatFilterOption filter) {
@@ -1939,6 +2515,8 @@ class _ChatListViewState extends State<ChatListView>
       _folderPeek = null;
       _openSwipeChat = null;
       _archiveRevealed = false;
+      _archivePullStartedAt = null;
+      _archiveDropInstant = false;
       _refreshPullDistance = 0;
     });
     _model.selectFilter(filter);
@@ -2305,18 +2883,21 @@ class _ChatListViewState extends State<ChatListView>
     if (folderMode == ChatFolderDisplayMode.hidden && !_model.isAllFilter) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted && !_model.isAllFilter) {
-          _model.selectFilter(_model.filters.first);
+          _model.selectAllFilter();
         }
       });
     }
-    return Stack(
+    // The system back button leaves edit mode first (exteraless's action mode
+    // consumes back the same way instead of leaving the screen).
+    final Widget contents = Stack(
       clipBehavior: Clip.none,
       children: [
         Container(
           color: c.background,
           child: Column(
             children: [
-              if (!widget.desktopSidebar) _header(),
+              if (!widget.desktopSidebar)
+                if (_selectionMode) _selectionHeader() else _header(),
               if (!sideFolders &&
                   folderMode == ChatFolderDisplayMode.tabs &&
                   _model.filters.length > 1)
@@ -2328,7 +2909,18 @@ class _ChatListViewState extends State<ChatListView>
                   onPointerMove: _handleGesturePointerMove,
                   onPointerUp: _handleGesturePointerUp,
                   onPointerCancel: _handleGesturePointerCancel,
-                  child: _folderPager(),
+                  // The reorder drag proxy paints above the list, inside the
+                  // list's coordinate space (exteraless's ItemTouchHelper
+                  // overdraw child). IgnorePointer keeps the pointer with
+                  // the real row below, which owns the live gesture.
+                  child: Stack(
+                    key: _dragProxyScopeKey,
+                    clipBehavior: Clip.none,
+                    children: [
+                      Positioned.fill(child: _folderPager()),
+                      if (_dragProxyChatId != null) _dragProxy(),
+                    ],
+                  ),
                 ),
               ),
             ],
@@ -2339,6 +2931,16 @@ class _ChatListViewState extends State<ChatListView>
           visible: folderMode == ChatFolderDisplayMode.menu && _showFilterMenu,
         ),
       ],
+    );
+    // Wrapping conditionally would swap the subtree root between modes and
+    // dispose every row's gesture recognizers mid-press — the drag dies the
+    // moment edit mode begins. The wrapper stays; only the flag flips.
+    return PopScope(
+      canPop: !_selectionMode,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop && _selectionMode) _exitSelectionMode();
+      },
+      child: contents,
     );
   }
 
@@ -2401,6 +3003,12 @@ class _ChatListViewState extends State<ChatListView>
     }
     _folderDragActive = true;
     _folderDragHandled = true;
+    // Once the folder drag owns this contact the list must stop scrolling in
+    // the same gesture: the reference client cancels the list's scroll via
+    // requestDisallowInterceptTouchEvent, and here swapping to
+    // non-draggable physics makes the Scrollable drop its gesture recognizers
+    // and cancel any drag already in flight.
+    setState(() {});
     // Start from where the gesture was recognised so the list does not jump by
     // the activation distance.
     _folderDragOrigin = travel.dx;
@@ -2445,11 +3053,13 @@ class _ChatListViewState extends State<ChatListView>
     _folderDragActive = false;
     _folderDragVelocity = null;
     _folderSettleTarget = null;
+    setState(() {});
     _startFolderSettle(to: 0, velocity: 0);
   }
 
   void _releaseFolderDrag({required bool canceled}) {
     _folderDragActive = false;
+    setState(() {});
     final velocity =
         _folderDragVelocity?.getVelocity().pixelsPerSecond.dx ?? 0.0;
     _folderDragVelocity = null;
@@ -2723,10 +3333,158 @@ class _ChatListViewState extends State<ChatListView>
           ),
       },
       onSelect: _selectFilter,
-      onMenu: _showFolderMenu,
+      onMenu: (filter) => unawaited(
+        _showFolderMenu(
+          filter,
+          _folderTabRect(
+            (_foldersInSideRail
+                    ? _sideFolderKeys
+                    : _folderTabKeys)[filter.folderId] ??
+                GlobalKey(),
+          ),
+        ),
+      ),
       keyForFolder: (id) => _sideFolderKeys.putIfAbsent(id, GlobalKey.new),
     ),
   );
+
+  /// The edit-mode header (exteraless's dialog action mode bar): close button,
+  /// selection count, direct commands — pin, mute, archive, delete — and the
+  /// overflow column exteraless keeps the rest of the dialog actions in.
+  ///
+  /// The bar itself is [ChatSelectionHeader], shared with the archive page so
+  /// both lists enter the same control height and draw the same 24px glyphs.
+  Widget _selectionHeader() {
+    final chats = _selectedChats;
+    final hasSelection = chats.isNotEmpty;
+    final allPinned = _selectionAllPinnedInList(chats);
+    final allMuted = hasSelection && chats.every((chat) => chat.isMuted);
+    final anyUnread = chats.any(
+      (chat) => chat.unreadCount > 0 || chat.isMarkedUnread,
+    );
+    final folders = [
+      for (final filter in _model.filters)
+        if (!filter.isAll && filter.folderId != null) filter,
+    ];
+    return ChatSelectionHeader(
+      key: _selectionHeaderKey,
+      count: _selectedChatIds.length,
+      onClose: _exitSelectionMode,
+      commands: [
+        ChatSelectionCommand(
+          id: 'pin',
+          label: AppStrings.t(
+            allPinned ? AppStringKeys.chatListUnpin : AppStringKeys.chatInfoPin,
+          ),
+          icon: HeroAppIcons.pin,
+          onTap: _selectionTogglePin,
+        ),
+        ChatSelectionCommand(
+          id: 'mute',
+          label: AppStrings.t(
+            allMuted ? AppStringKeys.chatUnmute : AppStringKeys.callMute,
+          ),
+          icon: allMuted ? HeroAppIcons.bell : HeroAppIcons.bellSlash,
+          onTap: _selectionToggleMute,
+        ),
+        ChatSelectionCommand(
+          id: 'archive',
+          label: AppStrings.t(AppStringKeys.chatListArchive),
+          icon: HeroAppIcons.archiveBox,
+          onTap: _selectionArchive,
+        ),
+        ChatSelectionCommand(
+          id: 'delete',
+          label: AppStrings.t(AppStringKeys.chatDelete),
+          icon: HeroAppIcons.trash,
+          destructive: true,
+          onTap: () => unawaited(_selectionDelete()),
+        ),
+      ],
+      overflow: [
+        ChatSelectionCommand(
+          id: 'read',
+          label: AppStrings.t(
+            anyUnread
+                ? AppStringKeys.channelDirectMessagesMarkRead
+                : AppStringKeys.chatListMarkUnread,
+          ),
+          icon: anyUnread ? HeroAppIcons.circleCheck : HeroAppIcons.eyeSlash,
+          onTap: _selectionToggleRead,
+        ),
+        ChatSelectionCommand(
+          id: 'clear-history',
+          label: AppStrings.t(AppStringKeys.chatInfoClearHistory),
+          icon: HeroAppIcons.circleMinus,
+          onTap: () => unawaited(_selectionClearHistory()),
+        ),
+        if (chatSelectionAllBlockable(chats))
+          ChatSelectionCommand(
+            id: 'block',
+            label: AppStrings.t(AppStringKeys.chatListBlockUser),
+            icon: HeroAppIcons.ban,
+            destructive: true,
+            onTap: () => unawaited(_selectionBlockUsers()),
+          ),
+        if (folders.isNotEmpty)
+          ChatSelectionCommand(
+            id: 'add-to-folder',
+            label: AppStrings.t(AppStringKeys.chatListAddToFolder),
+            icon: HeroAppIcons.folder,
+            onTap: _selectionAddToFolder,
+          ),
+        if (_model.selectedFilter.folderId != null)
+          ChatSelectionCommand(
+            id: 'remove-from-folder',
+            label: AppStrings.t(AppStringKeys.chatListRemoveFromFolder),
+            icon: HeroAppIcons.folder,
+            onTap: () => unawaited(_selectionRemoveFromFolder()),
+          ),
+        ChatSelectionCommand(
+          id: 'select-all',
+          label: AppStrings.t(AppStringKeys.chatListSelectAll),
+          icon: HeroAppIcons.check,
+          onTap: _selectAllVisible,
+        ),
+      ],
+    );
+  }
+
+  void _selectionToggleRead() {
+    final chats = _selectedChats;
+    if (chats.isEmpty) return;
+    toggleChatSelectionRead(_model, chats);
+    _exitSelectionMode();
+  }
+
+  Future<void> _selectionClearHistory() async {
+    final chats = _selectedChats;
+    if (chats.isEmpty) return;
+    final cleared = await clearChatSelectionHistory(context, _model, chats);
+    if (mounted && cleared) _exitSelectionMode();
+  }
+
+  Future<void> _selectionBlockUsers() async {
+    final chats = _selectedChats;
+    if (chats.isEmpty) return;
+    final blocked = await blockChatSelection(context, chats);
+    if (mounted && blocked) _exitSelectionMode();
+  }
+
+  void _selectionAddToFolder() {
+    final chats = _selectedChats;
+    if (chats.isEmpty) return;
+    final anchor = _selectionHeaderKey.currentState?.overflowButtonRect();
+    _exitSelectionMode();
+    unawaited(addChatSelectionToFolder(context, _model, chats, anchor: anchor));
+  }
+
+  Future<void> _selectionRemoveFromFolder() async {
+    final chats = _selectedChats;
+    if (chats.isEmpty) return;
+    _exitSelectionMode();
+    await removeChatSelectionFromFolder(context, _model, chats);
+  }
 
   Widget _chatFolderTabs() {
     final c = context.colors;
@@ -2765,7 +3523,7 @@ class _ChatListViewState extends State<ChatListView>
             key: key,
             behavior: HitTestBehavior.opaque,
             onTap: () => _selectFilter(filter),
-            onLongPress: () => _showFolderMenu(filter),
+            onLongPress: () => _showFolderMenu(filter, _folderTabRect(key)),
             child: SizedBox(
               height: tabHeight,
               child: AnimatedBuilder(
@@ -3200,10 +3958,12 @@ class _ChatListViewState extends State<ChatListView>
               !hasFiltered) {
             list = ListView.builder(
               controller: _scrollController,
-              // Pull-down Archive depends on negative scroll extents, so this
-              // list intentionally keeps elastic physics on every platform.
-              physics: const AlwaysScrollableScrollPhysics(
-                parent: BouncingScrollPhysics(),
+              // Pull-down Archive depends on negative scroll extents, so the
+              // elastic top overscroll exists only while the slot does.
+              physics: _chatListScrollPhysics(
+                hasPullDownArchiveSlot,
+                folderDragActive: _folderDragActive,
+                rowHeight: rowH,
               ),
               padding: EdgeInsets.only(bottom: BottomBarInset.of(context)),
               itemCount:
@@ -3219,10 +3979,7 @@ class _ChatListViewState extends State<ChatListView>
                         chatListPullDownArchiveItemIndex(
                           showSearch: showLeadingControls,
                         )) {
-                  return _pullDownArchiveSlot(
-                    rowHeight: rowH,
-                    visible: showPulledDownArchive,
-                  );
+                  return _pullDownArchiveSlot(visible: showPulledDownArchive);
                 }
                 return const _ChatRowPlaceholder();
               },
@@ -3230,17 +3987,16 @@ class _ChatListViewState extends State<ChatListView>
           } else if (entries.isEmpty && !showInlineArchive && !hasFiltered) {
             list = ListView(
               controller: _scrollController,
-              physics: const AlwaysScrollableScrollPhysics(
-                parent: BouncingScrollPhysics(),
+              physics: _chatListScrollPhysics(
+                hasPullDownArchiveSlot,
+                folderDragActive: _folderDragActive,
+                rowHeight: rowH,
               ),
               padding: EdgeInsets.only(bottom: BottomBarInset.of(context)),
               children: [
                 if (showLeadingControls) _pinnedSearchPill(),
                 if (hasPullDownArchiveSlot)
-                  _pullDownArchiveSlot(
-                    rowHeight: rowH,
-                    visible: showPulledDownArchive,
-                  ),
+                  _pullDownArchiveSlot(visible: showPulledDownArchive),
                 SizedBox(
                   height: math.max(
                     180,
@@ -3256,8 +4012,10 @@ class _ChatListViewState extends State<ChatListView>
           } else {
             list = ListView.builder(
               controller: _scrollController,
-              physics: const AlwaysScrollableScrollPhysics(
-                parent: BouncingScrollPhysics(),
+              physics: _chatListScrollPhysics(
+                hasPullDownArchiveSlot,
+                folderDragActive: _folderDragActive,
+                rowHeight: rowH,
               ),
               padding: EdgeInsets.only(bottom: BottomBarInset.of(context)),
               itemCount:
@@ -3285,10 +4043,7 @@ class _ChatListViewState extends State<ChatListView>
                 }
                 final contentIndex = showLeadingControls ? index - 1 : index;
                 if (hasPullDownArchiveSlot && contentIndex == 0) {
-                  return _pullDownArchiveSlot(
-                    rowHeight: rowH,
-                    visible: showPulledDownArchive,
-                  );
+                  return _pullDownArchiveSlot(visible: showPulledDownArchive);
                 }
                 final contentAfterPullDownArchive =
                     contentIndex - (hasPullDownArchiveSlot ? 1 : 0);
@@ -3306,16 +4061,33 @@ class _ChatListViewState extends State<ChatListView>
                     : listIndex;
                 final entry = entries[entryIndex];
                 return switch (entry) {
-                  CommunityChatEntry(:final chat) => _swipeRow(chat),
+                  CommunityChatEntry(:final chat) => _dragShiftWrapper(
+                    chat,
+                    _swipeRow(chat),
+                  ),
                   CommunityGroupEntry() => _communityRow(entry),
                 };
               },
             );
           }
 
-          return NotificationListener<ScrollNotification>(
-            onNotification: _handleChatListPull,
-            child: list,
+          return Listener(
+            // Read-only: the pointer records whether the top-edge pull is a
+            // live drag. A Listener never joins the gesture arena, so the
+            // list's own recognizers are unaffected.
+            onPointerDown: (_) {
+              _archivePullPointerActive = true;
+              _archivePullStartedAt = null;
+            },
+            onPointerUp: (_) {
+              _armPullDownArchiveOnRelease();
+              _archivePullPointerActive = false;
+            },
+            onPointerCancel: (_) => _archivePullPointerActive = false,
+            child: NotificationListener<ScrollNotification>(
+              onNotification: _handleChatListPull,
+              child: list,
+            ),
           );
         },
       ),
@@ -3353,11 +4125,12 @@ class _ChatListViewState extends State<ChatListView>
     return showFolder ? _searchPillExtent : 0;
   }
 
-  /// The search row leads every chat-list page, so any top overscroll — the
-  /// pull-down archive reveal on the All folder, or plain rubber-banding on a
-  /// folder tab or an empty folder — moves it down with the viewport. The pin
-  /// cancels that travel so the row stays under the folder strip and the rows
-  /// below are what stretch.
+  /// The search row leads every chat-list page as an ordinary list item, so a
+  /// top overscroll — the pull-down archive reveal on the All folder, or
+  /// plain rubber-banding on a folder tab or an empty folder — would drag it
+  /// down with the viewport. The pin cancels that travel so the row stays
+  /// under the folder strip and the rows below are what stretch. Scrolling
+  /// forward is untouched: the row simply scrolls away like any other item.
   Widget _pinnedSearchPill() {
     return ChatListTopOverscrollPin(
       controller: _scrollController,
@@ -3365,19 +4138,23 @@ class _ChatListViewState extends State<ChatListView>
     );
   }
 
-  Widget _pullDownArchiveSlot({
-    required double rowHeight,
-    required bool visible,
-  }) {
-    final duration = MediaQuery.maybeOf(context)?.disableAnimations ?? false
-        ? Duration.zero
-        : const Duration(milliseconds: 180);
+  /// The archive row's slot grows over one clock, matching the reference
+  /// client sliding the row out on release (250ms `EASE_OUT_QUINT`).
+  ///
+  /// Null means "no animation": a reduced-motion session, and the off-screen
+  /// drop, which must take the row out of the layout in a single frame.
+  Duration? _pullDownArchiveRevealDuration(BuildContext context) =>
+      AppMotion.isReduced(context) ? null : AppMotion.deliberate;
+
+  Widget _pullDownArchiveSlot({required bool visible}) {
     return ChatListPullDownArchiveSlot(
       controller: _scrollController,
       rowHeight: _archiveExtent(),
       visible: visible,
-      duration: duration,
-      child: _assistantRow(),
+      duration: _archiveDropInstant
+          ? null
+          : _pullDownArchiveRevealDuration(context),
+      child: ChatListPullDownArchiveReveal(child: _assistantRow()),
     );
   }
 
@@ -3474,10 +4251,12 @@ class _ChatListViewState extends State<ChatListView>
         desktopContextMenu &&
         (platform == TargetPlatform.windows ||
             platform == TargetPlatform.linux);
-    final rowSwipeActionsEnabled = chatListRowSwipeActionsEnabled(
-      mode: swipeMode,
-      multiTouchActive: _chatListSwipeSession.suppressRowSwipes,
-    );
+    final rowSwipeActionsEnabled =
+        !_selectionMode &&
+        chatListRowSwipeActionsEnabled(
+          mode: swipeMode,
+          multiTouchActive: _chatListSwipeSession.suppressRowSwipes,
+        );
     // The pin state of the list the user is looking at, not the Main list's.
     final pinnedInList = _model.isPinnedInSelectedList(chat);
     final actions = pinnedInList
@@ -3520,8 +4299,37 @@ class _ChatListViewState extends State<ChatListView>
       rowId: chat.id,
       openRowId: _openSwipeChat,
       onOpenChanged: (id) => setState(() => _openSwipeChat = id),
-      onTap: () => _openChat(chat),
-      onLongPress: desktopContextMenu ? null : () => _showChatPreview(chat),
+      onTap: () => _selectionMode ? _toggleSelected(chat) : _openChat(chat),
+      onLongPress: desktopContextMenu
+          ? null
+          : () {
+              if (_selectionMode) {
+                // Pinned rows in edit mode: drag-only gesture (no toggle on
+                // lift) — mirrors _handleRowLongPress and exteraless.
+                if (!_model.isPinnedInSelectedList(chat)) {
+                  _toggleSelected(chat);
+                }
+              } else {
+                _showChatPreview(chat);
+              }
+            },
+      onLongPressAt: desktopContextMenu
+          ? null
+          : (localPosition) => _handleRowLongPress(chat, localPosition),
+      dragReorderEnabled:
+          (_selectionMode || _pendingSelectionModeChatId == chat.id) &&
+          pinnedInList &&
+          !desktopContextMenu,
+      suppressEndLongPress:
+          _selectionEntryGestureDown && _pendingSelectionModeChatId == chat.id,
+      onDragReorderStart: _handleDragProxyStart(chat),
+      onDragReorderMove: _handleDragProxyMove,
+      onDragReorderSlot: (slots) => _handleDragReorderSlot(chat, slots),
+      onDragReorderEnd: () {
+        _selectionEntryGestureEnded();
+        _commitPinnedOrder(chatId: chat.id);
+      },
+      contentVisible: _dragProxyChatId != chat.id,
       onSecondaryTapDown: desktopContextMenu
           ? (details) => _showDesktopChatMenu(chat, details.globalPosition)
           : null,
@@ -3534,7 +4342,7 @@ class _ChatListViewState extends State<ChatListView>
       pressRippleEnabled: !desktopContextMenu,
       actions: actions,
       child: ChatListSelectionHighlight(
-        selected: selected,
+        selected: selected || _selectionTint(chat),
         child: ChatRowView(
           chat: chat,
           selected: selected,
@@ -3547,6 +4355,221 @@ class _ChatListViewState extends State<ChatListView>
         ),
       ),
     );
+  }
+
+  bool _selectionTint(ChatSummary chat) =>
+      _selectionMode && _selectedChatIds.contains(chat.id);
+
+  /// The drag lifted [chat]: raise the overlay proxy at the row's current
+  /// screen position. The row keeps its slot and gesture; its pixels move to
+  /// the proxy drawn above the list.
+  void Function(Offset globalTopLeft, Size size) _handleDragProxyStart(
+    ChatSummary chat,
+  ) {
+    return (globalTopLeft, size) {
+      final scope =
+          _dragProxyScopeKey.currentContext?.findRenderObject() as RenderBox?;
+      if (scope == null || !scope.attached) return;
+      final localTop = scope.globalToLocal(globalTopLeft).dy;
+      setState(() {
+        _draggedChatId = chat.id;
+        _dragProxyChatId = chat.id;
+        _dragProxyTop = localTop;
+        _dragProxyOriginTop = localTop;
+        _dragProxyHeight = size.height;
+      });
+      unawaited(AppHaptics.longPress());
+    };
+  }
+
+  /// The finger moved [dy] from the press origin: the proxy follows.
+  void _handleDragProxyMove(double dy) {
+    if (_dragProxyChatId == null) return;
+    setState(() => _dragProxyTop = _dragProxyOriginTop + dy);
+  }
+
+  /// One crossed row of an edit-mode drag. The list does not reorder yet:
+  /// the dragged row's own translate shows the motion, its neighbours slide
+  /// aside through [_dragShiftWrapper], and the whole move lands on the model
+  /// in one piece when the finger lifts. (exteraless's ItemTouchHelper swaps
+  /// pairs live, but its RecyclerView never rebuilds the recognizer mid-drag;
+  //  deferring the reorder keeps this list's gesture alive.)
+  void _handleDragReorderSlot(ChatSummary chat, int slots) {
+    if (slots == 0) return;
+    final band = _pinnedBand();
+    final index = band.indexWhere((c) => c.id == chat.id);
+    if (index < 0) return;
+    final projected = index + (_dragSlotsById[chat.id] ?? 0) + slots;
+    if (projected < 0 || projected >= band.length) return;
+    _dragSlotsById[chat.id] = (_dragSlotsById[chat.id] ?? 0) + slots;
+    // The same KEYBOARD_TAP the reference client fires while a drag crosses
+    // rows — its ItemTouchHelper tick, not a clock tick.
+    unawaited(AppHaptics.tap());
+    setState(() {});
+  }
+
+  /// The drag ended: drop the proxy back onto the row (exteraless's recover
+  /// animation — ItemTouchHelper animates the lifted view to its final slot
+  /// and only then clears it), then apply the accumulated slot moves to the
+  /// model as one reorder and push the pinned order once, the way exteraless
+  /// commits reorderPinnedDialogs when the action-mode drag finishes.
+  void _commitPinnedOrder({int? chatId}) {
+    final id = chatId ?? _draggedChatId;
+    final slots = id == null ? 0 : (_dragSlotsById[id] ?? 0);
+    final willReorder = id != null && slots != 0;
+    _dragSlotsById.clear();
+    _draggedChatId = null;
+    // The reorder lands in the same build that clears the neighbour shifts;
+    // that frame must not animate the clear (the slot change already carries
+    // the motion — exteraless's animator never sees this pass because its
+    // adapter already held the final order during the drag).
+    _shiftsClearInstantly = willReorder;
+    if (_dragProxyChatId != null) {
+      setState(() => _dragProxyChatId = null);
+    }
+    if (!willReorder) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) setState(() => _shiftsClearInstantly = false);
+    });
+    final band = _pinnedBand();
+    final index = band.indexWhere((c) => c.id == id);
+    if (index < 0) return;
+    final target = (index + slots).clamp(0, band.length - 1);
+    if (target == index) return;
+    _model.reorderPinnedChat(chatId: id, targetChatId: band[target].id);
+  }
+
+  /// The lifted row's pixels, following the finger above the list. exteraless
+  /// renders this through ItemTouchHelper: elevation raises the dragged cell
+  /// over its siblings and its translation tracks the finger — Flutter's
+  /// ListView has no child Z order, so the proxy draws in this Stack above
+  /// the list instead, while the real row stays in its slot holding the
+  /// gesture (content hidden, slot and size intact).
+  Widget _dragProxy() {
+    final entries = _model.chatListEntries(
+      communitiesEnabled: context.read<ThemeController>().communitiesEnabled,
+    );
+    CommunityChatEntry? entry;
+    for (final e in entries) {
+      if (e is CommunityChatEntry && e.chat.id == _dragProxyChatId) {
+        entry = e;
+        break;
+      }
+    }
+    if (entry == null) return const SizedBox.shrink();
+    final chat = entry.chat;
+    final c = context.colors;
+    return Positioned(
+      key: const ValueKey('chat-list-drag-proxy'),
+      left: 0,
+      right: 0,
+      top: _dragProxyTop,
+      height: _dragProxyHeight,
+      child: IgnorePointer(
+        child: Material(
+          elevation: 6,
+          color: c.background,
+          shadowColor: Colors.black,
+          child: ChatListSelectionHighlight(
+            selected: _selectionTint(chat),
+            child: ChatRowView(
+              chat: chat,
+              selected: widget.selectedChatId == chat.id,
+              pinned: _model.isPinnedInSelectedList(chat),
+              onClearUnread: () => _model.markRead(chat),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// During an edit-mode pinned drag, the neighbours the dragged row has
+  /// passed slide one row extent in the opposite direction, so the band reads
+  /// reordered without any list mutation until the drop. The slide is
+  /// animated — exteraless's DialogsItemAnimator runs a move animation for
+  /// exactly these neighbours — so rows glide aside instead of teleporting.
+  ///
+  /// Always wraps, even at offset zero: a wrapper that appears only mid-drag
+  /// swaps the row's subtree root, deactivates its state, and kills the live
+  /// gesture. AnimatedSlide animates a translate without ever changing the
+  /// subtree shape.
+  Widget _dragShiftWrapper(ChatSummary chat, Widget child) {
+    final draggedId = _draggedChatId;
+    var shift = 0.0;
+    if (draggedId != null && draggedId != chat.id) {
+      final slots = _dragSlotsById[draggedId] ?? 0;
+      if (slots != 0) {
+        final band = _pinnedBand();
+        final draggedFrom = band.indexWhere((c) => c.id == draggedId);
+        final myIndex = band.indexWhere((c) => c.id == chat.id);
+        if (draggedFrom >= 0 && myIndex >= 0) {
+          final draggedTo = (draggedFrom + slots).clamp(0, band.length - 1);
+          final inBetween =
+              myIndex > math.min(draggedFrom, draggedTo) &&
+              myIndex <= math.max(draggedFrom, draggedTo);
+          if (inBetween) {
+            // AnimatedSlide's offset is a FRACTION of the child's own
+            // height, and the band's rows share one extent — one row aside
+            // is exactly 1.0. (Passing the pixel extent here multiplied the
+            // painted shift by the row height: neighbours flew ~extent² off
+            // the viewport instead of gliding one row, the way exteraless's
+            // DialogsItemAnimator.animateMove moves them 180ms old→new.)
+            shift = slots > 0 ? -1.0 : 1.0;
+          }
+        }
+      }
+    }
+    return AnimatedSlide(
+      offset: Offset(0, shift),
+      // The commit frame re-slots the neighbours AND clears their offsets in
+      // one build; animating that clear would stack both motions (a one-row
+      // jump that glides back), so that one frame snaps instead.
+      duration: _shiftsClearInstantly
+          ? Duration.zero
+          : AppMotion.duration(context, AppMotion.responsive),
+      curve: AppMotion.standard,
+      child: child,
+    );
+  }
+
+  /// The pinned chats of the list being edited, top to bottom.
+  List<ChatSummary> _pinnedBand() {
+    final entries = _model.chatListEntries(
+      communitiesEnabled: context.read<ThemeController>().communitiesEnabled,
+    );
+    return entries
+        .whereType<CommunityChatEntry>()
+        .map((entry) => entry.chat)
+        .where(_model.isPinnedInSelectedList)
+        .toList();
+  }
+
+  /// exteraless's hit split: a long press inside the avatar column peeks the
+  /// conversation; anywhere else on the row enters the multi-select edit mode.
+  ///
+  /// The avatar column spans the leading inset plus the avatar (49pt on
+  /// phones) and one row gap, matching the cell's own isPointInsideAvatar.
+  void _handleRowLongPress(ChatSummary chat, Offset localPosition) {
+    if (_selectionMode) {
+      // In edit mode a pinned row's long-press belongs to the drag alone:
+      // exteraless's onItemLongClick returns early (no toggle) when the
+      // action mode is showing AND the dialog is pinned — the gesture can
+      // only reorder, so lifting it without crossing rows changes nothing.
+      if (!_model.isPinnedInSelectedList(chat)) {
+        _toggleSelected(chat);
+      }
+      return;
+    }
+    final avatarHitExtent =
+        AppMetric.chatRowHorizontalInset() +
+        AppMetric.chatListAvatarSize() +
+        AppSpacing.lg;
+    if (localPosition.dx <= avatarHitExtent) {
+      _showChatPreview(chat);
+    } else {
+      _beginSelectionMode(chat);
+    }
   }
 
   void _dismissDesktopChatMenu() {
@@ -3696,6 +4719,115 @@ class _ChatListViewState extends State<ChatListView>
     );
   }
 
+  // MARK: - Multi-select edit mode
+
+  /// Long-press on a row's body: enter edit mode with that chat selected.
+  void _beginSelectionMode(ChatSummary chat) {
+    if (_openSwipeChat != null) setState(() => _openSwipeChat = null);
+    unawaited(AppHaptics.longPress());
+    setState(() {
+      _selectionMode = true;
+      _pendingSelectionModeChatId = chat.id;
+      _selectionEntryGestureDown = true;
+      _selectedChatIds
+        ..clear()
+        ..add(chat.id);
+    });
+  }
+
+  /// The gesture that opened edit mode has fully ended — later presses may
+  /// toggle membership or drag (allowMoving becomes true on ACTION_UP).
+  void _selectionEntryGestureEnded() {
+    if (!_selectionEntryGestureDown) return;
+    _selectionEntryGestureDown = false;
+    // The row keeps rendering with the flag on for the rest of this gesture;
+    // clear it now that the finger is up so the next press starts fresh.
+    if (mounted) setState(() {});
+  }
+
+  void _exitSelectionMode() {
+    if (!_selectionMode) return;
+    _pendingSelectionModeChatId = null;
+    _selectionEntryGestureDown = false;
+    setState(() {
+      _selectionMode = false;
+      _selectedChatIds.clear();
+    });
+  }
+
+  void _toggleSelected(ChatSummary chat) {
+    if (!_selectionMode) return;
+    setState(() {
+      if (!_selectedChatIds.add(chat.id)) _selectedChatIds.remove(chat.id);
+      if (_selectedChatIds.isEmpty) _selectionMode = false;
+    });
+  }
+
+  void _selectAllVisible() {
+    final entries = _model.chatListEntries(
+      communitiesEnabled: context.read<ThemeController>().communitiesEnabled,
+    );
+    setState(() {
+      for (final entry in entries) {
+        if (entry is CommunityChatEntry) _selectedChatIds.add(entry.chat.id);
+      }
+    });
+  }
+
+  List<ChatSummary> get _selectedChats => _model
+      .chatListEntries(
+        communitiesEnabled: context.read<ThemeController>().communitiesEnabled,
+      )
+      .whereType<CommunityChatEntry>()
+      .map((entry) => entry.chat)
+      .where((chat) => _selectedChatIds.contains(chat.id))
+      .toList();
+
+  /// The pin label follows the list being edited: a folder pins inside the
+  /// folder (the same pinnedInList rule the preview uses).
+  bool _selectionAllPinnedInList(Iterable<ChatSummary> chats) =>
+      chats.isNotEmpty && chats.every(_model.isPinnedInSelectedList);
+
+  void _selectionTogglePin() {
+    final chats = _selectedChats;
+    if (chats.isEmpty) return;
+    final pin = !_selectionAllPinnedInList(chats);
+    for (final chat in chats) {
+      // togglePin flips per chat, so drive each row to the shared target.
+      if (_model.isPinnedInSelectedList(chat) != pin) {
+        _model.togglePin(chat);
+      }
+    }
+    _exitSelectionMode();
+  }
+
+  void _selectionToggleMute() {
+    final chats = _selectedChats;
+    if (chats.isEmpty) return;
+    final mute = !chats.every((chat) => chat.isMuted);
+    for (final chat in chats) {
+      if (chat.isMuted != mute) _model.toggleMute(chat);
+    }
+    _exitSelectionMode();
+  }
+
+  void _selectionArchive() {
+    final chats = _selectedChats;
+    if (chats.isEmpty) return;
+    final owner = ChatPreviewAccounts.defaultPreviewAccounts.pinActiveOwner();
+    for (final chat in chats) {
+      _model.archive(chat, owner: owner);
+    }
+    _exitSelectionMode();
+  }
+
+  Future<void> _selectionDelete() async {
+    final chats = _selectedChats;
+    if (chats.isEmpty) return;
+    final deleted = await deleteChatSelection(context, _model, chats);
+    if (mounted && deleted) _exitSelectionMode();
+  }
+
   Future<void> _confirmDeleteChat(ChatSummary chat) async {
     final isGroupOrChannel =
         chat.kind == ChatKind.group || chat.kind == ChatKind.channel;
@@ -3740,7 +4872,9 @@ class _ChatListViewState extends State<ChatListView>
       final message = switch (error) {
         ChatRemovalUnavailable() => AppStringKeys.chatDeleteUnavailable,
         ChatLeaveHistoryCleanupFailed() =>
-          AppStringKeys.chatLeaveHistoryCleanupFailed,
+          chat.kind == ChatKind.channel
+              ? AppStringKeys.chatLeaveHistoryCleanupFailedChannel
+              : AppStringKeys.chatLeaveHistoryCleanupFailed,
         TdError() => error.message,
         _ => error.toString(),
       };
@@ -3777,25 +4911,11 @@ class _ChatListViewState extends State<ChatListView>
   void _openArchivedChats() {
     final onOpenArchived = widget.onOpenArchived;
     if (onOpenArchived != null) {
-      onOpenArchived(
-        ArchivedChatListSelection(
-          chatsProvider: () => _model.archived,
-          updates: _model,
-          onClearUnread: _model.markRead,
-          onUnarchive: _model.unarchive,
-        ),
-      );
+      onOpenArchived(ArchivedChatListSelection(model: _model));
       return;
     }
     Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => LiveArchivedChatsView(
-          updates: _model,
-          chatsProvider: () => _model.archived,
-          onClearUnread: _model.markRead,
-          onUnarchive: _model.unarchive,
-        ),
-      ),
+      MaterialPageRoute(builder: (_) => LiveArchivedChatsView(model: _model)),
     );
   }
 
@@ -3819,7 +4939,7 @@ class _ChatListViewState extends State<ChatListView>
   // MARK: - "+" dropdown
 
   Widget _plusMenuOverlay({required bool visible}) {
-    return _AnimatedAnchoredMenuOverlay(
+    return AnchoredMenuOverlay(
       visible: visible,
       top: MediaQuery.paddingOf(context).top + 48,
       onDismiss: () => setState(() => _showPlusMenu = false),
@@ -3833,7 +4953,7 @@ class _ChatListViewState extends State<ChatListView>
   }
 
   Widget _filterMenuOverlay({required bool visible}) {
-    return _AnimatedAnchoredMenuOverlay(
+    return AnchoredMenuOverlay(
       visible: visible,
       top: MediaQuery.paddingOf(context).top + 48,
       onDismiss: () => setState(() => _showFilterMenu = false),
@@ -3932,127 +5052,6 @@ class _DesktopTitleBarPlusMenuOverlay extends StatelessWidget {
           ),
         ),
       ],
-    );
-  }
-}
-
-/// Keeps anchored menus mounted through their reverse animation so the
-/// barrier, hit testing, and menu surface leave as one coherent motion.
-class _AnimatedAnchoredMenuOverlay extends StatefulWidget {
-  const _AnimatedAnchoredMenuOverlay({
-    required this.visible,
-    required this.top,
-    required this.onDismiss,
-    required this.child,
-  });
-
-  final bool visible;
-  final double top;
-  final VoidCallback onDismiss;
-  final Widget child;
-
-  @override
-  State<_AnimatedAnchoredMenuOverlay> createState() =>
-      _AnimatedAnchoredMenuOverlayState();
-}
-
-class _AnimatedAnchoredMenuOverlayState
-    extends State<_AnimatedAnchoredMenuOverlay>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _controller = AnimationController(
-    vsync: this,
-    duration: AppMotion.responsive,
-    reverseDuration: AppMotion.quick,
-    value: widget.visible ? 1 : 0,
-  );
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    _syncDuration();
-    if (AppMotion.isReduced(context)) {
-      _controller.value = widget.visible ? 1 : 0;
-    }
-  }
-
-  @override
-  void didUpdateWidget(covariant _AnimatedAnchoredMenuOverlay oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    _syncDuration();
-    if (oldWidget.visible == widget.visible) return;
-    if (AppMotion.isReduced(context)) {
-      _controller.value = widget.visible ? 1 : 0;
-    } else if (widget.visible) {
-      _controller.forward();
-    } else {
-      _controller.reverse();
-    }
-  }
-
-  void _syncDuration() {
-    _controller.duration = AppMotion.duration(context, AppMotion.responsive);
-    _controller.reverseDuration = AppMotion.duration(context, AppMotion.quick);
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Positioned.fill(
-      child: AnimatedBuilder(
-        animation: _controller,
-        child: widget.child,
-        builder: (context, child) {
-          if (_controller.isDismissed) return const SizedBox.shrink();
-          final progress = AppMotion.emphasized.transform(_controller.value);
-          return IgnorePointer(
-            ignoring: _controller.value == 0,
-            child: ExcludeSemantics(
-              excluding: _controller.value == 0,
-              child: Stack(
-                children: [
-                  Positioned.fill(
-                    child: GestureDetector(
-                      behavior: HitTestBehavior.opaque,
-                      onTap: widget.onDismiss,
-                      child: ColoredBox(
-                        color: Colors.black.withValues(
-                          alpha: 0.12 * _controller.value,
-                        ),
-                      ),
-                    ),
-                  ),
-                  Padding(
-                    padding: EdgeInsets.only(top: widget.top, right: 10),
-                    child: Align(
-                      alignment: Alignment.topRight,
-                      child: GestureDetector(
-                        behavior: HitTestBehavior.opaque,
-                        onTap: () {},
-                        child: Opacity(
-                          opacity: progress,
-                          child: Transform.translate(
-                            offset: Offset(0, -8 * (1 - progress)),
-                            child: Transform.scale(
-                              alignment: Alignment.topRight,
-                              scale: 0.94 + 0.06 * progress,
-                              child: child,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          );
-        },
-      ),
     );
   }
 }
@@ -4182,16 +5181,20 @@ class PlusMenu extends StatelessWidget {
   final bool showCommunities;
 
   static const _baseItems = [
+    (HeroAppIcons.magnifyingGlass, AppStringKeys.topicChatSearch),
     (HeroAppIcons.qrcode, AppStringKeys.chatListScanQrCode),
     (HeroAppIcons.circlePlus, AppStringKeys.chatListCreateGroup),
     (HeroAppIcons.grip, AppStringKeys.chatListCreateChannel),
     (HeroAppIcons.userPlus, AppStringKeys.chatListAddFriendOrGroup),
   ];
 
+  /// Community sits right after search (the user's pinned ordering), ahead
+  /// of every create action, and only when the section has content.
   List<(AppIconData, String)> get _items => [
+    _baseItems.first,
     if (showCommunities)
       (HeroAppIcons.objectGroup, AppStringKeys.communityTitle),
-    ..._baseItems,
+    ..._baseItems.skip(1),
   ];
 
   @override
@@ -4613,10 +5616,18 @@ class ChatSwipeRow extends StatefulWidget {
     required this.onTap,
     required this.child,
     this.onLongPress,
+    this.onLongPressAt,
+    this.dragReorderEnabled = false,
+    this.onDragReorderStart,
+    this.onDragReorderMove,
+    this.onDragReorderSlot,
+    this.onDragReorderEnd,
+    this.contentVisible = true,
     this.onSecondaryTapDown,
     this.requiresLongPressDrag = false,
     this.horizontalSwipeEnabled = true,
     this.pressRippleEnabled = true,
+    this.suppressEndLongPress = false,
   });
 
   final int rowId;
@@ -4626,10 +5637,48 @@ class ChatSwipeRow extends StatefulWidget {
   final VoidCallback onTap;
   final Widget child;
   final VoidCallback? onLongPress;
+
+  /// Long-press with the press coordinates, so the host can split the gesture
+  /// by hit region (exteraless peeks only from the avatar).
+  final void Function(Offset localPosition)? onLongPressAt;
+
+  /// Edit-mode pinned reorder (exteraless's action-mode ItemTouchHelper drag):
+  /// when enabled, a long press that moves vertically drags the row over its
+  /// pinned neighbours, reporting each crossed slot so the host can swap.
+  final bool dragReorderEnabled;
+
+  /// The drag lifted: the host raises an overlay proxy of the row (exteraless
+  /// draws the dragged cell above the list through ItemTouchHelper's overdraw
+  /// child + elevation) and hides this row's content.
+  final void Function(Offset globalTopLeft, Size size)? onDragReorderStart;
+
+  /// The finger moved [dy] pixels vertically from the press origin. Pure
+  /// position report — the host drives the proxy from it without rebuilding
+  /// the list.
+  final void Function(double dy)? onDragReorderMove;
+
+  /// [slots] is signed: +1 one slot down, -1 one slot up, reported once per
+  /// crossed row extent.
+  final void Function(int slots)? onDragReorderSlot;
+
+  /// The finger came up: the host commits the accumulated swaps here (one
+  /// setPinnedChats per drag, like exteraless commits reorderPinnedDialogs on
+  /// drop — never per crossed slot).
+  final VoidCallback? onDragReorderEnd;
+
+  /// False while the drag proxy draws this row above the list — the row keeps
+  /// its slot, size and gesture, only its pixels move to the proxy.
+  final bool contentVisible;
   final GestureTapDownCallback? onSecondaryTapDown;
   final bool requiresLongPressDrag;
   final bool horizontalSwipeEnabled;
   final bool pressRippleEnabled;
+
+  /// exteraless's allowMoving split: the long press that OPENS edit mode must
+  /// do nothing when the finger lifts (the mode stays); only later presses
+  /// toggle membership or drag. The host sets this on the row whose press
+  /// opened the mode, for the lifetime of that one gesture.
+  final bool suppressEndLongPress;
 
   @override
   State<ChatSwipeRow> createState() => _ChatSwipeRowState();
@@ -4646,6 +5695,9 @@ class _ChatSwipeRowState extends State<ChatSwipeRow>
   VoidCallback? _animationListener;
   double _offset = 0;
   double _longPressStartOffset = 0;
+  Offset? _pendingLongPressAt;
+  double _dragConsumed = 0;
+  bool _dragReorderActive = false;
   int? _desktopTouchPointer;
   Offset? _desktopTouchOrigin;
   double _desktopTouchStartOffset = 0;
@@ -4750,9 +5802,53 @@ class _ChatSwipeRowState extends State<ChatSwipeRow>
     if (widget.openRowId == widget.rowId) widget.onOpenChanged(null);
   }
 
+  void _handleDragReorderMove(LongPressMoveUpdateDetails details) {
+    final dy = details.offsetFromOrigin.dy;
+    if (!_dragReorderActive) {
+      // A long press that has not moved vertically stays a plain long press;
+      // a small threshold makes the drag take over.
+      if (dy.abs() < 12) return;
+      _dragReorderActive = true;
+      _dragConsumed = 0;
+      final box = context.findRenderObject() as RenderBox?;
+      if (box == null || !box.attached) return;
+      widget.onDragReorderStart?.call(box.localToGlobal(Offset.zero), box.size);
+    }
+    final rowExtent = context.size?.height ?? 0;
+    if (rowExtent > 0) {
+      // Hysteresis: a slot swaps once the finger has travelled half a row
+      // past the last consumed slot, and only one slot per event. Consuming
+      // a full row extent per swap keeps the next swap a full row away, so
+      // jitter around the midpoint cannot re-fire and cascade the row to the
+      // end of the band.
+      final residual = dy - _dragConsumed;
+      if (residual.abs() > rowExtent / 2) {
+        final slots = residual > 0 ? 1 : -1;
+        _dragConsumed += slots * rowExtent;
+        widget.onDragReorderSlot?.call(slots);
+      }
+    }
+    // The overlay proxy follows the finger; the row itself keeps its slot
+    // for the whole drag, so no rebuild interrupts the gesture.
+    widget.onDragReorderMove?.call(dy);
+  }
+
+  void _endDragReorder() {
+    if (!_dragReorderActive) return;
+    _dragReorderActive = false;
+    widget.onDragReorderEnd?.call();
+  }
+
   void _handleContextRequest() {
     if (_offset != 0) {
       _close();
+      return;
+    }
+    final position = _pendingLongPressAt;
+    _pendingLongPressAt = null;
+    final longPressAt = widget.onLongPressAt;
+    if (longPressAt != null && position != null) {
+      longPressAt(position);
       return;
     }
     widget.onLongPress?.call();
@@ -4871,33 +5967,59 @@ class _ChatSwipeRowState extends State<ChatSwipeRow>
         widget.horizontalSwipeEnabled &&
         !widget.requiresLongPressDrag &&
         !desktopTouchGestures;
-    final rowGesture = GestureDetector(
+    final rowGestureRaw = GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTap: () => _offset != 0 ? _close() : widget.onTap(),
-      onLongPress: desktopTouchGestures || widget.requiresLongPressDrag
-          ? null
-          : widget.onLongPress == null
+      onLongPress:
+          desktopTouchGestures ||
+              widget.requiresLongPressDrag ||
+              widget.onLongPress == null
           ? null
           : _handleContextRequest,
       onSecondaryTapDown: widget.onSecondaryTapDown == null
           ? null
           : _handleSecondaryTapDown,
-      onLongPressStart: (_) {
+      onLongPressStart: (details) {
         _stopAnimation();
         _longPressStartOffset = _offset;
+        // exteraless splits the row's long press by hit region: the avatar
+        // peeks, the body selects. The plain onLongPress callback stays for
+        // hosts that did not opt into the split.
+        if (!desktopTouchGestures &&
+            !widget.requiresLongPressDrag &&
+            widget.onLongPress != null &&
+            widget.onLongPressAt != null) {
+          _pendingLongPressAt = details.localPosition;
+        } else {
+          _pendingLongPressAt = null;
+        }
       },
-      onLongPressMoveUpdate: widget.requiresLongPressDrag
-          ? (details) {
-              setState(() {
-                _offset = _rubberBandOffset(
-                  _longPressStartOffset + details.localOffsetFromOrigin.dx,
-                );
-              });
-            }
-          : null,
+      // Wired unconditionally: the recognizer keeps the closure from the
+      // build that saw the pointer down, but the State's widget is always
+      // the latest — the handler re-reads the flags on every event, so a
+      // long press that enters edit mode at its deadline can still drag in
+      // the same gesture.
+      onLongPressMoveUpdate: (details) {
+        if (widget.requiresLongPressDrag) {
+          setState(() {
+            _offset = _rubberBandOffset(
+              _longPressStartOffset + details.localOffsetFromOrigin.dx,
+            );
+          });
+        } else if (widget.dragReorderEnabled) {
+          _handleDragReorderMove(details);
+        }
+      },
       onLongPressEnd: (details) {
         if (widget.requiresLongPressDrag) {
           _settle(details.velocity.pixelsPerSecond.dx);
+        } else if (_dragReorderActive) {
+          _endDragReorder();
+        } else if (widget.dragReorderEnabled && !widget.suppressEndLongPress) {
+          // A press that never crossed into a drag still owes its long-press
+          // behaviour (edit mode: toggle membership) — except the press that
+          // opened the mode: lifting it must keep the mode (allowMoving).
+          widget.onLongPress?.call();
         }
       },
       onHorizontalDragStart: !horizontalDragEnabled
@@ -4921,13 +6043,13 @@ class _ChatSwipeRowState extends State<ChatSwipeRow>
             onPointerMove: _handleDesktopTouchPointerMove,
             onPointerUp: _handleDesktopTouchPointerUp,
             onPointerCancel: _handleDesktopTouchPointerCancel,
-            child: rowGesture,
+            child: rowGestureRaw,
           )
-        : rowGesture;
+        : rowGestureRaw;
     // At rest the row covers the blocks completely, so building them costs one
     // text layout + one paint per action on every row of every list rebuild.
     final actionsRevealed = _offset != 0 || widget.openRowId == widget.rowId;
-    return ClipRect(
+    final Widget self = ClipRect(
       child: Stack(
         children: [
           // Revealed action blocks behind the row.
@@ -4965,15 +6087,31 @@ class _ChatSwipeRowState extends State<ChatSwipeRow>
                     ),
                   ),
           ),
-          // The row, sliding left to uncover the blocks.
+          // The row, sliding left to uncover the blocks. While an edit-mode
+          // reorder drag is live the row's CONTENT moves to the host's
+          // overlay proxy (drawn above the whole list, exteraless's
+          // ItemTouchHelper overdraw child + elevation); the row keeps its
+          // slot, size and gesture here, so the subtree shape never changes
+          // mid-drag and the recognizer survives.
           Transform.translate(
             offset: Offset(_offset, 0),
-            child: widget.pressRippleEnabled
-                ? AppPressRipple(child: interactiveRow)
-                : interactiveRow,
+            child: Material(
+              type: MaterialType.transparency,
+              child: Visibility(
+                visible: widget.contentVisible,
+                maintainState: true,
+                maintainAnimation: true,
+                maintainSize: true,
+                maintainInteractivity: true,
+                child: widget.pressRippleEnabled
+                    ? AppPressRipple(child: interactiveRow)
+                    : interactiveRow,
+              ),
+            ),
           ),
         ],
       ),
     );
+    return self;
   }
 }

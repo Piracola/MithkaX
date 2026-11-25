@@ -1,8 +1,6 @@
 import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-
 import '../components/app_icons.dart';
 import '../components/toast.dart';
 import '../components/ui_components.dart';
@@ -159,6 +157,19 @@ class _AiSettingsViewState extends State<AiSettingsView> {
                         context,
                         AiReplyPromptEditorView(settings: settings),
                       ),
+                    ),
+                    SettingsSwitchRow(
+                      key: const ValueKey('aiReplyButtonRow'),
+                      title: AppStringKeys.mithkaxAiReplyButton.l10n(context),
+                      subtitle: AppStringKeys.mithkaxAiReplyButtonHint.l10n(
+                        context,
+                      ),
+                      value: settings.replyButtonEnabled,
+                      leading: const SettingsLeadingIcon(
+                        icon: HeroAppIcons.wandMagicSparkles,
+                      ),
+                      onChanged: (value) =>
+                          unawaited(settings.setReplyButtonEnabled(value)),
                     ),
                   ],
                 ),

@@ -58,6 +58,28 @@ module MithkaAppStoreRelease
   ].freeze
   SUBSCRIPTION_GROUP_NAME = "Mithka Pro"
   SUBSCRIPTION_RELATIONSHIPS = %w[subscriptionVersion subscriptionGroupVersion].freeze
+  # App Review stops a listing that sells Mithka Pro unless every
+  # localization's description links a working Terms of Use (EULA).
+  TERMS_OF_USE_URL = "https://mithka.ieb.app/terms"
+  TERMS_OF_USE_LINE = {
+    "en" => "Terms of Use: #{TERMS_OF_USE_URL}",
+    "zh" => "使用条款：#{TERMS_OF_USE_URL}"
+  }.freeze
+  # Earlier listings also linked Apple's standard EULA; that line is dropped.
+  APPLE_EULA_URL = "https://www.apple.com/legal/internet-services/itunes/dev/stdeula/"
+
+  # [description] with the Terms of Use link appended when missing and any
+  # Apple standard EULA line removed.
+  def self.description_with_terms(locale, description)
+    text = description.to_s
+    if text.include?(APPLE_EULA_URL)
+      text = text.lines.reject { |line| line.include?(APPLE_EULA_URL) }.join.rstrip
+    end
+    return text if text.include?(TERMS_OF_USE_URL)
+
+    line = TERMS_OF_USE_LINE.fetch(locale.to_s.start_with?("zh") ? "zh" : "en")
+    "#{text.rstrip}\n\n#{line}"
+  end
 
   class Error < StandardError; end
 
@@ -656,6 +678,7 @@ module MithkaAppStoreRelease
             "locale" => locale,
             "whatsNew" => notes
           )
+          desired["description"] = MithkaAppStoreRelease.description_with_terms(locale, desired["description"])
           validate_version_metadata!(locale, desired)
           if @apply
             log("CREATE #{locale} App Store version metadata from the current live listing with new release notes")
@@ -680,20 +703,24 @@ module MithkaAppStoreRelease
         end
 
         validate_version_metadata!(locale, localization.fetch("attributes"))
-        next log("#{locale} release notes already match") if localization.dig("attributes", "whatsNew").to_s == notes
+        changes = {}
+        changes["whatsNew"] = notes unless localization.dig("attributes", "whatsNew").to_s == notes
+        changes.merge!(terms_change(locale, localization))
+        next log("#{locale} release notes already match") if changes.empty?
+        fields = changes.keys.map { |key| key == "whatsNew" ? "release notes" : "Terms of Use link" }.join(" and ")
         unless @apply
-          log("PLAN update #{locale} release notes")
+          log("PLAN update #{locale} #{fields}")
           next
         end
 
-        log("UPDATE #{locale} release notes")
+        log("UPDATE #{locale} #{fields}")
         @client.patch(
           "/appStoreVersionLocalizations/#{localization.fetch('id')}",
           {
             "data" => {
               "type" => "appStoreVersionLocalizations",
               "id" => localization.fetch("id"),
-              "attributes" => { "whatsNew" => notes }
+              "attributes" => changes
             }
           }
         )
@@ -704,20 +731,36 @@ module MithkaAppStoreRelease
       # Preserve curated translations and fill only otherwise empty entries.
       (existing.keys - release_notes.keys).each do |locale|
         localization = existing.fetch(locale)
-        next unless localization.dig("attributes", "whatsNew").to_s.strip.empty?
+        changes = terms_change(locale, localization)
+        if localization.dig("attributes", "whatsNew").to_s.strip.empty?
+          changes["whatsNew"] = release_notes.fetch("en-US")
+        end
+        next if changes.empty?
         unless @apply
-          log("PLAN fill empty #{locale} release notes with the en-US text")
+          log("PLAN fill empty #{locale} release notes with the en-US text") if changes.key?("whatsNew")
+          log("PLAN update the Terms of Use link in the #{locale} description") if changes.key?("description")
           next
         end
-        log("FILL empty #{locale} release notes with the en-US text")
+        log("FILL empty #{locale} release notes with the en-US text") if changes.key?("whatsNew")
+        log("UPDATE the Terms of Use link in the #{locale} description") if changes.key?("description")
         @client.patch(
           "/appStoreVersionLocalizations/#{localization.fetch('id')}",
           "data" => {
             "type" => "appStoreVersionLocalizations", "id" => localization.fetch("id"),
-            "attributes" => { "whatsNew" => release_notes.fetch("en-US") }
+            "attributes" => changes
           }
         )
       end
+    end
+
+    # The description update a localization needs to carry the Terms of Use
+    # link, if any. An inherited locale without a description is left alone.
+    def terms_change(locale, localization)
+      description = localization.dig("attributes", "description").to_s
+      return {} if description.strip.empty?
+
+      updated = MithkaAppStoreRelease.description_with_terms(locale, description)
+      updated == description ? {} : { "description" => updated }
     end
 
     def latest_sale_localizations(excluding_version_id)
@@ -1061,6 +1104,12 @@ module MithkaAppStoreRelease
         unless actual.dig("attributes", "whatsNew").to_s == notes
           raise Error, "verification failed: #{locale} release notes differ"
         end
+      end
+      localizations.each do |locale, actual|
+        description = actual.dig("attributes", "description").to_s
+        next if description.include?(TERMS_OF_USE_URL) && !description.include?(APPLE_EULA_URL)
+
+        raise Error, "verification failed: #{locale} description lacks the Terms of Use link"
       end
 
       return unless @submit && @apply

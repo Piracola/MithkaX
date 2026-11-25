@@ -8,11 +8,9 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
-
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:mithka/l10n/app_localizations.dart';
-
 import 'google_translate_defaults.dart';
 import 'translation_controller.dart';
 

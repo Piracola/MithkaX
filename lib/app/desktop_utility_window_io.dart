@@ -1,15 +1,14 @@
 import 'dart:async';
 import 'dart:io';
 import 'dart:typed_data';
-
 import 'package:flutter/material.dart';
 import 'package:multi_window_manager/multi_window_manager.dart';
-
 import '../settings/desktop_hotkey_controller.dart';
 import '../settings/hidden_sender_store.dart';
 import '../tdlib/json_helpers.dart';
 import '../tdlib/td_client.dart';
 import 'chat_deep_link_controller.dart';
+import 'desktop_child_window_startup.dart';
 import 'desktop_utility_window_models.dart';
 
 const _subscribeMethod = 'mithka.utility.td.subscribe';
@@ -358,6 +357,7 @@ Map<String, dynamic> _sanitizeTdObject(Map<String, dynamic> source) =>
 
 class _DesktopUtilityMainBridge with WindowListener {
   final DesktopUtilityWindowRegistry _registry = DesktopUtilityWindowRegistry();
+  final DesktopChildWindowStartup _startup = DesktopChildWindowStartup();
   final Map<int, DesktopUtilityWindowArguments> _argumentsByWindow = {};
   final Map<int, int> _clientIdByWindow = {};
   final Map<int, TdAccountLease> _accountLeasesByWindow = {};
@@ -421,6 +421,7 @@ class _DesktopUtilityMainBridge with WindowListener {
     _clientIdByWindow.clear();
     _subscribedWindows.clear();
     _registry.clear();
+    _startup.clear();
     _onSettingsChanged = null;
     _accountUserIdForSlot = null;
   }
@@ -455,7 +456,9 @@ class _DesktopUtilityMainBridge with WindowListener {
     if (!_identityIsCurrent(arguments)) return false;
     MultiWindowManager? createdWindow;
     try {
-      final active = await MultiWindowManager.current.getActiveWindowIds();
+      final active = _startup.live(
+        await MultiWindowManager.current.getActiveWindowIds(),
+      );
       final existing = _registry.activeWindowFor(arguments.key, active);
       if (existing != null) {
         final window = MultiWindowManager.fromWindowId(existing);
@@ -507,6 +510,7 @@ class _DesktopUtilityMainBridge with WindowListener {
     _clientIdByWindow[windowId] = lease.clientId;
     _accountLeasesByWindow[windowId] = lease;
     _registry.register(arguments.key, windowId);
+    _startup.begin(windowId);
     return true;
   }
 
@@ -586,6 +590,7 @@ class _DesktopUtilityMainBridge with WindowListener {
           messageId: request.messageId,
           accountSlot: registered.accountSlot,
           accountUserId: registered.accountUserId,
+          externalReply: request.externalReply,
         );
         try {
           await MultiWindowManager.current.show();
@@ -825,7 +830,11 @@ class _DesktopUtilityMainBridge with WindowListener {
   }
 
   void _handleActiveWindowsChanged() {
-    final active = MultiWindowManager.current.activeWindows.value.toSet();
+    // A child that has not been shown yet is not listed as active on Linux;
+    // only a window that was shown and then left the list has closed.
+    final active = _startup.live(
+      MultiWindowManager.current.activeWindows.value,
+    );
     for (final windowId in _argumentsByWindow.keys.toList(growable: false)) {
       if (!active.contains(windowId)) _removeWindow(windowId);
     }
@@ -841,6 +850,7 @@ class _DesktopUtilityMainBridge with WindowListener {
     _subscribedWindows.remove(windowId);
     _pendingUpdatesByWindow.remove(windowId);
     _registry.removeWindow(windowId);
+    _startup.end(windowId);
   }
 
   @override

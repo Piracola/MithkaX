@@ -8,10 +8,8 @@
 
 import 'dart:convert';
 import 'dart:typed_data';
-
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
-
 import '../components/app_confirm_dialog.dart';
 import '../components/app_icons.dart';
 import '../components/toast.dart';
@@ -79,7 +77,7 @@ class _MessageHistoryTransferViewState
       entryCount = (document['entries'] as List).length;
       final encoded = const JsonEncoder.withIndent('  ').convert(document);
       final stamp = _exportStamp(DateTime.now());
-      final fileName = 'mithkax-history-$stamp.json';
+      final fileName = 'kept-history-$stamp.json';
       // Android SAF: the returned uri.path is not directly writable and the
       // plugin may truncate the target first — pass the bytes so the plugin
       // itself writes the file, and never touch the path afterwards.
@@ -143,7 +141,7 @@ class _MessageHistoryTransferViewState
     try {
       final document = jsonDecode(utf8.decode(bytes));
       if (document is! Map<String, Object?>) {
-        throw const FormatException('Not a Mithka X history export');
+        throw const FormatException('Not a kept-message history export');
       }
       final restored = await MessageHistoryStore.shared.importAccount(document);
       if (!mounted) return;

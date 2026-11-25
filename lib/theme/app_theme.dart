@@ -9,9 +9,7 @@
 //
 
 import 'dart:math' as math;
-
 import 'package:flutter/material.dart';
-
 import '../platform/adaptive_platform.dart';
 
 Color _hex(int rgb, [double opacity = 1]) =>
@@ -399,8 +397,17 @@ abstract final class AppMetric {
       : AppTextSize.bodyLarge;
   static double popupMenuInset([TargetPlatform? platform]) =>
       isDesktopTargetPlatform(platform) ? AppSpacing.lg : AppSpacing.xxl;
-  static const double splashPenguinSize = 192;
+
+  /// The app mark on the startup screen.
+  static const double splashMarkSize = 192;
   static const double splashSpinnerSize = 24;
+
+  /// A chosen launcher icon on the startup screen: about the size Android's
+  /// own splash draws it at, so handing over from that splash does not jump.
+  static const double splashIconSize = 160;
+
+  /// Corner radius of [splashIconSize]: the icon picker's 18 pt at 80 pt.
+  static const double splashIconRadius = 36;
   static const double divider = 0.5;
   static const double selectedBorder = 2.5;
   static const double badgeOutlinePadding = 1.5;

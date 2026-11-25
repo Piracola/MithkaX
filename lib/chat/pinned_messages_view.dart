@@ -6,10 +6,8 @@
 //
 
 import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:mithka/l10n/app_localizations.dart';
-
 import '../app/ipad_window_chrome.dart';
 import '../app/primary_chat_launcher.dart';
 import '../components/app_icons.dart';
@@ -19,8 +17,8 @@ import '../tdlib/td_client.dart';
 import '../tdlib/td_models.dart';
 import '../theme/app_theme.dart';
 import '../theme/date_text.dart';
-import 'image_preview.dart';
-import 'video_playback_queue.dart';
+import 'media/image_preview.dart';
+import 'media/video_playback_queue.dart';
 import 'video_player_view.dart';
 
 class PinnedMessagesView extends StatefulWidget {
@@ -66,8 +64,13 @@ class _PinnedMessagesViewState extends State<PinnedMessagesView> {
         'filter': {'@type': 'searchMessagesFilterPinned'},
       }, _accountSlot);
       final list = res.objects('messages') ?? const <Map<String, dynamic>>[];
+      final chat = await _client.queryForSlot({
+        '@type': 'getChat',
+        'chat_id': widget.chatId,
+      }, _accountSlot);
+      final isChannel = TDParse.chatKind(chat) == ChatKind.channel;
       final parsed = list
-          .map(TDParse.message)
+          .map((raw) => TDParse.message(raw, isChannel: isChannel))
           .whereType<ChatMessage>()
           .toList();
       for (final message in parsed) {

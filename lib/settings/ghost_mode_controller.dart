@@ -1,23 +1,21 @@
 //
 //  ghost_mode_controller.dart
 //
-//  AyuGram-style ghost mode. Guards the app behind the compile-time
+//  Ghost mode (anti-recall style stealth). Guards the app behind the compile-time
 //  `allowTelegramTosViolations` flag: when the flag is absent or false the
 //  controller stays permanently disabled, every query method returns the
 //  "never block" answer, and nothing else in the app changes. Preferences are
 //  persisted in SharedPreferences so they survive restarts of self-built
 //  binaries.
 //
-//  Semantics mirror NagramXF's AyuGhostPreferences: a global switch plus a
+//  Semantics: a global switch plus a
 //  per-chat three-state exception — `default` follows the global switch,
 //  `forceBlock` always intercepts, `forceAllow` never intercepts.
 //
 
 import 'dart:async';
-
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-
 import '../config/build_flags.dart';
 import '../tdlib/json_helpers.dart';
 import '../tdlib/td_client.dart';

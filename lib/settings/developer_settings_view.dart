@@ -6,7 +6,6 @@
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-
 import '../app/app_performance_controller.dart';
 import '../components/app_icons.dart';
 import '../components/ui_components.dart';

@@ -8,15 +8,14 @@
 //
 
 import 'dart:async';
-
 import 'package:flutter/foundation.dart';
 import 'package:mithka/l10n/app_localizations.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-
 import '../app/performance_metrics.dart';
 import '../communities/community_models.dart';
 import '../notifications/notification_settings_payload.dart';
 import '../notifications/scope_notification_settings.dart';
+import '../settings/chat_folder_service.dart';
 import '../settings/hidden_sender_store.dart';
 import '../settings/keyword_blocker.dart';
 import '../tdlib/chat_membership.dart';
@@ -27,6 +26,7 @@ import '../tdlib/td_user_index.dart';
 import 'chat_delete_policy.dart';
 import 'chat_list_preview.dart';
 import 'chat_removal_actions.dart';
+import 'local_folder_order_store.dart';
 import 'local_pin_store.dart';
 
 class ChatFilterOption {
@@ -103,7 +103,15 @@ class ChatListViewModel extends ChangeNotifier {
     @visibleForTesting this._membershipForTesting,
     @visibleForTesting TdClient? clientForTesting,
     this.accountSlot,
-  }) : _client = clientForTesting ?? TdClient.shared;
+  }) : _client = clientForTesting ?? TdClient.shared {
+    // Registered at construction, not onAppear: the scope cache can fill (or
+    // refill after an account switch) before the list first appears, and any
+    // snapshot parsed before that moment may hold a stale mute state.
+    ScopeNotificationSettings.shared.addListener(_handleScopeSettingsChange);
+    // A locally simulated Premium moves the main list without a server
+    // update; the tab strip follows the store directly.
+    LocalFolderOrderStore.shared.addListener(_handleLocalFolderOrderChange);
+  }
 
   List<ChatSummary> _chats = [];
   List<ChatSummary> _archived = [];
@@ -196,6 +204,15 @@ class ChatListViewModel extends ChangeNotifier {
       ? _chats
       : _projectChats(folderId, _visibleChats());
 
+  /// Flat, recipient-oriented view for pickers (forward/share target
+  /// selection): the folder's chats with the archive appended, exactly like
+  /// the reference client's forward picker. Read-only projection — it never
+  /// touches the selection, so a picker can call it per build.
+  List<ChatSummary> chatsForSelection(int? folderId) => [
+    ...chatsForFolder(folderId),
+    ..._archived,
+  ];
+
   /// Whether [chat] is pinned in the folder currently shown to the user (the
   /// Main list's pin when no folder is selected).
   bool isPinnedInSelectedList(ChatSummary chat) =>
@@ -245,7 +262,16 @@ class ChatListViewModel extends ChangeNotifier {
 
   /// Whether the selected filter is "All" although "All" is not offered.
   bool get selectionHiddenByFilterPreference =>
-      _selectedFilter.isAll && !filters.first.isAll;
+      _selectedFilter.isAll && !filters.any((filter) => filter.isAll);
+
+  /// "All chats" lives in [_filters] at `main_chat_list_position`, which is
+  /// not necessarily the first slot. Internal fallbacks that mean the whole
+  /// account must find it by kind, not by index.
+  ChatFilterOption get _allFilter => _filters.firstWhere(
+    (filter) => filter.isAll,
+    orElse: () =>
+        const ChatFilterOption(title: AppStringKeys.topicChatAllFilter),
+  );
 
   void selectFirstVisibleFilterIfHidden() {
     if (selectionHiddenByFilterPreference) selectFilter(filters.first);
@@ -437,6 +463,9 @@ class ChatListViewModel extends ChangeNotifier {
     if (_disposed) return;
     if (_meId == value) return;
     _meId = value;
+    // The local folder order is keyed by the Telegram user id, so the first
+    // snapshot that arrives before getMe must be re-read once it is known.
+    _loadFilters();
     final store = LocalPinStore.shared;
     // Device-only pins are account-scoped, so the store follows the account
     // exactly like the list's other per-account state. Another live list may
@@ -466,6 +495,8 @@ class ChatListViewModel extends ChangeNotifier {
     // Also strands any bulk read whose requests are still in flight.
     _bulkReadGeneration++;
     LocalPinStore.shared.removeListener(_handleLocalPinStoreChange);
+    LocalFolderOrderStore.shared.removeListener(_handleLocalFolderOrderChange);
+    ScopeNotificationSettings.shared.removeListener(_handleScopeSettingsChange);
     _sub?.cancel();
     _sub = null;
     _resortTimer?.cancel();
@@ -532,14 +563,20 @@ class ChatListViewModel extends ChangeNotifier {
     if (cached != null) _applyChatFolders(cached);
   }
 
+  void _handleLocalFolderOrderChange() {
+    if (_disposed) return;
+    // Re-run the cached update so the tab strip reflects the device's chosen
+    // main-list position (or the server's again after the switch is turned
+    // off) without waiting for TDLib to send another snapshot.
+    _loadFilters();
+  }
+
   void _applyChatFolders(Map<String, dynamic> object) {
     final raw =
         object.objects('chat_folders') ??
         object.objects('chat_folder_infos') ??
         const <Map<String, dynamic>>[];
-    final folders = <ChatFilterOption>[
-      const ChatFilterOption(title: AppStringKeys.topicChatAllFilter),
-    ];
+    final folders = <ChatFilterOption>[];
     for (final folder in raw) {
       final id = folder.integer('id') ?? folder.integer('chat_folder_id');
       if (id == null) continue;
@@ -561,17 +598,32 @@ class ChatListViewModel extends ChangeNotifier {
         ),
       );
     }
+    // `main_chat_list_position` places the whole-account list among the
+    // folders; `reorderChatFolders` carries it separately from the id order.
+    // Prepending "All" here ignored it, so moving it in the order sheet
+    // snapped back to the first tab on the update that followed the save.
+    //
+    // A local-premium position never reaches TDLib — it clamps the field to 0
+    // for a non-Premium account — so the device's own store wins when it has
+    // one. With the switch off [positionFor] answers null and the server's
+    // value is used untouched.
+    final serverPosition = object.integer('main_chat_list_position') ?? 0;
+    final localPosition = LocalFolderOrderStore.shared.positionFor(_meId);
+    folders.insert(
+      (localPosition ?? serverPosition).clamp(0, folders.length),
+      const ChatFilterOption(title: AppStringKeys.topicChatAllFilter),
+    );
     _filters = folders;
     if (_selectedFilter.folderId != null &&
         !_filters.any((f) => f.folderId == _selectedFilter.folderId)) {
-      _selectedFilter = _filters.first;
+      _selectedFilter = _allFilter;
       _loadChats(_pageSize);
       _prefetchMainChats();
       _resort();
     }
     _selectedFilter = _filters.firstWhere(
       (filter) => filter.folderId == _selectedFilter.folderId,
-      orElse: () => _filters.first,
+      orElse: () => _allFilter,
     );
     if (selectionHiddenByFilterPreference) {
       selectFilter(filters.first);
@@ -599,8 +651,9 @@ class ChatListViewModel extends ChangeNotifier {
     _notifyIfAlive();
     if (_resolvingFolders.contains(id)) return;
     _resolvingFolders.add(id);
-    _client
-        .query({'@type': 'getChatFolder', 'chat_folder_id': id})
+    // Folder ids are account-scoped: a list pinned to an account must not ask
+    // the foreground one what its folder is called.
+    _chatListQuery({'@type': 'getChatFolder', 'chat_folder_id': id})
         .then((folder) {
           if (_disposed) return;
           _resolvingFolders.remove(id);
@@ -636,7 +689,7 @@ class ChatListViewModel extends ChangeNotifier {
 
   void selectAllFilter() {
     if (_selectedFilter.isAll) return;
-    _selectedFilter = _filters.first;
+    _selectedFilter = _allFilter;
     _loadChats(_pageSize);
     _prefetchMainChats();
     _resort();
@@ -715,6 +768,18 @@ class ChatListViewModel extends ChangeNotifier {
   }
 
   void loadMore() => _loadChats(_pageSize);
+
+  /// [loadMore] for a caller that has to know when the page has landed.
+  ///
+  /// Completes once the rows the page brought are in [chats], and reports
+  /// whether TDLib had anything further to load.
+  Future<bool> loadMoreChats() async {
+    final loaded = await _loadAndHydrateChatList(_activeChatList, _pageSize);
+    // The rows arrive behind the resort debounce; fold them in now so the
+    // caller never sees a finished load and a list that is still stale.
+    if (!_disposed && _resortTimer != null) _resort();
+    return loaded;
+  }
 
   /// Warms [folderId] so a folder swipe reveals a populated list instead of one
   /// that fills in after the switch has already landed.
@@ -835,6 +900,131 @@ class ChatListViewModel extends ChangeNotifier {
     return slot == null
         ? _client.query(request)
         : _client.queryForSlot(request, slot);
+  }
+
+  /// Test-only: pushes [chats] through the same ingestion the update stream
+  /// uses, then resorts.
+  @visibleForTesting
+  void debugIngestChatsForTest(List<ChatSummary> chats) {
+    for (final chat in chats) {
+      _map[chat.id] = chat;
+    }
+    _resort();
+  }
+
+  /// Test-only: installs a folder selection with the given pinned ids.
+  @visibleForTesting
+  void debugSelectFolderForTest(int folderId, {Set<int>? pinnedIds}) {
+    _filters = [
+      const ChatFilterOption(title: AppStringKeys.topicChatAllFilter),
+      ChatFilterOption(
+        title: AppStringKeys.appearanceChatFolders,
+        folderId: folderId,
+      ),
+    ];
+    _selectedFilter = _filters.last;
+    final orders = _folderOrders.putIfAbsent(folderId, () => {});
+    final pins = _folderPins.putIfAbsent(folderId, () => {});
+    var order = (pinnedIds?.length ?? 0) + 1;
+    for (final id in pinnedIds ?? const <int>{}) {
+      orders[id] = order--;
+      pins[id] = true;
+    }
+    _resort();
+  }
+
+  // MARK: - Pinned order (edit-mode drag)
+
+  /// Reorders the pinned band by moving [chatId] onto [targetId]'s slot, like
+  /// exteraless's edit-mode drag that swaps two dialogs' pinnedNum and commits
+  /// reorderPinnedDialogs on leave.
+  ///
+  /// The local order maps flip immediately so the list follows the finger;
+  /// `setPinnedChats` then writes the full pinned order for the list the user
+  /// is editing. A server refusal restores TDLib's own ordering on the next
+  /// position update, which every chat in the band receives.
+  void reorderPinnedChat({
+    required int chatId,
+    required int targetChatId,
+    bool commit = true,
+  }) {
+    if (_disposed || chatId == targetChatId) return;
+    final folderId = _selectedFilter.folderId;
+    if (folderId == null) {
+      final pinned = _chats.where((c) => c.isPinned).toList();
+      final from = pinned.indexWhere((c) => c.id == chatId);
+      final to = pinned.indexWhere((c) => c.id == targetChatId);
+      if (from < 0 || to < 0) return;
+      _swapMainPinOrders(pinned, from, to);
+    } else {
+      final orders = _folderOrders[folderId];
+      if (orders == null) return;
+      final pinnedIds = _chats
+          .map((c) => c.id)
+          .where((id) => (orders[id] ?? 0) > 0)
+          .toList();
+      final from = pinnedIds.indexOf(chatId);
+      final to = pinnedIds.indexOf(targetChatId);
+      if (from < 0 || to < 0) return;
+      final moving = pinnedIds.removeAt(from);
+      pinnedIds.insert(to, moving);
+      _rewriteFolderPinOrders(folderId, pinnedIds);
+    }
+    _resort();
+    if (commit) _commitPinnedOrder();
+  }
+
+  /// Pushes the current pinned order of the selected list to the server.
+  /// Called once per drag on drop — per-slot commits triggered a storm of
+  /// updateChatPosition callbacks that fought the in-flight drag.
+  void commitPinnedOrder() {
+    if (!_disposed) _commitPinnedOrder();
+  }
+
+  /// Exchanges the TDLib position orders of the two pinned rows so the local
+  /// sort lands exactly where the drag dropped them.
+  void _swapMainPinOrders(List<ChatSummary> pinned, int from, int to) {
+    final pinnedIds = pinned.map((c) => c.id).toList();
+    final moving = pinnedIds.removeAt(from);
+    pinnedIds.insert(to, moving);
+    // Main-list orders live on the summary; rewrite them in the new sequence.
+    final orders = pinned.map((c) => c.order).toList()
+      ..sort((a, b) => b.compareTo(a));
+    for (var i = 0; i < pinnedIds.length; i++) {
+      _mutate(pinnedIds[i], (s) => s.order = orders[i]);
+    }
+  }
+
+  /// Reassigns a folder's pin orders so [pinnedIds]' sequence is descending.
+  void _rewriteFolderPinOrders(int folderId, List<int> pinnedIds) {
+    final orders = _folderOrders[folderId];
+    if (orders == null) return;
+    final values = orders.values.toList()..sort((a, b) => b.compareTo(a));
+    for (var i = 0; i < pinnedIds.length; i++) {
+      orders[pinnedIds[i]] = values[i];
+    }
+  }
+
+  /// Sends the visible list's full pinned order through `setPinnedChats`,
+  /// the TDLib counterpart of exteraless's reorderPinnedDialogs commit.
+  void _commitPinnedOrder() {
+    final folderId = _selectedFilter.folderId;
+    final List<int> pinnedIds;
+    if (folderId == null) {
+      pinnedIds = _chats.where((c) => c.isPinned).map((c) => c.id).toList();
+    } else {
+      final orders = _folderOrders[folderId] ?? const <int, int>{};
+      pinnedIds = _chats
+          .map((c) => c.id)
+          .where((id) => (orders[id] ?? 0) > 0)
+          .toList();
+    }
+    if (pinnedIds.isEmpty) return;
+    _chatListQuery({
+      'chat_list': _activeChatList,
+      '@type': 'setPinnedChats',
+      'chat_ids': pinnedIds,
+    }).catchError((Object _) => <String, dynamic>{});
   }
 
   // MARK: - Row actions (swipe)
@@ -1193,6 +1383,27 @@ class ChatListViewModel extends ChangeNotifier {
     _resort();
   }
 
+  /// Re-derives every row's effective mute state after a scope-settings
+  /// change. Rows painted from a snapshot parsed before the scope cache
+  /// filled (cold start) or before a scope edit hold a stale value; the
+  /// summary's own override is unaffected, so only default-following rows
+  /// move. Mute state feeds row badges but not sort order, so this owes the
+  /// badge refresh, not a resort.
+  void _handleScopeSettingsChange() {
+    if (_disposed) return;
+    final scopes = ScopeNotificationSettings.shared;
+    var changed = false;
+    for (final s in _map.values) {
+      if (s.applyScopeMuteFor(
+        scopes.getMuteForScope(scopes.scopeTagForKind(s.kind)),
+      )) {
+        changed = true;
+      }
+    }
+    if (!changed) return;
+    _refreshBadges();
+  }
+
   /// Chats whose local pin is already known to be obsolete, applied by
   /// [_pruneLocalPins] on its debounce.
   final Set<int> _localPinsToDrop = {};
@@ -1347,7 +1558,13 @@ class ChatListViewModel extends ChangeNotifier {
   void toggleMute(ChatSummary chat) {
     final newValue = !chat.isMuted;
     final id = chat.id;
-    _mutate(id, (summary) => summary.isMuted = newValue);
+    _mutate(id, (summary) {
+      // The toggle always writes an explicit per-chat override (below), so
+      // record it: a later scope change must not flip the row back.
+      summary.useDefaultMuteFor = false;
+      summary.muteForOverride = newValue ? 2147483647 : 0;
+      summary.isMuted = newValue;
+    });
     _refreshBadges();
 
     _client
@@ -1359,7 +1576,11 @@ class ChatListViewModel extends ChangeNotifier {
           ),
         })
         .catchError((Object _) {
-          _mutate(id, (summary) => summary.isMuted = !newValue);
+          _mutate(id, (summary) {
+            summary.useDefaultMuteFor = false;
+            summary.muteForOverride = newValue ? 0 : 2147483647;
+            summary.isMuted = !newValue;
+          });
           notice = AppStrings.t(AppStringKeys.chatDeleteActionsFailed, {
             'value1': AppStrings.t(
               newValue ? AppStringKeys.callMute : AppStringKeys.chatUnmute,
@@ -1818,6 +2039,147 @@ class ChatListViewModel extends ChangeNotifier {
     });
   }
 
+  // MARK: - Edit-mode batch actions
+
+  /// Marks [chats] unread — the edit-mode counterpart of [markChatsRead].
+  ///
+  /// The command only runs in this direction when nothing in the selection is
+  /// unread (a mixed selection marks read), so no chat loses an unread count.
+  void markChatsUnread(Iterable<ChatSummary> chats) {
+    var changed = false;
+    for (final chat in chats) {
+      if (chat.isMarkedUnread) continue;
+      markUnread(chat);
+      _mutate(chat.id, (s) => s.isMarkedUnread = true);
+      changed = true;
+    }
+    if (changed) _refreshBadges();
+  }
+
+  /// Clears the history of [chats] for this account, leaving every chat in the
+  /// list. Returns how many were cleared; a chat whose history this account may
+  /// not delete is skipped rather than aborting the batch.
+  Future<int> clearHistoryForChats(Iterable<ChatSummary> chats) async {
+    var cleared = 0;
+    for (final chat in chats) {
+      try {
+        if (chat.isSavedMessages) {
+          await clearSavedMessages(chat);
+        } else {
+          await clearChatHistoryForSelf(chatId: chat.id, query: _chatListQuery);
+        }
+        cleared++;
+      } on ChatRemovalUnavailable {
+        continue;
+      }
+    }
+    return cleared;
+  }
+
+  /// Deletes [chats] from this account's list, one row at a time. Each row
+  /// walks the same capability policy as the single-row delete, and one
+  /// stubborn chat must not abort the rest.
+  Future<void> deleteChatsForSelection(Iterable<ChatSummary> chats) async {
+    for (final chat in chats) {
+      try {
+        final isSavedMessages = await resolveIsSavedMessages(chat);
+        if (isSavedMessages == null) continue;
+        if (isSavedMessages) {
+          await clearSavedMessages(chat);
+          continue;
+        }
+        final capabilities = await deleteCapabilities(chat);
+        if (!capabilities.canDelete) continue;
+        await deleteChat(chat);
+      } catch (_) {
+        continue;
+      }
+    }
+  }
+
+  /// Whether [chat] is pinned inside the Archive list. The archive is its own
+  /// TDLib chat list, so its pin is never the main list's [ChatSummary.isPinned].
+  bool isPinnedInArchive(ChatSummary chat) => chat.archivePinned;
+
+  /// Pins/unpins [chat] in the archive list itself, the archive page's
+  /// counterpart of [togglePin].
+  void toggleArchivePin(ChatSummary chat) {
+    final newValue = !chat.archivePinned;
+    _mutate(chat.id, (s) => s.archivePinned = newValue);
+    _resort();
+    _chatListQuery({
+      '@type': 'toggleChatIsPinned',
+      'chat_list': {'@type': 'chatListArchive'},
+      'chat_id': chat.id,
+      'is_pinned': newValue,
+    }).catchError((Object error) async {
+      _mutate(chat.id, (s) => s.archivePinned = !newValue);
+      try {
+        final raw = await _chatListQuery({
+          '@type': 'getChat',
+          'chat_id': chat.id,
+        });
+        final fresh = TDParse.chat(raw);
+        if (fresh != null) _map[chat.id] = fresh;
+      } catch (_) {}
+      notice = _pinErrorNotice(error);
+      _resort();
+      return <String, dynamic>{};
+    });
+  }
+
+  /// Adds [chats] to [folderId]'s explicit inclusions, dropping them from its
+  /// exclusions so a rule-hidden chat becomes visible there again.
+  Future<void> addChatsToFolder(
+    int folderId,
+    Iterable<ChatSummary> chats,
+  ) async {
+    final ids = {for (final chat in chats) chat.id};
+    if (ids.isEmpty) return;
+    final raw = await _chatListQuery({
+      '@type': 'getChatFolder',
+      'chat_folder_id': folderId,
+    });
+    final draft = ChatFolderDraft.fromRaw(raw);
+    await _editFolder(
+      folderId,
+      draft.copyWith(
+        includedChatIds: {...draft.includedChatIds, ...ids},
+        excludedChatIds: {...draft.excludedChatIds}..removeAll(ids),
+      ),
+    );
+  }
+
+  /// Removes [chats] from [folderId]. A chat that only matched by rule becomes
+  /// an explicit exclusion, or the rule would put it straight back.
+  Future<void> removeChatsFromFolder(
+    int folderId,
+    Iterable<ChatSummary> chats,
+  ) async {
+    final ids = {for (final chat in chats) chat.id};
+    if (ids.isEmpty) return;
+    final raw = await _chatListQuery({
+      '@type': 'getChatFolder',
+      'chat_folder_id': folderId,
+    });
+    final draft = ChatFolderDraft.fromRaw(raw);
+    await _editFolder(
+      folderId,
+      draft.copyWith(
+        includedChatIds: {...draft.includedChatIds}..removeAll(ids),
+        excludedChatIds: {...draft.excludedChatIds, ...ids},
+        pinnedChatIds: {...draft.pinnedChatIds}..removeAll(ids),
+      ),
+    );
+  }
+
+  Future<void> _editFolder(int folderId, ChatFolderDraft draft) =>
+      _chatListQuery({
+        '@type': 'editChatFolder',
+        'chat_folder_id': folderId,
+        'folder': draft.toRequest(),
+      });
+
   void clearNotice() {
     if (_disposed) return;
     notice = null;
@@ -1894,13 +2256,14 @@ class ChatListViewModel extends ChangeNotifier {
         _mutate(id, (s) {
           final last = update.obj('last_message');
           if (last != null) {
+            final isChannel = s.kind == ChatKind.channel;
             s.lastMessageId = last.int64('id') ?? s.lastMessageId;
             s.date = last.integer('date') ?? s.date;
-            s.lastChatMessage = TDParse.message(last);
+            s.lastChatMessage = TDParse.message(last, isChannel: isChannel);
             final content = last.obj('content');
             if (content != null) {
               s.lastMessage = _previewText(
-                TDParse.messageText(content),
+                TDParse.messageText(content, isChannel: isChannel),
                 chatId: id,
                 senderId: s.lastChatMessage?.senderId,
               );
@@ -2054,14 +2417,14 @@ class ChatListViewModel extends ChangeNotifier {
         if (id == null) return;
         _mutate(id, (s) {
           final notificationSettings = update.obj('notification_settings');
-          final useDefault =
-              notificationSettings?.boolean('use_default_mute_for') ?? false;
-          final muteFor = useDefault
-              ? ScopeNotificationSettings.shared.getMuteForScope(
-                  ScopeNotificationSettings.shared.scopeTagForKind(s.kind),
-                )
-              : (notificationSettings?.integer('mute_for') ?? 0);
-          s.isMuted = muteFor > 0;
+          s.useDefaultMuteFor =
+              notificationSettings?.boolean('use_default_mute_for') ?? true;
+          s.muteForOverride = notificationSettings?.integer('mute_for') ?? 0;
+          s.applyScopeMuteFor(
+            ScopeNotificationSettings.shared.getMuteForScope(
+              ScopeNotificationSettings.shared.scopeTagForKind(s.kind),
+            ),
+          );
         });
         _scheduleBadgeRefresh();
 
@@ -2191,10 +2554,10 @@ class ChatListViewModel extends ChangeNotifier {
           }
         });
       case 'chatListArchive':
-        _mutate(
-          id,
-          (s) => s.archiveOrder = position.int64('order') ?? s.archiveOrder,
-        );
+        _mutate(id, (s) {
+          s.archiveOrder = position.int64('order') ?? s.archiveOrder;
+          s.archivePinned = position.boolean('is_pinned') ?? s.archivePinned;
+        });
       case 'chatListFolder':
         final folderId = list?.integer('chat_folder_id');
         if (folderId == null) return;
@@ -2620,11 +2983,14 @@ class ChatListViewModel extends ChangeNotifier {
     _filtered = const [];
     final visible = all;
     _archived = visible.where((c) => c.archiveOrder > 0).toList()
-      ..sort(
-        (a, b) => a.archiveOrder != b.archiveOrder
+      ..sort((a, b) {
+        if (a.archivePinned != b.archivePinned) {
+          return a.archivePinned ? -1 : 1;
+        }
+        return a.archiveOrder != b.archiveOrder
             ? b.archiveOrder.compareTo(a.archiveOrder)
-            : b.date.compareTo(a.date),
-      );
+            : b.date.compareTo(a.date);
+      });
     _chats = _projectChats(_selectedFilter.folderId, visible);
     _refreshFolderUnreadCounts();
     _invalidateEntriesCaches();

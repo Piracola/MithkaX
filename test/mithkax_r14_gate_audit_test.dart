@@ -1,5 +1,5 @@
 //
-//  r14: compile-time hygiene of the §1.4 (Ayu) surfaces.
+//  r14: compile-time hygiene of the §1.4 (experimental features) surfaces.
 //
 //  Source-scan audit: with `allowTelegramTosViolations` false, none of the
 //  fork's ToS-gated features may leave a UI trace, a subscription, or a
@@ -24,14 +24,14 @@ const _enabled = allowTelegramTosViolations;
 /// the same file (the gate may be `if (flag)` around the push, or the
 /// view's own build-time shrink — both require the symbol).
 const _entryFiles = <String, List<String>>{
-  'lib/settings/advanced_settings_view.dart': ['MithkaXSettingsView'],
+  'lib/settings/advanced_settings_view.dart': ['KeptMessagesSettingsView'],
   'lib/settings/privacy_security_view.dart': [
     'GhostModeSettingsView',
-    'MithkaXSettingsView',
+    'KeptMessagesSettingsView',
   ],
   'lib/profile/profile_view.dart': ['GhostModeSettingsView'],
   'lib/app/main_tab_view.dart': ['GhostModeSettingsView'],
-  'lib/chat/chat_info_view.dart': ['MessageHistoryView'],
+  'lib/chat/admin/chat_info_view.dart': ['MessageHistoryView'],
   'lib/chat/chat_view.dart': [
     'MessageAction.viewEdits',
     'MessageAction.removeMirror',

@@ -1,7 +1,7 @@
 //
 //  message_history_store.dart
 //
-//  AyuGram-style local message history: every incoming message is mirrored
+//  Kept-message local history: every incoming message is mirrored
 //  into a small on-device store so messages the counterpart deletes or edits
 //  stay readable afterwards. Nothing here talks to Telegram — the mirror is
 //  written from TDLib updates the account already received, and the kept
@@ -25,11 +25,9 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
-
 import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-
 import '../chat/forum_topic_transcript.dart';
 import '../config/build_flags.dart';
 import '../tdlib/json_helpers.dart';
@@ -70,6 +68,63 @@ class _TdClientUserIdResolver implements TosAccountUserIdResolver {
   }
 }
 
+/// One media file a kept message is waiting on: TDLib reports its completion
+/// through updateFile, and the copy taken at that moment is the only one a
+/// deleted message will ever get.
+class _TrackedMediaFile {
+  _TrackedMediaFile({
+    required this.width,
+    required this.height,
+    this.poster = false,
+  });
+
+  /// Pixel size of this exact file (a photo's sizes differ per candidate), 0
+  /// when the content does not carry one. Used to decide whether a file that
+  /// just landed is worth replacing an existing snapshot with.
+  int width;
+  int height;
+
+  /// True when this file is a poster (thumbnail), not the media file itself.
+  bool poster;
+
+  /// Latest TDLib file object seen (arrival payload or updateFile).
+  Map<String, dynamic>? file;
+
+  /// Kept copies of this account that reference the file.
+  final Set<String> entryKeys = <String>{};
+}
+
+/// One file a media content payload can be kept from, with the metadata the
+/// viewer and the ghost bubble need to draw it.
+class _MediaCandidate {
+  const _MediaCandidate({
+    required this.file,
+    this.width = 0,
+    this.height = 0,
+    this.duration = 0,
+    this.fileName = '',
+    this.mimeType = '',
+    this.poster = false,
+  });
+
+  final Map<String, dynamic> file;
+  final int width;
+  final int height;
+  final int duration;
+  final String fileName;
+  final String mimeType;
+
+  /// True for a thumbnail that previews a video/animated media. Posters land
+  /// in the entry's `mediaPosterPath`, never in `mediaPath`.
+  final bool poster;
+
+  int get fileId => file.integer('id') ?? 0;
+
+  int get area => width * height;
+
+  String get localPath => file.obj('local')?.str('path') ?? '';
+}
+
 /// Owns the mirrored message history: records TDLib updates, keeps the
 /// entries in memory and persists a bounded batch to one JSON file.
 class MessageHistoryStore extends ChangeNotifier {
@@ -97,6 +152,17 @@ class MessageHistoryStore extends ChangeNotifier {
     // A chat whose counterpart deleted their account (or the chat) stops
     // being openable; kept entries then render in the ghost style.
     'updateChat',
+    // Carries the chat's TYPE. TDLib chat ids do not encode whether a
+    // supergroup is a channel (-100… covers both), and the per-class record /
+    // snapshot switches must know: treating every supergroup as a channel
+    // meant a "groups" switch never applied to the groups users actually
+    // have.
+    'updateNewChat',
+    // A kept message's media file often finishes downloading only after the
+    // message was recorded (the first paint downloads the size it shows).
+    // Completion is the one moment the file can still be copied — once the
+    // message is deleted, its file reference is gone.
+    'updateFile',
   ];
 
   final Map<String, MessageHistoryEntry> _byKey = {};
@@ -143,6 +209,22 @@ class MessageHistoryStore extends ChangeNotifier {
   /// order no matter how long its getMe takes. Different clients stay
   /// parallel.
   final Map<int, Future<void>> _clientWorkers = {};
+
+  /// Files of kept messages whose download had not finished when the message
+  /// was recorded. Keyed by TDLib file id; [updateFile] is what turns one of
+  /// these into a snapshot. A media message carries one file per size (a
+  /// photo has several), so every candidate is tracked and the largest copy
+  /// that lands on disk wins — including an upgrade of an earlier, smaller
+  /// snapshot.
+  final Map<int, _TrackedMediaFile> _trackedMedia = {};
+
+  /// Reverse index of [_trackedMedia] for scope pruning: entry key → file ids.
+  final Map<String, Set<int>> _entryMediaFileIds = {};
+
+  /// Deleted entries that a live transcript has since confirmed to exist.
+  /// Batched so a whole history page costs one notification.
+  final Set<String> _pendingAliveKeys = {};
+  bool _aliveFlushScheduled = false;
 
   /// Generation of the store's contents. Only the explicitly GLOBAL
   /// operations bump it — [clearAll] and [dispose] — and an async
@@ -244,6 +326,16 @@ class MessageHistoryStore extends ChangeNotifier {
     _byKey.values.where((entry) => entry.accountUserId == _activeAccountUserId),
   );
 
+  /// The ACTIVE account's kept copies that ARE history: deleted, or carrying
+  /// an edit trail. Plain active copies are recorded only so a later deletion
+  /// or edit has its base, and never appear in a history list.
+  List<MessageHistoryEntry> get historyEntries => List.unmodifiable(
+    _byKey.values.where(
+      (entry) =>
+          entry.accountUserId == _activeAccountUserId && entry.hasHistory,
+    ),
+  );
+
   /// Newest first, one chat of the active account, excluded chats are hidden.
   List<MessageHistoryEntry> entriesFor(int chatId) => isChatExcluded(chatId)
       ? const []
@@ -252,6 +344,19 @@ class MessageHistoryStore extends ChangeNotifier {
             (entry) =>
                 entry.accountUserId == _activeAccountUserId &&
                 entry.chatId == chatId,
+          ),
+        );
+
+  /// [entriesFor] narrowed to what the history viewer lists.
+  List<MessageHistoryEntry> historyEntriesFor(int chatId) =>
+      isChatExcluded(chatId)
+      ? const []
+      : List.unmodifiable(
+          _byKey.values.where(
+            (entry) =>
+                entry.accountUserId == _activeAccountUserId &&
+                entry.chatId == chatId &&
+                entry.hasHistory,
           ),
         );
 
@@ -311,6 +416,53 @@ class MessageHistoryStore extends ChangeNotifier {
   }
 
   int get entryCount => _byKey.length;
+
+  /// Whether [ensureLoaded] has finished reading the mirror file. A cold
+  /// start opens a chat before the file lands; callers that reconcile
+  /// against the loaded state use this to know an empty answer is final.
+  bool get isLoaded => _loaded;
+
+  /// Live evidence from a transcript: [messageId] exists in [chatId] right
+  /// now. A kept copy that is still marked deleted is therefore a FALSE
+  /// deletion (TDLib's cache-unload updates were recorded as deletions by
+  /// older builds, or a deletion update raced a re-fetch) and becomes active
+  /// again. Batched through a microtask: parsing a history page calls this
+  /// per message and the store notifies once.
+  void confirmAlive(int accountUserId, int chatId, int messageId) {
+    if (!allowTelegramTosViolations) return;
+    if (messageId <= 0) return;
+    final key = '$accountUserId:$chatId:$messageId';
+    final entry = _byKey[key];
+    if (entry == null || entry.state != MessageHistoryState.deleted) return;
+    _pendingAliveKeys.add(key);
+    if (_aliveFlushScheduled) return;
+    _aliveFlushScheduled = true;
+    scheduleMicrotask(_flushPendingAlive);
+  }
+
+  void _flushPendingAlive() {
+    _aliveFlushScheduled = false;
+    if (_disposed) {
+      _pendingAliveKeys.clear();
+      return;
+    }
+    var changed = false;
+    for (final key in _pendingAliveKeys) {
+      final entry = _byKey[key];
+      if (entry == null || entry.state != MessageHistoryState.deleted) {
+        continue;
+      }
+      _byKey[key] = entry.copyWith(
+        state: MessageHistoryState.active,
+        deletedAt: 0,
+      );
+      changed = true;
+    }
+    _pendingAliveKeys.clear();
+    if (!changed) return;
+    notifyListeners();
+    _schedulePersist();
+  }
 
   bool isChatExcluded(int chatId) =>
       _activeAccountUserId != null &&
@@ -633,6 +785,10 @@ class MessageHistoryStore extends ChangeNotifier {
         _recordDeletedMessages(accountUserId, update);
       case 'updateChat':
         _recordChatLiveness(accountUserId, update);
+      case 'updateNewChat':
+        _recordNewChatType(accountUserId, update);
+      case 'updateFile':
+        _recordFileUpdate(update);
     }
     return Future<void>.value();
   }
@@ -659,7 +815,7 @@ class MessageHistoryStore extends ChangeNotifier {
     // The mirror keeps what the counterpart could take away: only incoming
     // messages. The account's own outgoing ones stay Telegram's business.
     // Saved Messages (chat id == own user id) is incoming from itself and is
-    // still kept, mirroring AyuGram's treatment of the self dialog.
+    // still kept — the self dialog is incoming from this account's other devices.
     final isOutgoing = message.boolean('is_outgoing') ?? false;
     final isSelfChat = chatId == accountUserId;
     if (isOutgoing && !isSelfChat) return;
@@ -668,17 +824,40 @@ class MessageHistoryStore extends ChangeNotifier {
     }
 
     final key = '$accountUserId:$chatId:$messageId';
+    final content = message.obj('content');
+    final primaryMedia = _primaryMedia(content);
     final existing = _byKey[key];
     if (existing != null) {
       final refreshed = existing.copyWith(
-        text: _messageText(message.obj('content')) ?? existing.text,
-        kindKey: _messageKindKey(message.obj('content')) ?? '',
+        text: _messageText(content) ?? existing.text,
+        kindKey: _messageKindKey(content) ?? '',
         senderId: _senderId(message) ?? existing.senderId,
         state: MessageHistoryState.active,
         deletedAt: 0,
         topicId: existing.topicId == 0
             ? _messageTopicId(message)
             : existing.topicId,
+        mediaWidth: existing.mediaWidth > 0
+            ? existing.mediaWidth
+            : primaryMedia?.width ?? 0,
+        mediaHeight: existing.mediaHeight > 0
+            ? existing.mediaHeight
+            : primaryMedia?.height ?? 0,
+        mediaDuration: existing.mediaDuration > 0
+            ? existing.mediaDuration
+            : primaryMedia?.duration ?? 0,
+        mediaFileName: existing.mediaFileName.isNotEmpty
+            ? existing.mediaFileName
+            : primaryMedia?.fileName ?? '',
+        mediaMimeType: existing.mediaMimeType.isNotEmpty
+            ? existing.mediaMimeType
+            : primaryMedia?.mimeType ?? '',
+        mediaFileId: existing.mediaFileId > 0
+            ? existing.mediaFileId
+            : primaryMedia?.fileId ?? 0,
+        mediaSourcePath: existing.mediaSourcePath.isNotEmpty
+            ? existing.mediaSourcePath
+            : primaryMedia?.localPath ?? '',
       );
       if (refreshed == existing) return;
       _byKey[key] = refreshed;
@@ -698,7 +877,6 @@ class MessageHistoryStore extends ChangeNotifier {
     }
 
     final date = message.integer('date') ?? 0;
-    final content = message.obj('content');
     _byKey[key] = MessageHistoryEntry(
       accountUserId: accountUserId,
       chatId: chatId,
@@ -711,6 +889,13 @@ class MessageHistoryStore extends ChangeNotifier {
       deletedAt: 0,
       events: const [],
       topicId: _messageTopicId(message),
+      mediaWidth: primaryMedia?.width ?? 0,
+      mediaHeight: primaryMedia?.height ?? 0,
+      mediaDuration: primaryMedia?.duration ?? 0,
+      mediaFileName: primaryMedia?.fileName ?? '',
+      mediaMimeType: primaryMedia?.mimeType ?? '',
+      mediaFileId: primaryMedia?.fileId ?? 0,
+      mediaSourcePath: primaryMedia?.localPath ?? '',
     );
     _trim();
     notifyListeners();
@@ -718,87 +903,390 @@ class MessageHistoryStore extends ChangeNotifier {
     _snapshotMediaOf(accountUserId, chatId, messageId, message);
   }
 
-  /// Copies a mirrored message's media file into the mirror's attachment
-  /// directory when it is already fully on disk, then records the path. A
-  /// later snapshot (delete-time copy) only fills an empty path — the first
-  /// copy wins so a snapshot is never taken for content the mirror did not
-  /// see arrive.
+  /// Starts snapshotting a mirrored message's media. TDLib usually has not
+  /// finished downloading the file when the message arrives — the bubble
+  /// later requests the size it paints — so every candidate file id is
+  /// registered and [updateFile] copies the file the moment it lands. A file
+  /// already on disk is copied right away.
   void _snapshotMediaOf(
     int accountUserId,
     int chatId,
     int messageId,
     Map<String, dynamic> message,
   ) {
-    final file = _contentSnapshotFile(message.obj('content'));
-    if (file == null) return;
-    if (!_snapshotsEnabledFor(message)) return;
-    final key = '$accountUserId:$chatId:$messageId';
-    final generation = _generation;
-    unawaited(
-      _media()
-          .snapshot(
-            file,
-            accountUserId: accountUserId,
-            chatId: chatId,
-            messageId: messageId,
-          )
-          .then((path) {
-            if (path == null) return;
-            // The copy raced a global wipe or disposal: the store's state
-            // moved on, so the late path is dropped instead of resurrecting
-            // the entry (and notifyListeners on a disposed store).
-            if (_disposed || _generation != generation) return;
-            final existing = _byKey[key];
-            if (existing == null || existing.mediaPath.isNotEmpty) return;
-            _byKey[key] = existing.copyWith(mediaPath: path);
-            notifyListeners();
-            _schedulePersist();
-          }),
-    );
+    final candidates = _mediaCandidates(message.obj('content'));
+    if (candidates.isEmpty) return;
+    if (!_snapshotsEnabledFor(accountUserId, chatId, message)) return;
+    final entryKey = '$accountUserId:$chatId:$messageId';
+    _trackMediaCandidates(entryKey, candidates);
+    // Candidates are largest first: the first complete main file is the best
+    // one, and the first complete poster fills the preview slot.
+    var mainCopied = false;
+    var posterCopied = false;
+    for (final candidate in candidates) {
+      if (!_fileIsComplete(candidate.file)) continue;
+      if (candidate.poster ? posterCopied : mainCopied) continue;
+      if (candidate.poster) {
+        posterCopied = true;
+      } else {
+        mainCopied = true;
+      }
+      unawaited(
+        _snapshotCandidate(
+          entryKey,
+          candidate,
+          upgrade: false,
+          poster: candidate.poster,
+        ),
+      );
+      if (mainCopied && posterCopied) break;
+    }
   }
 
-  /// The file object worth snapshotting for a content payload: the biggest
-  /// photo size for photos, the document for documents / audio / voice /
-  /// video, null for everything else (stickers animate from server data and
-  /// cached copies rarely survive, exactly like AyuGram's scope).
-  static Map<String, dynamic>? _contentSnapshotFile(
-    Map<String, dynamic>? content,
-  ) {
-    if (content == null) return null;
+  /// The media a content payload can keep, largest first. A photo carries one
+  /// file per size; the biggest one is normally downloaded only when the user
+  /// opens the photo, so EVERY size is a candidate — whichever lands on disk
+  /// first becomes the snapshot, and a later, larger one upgrades it.
+  ///
+  /// Video / animation / video note / sticker entries add their `thumbnail`
+  /// as a POSTER candidate: the content file itself is a video or a `.tgs`,
+  /// which no image widget can paint, so the bubble previews the poster and
+  /// taps open the original. The `@type` wrappers nest the real file one level
+  /// down (`video.video`, `document.document`, ...).
+  static List<_MediaCandidate> _mediaCandidates(Map<String, dynamic>? content) {
+    if (content == null) return const [];
     switch (content.type) {
       case 'messagePhoto':
-        final photo = content.obj('photo');
-        final sizes = photo?.objects('sizes');
-        if (sizes == null || sizes.isEmpty) return null;
-        Map<String, dynamic>? best;
-        var bestArea = -1;
+        final sizes = content.obj('photo')?.objects('sizes');
+        if (sizes == null) return const [];
+        final candidates = <_MediaCandidate>[];
         for (final size in sizes) {
-          final candidate = size.obj('photo');
-          if (candidate == null) continue;
-          final area =
-              (size.integer('width') ?? 0) * (size.integer('height') ?? 0);
-          if (area > bestArea) {
-            bestArea = area;
-            best = candidate;
-          }
+          final file = size.obj('photo');
+          if (file == null) continue;
+          candidates.add(
+            _MediaCandidate(
+              file: file,
+              width: size.integer('width') ?? 0,
+              height: size.integer('height') ?? 0,
+            ),
+          );
         }
-        return best;
+        candidates.sort((a, b) => b.area.compareTo(a.area));
+        return candidates;
       case 'messageVideo':
       case 'messageAnimation':
+        final media = content.obj('video') ?? content.obj('animation');
+        final file = media?.obj('video') ?? media?.obj('animation');
+        if (media == null || file == null) return const [];
+        return [
+          _MediaCandidate(
+            file: file,
+            width: media.integer('width') ?? 0,
+            height: media.integer('height') ?? 0,
+            duration: media.integer('duration') ?? 0,
+            fileName: media.str('file_name') ?? '',
+            mimeType: media.str('mime_type') ?? '',
+          ),
+          ?_posterCandidate(media),
+        ];
       case 'messageDocument':
-        return content.obj('animation') ??
-            content.obj('video') ??
-            content.obj('document');
+        final document = content.obj('document');
+        final file = document?.obj('document');
+        if (document == null || file == null) return const [];
+        return [
+          _MediaCandidate(
+            file: file,
+            fileName: document.str('file_name') ?? '',
+            mimeType: document.str('mime_type') ?? '',
+          ),
+        ];
+      case 'messageVideoNote':
+        final note = content.obj('video_note');
+        final file = note?.obj('video');
+        if (note == null || file == null) return const [];
+        final length = note.integer('length') ?? 0;
+        return [
+          _MediaCandidate(
+            file: file,
+            width: length,
+            height: length,
+            duration: note.integer('duration') ?? 0,
+            mimeType: 'video/mp4',
+          ),
+          ?_posterCandidate(note),
+        ];
+      case 'messageSticker':
+        final sticker = content.obj('sticker');
+        final file = sticker?.obj('sticker');
+        if (sticker == null || file == null) return const [];
+        return [
+          _MediaCandidate(
+            file: file,
+            width: sticker.integer('width') ?? 0,
+            height: sticker.integer('height') ?? 0,
+          ),
+          ?_posterCandidate(sticker),
+        ];
       case 'messageVoiceNote':
         // messageVoiceNote nests the file one level deeper: voice_note.voice.
         final voice = content.obj('voice_note');
-        return voice?.obj('voice');
+        final file = voice?.obj('voice');
+        if (file == null) return const [];
+        return [
+          _MediaCandidate(
+            file: file,
+            duration: voice?.integer('duration') ?? 0,
+            mimeType: voice?.str('mime_type') ?? '',
+          ),
+        ];
       case 'messageAudio':
         // messageAudio nests the file one level deeper: audio.audio.
         final audio = content.obj('audio');
-        return audio?.obj('audio');
+        final file = audio?.obj('audio');
+        if (file == null) return const [];
+        return [
+          _MediaCandidate(
+            file: file,
+            duration: audio?.integer('duration') ?? 0,
+            fileName: audio?.str('file_name') ?? '',
+            mimeType: audio?.str('mime_type') ?? '',
+          ),
+        ];
+    }
+    return const [];
+  }
+
+  /// The `thumbnail` of a media wrapper as a poster candidate, null when the
+  /// wrapper has none. A thumbnail is a `photoSize`: the file lives in `photo`.
+  static _MediaCandidate? _posterCandidate(Map<String, dynamic> media) {
+    final thumbnail = media.obj('thumbnail');
+    final file = thumbnail?.obj('photo');
+    if (thumbnail == null || file == null) return null;
+    return _MediaCandidate(
+      file: file,
+      width: thumbnail.integer('width') ?? 0,
+      height: thumbnail.integer('height') ?? 0,
+      poster: true,
+    );
+  }
+
+  /// Metadata of the media a newly recorded copy remembers without
+  /// registering anything: the largest candidate, whose file id also survives
+  /// a restart so a later completion can still be picked up.
+  static _MediaCandidate? _primaryMedia(Map<String, dynamic>? content) {
+    for (final candidate in _mediaCandidates(content)) {
+      if (!candidate.poster) return candidate;
     }
     return null;
+  }
+
+  /// Registers every candidate file of one kept copy. A file id shared by
+  /// several messages (a forwarded photo) keeps all of their keys, so one
+  /// download fills every copy.
+  void _trackMediaCandidates(
+    String entryKey,
+    List<_MediaCandidate> candidates,
+  ) {
+    for (final candidate in candidates) {
+      final id = candidate.fileId;
+      if (id <= 0) continue;
+      final tracked = _trackedMedia.putIfAbsent(
+        id,
+        () => _TrackedMediaFile(
+          width: candidate.width,
+          height: candidate.height,
+          poster: candidate.poster,
+        ),
+      );
+      // The file OBJECT is refreshed from updateFile (the record that
+      // matters); keeping every arrival payload alive would cost megabytes
+      // for a full-size mirror.
+      tracked
+        ..width = candidate.width
+        ..height = candidate.height
+        ..poster = candidate.poster;
+      tracked.entryKeys.add(entryKey);
+      _entryMediaFileIds.putIfAbsent(entryKey, () => <int>{}).add(id);
+    }
+  }
+
+  /// Drops one kept copy's registrations; a file nobody waits on any more is
+  /// forgotten so the update stream stops touching it.
+  void _forgetTrackedMedia(String entryKey) {
+    final ids = _entryMediaFileIds.remove(entryKey);
+    if (ids == null) return;
+    for (final id in ids) {
+      final tracked = _trackedMedia[id];
+      if (tracked == null) continue;
+      tracked.entryKeys.remove(entryKey);
+      if (tracked.entryKeys.isEmpty) _trackedMedia.remove(id);
+    }
+  }
+
+  void _forgetTrackedMediaWhere(bool Function(String entryKey) matches) {
+    for (final entryKey in _entryMediaFileIds.keys.toList(growable: false)) {
+      if (matches(entryKey)) _forgetTrackedMedia(entryKey);
+    }
+  }
+
+  /// [updateFile]: a tracked download progressed. A completed file is copied
+  /// into the mirror — the only chance a message's media has, because once
+  /// the message is deleted its file reference is gone.
+  void _recordFileUpdate(Map<String, dynamic> update) {
+    final file = update.obj('file');
+    if (file == null) return;
+    final fileId = file.integer('id');
+    if (fileId == null) return;
+    final tracked = _trackedMedia[fileId];
+    if (tracked == null) return;
+    tracked.file = file;
+    if (!_fileIsComplete(file)) return;
+    unawaited(_snapshotTrackedFile(fileId));
+  }
+
+  Future<void> _snapshotTrackedFile(int fileId) async {
+    final tracked = _trackedMedia[fileId];
+    final file = tracked?.file;
+    if (tracked == null || file == null) return;
+    for (final entryKey in tracked.entryKeys.toList(growable: false)) {
+      final entry = _byKey[entryKey];
+      if (entry == null) continue;
+      final upgrade =
+          !tracked.poster &&
+          _candidateImproves(entry, tracked.width, tracked.height);
+      if (tracked.poster
+          ? entry.mediaPosterPath.isNotEmpty
+          : entry.mediaPath.isNotEmpty && !upgrade) {
+        continue;
+      }
+      final parts = entryKey.split(':');
+      if (parts.length != 3) continue;
+      final accountUserId = int.tryParse(parts[0]);
+      final chatId = int.tryParse(parts[1]);
+      if (accountUserId == null || chatId == null) continue;
+      if (!_snapshotsEnabledFor(accountUserId, chatId, null)) continue;
+      await _snapshotCandidate(
+        entryKey,
+        _MediaCandidate(
+          file: file,
+          width: tracked.width,
+          height: tracked.height,
+          poster: tracked.poster,
+        ),
+        upgrade: upgrade,
+        poster: tracked.poster,
+      );
+    }
+  }
+
+  /// Whether a file of [width]x[height] is worth replacing the entry's
+  /// existing snapshot with. An empty path always is; an unknown candidate
+  /// size never replaces a known larger one.
+  static bool _candidateImproves(
+    MessageHistoryEntry entry,
+    int width,
+    int height,
+  ) {
+    if (entry.mediaPath.isEmpty) return true;
+    if (width <= 0 || height <= 0) return false;
+    if (entry.mediaWidth <= 0 || entry.mediaHeight <= 0) return true;
+    return width * height > entry.mediaWidth * entry.mediaHeight;
+  }
+
+  /// Per-entry snapshot chain: a photo's sizes can complete back to back, and
+  /// two copies writing the same target file at once would corrupt it. Work
+  /// for one kept copy is serialised; different messages stay parallel.
+  final Map<String, Future<void>> _snapshotWork = {};
+
+  /// Copies one candidate and records it on the entry. [upgrade] may replace
+  /// an existing snapshot (the file is known to be larger); otherwise the
+  /// first copy wins, so a snapshot is never taken for content the mirror did
+  /// not see arrive.
+  Future<void> _snapshotCandidate(
+    String entryKey,
+    _MediaCandidate candidate, {
+    required bool upgrade,
+    bool? poster,
+  }) {
+    final previous = _snapshotWork[entryKey] ?? Future<void>.value();
+    final work = previous
+        .catchError((Object _) {})
+        .then(
+          (_) => _runSnapshotCandidate(
+            entryKey,
+            candidate,
+            upgrade: upgrade,
+            poster: poster ?? candidate.poster,
+          ),
+        );
+    _snapshotWork[entryKey] = work;
+    return work.whenComplete(() {
+      if (identical(_snapshotWork[entryKey], work)) {
+        _snapshotWork.remove(entryKey);
+      }
+    });
+  }
+
+  Future<void> _runSnapshotCandidate(
+    String entryKey,
+    _MediaCandidate candidate, {
+    required bool upgrade,
+    required bool poster,
+  }) async {
+    final parts = entryKey.split(':');
+    if (parts.length != 3) return;
+    final accountUserId = int.tryParse(parts[0]);
+    final chatId = int.tryParse(parts[1]);
+    final messageId = int.tryParse(parts[2]);
+    if (accountUserId == null || chatId == null || messageId == null) return;
+    final generation = _generation;
+    final path = await _media().snapshot(
+      candidate.file,
+      accountUserId: accountUserId,
+      chatId: chatId,
+      messageId: messageId,
+      replaceExisting: upgrade,
+    );
+    if (path == null) return;
+    // The copy raced a global wipe or disposal: the store's state moved on,
+    // so the late path is dropped instead of resurrecting the entry (and
+    // notifyListeners on a disposed store).
+    if (_disposed || _generation != generation) return;
+    final existing = _byKey[entryKey];
+    if (existing == null) return;
+    if (poster) {
+      if (existing.mediaPosterPath.isNotEmpty) return;
+      _byKey[entryKey] = existing.copyWith(mediaPosterPath: path);
+      notifyListeners();
+      _schedulePersist();
+      return;
+    }
+    if (existing.mediaPath.isNotEmpty && !upgrade) return;
+    if (existing.mediaPath.isNotEmpty &&
+        !_candidateImproves(existing, candidate.width, candidate.height)) {
+      return;
+    }
+    _byKey[entryKey] = existing.copyWith(
+      mediaPath: path,
+      mediaWidth: candidate.width,
+      mediaHeight: candidate.height,
+      mediaDuration: candidate.duration,
+      mediaFileName: candidate.fileName,
+      mediaMimeType: candidate.mimeType,
+      mediaFileId: candidate.fileId,
+      mediaSourcePath: candidate.localPath,
+    );
+    notifyListeners();
+    _schedulePersist();
+  }
+
+  /// TDLib's own "this file is whole on disk" test.
+  static bool _fileIsComplete(Map<String, dynamic> file) {
+    final local = file.obj('local');
+    if (local == null) return false;
+    if (local.boolean('is_downloading_completed') != true) return false;
+    final path = local.str('path');
+    return path != null && path.isNotEmpty;
   }
 
   /// Whether snapshots may be taken for this message's conversation. The
@@ -807,26 +1295,29 @@ class MessageHistoryStore extends ChangeNotifier {
   /// AND the recording gates apply first: a chat whose recording switch is
   /// off records nothing at all — text or media — and a bot chat snapshots
   /// only under the bot recording switch.
-  bool _snapshotsEnabledFor(Map<String, dynamic> message, {int? ownerUserId}) {
+  bool _snapshotsEnabledFor(
+    int accountUserId,
+    int chatId,
+    Map<String, dynamic>? message,
+  ) {
     final settings = MessageHistorySettings.shared;
     if (!settings.snapshotPrivate &&
         !settings.snapshotGroups &&
         !settings.snapshotChannels) {
       return false;
     }
-    final chatId = message.int64('chat_id');
-    if (chatId == null) return false;
-    final accountUserId = ownerUserId ?? _activeAccountUserId;
-    if (accountUserId != null &&
-        !recordsChatType(accountUserId, chatId, message)) {
-      return false;
-    }
+    if (!recordsChatType(accountUserId, chatId, message)) return false;
     // TDLib chat ids: users are positive; basic groups −1e13.., supergroups
     // and channels −1e14.. The chat type is not carried on the message, so
     // the id class decides. Self chat snapshots with "private".
     if (chatId > 0) return settings.snapshotPrivate;
     if (chatId > -1000000000000) return settings.snapshotGroups;
-    return settings.snapshotChannels;
+    return _supergroupGate(
+      accountUserId,
+      chatId,
+      settings.snapshotGroups,
+      settings.snapshotChannels,
+    );
   }
 
   MessageMediaSnapshotter _media() =>
@@ -838,10 +1329,16 @@ class MessageHistoryStore extends ChangeNotifier {
 
   /// Bot chats the store has seen an updateChat for, keyed per account.
   /// A bot dialog is a private chat, but recording its service messages is
-  /// a separate exteraless-style opt-in, so the chat type observed from
+  /// a separate opt-in, so the chat type observed from
   /// TDLib is cached here — chat ids alone cannot tell a bot dialog from a
   /// human one.
   final Map<String, bool> _botChats = {};
+
+  /// (account, chat) → true when the supergroup is a channel. Only ids in the
+  /// -100… range need it; basic groups and private chats are decided by id.
+  /// Unknown supergroups default to channel so a groups-only setting never
+  /// starts recording channel content before the type is known.
+  final Map<String, bool> _channelChats = {};
 
   /// Whether the mirror may record [chatId] for [accountUserId] under the
   /// per-type switches. Bot gating applies to DIALOGS only (a private chat
@@ -864,7 +1361,30 @@ class MessageHistoryStore extends ChangeNotifier {
       return settings.recordPrivate;
     }
     if (chatId > -1000000000000) return settings.recordGroups;
-    return settings.recordChannels;
+    return _supergroupGate(
+      accountUserId,
+      chatId,
+      settings.recordGroups,
+      settings.recordChannels,
+    );
+  }
+
+  /// Applies the groups/channels switches to a -100… chat. Only the chat's
+  /// type tells a supergroup from a channel; TDLib delivers it through
+  /// updateNewChat/updateChat. Until it is known, honouring EITHER switch is
+  /// the safe default: ids cannot tell the classes apart, supergroups
+  /// outnumber channels, and treating an unknown supergroup as a channel
+  /// silently disabled a groups-only setting for the groups users actually
+  /// have.
+  bool _supergroupGate(
+    int accountUserId,
+    int chatId,
+    bool groups,
+    bool channels,
+  ) {
+    final isChannel = _channelChats['$accountUserId:$chatId'];
+    if (isChannel == null) return groups || channels;
+    return isChannel ? channels : groups;
   }
 
   /// Best-effort bot detection from the message payload itself: only a
@@ -891,7 +1411,18 @@ class MessageHistoryStore extends ChangeNotifier {
     final isBot = type?.boolean('is_bot') ?? false;
     if (type != null) {
       _botChats[key] = isBot;
+      if (type.type == 'chatTypeSupergroup') {
+        _channelChats[key] = type.boolean('is_channel') ?? true;
+      }
     }
+  }
+
+  /// updateNewChat carries the full chat, including its type; seed the
+  /// classification before any message of that chat arrives.
+  void _recordNewChatType(int accountUserId, Map<String, dynamic> update) {
+    final chat = update.obj('chat');
+    if (chat == null) return;
+    _rememberChatType(accountUserId, chat);
   }
 
   /// The snapshotter the viewer resolves media paths against (tests read
@@ -905,7 +1436,7 @@ class MessageHistoryStore extends ChangeNotifier {
   /// updateChat: remembers per (account, chat) whether the chat is still
   /// openable. A chat the counterpart destroyed (deleted account, gone
   /// secret chat, or a chat that no longer resolves) marks its kept entries
-  /// with `hasLiveChat false`, the AyuGram AyuDeleted semantics.
+  /// with `hasLiveChat false` — nothing live remains behind the copy.
   void _recordChatLiveness(int accountUserId, Map<String, dynamic> update) {
     final chat = update.obj('chat');
     if (chat == null) return;
@@ -1050,9 +1581,10 @@ class MessageHistoryStore extends ChangeNotifier {
     }
   }
 
-  /// Snapshot the media of a just-recorded edit when the file is fully on
+  /// Snapshot the media of a just-recorded edit when the file is already on
   /// disk. Differently from the arrival snapshot, an edit's snapshot must
-  /// NOT overwrite an existing path: only the first copy of a revision wins.
+  /// NOT overwrite an existing path: only the first copy of a revision wins
+  /// (every revision of one message shares the same per-message file name).
   void _snapshotEditedMediaOf(
     int accountUserId,
     int chatId,
@@ -1060,40 +1592,35 @@ class MessageHistoryStore extends ChangeNotifier {
     Map<String, dynamic>? content,
     String entryKey,
   ) {
-    final file = _contentSnapshotFile(content);
-    if (file == null) return;
+    final candidates = [
+      for (final candidate in _mediaCandidates(content))
+        if (!candidate.poster) candidate,
+    ];
+    if (candidates.isEmpty) return;
     final wrapped = <String, dynamic>{'chat_id': chatId, 'content': content};
-    if (!_snapshotsEnabledFor(wrapped, ownerUserId: accountUserId)) return;
-    final generation = _generation;
-    unawaited(
-      _media()
-          .snapshot(
-            file,
-            accountUserId: accountUserId,
-            chatId: chatId,
-            messageId: messageId,
-          )
-          .then((path) {
-            if (path == null) return;
-            if (_disposed || _generation != generation) return;
-            final existing = _byKey[entryKey];
-            if (existing == null || existing.mediaPath.isNotEmpty) return;
-            _byKey[entryKey] = existing.copyWith(mediaPath: path);
-            notifyListeners();
-            _schedulePersist();
-          }),
-    );
+    if (!_snapshotsEnabledFor(accountUserId, chatId, wrapped)) return;
+    for (final candidate in candidates) {
+      if (!_fileIsComplete(candidate.file)) continue;
+      unawaited(_snapshotCandidate(entryKey, candidate, upgrade: false));
+      break;
+    }
   }
 
   /// updateDeleteMessages marks known, still-active entries as deleted.
-  /// TDLib sends it for permanent deletions and for messages that merely
-  /// became inaccessible or were cache-evicted (`is_permanent: false`,
-  /// `from_cache: true`); both belong in the mirror — the mirror's job is
-  /// precisely to keep what the chat no longer shows. A message that really
-  /// comes back re-activates through [recordIncomingMessage]. Deletions only
-  /// ever touch the observing account's copy.
+  ///
+  /// Only a PERMANENT deletion is history. The same update also reports
+  /// messages that merely left TDLib's cache (`from_cache`, "can possibly be
+  /// retrieved again") and messages that became inaccessible for this
+  /// account (`is_permanent: false`) — both still exist on the server, and
+  /// recording them as deletions made freshly opened chats sprout ghosts for
+  /// perfectly normal messages. The transcript applies the same rule.
+  ///
+  /// A message that really comes back re-activates through
+  /// [recordIncomingMessage] or [confirmAlive]. Deletions only ever touch the
+  /// observing account's copy.
   void _recordDeletedMessages(int accountUserId, Map<String, dynamic> update) {
     if (!MessageHistorySettings.shared.recordDeleted) return;
+    if (update.boolean('is_permanent') != true) return;
     final chatId = update.int64('chat_id');
     if (chatId == null) return;
     final ids = update.int64Array('message_ids') ?? const <int>[];
@@ -1142,6 +1669,9 @@ class MessageHistoryStore extends ChangeNotifier {
       (key, entry) =>
           entry.accountUserId == accountUserId && entry.chatId == chatId,
     );
+    _forgetTrackedMediaWhere(
+      (key) => key.startsWith('$accountUserId:$chatId:'),
+    );
     _media().deleteScope(accountUserId, chatId);
     _persistExcludedChats(accountUserId);
     notifyListeners();
@@ -1177,6 +1707,7 @@ class MessageHistoryStore extends ChangeNotifier {
     ];
     for (final key in keys) {
       _byKey.remove(key);
+      _forgetTrackedMedia(key);
     }
     _forgetPendingEdits(accountUserId, chatId: chatId);
     _clearedChatAt['$accountUserId:$chatId'] = ++_scopeEpoch;
@@ -1196,12 +1727,36 @@ class MessageHistoryStore extends ChangeNotifier {
     _byKey.clear();
     _pendingEditDates.clear();
     _lateContentUpdates.clear();
+    _pendingAliveKeys.clear();
+    _trackedMedia.clear();
+    _entryMediaFileIds.clear();
+    _channelChats.clear();
+    _botChats.clear();
     _generation++;
     _clearedAllAt = ++_scopeEpoch;
     _media().deleteAll();
     notifyListeners();
     _schedulePersist();
     return removed;
+  }
+
+  /// Bytes the kept-message database occupies on disk: the mirror file plus
+  /// every media snapshot. Nothing recorded yet reads as 0 — the settings
+  /// row shows the number before the first message is kept.
+  Future<int> databaseBytes() async {
+    if (!allowTelegramTosViolations) return 0;
+    var total = 0;
+    try {
+      final dir = fileDir ?? await getApplicationSupportDirectory();
+      final file = File('${dir.path}/$_fileName');
+      if (await file.exists()) total += await file.length();
+    } catch (_) {
+      // An unresolvable support directory counts as an empty mirror.
+    }
+    final snapshotter = _media();
+    await snapshotter.ensureDirResolved();
+    total += snapshotter.usedBytes;
+    return total;
   }
 
   /// Forgets an account entirely: its kept copies, its pending edit dates
@@ -1222,10 +1777,13 @@ class MessageHistoryStore extends ChangeNotifier {
     ];
     for (final key in keys) {
       _byKey.remove(key);
+      _forgetTrackedMedia(key);
     }
     if (keys.isNotEmpty) changed = true;
     _forgetPendingEdits(accountUserId);
     _media().deleteAccount(accountUserId);
+    _channelChats.removeWhere((key, _) => key.startsWith('$accountUserId:'));
+    _botChats.removeWhere((key, _) => key.startsWith('$accountUserId:'));
     if (_excludedChatsByAccount.remove(accountUserId) != null) changed = true;
     unawaited(_prefs?.remove('$_prefsKeyPrefix$accountUserId'));
     _removedAccountAt[accountUserId] = ++_scopeEpoch;
@@ -1243,6 +1801,7 @@ class MessageHistoryStore extends ChangeNotifier {
   void deleteEntry(MessageHistoryEntry entry) {
     if (!allowTelegramTosViolations) return;
     if (_byKey.remove(entry.key) == null) return;
+    _forgetTrackedMedia(entry.key);
     if (entry.mediaPath.isNotEmpty) {
       _media().deleteFile(entry.mediaPath);
     }
@@ -1260,11 +1819,11 @@ class MessageHistoryStore extends ChangeNotifier {
 
   // ---------------------------------------------------------------------------
   // Export / import — the whole mirror as one self-describing JSON file
-  // (exteraless's database export/import, without the binary format).
+  // (a portable document, no binary format).
   // ---------------------------------------------------------------------------
 
   static const exportVersion = 1;
-  static const exportFormat = 'mithkax-history';
+  static const exportFormat = 'kept-history';
 
   /// Serializes the ACTIVE account's kept copies (entries, exclusions and
   /// the snapshot media as base64) into a portable JSON document. Media
@@ -1324,7 +1883,7 @@ class MessageHistoryStore extends ChangeNotifier {
       throw const FormatException('History mirror is not compiled in');
     }
     if (document['format'] != exportFormat) {
-      throw const FormatException('Not a Mithka X history export');
+      throw const FormatException('Not a kept-message history export');
     }
     final accountUserId = _activeAccountUserId;
     if (accountUserId == null) {
@@ -1346,6 +1905,7 @@ class MessageHistoryStore extends ChangeNotifier {
     ];
     for (final key in keys) {
       _byKey.remove(key);
+      _forgetTrackedMedia(key);
     }
     _forgetPendingEdits(accountUserId);
     _media().deleteAccount(accountUserId);
@@ -1373,6 +1933,12 @@ class MessageHistoryStore extends ChangeNotifier {
             // THIS account and patches the row below, but only if the row
             // arrives without a stale path attached.
             mediaPath: '',
+            // File ids and local cache paths are per account and per device;
+            // keeping the exporter's would let a later download that happens
+            // to reuse the id snapshot an unrelated file.
+            mediaFileId: 0,
+            mediaSourcePath: '',
+            mediaPosterPath: '',
           );
       restored++;
     }
@@ -1471,7 +2037,10 @@ class MessageHistoryStore extends ChangeNotifier {
             false) {
           continue;
         }
-        _byKey.putIfAbsent(entry.key, () => entry);
+        final restored = _byKey.putIfAbsent(entry.key, () => entry);
+        if (restored.mediaPath.isEmpty && restored.mediaFileId > 0) {
+          _restoreTrackedMedia(restored);
+        }
       }
       _trim();
     } catch (_) {
@@ -1479,6 +2048,35 @@ class MessageHistoryStore extends ChangeNotifier {
     }
     if (_disposed || _generation != generation) return;
     notifyListeners();
+  }
+
+  /// Re-registers a loaded entry's media file so a download that finishes
+  /// after a restart still becomes a snapshot; a file that is already on disk
+  /// (its path survived in the entry) is copied right away.
+  void _restoreTrackedMedia(MessageHistoryEntry entry) {
+    final fileId = entry.mediaFileId;
+    if (fileId <= 0) return;
+    if (!_snapshotsEnabledFor(entry.accountUserId, entry.chatId, null)) return;
+    final tracked = _trackedMedia.putIfAbsent(
+      fileId,
+      () =>
+          _TrackedMediaFile(width: entry.mediaWidth, height: entry.mediaHeight),
+    );
+    tracked.entryKeys.add(entry.key);
+    _entryMediaFileIds.putIfAbsent(entry.key, () => <int>{}).add(fileId);
+    final sourcePath = entry.mediaSourcePath;
+    if (sourcePath.isEmpty || !File(sourcePath).existsSync()) return;
+    tracked.file ??= <String, dynamic>{
+      '@type': 'file',
+      'id': fileId,
+      'local': <String, dynamic>{
+        '@type': 'localFile',
+        'path': sourcePath,
+        'is_downloading_completed': true,
+        'is_active_downloading': false,
+      },
+    };
+    unawaited(_snapshotTrackedFile(fileId));
   }
 
   void _schedulePersist() {
@@ -1532,7 +2130,9 @@ class MessageHistoryStore extends ChangeNotifier {
 
   void _trim() {
     while (_byKey.length > maxEntries) {
-      _byKey.remove(_byKey.keys.first);
+      final key = _byKey.keys.first;
+      _byKey.remove(key);
+      _forgetTrackedMedia(key);
     }
   }
 

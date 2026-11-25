@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-
 import '../bot_api/bot_api_client.dart';
 import '../components/app_icons.dart';
 import '../components/app_text_selection_toolbar.dart';

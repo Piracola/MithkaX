@@ -1,6 +1,5 @@
 import 'dart:math' as math;
 import 'dart:ui' as ui;
-
 import 'package:flutter/widgets.dart';
 import 'package:heroicons_flutter/heroicons_flutter.dart';
 
@@ -9,6 +8,14 @@ class AppIconData {
 
   final IconData data;
 }
+
+const IconData _pinGlyphSentinel = IconData(0);
+
+/// Sentinel [AppIconData] that renders the owned push-pin glyph
+/// ([AppPinIcon]) instead of a Heroicons code point. Heroicons has no push
+/// pin; `thumbtack` keeps the bookmark glyph for the places that already use
+/// it as "pin to list" chrome, and this sentinel marks a true pin glyph.
+const AppIconData pinGlyph = AppIconData(_pinGlyphSentinel);
 
 class AppIcon extends StatelessWidget {
   const AppIcon(this.icon, {super.key, this.size, this.color});
@@ -19,6 +26,9 @@ class AppIcon extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (identical(icon, pinGlyph)) {
+      return AppPinIcon(size: size ?? 24, color: color);
+    }
     return Icon(icon.data, size: size, color: color);
   }
 }
@@ -387,6 +397,7 @@ class HeroAppIcons {
   static const comment = AppIconData(HeroiconsOutline.chatBubbleOvalLeft);
   static const comments = AppIconData(HeroiconsOutline.chatBubbleLeftRight);
   static const compactDisc = AppIconData(HeroiconsOutline.circleStack);
+  static const database = AppIconData(HeroiconsOutline.circleStack);
   static const crop = AppIconData(HeroiconsOutline.viewfinderCircle);
   static const cpuChip = AppIconData(HeroiconsOutline.cpuChip);
 
@@ -522,6 +533,7 @@ class HeroAppIcons {
   static const tokenStack = AppIconData(HeroiconsOutline.square3Stack3d);
   static const thumbsUp = AppIconData(HeroiconsOutline.handThumbUp);
   static const thumbtack = AppIconData(HeroiconsOutline.bookmark);
+  static const AppIconData pin = pinGlyph;
   static const towerBroadcast = AppIconData(HeroiconsOutline.rss);
   static const trash = AppIconData(HeroiconsOutline.trash);
   static const triangleExclamation = AppIconData(

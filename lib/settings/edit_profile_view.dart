@@ -10,14 +10,12 @@
 
 import 'dart:async';
 import 'dart:io';
-
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:mithka/l10n/app_localizations.dart';
-
-import '../chat/custom_emoji.dart';
-import '../chat/image_edit_view.dart';
+import '../chat/media/image_edit_view.dart';
+import '../chat/stickers/custom_emoji.dart';
 import '../components/app_icons.dart';
 import '../components/app_interactive_surface.dart';
 import '../components/photo_avatar.dart';
