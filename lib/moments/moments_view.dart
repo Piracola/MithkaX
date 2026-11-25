@@ -5630,11 +5630,7 @@ class _PostImageTile extends StatelessWidget {
                 alignment: Alignment.center,
                 child: Text(
                   '+$extraCount',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 24,
-                    fontWeight: FontWeight.w600,
-                  ),
+                  style: AppTextStyle.largeDisplay(Colors.white),
                 ),
               ),
           ],

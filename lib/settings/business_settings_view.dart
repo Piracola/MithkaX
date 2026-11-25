@@ -1717,7 +1717,7 @@ class _MinutePickerState extends State<_MinutePicker> {
                       Center(
                         child: Text(
                           _formatMinute(i * 30),
-                          style: TextStyle(fontSize: 18, color: c.textPrimary),
+                          style: AppTextStyle.title(c.textPrimary),
                         ),
                       ),
                   ],

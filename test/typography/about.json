@@ -1,0 +1,242 @@
+[
+  {
+    "k": "About|17.0",
+    "text": "About",
+    "size": 17.0,
+    "weight": 500,
+    "height": 1.3,
+    "boxW": 51.294,
+    "boxH": 1.294,
+    "clipped": false
+  },
+  {
+    "k": "About|17.0#1",
+    "text": "About",
+    "size": 17.0,
+    "weight": 500,
+    "height": 1.3,
+    "boxW": 51.294,
+    "boxH": 1.294,
+    "clipped": false
+  },
+  {
+    "k": "About|17.0#2",
+    "text": "About",
+    "size": 17.0,
+    "weight": 500,
+    "height": 1.3,
+    "boxW": 51.294,
+    "boxH": 1.294,
+    "clipped": false
+  },
+  {
+    "k": "Check for Updates|15.0",
+    "text": "Check for Updates",
+    "size": 15.0,
+    "weight": 400,
+    "height": 1.45,
+    "boxW": 17.283,
+    "boxH": 1.467,
+    "clipped": false
+  },
+  {
+    "k": "Check for Updates|15.0#1",
+    "text": "Check for Updates",
+    "size": 15.0,
+    "weight": 400,
+    "height": 1.45,
+    "boxW": 17.283,
+    "boxH": 1.467,
+    "clipped": false
+  },
+  {
+    "k": "GitHub|15.0",
+    "text": "GitHub",
+    "size": 15.0,
+    "weight": 400,
+    "height": 1.45,
+    "boxW": 6.1,
+    "boxH": 1.467,
+    "clipped": false
+  },
+  {
+    "k": "GitHub|15.0#1",
+    "text": "GitHub",
+    "size": 15.0,
+    "weight": 400,
+    "height": 1.45,
+    "boxW": 6.1,
+    "boxH": 1.467,
+    "clipped": false
+  },
+  {
+    "k": "Mithka X|22.0",
+    "text": "Mithka X",
+    "size": 22.0,
+    "weight": 600,
+    "height": 1.43,
+    "boxW": 8.091,
+    "boxH": 1.409,
+    "clipped": false
+  },
+  {
+    "k": "Mithka X|22.0#1",
+    "text": "Mithka X",
+    "size": 22.0,
+    "weight": 600,
+    "height": 1.43,
+    "boxW": 8.091,
+    "boxH": 1.409,
+    "clipped": false
+  },
+  {
+    "k": "Telegram Channel|15.0",
+    "text": "Telegram Channel",
+    "size": 15.0,
+    "weight": 400,
+    "height": 1.45,
+    "boxW": 16.267,
+    "boxH": 1.467,
+    "clipped": false
+  },
+  {
+    "k": "Telegram Channel|15.0#1",
+    "text": "Telegram Channel",
+    "size": 15.0,
+    "weight": 400,
+    "height": 1.45,
+    "boxW": 16.267,
+    "boxH": 1.467,
+    "clipped": false
+  },
+  {
+    "k": "Version ...|13.0",
+    "text": "Version ...",
+    "size": 13.0,
+    "weight": 400,
+    "height": 1.43,
+    "boxW": 11.212,
+    "boxH": 1.462,
+    "clipped": false
+  },
+  {
+    "k": "Version ...|13.0#1",
+    "text": "Version ...",
+    "size": 13.0,
+    "weight": 400,
+    "height": 1.43,
+    "boxW": 11.212,
+    "boxH": 1.462,
+    "clipped": false
+  },
+  {
+    "k": "Version ...|13.0#2",
+    "text": "Version ...",
+    "size": 13.0,
+    "weight": 400,
+    "height": 1.43,
+    "boxW": 11.212,
+    "boxH": 1.462,
+    "clipped": false
+  },
+  {
+    "k": "github.com/TiaraBasori/MithkaX|13.0",
+    "text": "github.com/TiaraBasori/MithkaX",
+    "size": 13.0,
+    "weight": 400,
+    "height": 1.38,
+    "boxW": 14.615,
+    "boxH": 4.154,
+    "clipped": false
+  },
+  {
+    "k": "github.com/TiaraBasori/MithkaX|13.0#1",
+    "text": "github.com/TiaraBasori/MithkaX",
+    "size": 13.0,
+    "weight": 400,
+    "height": 1.38,
+    "boxW": 14.615,
+    "boxH": 4.154,
+    "clipped": false
+  },
+  {
+    "k": "t.me/MithkaX|13.0",
+    "text": "t.me/MithkaX",
+    "size": 13.0,
+    "weight": 400,
+    "height": 1.38,
+    "boxW": 12.231,
+    "boxH": 1.385,
+    "clipped": false
+  },
+  {
+    "k": "t.me/MithkaX|13.0#1",
+    "text": "t.me/MithkaX",
+    "size": 13.0,
+    "weight": 400,
+    "height": 1.38,
+    "boxW": 12.231,
+    "boxH": 1.385,
+    "clipped": false
+  },
+  {
+    "k": "|20.0",
+    "text": "",
+    "size": 20.0,
+    "weight": 400,
+    "height": 1.0,
+    "boxW": 1.0,
+    "boxH": 1.0,
+    "clipped": false
+  },
+  {
+    "k": "|17.0",
+    "text": "",
+    "size": 17.0,
+    "weight": 400,
+    "height": 1.0,
+    "boxW": 1.0,
+    "boxH": 1.0,
+    "clipped": false
+  },
+  {
+    "k": "|17.0#1",
+    "text": "",
+    "size": 17.0,
+    "weight": 400,
+    "height": 1.0,
+    "boxW": 1.0,
+    "boxH": 1.0,
+    "clipped": false
+  },
+  {
+    "k": "|17.0#2",
+    "text": "",
+    "size": 17.0,
+    "weight": 400,
+    "height": 1.0,
+    "boxW": 1.0,
+    "boxH": 1.0,
+    "clipped": false
+  },
+  {
+    "k": "|20.0",
+    "text": "",
+    "size": 20.0,
+    "weight": 400,
+    "height": 1.0,
+    "boxW": 1.0,
+    "boxH": 1.0,
+    "clipped": false
+  },
+  {
+    "k": "|20.0",
+    "text": "",
+    "size": 20.0,
+    "weight": 400,
+    "height": 1.0,
+    "boxW": 1.0,
+    "boxH": 1.0,
+    "clipped": false
+  }
+]

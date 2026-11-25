@@ -315,7 +315,7 @@ class _QuickReactionSettingsViewState extends State<QuickReactionSettingsView> {
           : Text(
               reaction.emoji,
               textScaler: TextScaler.noScaling,
-              style: const TextStyle(fontSize: 29),
+              style: const TextStyle(fontSize: AppIconSize.simpleComposerPanel),
             ),
     );
     if (onTap == null) return tile;

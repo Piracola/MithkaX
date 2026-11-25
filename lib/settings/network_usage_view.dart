@@ -155,13 +155,12 @@ class _NetworkUsageViewState extends State<NetworkUsageView> {
           const SizedBox(height: 5),
           Text(
             value,
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w600,
-              color: c.textPrimary,
+            style: AppTextStyle.title(
+              c.textPrimary,
+              weight: AppTextWeight.semibold,
             ),
           ),
-          Text(label, style: TextStyle(fontSize: 12, color: c.textSecondary)),
+          Text(label, style: AppTextStyle.caption(c.textSecondary)),
         ],
       ),
     );

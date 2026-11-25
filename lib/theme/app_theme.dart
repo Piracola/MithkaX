@@ -128,6 +128,47 @@ abstract final class AppTextSize {
   }
 }
 
+abstract final class AppTextLeading {
+  static const double tiny = 1.30;
+  static const double caption = 1.35;
+  static const double footnote = 1.38;
+  static const double callout = 1.40;
+  static const double body = 1.45;
+  static const double bodyLarge = 1.45;
+  static const double title = 1.30;
+  static const double display = 1.20;
+  static const double largeDisplay = 1.20;
+
+  /// The leading a role draws at. Used to assert that rendered text carries
+  /// the leading its size promises, instead of inheriting a theme default.
+  static double forSize(double size) => switch (size) {
+    AppTextSize.tiny => tiny,
+    AppTextSize.caption => caption,
+    AppTextSize.footnote => footnote,
+    AppTextSize.callout => callout,
+    AppTextSize.body => body,
+    AppTextSize.bodyLarge => bodyLarge,
+    AppTextSize.title => title,
+    AppTextSize.display => display,
+    AppTextSize.largeDisplay => largeDisplay,
+    _ => body,
+  };
+
+  /// The steps [forSize] answers for. A gate asserts this matches the size
+  /// ladder, so a step added without a leading cannot slip through.
+  static Set<double> get ladderKeys => {
+    AppTextSize.tiny,
+    AppTextSize.caption,
+    AppTextSize.footnote,
+    AppTextSize.callout,
+    AppTextSize.body,
+    AppTextSize.bodyLarge,
+    AppTextSize.title,
+    AppTextSize.display,
+    AppTextSize.largeDisplay,
+  };
+}
+
 abstract final class AppTextWeight {
   static const FontWeight regular = FontWeight.w400;
   static const FontWeight medium = FontWeight.w500;
@@ -206,6 +247,7 @@ abstract final class AppTextStyle {
 
   static TextStyle tiny(Color color, {FontWeight? weight}) => TextStyle(
     fontSize: AppTextSize.tiny,
+    height: AppTextLeading.tiny,
     fontWeight: weight ?? AppTextWeight.regular,
     color: color,
     decoration: TextDecoration.none,
@@ -213,6 +255,7 @@ abstract final class AppTextStyle {
 
   static TextStyle caption(Color color, {FontWeight? weight}) => TextStyle(
     fontSize: AppTextSize.caption,
+    height: AppTextLeading.caption,
     fontWeight: weight ?? AppTextWeight.regular,
     color: color,
     decoration: TextDecoration.none,
@@ -220,6 +263,7 @@ abstract final class AppTextStyle {
 
   static TextStyle footnote(Color color, {FontWeight? weight}) => TextStyle(
     fontSize: AppTextSize.footnote,
+    height: AppTextLeading.footnote,
     fontWeight: weight ?? AppTextWeight.regular,
     color: color,
     decoration: TextDecoration.none,
@@ -227,6 +271,7 @@ abstract final class AppTextStyle {
 
   static TextStyle callout(Color color, {FontWeight? weight}) => TextStyle(
     fontSize: AppTextSize.callout,
+    height: AppTextLeading.callout,
     fontWeight: weight ?? AppTextWeight.regular,
     color: color,
     decoration: TextDecoration.none,
@@ -234,6 +279,7 @@ abstract final class AppTextStyle {
 
   static TextStyle body(Color color, {FontWeight? weight}) => TextStyle(
     fontSize: AppTextSize.body,
+    height: AppTextLeading.body,
     fontWeight: weight ?? AppTextWeight.regular,
     color: color,
     decoration: TextDecoration.none,
@@ -241,6 +287,7 @@ abstract final class AppTextStyle {
 
   static TextStyle bodyLarge(Color color, {FontWeight? weight}) => TextStyle(
     fontSize: AppTextSize.bodyLarge,
+    height: AppTextLeading.bodyLarge,
     fontWeight: weight ?? AppTextWeight.regular,
     color: color,
     decoration: TextDecoration.none,
@@ -248,6 +295,7 @@ abstract final class AppTextStyle {
 
   static TextStyle title(Color color, {FontWeight? weight}) => TextStyle(
     fontSize: AppTextSize.title,
+    height: AppTextLeading.title,
     fontWeight: weight ?? AppTextWeight.medium,
     color: color,
     decoration: TextDecoration.none,
@@ -255,6 +303,15 @@ abstract final class AppTextStyle {
 
   static TextStyle display(Color color, {FontWeight? weight}) => TextStyle(
     fontSize: AppTextSize.display,
+    height: AppTextLeading.display,
+    fontWeight: weight ?? AppTextWeight.semibold,
+    color: color,
+    decoration: TextDecoration.none,
+  );
+
+  static TextStyle largeDisplay(Color color, {FontWeight? weight}) => TextStyle(
+    fontSize: AppTextSize.largeDisplay,
+    height: AppTextLeading.largeDisplay,
     fontWeight: weight ?? AppTextWeight.semibold,
     color: color,
     decoration: TextDecoration.none,
@@ -358,10 +415,6 @@ abstract final class AppMetric {
       ? 72
       : listRowHeight;
 
-  /// Rough line box of a text run relative to its font size. Only used to
-  /// grow fixed-extent rows, so it errs generous rather than exact.
-  static const double _textLineHeight = 1.3;
-
   /// Height a row drawn at a fixed extent needs so the text stacked inside it
   /// still fits once the ambient text scale is applied.
   ///
@@ -379,8 +432,11 @@ abstract final class AppMetric {
   }) {
     final scale = MediaQuery.textScalerOf(context).scale(1.0);
     if (scale <= 1) return base;
-    final stacked = lines.fold<double>(0, (total, size) => total + size);
-    return base + stacked * _textLineHeight * (scale - 1);
+    final stacked = lines.fold<double>(
+      0,
+      (total, size) => total + size * AppTextLeading.forSize(size),
+    );
+    return base + stacked * (scale - 1);
   }
 
   /// The extent a chat list row draws at and the list virtualizes against.

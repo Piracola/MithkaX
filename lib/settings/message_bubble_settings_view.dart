@@ -159,11 +159,7 @@ class _MessageBubbleSettingsViewState extends State<MessageBubbleSettingsView> {
                     AppStrings.t(
                       AppStringKeys.messageBubbleSettingsRepoDescription,
                     ),
-                    style: TextStyle(
-                      color: c.textSecondary,
-                      fontSize: 13.5,
-                      height: 1.4,
-                    ),
+                    style: AppTextStyle.callout(c.textSecondary),
                   ),
                   if (sourceLink != null) ...[
                     const SizedBox(height: 10),

@@ -642,10 +642,9 @@ class _SessionImportSheetState extends State<_SessionImportSheet> {
                         AppStrings.t(
                           AppStringKeys.accountBackupLoadSessionTitle,
                         ),
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w600,
-                          color: c.textPrimary,
+                        style: AppTextStyle.title(
+                          c.textPrimary,
+                          weight: AppTextWeight.semibold,
                         ),
                       ),
                     ),

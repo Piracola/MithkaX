@@ -2239,10 +2239,9 @@ Widget _emptyState(
           Text(
             title,
             textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w600,
-              color: c.textPrimary,
+            style: AppTextStyle.title(
+              c.textPrimary,
+              weight: AppTextWeight.semibold,
             ),
           ),
           const SizedBox(height: 6),

@@ -1127,7 +1127,7 @@ class _BirthdayPickerSheetState extends State<_BirthdayPickerSheet> {
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
-    final labelStyle = TextStyle(fontSize: 18, color: c.textPrimary);
+    final labelStyle = AppTextStyle.title(c.textPrimary);
     return Container(
       height: 332,
       decoration: BoxDecoration(

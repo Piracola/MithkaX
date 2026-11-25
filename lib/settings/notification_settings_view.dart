@@ -1313,7 +1313,7 @@ class _NotificationFootnote extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(16, 8, 12, 0),
       child: Text(
         text,
-        style: TextStyle(color: context.colors.textSecondary, fontSize: 12.5),
+        style: AppTextStyle.caption(context.colors.textSecondary),
       ),
     );
   }
