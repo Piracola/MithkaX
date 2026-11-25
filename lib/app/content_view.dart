@@ -724,15 +724,7 @@ class _MacosTitleBarAvatar extends StatelessWidget {
   Widget _fallback(BuildContext context) {
     final trimmedName = name.trim();
     if (trimmedName.isEmpty || trimmedName == 'Mithka X') {
-      // The mark is 1024x1024: 4 MB of RGBA for a 24 pt slot without a decode
-      // hint. Width only, so the square aspect survives.
-      return Image.asset(
-        brandMarkAssetFor(Theme.of(context).brightness),
-        width: size,
-        height: size,
-        cacheWidth: (size * 4).round(),
-        fit: BoxFit.cover,
-      );
+      return BrandMark(size: size);
     }
     return Container(
       width: size,
@@ -958,22 +950,19 @@ class SplashView extends StatelessWidget {
     if (chosen != null) return _chosenIconSplash(context, chosen);
     return DecoratedBox(
       decoration: BoxDecoration(gradient: AppTheme.brandGradient),
-      child: const Center(
+      child: Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // The asset is 1024x1024 and would otherwise decode at full size
-            // (4 MB of RGBA) for a 192 pt slot. Width only keeps it square.
-            Image(
-              // The frost fill is the launcher icon's own body, which is what
-              // reads on the brand gradient in either appearance.
-              image: ResizeImage(AssetImage(brandMarkFrostAsset), width: 576),
-              width: AppMetric.splashMarkSize,
-              height: AppMetric.splashMarkSize,
-              filterQuality: FilterQuality.high,
+            // The mark sits on the brand gradient, so it keeps the pale end
+            // of the ladder in either appearance — a brand-coloured fill on a
+            // brand-coloured page would vanish.
+            BrandMark(
+              size: AppMetric.splashMarkSize,
+              colors: brandMarkColors(Brightness.dark),
             ),
-            SizedBox(height: AppSpacing.lg + AppSpacing.sm),
-            SizedBox(
+            const SizedBox(height: AppSpacing.lg + AppSpacing.sm),
+            const SizedBox(
               width: AppMetric.splashSpinnerSize,
               height: AppMetric.splashSpinnerSize,
               child: CircularProgressIndicator(

@@ -1636,16 +1636,10 @@ class _LockFooter extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final brightness = Theme.of(context).brightness;
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        Image.asset(
-          brandMarkInkAssetFor(brightness),
-          width: 15,
-          height: 15,
-          filterQuality: FilterQuality.high,
-        ),
+        BrandMark.ink(ink: 15),
         const SizedBox(width: 7),
         Text('Mithka X', style: AppTextStyle.caption(palette.footer)),
       ],

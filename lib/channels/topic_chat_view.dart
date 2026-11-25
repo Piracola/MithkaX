@@ -1999,155 +1999,172 @@ class _TopicChatViewState extends State<TopicChatView> {
               widget.chat.title;
     return Container(
       height: top + widget.headerHeight,
-      padding: headerChromePaddingOf(context),
-      decoration: BoxDecoration(
-        color: widget.headerColor ?? c.navBar,
-        image: DecorationImage(
-          image: AssetImage(brandMarkAssetFor(Theme.of(context).brightness)),
-          fit: BoxFit.cover,
-          opacity: 0.04,
-        ),
-      ),
-      child: Column(
+      decoration: BoxDecoration(color: widget.headerColor ?? c.navBar),
+      child: Stack(
         children: [
-          SizedBox(
-            height: widget.headerHeight,
-            child: Row(
+          // The watermark used to be a DecorationImage(cover); the mark is
+          // painted from the theme colour now, so it is a child instead.
+          Positioned.fill(
+            child: IgnorePointer(
+              child: FittedBox(
+                fit: BoxFit.cover,
+                clipBehavior: Clip.hardEdge,
+                child: BrandMark(size: 96, opacity: 0.04),
+              ),
+            ),
+          ),
+          Padding(
+            padding: headerChromePaddingOf(context),
+            child: Column(
               children: [
-                if (widget.showBackButton)
-                  GestureDetector(
-                    key: const ValueKey('topic-header-back'),
-                    behavior: HitTestBehavior.opaque,
-                    onTap:
-                        widget.onBack ?? () => Navigator.of(context).maybePop(),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: AppSpacing.sm,
-                      ),
-                      child: AppIcon(
-                        HeroAppIcons.chevronLeft,
-                        size: 24,
-                        color: c.textPrimary,
-                      ),
-                    ),
-                  )
-                else
-                  const SizedBox(width: AppSpacing.sm),
-                PhotoAvatar(
-                  title: title,
-                  photo: widget.chat.photo,
-                  size: 32,
-                  square: widget.chat.usesSquareAvatar,
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                SizedBox(
+                  height: widget.headerHeight,
+                  child: Row(
                     children: [
-                      Text(
-                        title,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w500,
-                          color: c.textPrimary,
+                      if (widget.showBackButton)
+                        GestureDetector(
+                          key: const ValueKey('topic-header-back'),
+                          behavior: HitTestBehavior.opaque,
+                          onTap:
+                              widget.onBack ??
+                              () => Navigator.of(context).maybePop(),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: AppSpacing.sm,
+                            ),
+                            child: AppIcon(
+                              HeroAppIcons.chevronLeft,
+                              size: 24,
+                              color: c.textPrimary,
+                            ),
+                          ),
+                        )
+                      else
+                        const SizedBox(width: AppSpacing.sm),
+                      PhotoAvatar(
+                        title: title,
+                        photo: widget.chat.photo,
+                        size: 32,
+                        square: widget.chat.usesSquareAvatar,
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              title,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w500,
+                                color: c.textPrimary,
+                              ),
+                            ),
+                            Text(
+                              _topics.isEmpty
+                                  ? AppStrings.t(
+                                      widget.chat.isBotTopicChat
+                                          ? AppStringKeys.topicChatAllTopics
+                                          : AppStringKeys
+                                                .topicChatGroupChatTitle,
+                                    )
+                                  : AppStrings.t(
+                                      AppStringKeys.topicChatTopicCount,
+                                      {'value1': _topics.length},
+                                    ),
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: c.textSecondary,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                      Text(
-                        _topics.isEmpty
-                            ? AppStrings.t(
-                                widget.chat.isBotTopicChat
-                                    ? AppStringKeys.topicChatAllTopics
-                                    : AppStringKeys.topicChatGroupChatTitle,
-                              )
-                            : AppStrings.t(AppStringKeys.topicChatTopicCount, {
-                                'value1': _topics.length,
-                              }),
-                        style: TextStyle(fontSize: 12, color: c.textSecondary),
+                      GestureDetector(
+                        key: const ValueKey('topic-header-search'),
+                        behavior: HitTestBehavior.opaque,
+                        onTap: _openSearch,
+                        child: Padding(
+                          padding: const EdgeInsets.all(4),
+                          child: AppIcon(
+                            HeroAppIcons.magnifyingGlass,
+                            size: 25,
+                            color: c.textPrimary,
+                          ),
+                        ),
                       ),
+                      if (listHiddenByUser) ...[
+                        const SizedBox(width: AppSpacing.md),
+                        GestureDetector(
+                          key: const ValueKey('topic-header-list'),
+                          behavior: HitTestBehavior.opaque,
+                          onTap: () =>
+                              context.read<TopicListHost?>()?.showList(),
+                          child: Padding(
+                            padding: const EdgeInsets.all(4),
+                            child: AppIcon(
+                              HeroAppIcons.hashtag,
+                              size: 25,
+                              color: c.textPrimary,
+                            ),
+                          ),
+                        ),
+                      ],
+                      const SizedBox(width: AppSpacing.md),
+                      GestureDetector(
+                        key: const ValueKey('topic-header-chat-mode'),
+                        behavior: HitTestBehavior.opaque,
+                        onTap: _openChatView,
+                        child: Padding(
+                          padding: const EdgeInsets.all(4),
+                          child: AppIcon(
+                            HeroAppIcons.message,
+                            size: 25,
+                            color: c.textPrimary,
+                          ),
+                        ),
+                      ),
+                      if (showsGroupTopicControls(widget.chat) &&
+                          _canCreateTopics &&
+                          (!_topicListOverlaid || _hasForumTabs)) ...[
+                        const SizedBox(width: AppSpacing.md),
+                        GestureDetector(
+                          key: const ValueKey('topic-header-create-topic'),
+                          behavior: HitTestBehavior.opaque,
+                          onTap: _openCreateTopicDialog,
+                          child: Padding(
+                            padding: const EdgeInsets.all(4),
+                            child: AppIcon(
+                              HeroAppIcons.plus,
+                              size: 25,
+                              color: AppTheme.brand,
+                            ),
+                          ),
+                        ),
+                      ],
+                      if (showsGroupTopicControls(widget.chat)) ...[
+                        const SizedBox(width: AppSpacing.xl),
+                        GestureDetector(
+                          key: const ValueKey('topic-header-settings'),
+                          behavior: HitTestBehavior.opaque,
+                          onTap: _openSettings,
+                          child: Padding(
+                            padding: const EdgeInsets.all(4),
+                            child: AppIcon(
+                              HeroAppIcons.bars,
+                              size: 25,
+                              color: c.textPrimary,
+                            ),
+                          ),
+                        ),
+                      ],
+                      const SizedBox(width: AppSpacing.xl),
                     ],
                   ),
                 ),
-                GestureDetector(
-                  key: const ValueKey('topic-header-search'),
-                  behavior: HitTestBehavior.opaque,
-                  onTap: _openSearch,
-                  child: Padding(
-                    padding: const EdgeInsets.all(4),
-                    child: AppIcon(
-                      HeroAppIcons.magnifyingGlass,
-                      size: 25,
-                      color: c.textPrimary,
-                    ),
-                  ),
-                ),
-                if (listHiddenByUser) ...[
-                  const SizedBox(width: AppSpacing.md),
-                  GestureDetector(
-                    key: const ValueKey('topic-header-list'),
-                    behavior: HitTestBehavior.opaque,
-                    onTap: () => context.read<TopicListHost?>()?.showList(),
-                    child: Padding(
-                      padding: const EdgeInsets.all(4),
-                      child: AppIcon(
-                        HeroAppIcons.hashtag,
-                        size: 25,
-                        color: c.textPrimary,
-                      ),
-                    ),
-                  ),
-                ],
-                const SizedBox(width: AppSpacing.md),
-                GestureDetector(
-                  key: const ValueKey('topic-header-chat-mode'),
-                  behavior: HitTestBehavior.opaque,
-                  onTap: _openChatView,
-                  child: Padding(
-                    padding: const EdgeInsets.all(4),
-                    child: AppIcon(
-                      HeroAppIcons.message,
-                      size: 25,
-                      color: c.textPrimary,
-                    ),
-                  ),
-                ),
-                if (showsGroupTopicControls(widget.chat) &&
-                    _canCreateTopics &&
-                    (!_topicListOverlaid || _hasForumTabs)) ...[
-                  const SizedBox(width: AppSpacing.md),
-                  GestureDetector(
-                    key: const ValueKey('topic-header-create-topic'),
-                    behavior: HitTestBehavior.opaque,
-                    onTap: _openCreateTopicDialog,
-                    child: Padding(
-                      padding: const EdgeInsets.all(4),
-                      child: AppIcon(
-                        HeroAppIcons.plus,
-                        size: 25,
-                        color: AppTheme.brand,
-                      ),
-                    ),
-                  ),
-                ],
-                if (showsGroupTopicControls(widget.chat)) ...[
-                  const SizedBox(width: AppSpacing.xl),
-                  GestureDetector(
-                    key: const ValueKey('topic-header-settings'),
-                    behavior: HitTestBehavior.opaque,
-                    onTap: _openSettings,
-                    child: Padding(
-                      padding: const EdgeInsets.all(4),
-                      child: AppIcon(
-                        HeroAppIcons.bars,
-                        size: 25,
-                        color: c.textPrimary,
-                      ),
-                    ),
-                  ),
-                ],
-                const SizedBox(width: AppSpacing.xl),
               ],
             ),
           ),

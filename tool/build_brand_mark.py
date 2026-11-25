@@ -1,16 +1,14 @@
 #!/usr/bin/env python3
-"""Render the Mithka X mark into every raster the app ships.
+"""Render the Mithka X mark into the Android cold-start rasters.
 
-The mark is one flat glyph. `tool/app_icons/mithkax_mark.svg` is its canonical
-form (1024 square, glyph centred); the rasters fill it with the same aurora
-gradient the launcher icon uses on its own mark, so the in-app logo is a
-smaller copy of the icon's body instead of a flat black or white silhouette.
+In the app the mark is painted (`lib/components/brand_mark.dart`), so it can
+follow the theme's brand colour and the light/dark appearance. Android's
+starting window is a native drawable and cannot: it gets baked copies instead,
+AZURE (the launcher icon's night body) on the white launch colour and FROST
+(its day body) under `drawable-night-*`, one per density bucket.
 
-Two palettes, because the mark has to sit on both surfaces: `AZURE` (the night
-icon's mark, blue enough to read on a white page) and `FROST` (the day icon's
-mark, near-white so it glows on a dark page). Android's cold-start window is
-native and cannot pick at runtime either, so it gets baked copies: AZURE on the
-light launch colour, FROST on the dark one, one per density bucket.
+`tool/app_icons/mithkax_mark.svg` is the canonical geometry; every raster here
+is generated from it.
 """
 
 import argparse
@@ -19,7 +17,6 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE = ROOT / "tool/app_icons/mithkax_mark.svg"
-ASSETS = ROOT / "assets"
 ANDROID_RES = ROOT / "android/app/src/main/res"
 CANVAS = 1024
 
@@ -186,18 +183,6 @@ def main():
 
     master = render_master(4096)
     ink = master.crop(master.getbbox())
-
-    # Flutter: one square master per palette, plus the canvas-trimmed twins
-    # used by layouts that space the mark by its ink.
-    square = fit(ink, round(CANVAS * MASTER_INK_HEIGHT))
-    trimmed = fit(ink, 800)
-    for suffix, stops in (("", AZURE), ("_frost", FROST)):
-        compose(square, CANVAS, stops).save(
-            ASSETS / f"brand_mark{suffix}.png", optimize=True
-        )
-        art = gradient_plate(trimmed.size, stops).convert("RGBA")
-        art.putalpha(trimmed.getchannel("A"))
-        art.save(ASSETS / f"brand_mark_ink{suffix}.png", optimize=True)
 
     # Android cold-start art: AZURE on the light launch colour, FROST on the
     # night one, sized per density so no bucket upscales.

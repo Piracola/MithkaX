@@ -84,8 +84,7 @@ void main() {
     final asset = AppIconVariant.aurora.standardPickerAsset(Brightness.light);
     expect(imageOf(asset), findsOneWidget);
     expectBundledEverywhere(asset);
-    expect(imageOf(brandMarkFrostAsset), findsNothing);
-    expect(imageOf(brandMarkAsset), findsNothing);
+    expect(find.byType(BrandMark), findsNothing);
     final background = tester.widget<ColoredBox>(
       find
           .ancestor(
@@ -123,7 +122,7 @@ void main() {
     tester,
   ) async {
     await pumpSplash(tester, icon: 'default');
-    expect(imageOf(brandMarkFrostAsset), findsOneWidget);
+    expect(find.byType(BrandMark), findsOneWidget);
     expect(find.byKey(const ValueKey('splash-icon-default')), findsNothing);
   });
 
@@ -131,7 +130,7 @@ void main() {
     tester,
   ) async {
     await pumpSplash(tester, icon: 'mithkax_default');
-    expect(imageOf(brandMarkFrostAsset), findsOneWidget);
+    expect(find.byType(BrandMark), findsOneWidget);
     expect(
       find.byKey(const ValueKey('splash-icon-mithkax_default')),
       findsNothing,
@@ -142,6 +141,6 @@ void main() {
     tester,
   ) async {
     await pumpSplash(tester);
-    expect(imageOf(brandMarkFrostAsset), findsOneWidget);
+    expect(find.byType(BrandMark), findsOneWidget);
   });
 }

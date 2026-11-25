@@ -99,21 +99,10 @@ class _AboutViewState extends State<AboutView> {
             child: Column(
               children: [
                 // No tile behind the mark: it is the identity, drawn large
-                // on its own instead of framed in a rounded box. The asset is
-                // the artwork with its transparent canvas cropped away, so the
-                // name sits a token's gap below the ink rather than below the
-                // canvas' empty margin.
-                Image(
-                  image: ResizeImage(
-                    AssetImage(
-                      brandMarkInkAssetFor(Theme.of(context).brightness),
-                    ),
-                    width: 300,
-                  ),
-                  height: 84,
-                  fit: BoxFit.contain,
-                  filterQuality: FilterQuality.high,
-                ),
+                // on its own instead of framed in a rounded box. The painter
+                // hugs the glyph, so the name sits a token's gap below the ink
+                // rather than below an empty canvas margin.
+                BrandMark.ink(ink: 84),
                 const SizedBox(height: AppSpacing.md),
                 Text(
                   'Mithka X',

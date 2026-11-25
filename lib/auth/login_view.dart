@@ -676,17 +676,10 @@ class _LoginViewState extends State<LoginView> {
     );
   }
 
-  /// The mark on its own, with no tile behind it. The asset carries the
-  /// appearance-specific aurora fill, so no tint is applied over it.
-  Widget _brandMark(double size) => ExcludeSemantics(
-    child: Image(
-      image: AssetImage(brandMarkAssetFor(Theme.of(context).brightness)),
-      width: size,
-      height: size,
-      fit: BoxFit.contain,
-      filterQuality: FilterQuality.high,
-    ),
-  );
+  /// The mark on its own, with no tile behind it, filled from the theme's
+  /// brand colour.
+  Widget _brandMark(double size) =>
+      ExcludeSemantics(child: BrandMark(size: size));
 
   /// Which way in the sidebar marks as current. The code, password, email and
   /// registration steps all continue the phone-number login.

@@ -87,14 +87,7 @@ class _TermsSheet extends StatelessWidget {
                     children: [
                       ClipRRect(
                         borderRadius: BorderRadius.circular(AppRadius.card),
-                        child: Image(
-                          image: AssetImage(
-                            brandMarkAssetFor(Theme.of(context).brightness),
-                          ),
-                          width: 48,
-                          height: 48,
-                          filterQuality: FilterQuality.high,
-                        ),
+                        child: BrandMark(size: 48),
                       ),
                       const SizedBox(width: 14),
                       Expanded(

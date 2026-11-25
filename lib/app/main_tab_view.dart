@@ -2085,12 +2085,7 @@ class _MessageEmptyPane extends StatelessWidget {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Image.asset(
-                brandMarkAssetFor(Theme.of(context).brightness),
-                width: 92,
-                height: 92,
-                filterQuality: FilterQuality.high,
-              ),
+              BrandMark(size: 92),
               const SizedBox(width: 18),
               // The 64 pt wordmark plus the mark overflows narrow panes; scale
               // the pair down as one unit instead of clipping the text.

@@ -19,6 +19,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mithka/platform/system_ui.dart';
 import 'package:mithka/theme/app_theme.dart';
 
+const _markSource = 'tool/app_icons/mithkax_mark.svg';
 const _androidRes = 'android/app/src/main/res';
 const _iosAssets = 'ios/Runner/Assets.xcassets';
 const _launchColorName = 'launch_background';
@@ -296,8 +297,9 @@ void main() {
           reason: 'drawable-$bucket/penguin_splash.png must exist',
         );
       }
-      // The source asset is the same mark the login page shows.
-      expect(File('assets/brand_mark.png').existsSync(), isTrue);
+      // The in-app mark is painted from the same geometry these drawables
+      // were rendered from.
+      expect(File(_markSource).existsSync(), isTrue, reason: _markSource);
     });
 
     test('the cold-start mark is baked once per appearance', () async {
