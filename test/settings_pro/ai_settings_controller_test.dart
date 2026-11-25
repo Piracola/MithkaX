@@ -17,14 +17,14 @@ void main() {
 
       expect(controller.initialized, isFalse);
       expect(controller.enabled, isFalse);
-      expect(controller.replyButtonEnabled, isFalse);
+      expect(controller.showComposerAiButton, isFalse);
       expect(controller.provider, AiProviderMode.applePcc);
 
       await controller.initialize();
 
       expect(controller.initialized, isTrue);
       expect(controller.enabled, isFalse);
-      expect(controller.replyButtonEnabled, isFalse);
+      expect(controller.showComposerAiButton, isFalse);
       expect(
         preferences.getBool(AiSettingsController.enabledPreferenceKey),
         AiSettingsController.defaultUnreadSummaryEnabled,
@@ -76,27 +76,33 @@ void main() {
         final controller = newController();
         await controller.initialize();
 
-        expect(controller.replyButtonEnabled, isFalse);
+        expect(controller.showComposerAiButton, isFalse);
         expect(
-          preferences.getBool(AiSettingsController.replyButtonPreferenceKey),
+          preferences.getBool(
+            AiSettingsController.showComposerAiButtonPreferenceKey,
+          ),
           isNull,
         );
 
-        await controller.setReplyButtonEnabled(true);
-        expect(controller.replyButtonEnabled, isTrue);
+        await controller.setShowComposerAiButton(true);
+        expect(controller.showComposerAiButton, isTrue);
         expect(
-          preferences.getBool(AiSettingsController.replyButtonPreferenceKey),
+          preferences.getBool(
+            AiSettingsController.showComposerAiButtonPreferenceKey,
+          ),
           isTrue,
         );
 
         final restored = newController();
         await restored.initialize();
-        expect(restored.replyButtonEnabled, isTrue);
+        expect(restored.showComposerAiButton, isTrue);
 
-        await restored.setReplyButtonEnabled(false);
-        expect(restored.replyButtonEnabled, isFalse);
+        await restored.setShowComposerAiButton(false);
+        expect(restored.showComposerAiButton, isFalse);
         expect(
-          preferences.getBool(AiSettingsController.replyButtonPreferenceKey),
+          preferences.getBool(
+            AiSettingsController.showComposerAiButtonPreferenceKey,
+          ),
           isFalse,
         );
       },

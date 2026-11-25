@@ -573,6 +573,9 @@ abstract final class AppStringKeys {
   static const aiServerModelHint = 'aiServerModelHint';
   static const aiServerPrivacy = 'aiServerPrivacy';
   static const aiSettingsTitle = 'aiSettingsTitle';
+  static const aiShowComposerButton = 'aiShowComposerButton';
+  static const aiShowComposerButtonDescription =
+      'aiShowComposerButtonDescription';
   static const aiSummaryActions = 'aiSummaryActions';
   static const aiSummaryAssembling = 'aiSummaryAssembling';
   static const aiSummaryButton = 'aiSummaryButton';
@@ -1042,6 +1045,8 @@ abstract final class AppStringKeys {
   static const chatButtonUnsupported = 'chatButtonUnsupported';
   static const chatCannotSendMessages = 'chatCannotSendMessages';
   static const chatContactCallsOnly = 'chatContactCallsOnly';
+  static const chatContextPaneHide = 'chatContextPaneHide';
+  static const chatContextPaneShow = 'chatContextPaneShow';
   static const chatFirstContactNotContact = 'chatFirstContactNotContact';
   static const chatFirstContactNotOfficial = 'chatFirstContactNotOfficial';
   static const chatFirstContactOfficial = 'chatFirstContactOfficial';
@@ -5495,6 +5500,17 @@ abstract final class AppStringKeys {
       'storyAuthoringAreaUpgradedGift';
   static const profilePhotoBadgeCurrent = 'profilePhotoBadgeCurrent';
   static const profilePhotoBadgePublic = 'profilePhotoBadgePublic';
+  static const channelBottomBar = 'channelBottomBar';
+  static const channelBottomBarHidden = 'channelBottomBarHidden';
+  static const channelBottomBarMute = 'channelBottomBarMute';
+  static const channelBottomBarNote = 'channelBottomBarNote';
+  static const channelDeleteTopic = 'channelDeleteTopic';
+  static const channelMarkAllReadFailed = 'channelMarkAllReadFailed';
+  static const channelPanelDirect = 'channelPanelDirect';
+  static const channelPanelDiscussion = 'channelPanelDiscussion';
+  static const channelPostForwards = 'channelPostForwards';
+  static const channelPostStats = 'channelPostStats';
+  static const channelPostViews = 'channelPostViews';
   static const chatInfoKeepRecording = 'chatInfoKeepRecording';
   static const chatInfoStopRecordingConfirmMessage =
       'chatInfoStopRecordingConfirmMessage';
@@ -5531,6 +5547,7 @@ abstract final class AppStringKeys {
   static const historyRemoveFromMirrorAction = 'historyRemoveFromMirrorAction';
   static const historyRemovedFromMirrorToast = 'historyRemovedFromMirrorToast';
   static const historyRenderGhosts = 'historyRenderGhosts';
+  static const historyRenderGhostsNote = 'historyRenderGhostsNote';
   static const historyRevisionsTitle = 'historyRevisionsTitle';
   static const historySenderLabel = 'historySenderLabel';
   static const historySnapshotChannels = 'historySnapshotChannels';
@@ -5541,16 +5558,18 @@ abstract final class AppStringKeys {
   static const historyTransferNote = 'historyTransferNote';
   static const historyTransferSection = 'historyTransferSection';
   static const historyTransferTitle = 'historyTransferTitle';
-  static const localPremiumTitle = 'localPremiumTitle';
-  static const keptSettingsTitle = 'keptSettingsTitle';
-  static const keptHistorySection = 'keptHistorySection';
-  static const keptGhostSection = 'keptGhostSection';
-  static const keptForwardSection = 'keptForwardSection';
+  static const keptForwardCopyPartToast = 'keptForwardCopyPartToast';
   static const keptForwardProtected = 'keptForwardProtected';
   static const keptForwardProtectedHint = 'keptForwardProtectedHint';
-  static const keptForwardCopyPartToast = 'keptForwardCopyPartToast';
+  static const keptForwardSection = 'keptForwardSection';
+  static const keptGhostSection = 'keptGhostSection';
+  static const keptHistorySection = 'keptHistorySection';
   static const keptPremiumSection = 'keptPremiumSection';
+  static const keptSettingsTitle = 'keptSettingsTitle';
+  static const localPremiumNote = 'localPremiumNote';
+  static const localPremiumTitle = 'localPremiumTitle';
   static const messageActionViewEdits = 'messageActionViewEdits';
+  static const channelBottomBarActions = 'channelBottomBarActions';
 }
 
 abstract final class AppStrings {

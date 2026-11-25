@@ -24,7 +24,7 @@ import '../media/file_detail_view.dart';
 import '../media/image_preview.dart';
 import '../media/looping_video_view.dart';
 import '../media/voice_audio.dart';
-import '../video_player_view.dart';
+import '../media/video_player_view.dart';
 import 'instant_view_blocks.dart';
 import 'instant_view_links.dart';
 import 'instant_view_models.dart';

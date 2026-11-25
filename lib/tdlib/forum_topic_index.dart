@@ -31,7 +31,7 @@ class ForumTopicIndexEntry {
   final bool isMuted;
 
   /// Pinned topics lead the tab strip in their pin order (the page's own
-  /// order), the way exteraless keeps them in `TopicsController.sortTopics`.
+  /// order), the way the reference client keeps them in `TopicsController.sortTopics`.
   final bool isPinned;
 
   /// The newest message id this entry has accounted for, so an observed read
@@ -145,7 +145,7 @@ int _nonNegative(int? value) {
 /// Sorts the topics of one chat into display order without disturbing the
 /// map's own order, which is the server's order (pinned topics in pin order).
 ///
-/// Mirrors exteraless `TopicsController.sortTopics`: pinned first in pin
+/// Mirrors the reference client `TopicsController.sortTopics`: pinned first in pin
 /// order, everything else by the newest activity. See [orderForumTopics].
 List<ForumTopicIndexEntry> _inDisplayOrder(
   Map<int, ForumTopicIndexEntry> entries,

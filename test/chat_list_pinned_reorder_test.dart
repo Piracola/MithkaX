@@ -5,7 +5,7 @@ import 'package:mithka/tdlib/td_models.dart';
 
 // Edit-mode pinned reorder: the model swaps the dragged chat onto its
 // neighbour's slot locally and commits the full pinned order through
-// `setPinnedChats`, mirroring exteraless's ItemTouchHelper drag that ends in
+// `setPinnedChats`, mirroring the reference client's ItemTouchHelper drag that ends in
 // reorderPinnedDialogs.
 
 void main() {

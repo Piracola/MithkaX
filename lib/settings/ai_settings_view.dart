@@ -159,17 +159,16 @@ class _AiSettingsViewState extends State<AiSettingsView> {
                       ),
                     ),
                     SettingsSwitchRow(
-                      key: const ValueKey('aiReplyButtonRow'),
-                      title: AppStringKeys.mithkaxAiReplyButton.l10n(context),
-                      subtitle: AppStringKeys.mithkaxAiReplyButtonHint.l10n(
-                        context,
-                      ),
-                      value: settings.replyButtonEnabled,
+                      key: const ValueKey('aiShowComposerButtonRow'),
+                      title: AppStringKeys.aiShowComposerButton.l10n(context),
+                      subtitle: AppStringKeys.aiShowComposerButtonDescription
+                          .l10n(context),
+                      value: settings.showComposerAiButton,
                       leading: const SettingsLeadingIcon(
                         icon: HeroAppIcons.wandMagicSparkles,
                       ),
                       onChanged: (value) =>
-                          unawaited(settings.setReplyButtonEnabled(value)),
+                          unawaited(settings.setShowComposerAiButton(value)),
                     ),
                   ],
                 ),

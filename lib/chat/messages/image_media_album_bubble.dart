@@ -610,7 +610,7 @@ class ImageMediaAlbumBubble extends StatelessWidget {
           count: interactionOwner.viewCount,
           foreground: bandForeground,
           background: bandBackground,
-          semanticLabel: AppStrings.t(AppStringKeys.mithkaxChannelPostViews, {
+          semanticLabel: AppStrings.t(AppStringKeys.channelPostViews, {
             'value1': formatChannelStatCount(interactionOwner.viewCount),
           }),
         ),
@@ -621,10 +621,9 @@ class ImageMediaAlbumBubble extends StatelessWidget {
           count: interactionOwner.forwardCount,
           foreground: bandForeground,
           background: bandBackground,
-          semanticLabel: AppStrings.t(
-            AppStringKeys.mithkaxChannelPostForwards,
-            {'value1': formatChannelStatCount(interactionOwner.forwardCount)},
-          ),
+          semanticLabel: AppStrings.t(AppStringKeys.channelPostForwards, {
+            'value1': formatChannelStatCount(interactionOwner.forwardCount),
+          }),
         ),
       if (showCompactReplies)
         MessageReplyCountBadge(

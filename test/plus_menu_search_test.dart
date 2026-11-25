@@ -7,7 +7,7 @@ import 'package:mithka/theme/app_theme.dart';
 
 import 'support/l10n_fixtures.dart';
 
-/// PlusMenu's first item: the exteraless-parity search entry that jumps
+/// PlusMenu's first item: the reference client-parity search entry that jumps
 /// straight to the search surface.
 void main() {
   setUpAll(() => L10nFixtures.load().install());

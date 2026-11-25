@@ -14,8 +14,8 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:mithka/chat/chat_input_bar.dart';
 import 'package:mithka/chat/chat_view_model.dart';
+import 'package:mithka/chat/composer/chat_input_bar.dart';
 import 'package:mithka/chat/composer/message_send_options.dart';
 import 'package:mithka/chat/favorite_sticker_store.dart';
 import 'package:mithka/chat/stickers/gif_item.dart';
@@ -239,7 +239,7 @@ void main() {
     tester,
   ) async {
     // Server favorites arrive through the panel-open load path, exactly the
-    // way exteraless' MediaDataController batches getFavoriteStickers with
+    // way the reference client's MediaDataController batches getFavoriteStickers with
     // its sticker loads: no local extras, switch off — the section must
     // still render from the server list alone.
     await _pumpComposer(tester);
@@ -313,7 +313,7 @@ void main() {
         height: 180,
         mimeType: 'video/mp4',
         file: TdFileRef(id: 200, localPath: 'pubspec.yaml'),
-        thumbnail: TdFileRef(id: 9201, localPath: 'assets/brand_mark.png'),
+        thumbnail: TdFileRef(id: 9201, localPath: 'assets/penguin.png'),
       ),
     ]);
     await tester.pump();

@@ -1,7 +1,7 @@
 //
 //  message_action_dropdown_test.dart
 //
-//  The touch dropdown lays its options out at exteraless's popup scale: 44px
+//  The touch dropdown lays its options out at the reference client's popup scale: 44px
 //  rows, 16pt labels, a 20pt glyph and a column that hugs its widest label
 //  instead of a 36px pointer row squeezed into 220px. The desktop context menu
 //  keeps its compact pointer rows.

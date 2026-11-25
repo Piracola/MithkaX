@@ -33,7 +33,7 @@ import '../../theme/app_theme.dart';
 import '../../theme/date_text.dart';
 import '../links_search/link_handler.dart';
 import '../messages/media_spoiler.dart';
-import '../video_player_view.dart';
+import 'video_player_view.dart';
 import 'file_detail_view.dart';
 import 'image_preview.dart';
 import 'music_player_controller.dart';

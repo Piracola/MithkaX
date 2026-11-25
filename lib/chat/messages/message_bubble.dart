@@ -1940,7 +1940,7 @@ class _MessageBubbleState extends State<_ScopedMessageBubble>
             count: message.viewCount,
             foreground: chipForeground,
             background: chipBackground,
-            semanticLabel: AppStrings.t(AppStringKeys.mithkaxChannelPostViews, {
+            semanticLabel: AppStrings.t(AppStringKeys.channelPostViews, {
               'value1': formatChannelStatCount(message.viewCount),
             }),
           )
@@ -1952,10 +1952,9 @@ class _MessageBubbleState extends State<_ScopedMessageBubble>
             count: message.forwardCount,
             foreground: chipForeground,
             background: chipBackground,
-            semanticLabel: AppStrings.t(
-              AppStringKeys.mithkaxChannelPostForwards,
-              {'value1': formatChannelStatCount(message.forwardCount)},
-            ),
+            semanticLabel: AppStrings.t(AppStringKeys.channelPostForwards, {
+              'value1': formatChannelStatCount(message.forwardCount),
+            }),
           )
         : null;
     final showBand =

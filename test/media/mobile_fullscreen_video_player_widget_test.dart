@@ -7,7 +7,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:mithka/chat/video_player_view.dart';
+import 'package:mithka/chat/media/video_player_view.dart';
 import 'package:mithka/l10n/app_localizations.dart';
 import 'package:mithka/media/video_playback_reporting.dart';
 import 'package:mithka/tdlib/td_models.dart';

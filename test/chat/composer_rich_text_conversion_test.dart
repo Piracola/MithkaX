@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:mithka/chat/chat_input_bar.dart';
+import 'package:mithka/chat/composer/chat_input_bar.dart';
 import 'package:mithka/chat/chat_view_model.dart';
 import 'package:mithka/chat/composer/outgoing_attachment.dart';
 import 'package:mithka/chat/composer/rich_message_source.dart';

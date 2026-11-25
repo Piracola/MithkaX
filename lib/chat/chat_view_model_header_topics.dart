@@ -1,8 +1,6 @@
 part of 'chat_view_model.dart';
 
 extension ChatViewModelHeaderTopics on ChatViewModel {
-  // MARK: - Header
-
   Future<void> _loadChatHeader() async {
     final readStateRevisionAtRequestStart = _chatReadStateRevision;
     final readInboxRevisionAtRequestStart = _chatReadInboxRevision;

@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- MithkaX's string catalogue. Edit translations here; run tools/gen_assets.py to push them into the app. -->
+<!-- Mithka's string catalogue. Edit translations here; run translations/tools/gen_assets.py to push them into the app. -->
 <resources>
     <string name="aboutCheckForUpdates">アップデートを確認</string>
     <string name="aboutCheckingForUpdates">確認中…</string>
@@ -234,6 +234,8 @@
     <string name="aiServerModelHint">モデル名</string>
     <string name="aiServerPrivacy">有効な AI 機能で使用するテキストがこのエンドポイントに送信されます。API キーはこのデバイスの安全なストレージにのみ保存されます。</string>
     <string name="aiSettingsTitle">AI 設定</string>
+    <string name="aiShowComposerButton">メッセージ欄に AI ボタンを表示</string>
+    <string name="aiShowComposerButtonDescription">オフにすると、メッセージ入力欄の横にあるきらめきボタンが表示されなくなります。</string>
     <string name="aiSummarizePrompts">要約プロンプト</string>
     <string name="aiSummarizeUsing">要約に使用</string>
     <string name="aiSummaryActions">アクション項目</string>
@@ -875,6 +877,8 @@
     <string name="chatCannotSendMessages">このチャットではメッセージを送信できません</string>
     <string name="chatConnectedBusinessBot">接続中のビジネスボット</string>
     <string name="chatContactCallsOnly">連絡先との通話のみ対応しています</string>
+    <string name="chatContextPaneHide">グループ情報を隠す</string>
+    <string name="chatContextPaneShow">グループ情報を表示</string>
     <string name="chatDelete">削除</string>
     <string name="chatDeleteActionsDone">完了しました</string>
     <string name="chatDeleteActionsFailed">操作を実行できませんでした: {value1}</string>
@@ -4150,4 +4154,17 @@
     <string name="mithkaxScheduledDeleteThreeDays">3日</string>
     <string name="mithkaxScheduledDeleteOneWeek">1週間</string>
     <string name="mithkaxScheduledDeleteOneMonth">1か月</string>
+
+    <string name="channelBottomBar">チャンネルの下部バー</string>
+    <string name="channelBottomBarHidden">完全に非表示</string>
+    <string name="channelBottomBarMute">デフォルト（ミュート / 解除）</string>
+    <string name="channelBottomBarNote">投稿できない購読中チャンネルにのみ適用されます。「ディスカッションとダイレクトメッセージ」では、どちらもないチャンネルの下部バーを完全に隠します。</string>
+    <string name="channelDeleteTopic">トピックを削除</string>
+    <string name="channelMarkAllReadFailed">既読にできませんでした</string>
+    <string name="channelPanelDirect">ダイレクトメッセージ</string>
+    <string name="channelPanelDiscussion">ディスカッション</string>
+    <string name="channelPostForwards">{value1} 回転送</string>
+    <string name="channelPostStats">チャンネル投稿に表示回数と転送数を表示</string>
+    <string name="channelPostViews">{value1} 回表示</string>
+    <string name="channelBottomBarActions">ディスカッションとダイレクトメッセージ</string>
 </resources>

@@ -1,15 +1,15 @@
 //
 //  forward_banner_test.dart
 //
-//  The composer's pending-forward banner (forward-to-chat, exteraless
+//  The composer's pending-forward banner (forward-to-chat, the reference client
 //  parity): rendering, close, options sheet opening, and send-commit.
 //
 
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:mithka/chat/chat_input_bar.dart';
 import 'package:mithka/chat/chat_view_model.dart';
+import 'package:mithka/chat/composer/chat_input_bar.dart';
 import 'package:mithka/chat/forward_handoff.dart';
 import 'package:mithka/chat/forward_options_sheet.dart';
 import 'package:mithka/chat/messages/forward_markdown.dart';
@@ -262,7 +262,7 @@ void main() {
   });
 
   /// The options sheet is interactive: tapping a toggle row re-renders it
-  /// immediately (action label flips, checkbox follows) — the exteraless
+  /// immediately (action label flips, checkbox follows) — the reference client
   /// ToggleButton behavior. The regression this pins: a stateless sheet left
   /// the rows visually frozen ("toggles can't be tapped").
   Future<void> pumpSheet(

@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- MithkaX's string catalogue. Edit translations here; run tools/gen_assets.py to push them into the app. -->
+<!-- Mithka's string catalogue. Edit translations here; run translations/tools/gen_assets.py to push them into the app. -->
 <resources>
     <string name="aboutCheckForUpdates">Check for Updates</string>
     <string name="aboutCheckingForUpdates">Checking…</string>
@@ -234,6 +234,8 @@
     <string name="aiServerModelHint">Model name</string>
     <string name="aiServerPrivacy">Text used by enabled AI features is sent to this endpoint. Your API key stays in secure storage on this device.</string>
     <string name="aiSettingsTitle">AI Settings</string>
+    <string name="aiShowComposerButton">Show AI Button in Message Box</string>
+    <string name="aiShowComposerButtonDescription">Turn off to remove the sparkle button next to the message field.</string>
     <string name="aiSummarizePrompts">Summarize Prompts</string>
     <string name="aiSummarizeUsing">Summarize using</string>
     <string name="aiSummaryActions">Action Items</string>
@@ -875,6 +877,8 @@
     <string name="chatCannotSendMessages">You can’t send messages in this chat</string>
     <string name="chatConnectedBusinessBot">Connected Business Bot</string>
     <string name="chatContactCallsOnly">Calls are only supported with contacts</string>
+    <string name="chatContextPaneHide">Hide group info</string>
+    <string name="chatContextPaneShow">Show group info</string>
     <string name="chatDelete">Delete</string>
     <string name="chatDeleteActionsDone">Done</string>
     <string name="chatDeleteActionsFailed">Could not apply action: {value1}</string>
@@ -4167,4 +4171,17 @@
     <string name="mithkaxScheduledDeleteThreeDays">3 days</string>
     <string name="mithkaxScheduledDeleteOneWeek">1 week</string>
     <string name="mithkaxScheduledDeleteOneMonth">1 month</string>
+
+    <string name="channelBottomBar">Channel bottom bar</string>
+    <string name="channelBottomBarHidden">Hide completely</string>
+    <string name="channelBottomBarMute">Default (mute / unmute)</string>
+    <string name="channelBottomBarNote">Only affects channels you subscribe to but cannot post in. With Discussion and direct messages, a channel that has neither hides the bar entirely.</string>
+    <string name="channelDeleteTopic">Delete topic</string>
+    <string name="channelMarkAllReadFailed">Failed to mark as read</string>
+    <string name="channelPanelDirect">Direct messages</string>
+    <string name="channelPanelDiscussion">Discuss</string>
+    <string name="channelPostForwards">{value1} forwards</string>
+    <string name="channelPostStats">Show views and forwards on channel posts</string>
+    <string name="channelPostViews">{value1} views</string>
+    <string name="channelBottomBarActions">Discussion and direct messages</string>
 </resources>

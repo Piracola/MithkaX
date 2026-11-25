@@ -292,7 +292,12 @@ class AiSettingsController extends ChangeNotifier {
        _modelsApi = modelsApi ?? OpenAiCompatibleModelsApi(),
        _ownsModelsApi = modelsApi == null,
        _secureRead = secureRead ?? _defaultSecureRead,
-       _secureWrite = secureWrite ?? _defaultSecureWrite;
+       _secureWrite = secureWrite ?? _defaultSecureWrite,
+       // Read up front so the composer never flashes a button the user
+       // turned off while the rest of the AI settings initialize.
+       _showComposerAiButton =
+           _preferences.getBool(showComposerAiButtonPreferenceKey) ??
+           defaultShowComposerAiButton;
 
   static const enabledPreferenceKey = 'ai.unread_summary.enabled';
   static const defaultUnreadSummaryEnabled = false;
@@ -324,9 +329,9 @@ class AiSettingsController extends ChangeNotifier {
   ///
   /// Off by default: the feature writes straight into the composer, so it
   /// stays an opt-in surface rather than a permanent control in every chat.
-  static const replyButtonPreferenceKey = 'ai.composer.reply_button.enabled';
-  static const defaultReplyButtonEnabled = false;
-
+  static const showComposerAiButtonPreferenceKey =
+      'ai.feature.reply.composer_button.v1';
+  static const defaultShowComposerAiButton = false;
   static const summaryPromptPreferenceKey = 'ai.feature.summary.prompt.v1';
   static const summaryPromptMaximumCharacters = 1000;
   static const applePccModelCandidateId = 'builtin:apple_pcc';
@@ -348,7 +353,6 @@ class AiSettingsController extends ChangeNotifier {
   Future<void>? _initialization;
   bool _initialized = false;
   bool _enabled = defaultUnreadSummaryEnabled;
-  bool _replyButtonEnabled = defaultReplyButtonEnabled;
   AiProviderMode _provider = AiProviderMode.applePcc;
   List<AiServerProvider> _serverProviders = const [];
   List<AiModelProfile> _modelProfiles = const [];
@@ -358,13 +362,13 @@ class AiSettingsController extends ChangeNotifier {
   String _summaryModelCandidateId = applePccModelCandidateId;
   String _replyModelCandidateId = telegramCocoonModelCandidateId;
   String _replyPrompt = defaultAiReplyPrompt.trim();
+  bool _showComposerAiButton;
   String _summaryPrompt = defaultAiSummaryPrompt.trim();
   final Map<String, String> _profileApiKeys = {};
   ApplePccCapabilities? _pccCapabilities;
 
   bool get initialized => _initialized;
   bool get enabled => _enabled;
-  bool get replyButtonEnabled => _replyButtonEnabled;
   AiProviderMode get provider => _provider;
   List<AiServerProvider> get serverProviders => _serverProviders;
   List<AiModelProfile> get modelProfiles => _modelProfiles;
@@ -413,6 +417,10 @@ class AiSettingsController extends ChangeNotifier {
   String get summaryModelCandidateId => _summaryModelCandidateId;
   String get replyModelCandidateId => _replyModelCandidateId;
   String get aiReplyPrompt => _replyPrompt;
+
+  /// Whether the message box shows the AI Reply (sparkle) button. When off
+  /// the composer leaves the button out entirely.
+  bool get showComposerAiButton => _showComposerAiButton;
   bool get hasCustomAiReplyPrompt =>
       _replyPrompt != defaultAiReplyPrompt.trim();
   String get aiSummaryPrompt => _summaryPrompt;
@@ -585,15 +593,15 @@ class AiSettingsController extends ChangeNotifier {
         defaultUnreadSummaryEnabled,
       );
     }
-    _replyButtonEnabled =
-        _preferences.getBool(replyButtonPreferenceKey) ??
-        defaultReplyButtonEnabled;
     _provider = AiProviderMode.fromStorage(
       _preferences.getString(providerPreferenceKey),
     );
     _replyPrompt = _normalizeReplyPrompt(
       _preferences.getString(replyPromptPreferenceKey),
     );
+    _showComposerAiButton =
+        _preferences.getBool(showComposerAiButtonPreferenceKey) ??
+        defaultShowComposerAiButton;
     _summaryPrompt = _normalizeSummaryPrompt(
       _preferences.getString(summaryPromptPreferenceKey),
     );
@@ -743,13 +751,6 @@ class AiSettingsController extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> setReplyButtonEnabled(bool value) async {
-    if (_replyButtonEnabled == value) return;
-    await _preferences.setBool(replyButtonPreferenceKey, value);
-    _replyButtonEnabled = value;
-    notifyListeners();
-  }
-
   Future<void> setProvider(AiProviderMode value) async {
     if (_provider == value) return;
     await _preferences.setString(providerPreferenceKey, value.storageValue);
@@ -789,6 +790,23 @@ class AiSettingsController extends ChangeNotifier {
   }
 
   Future<void> resetAiReplyPrompt() => setAiReplyPrompt(defaultAiReplyPrompt);
+
+  /// Refresh after the caller reloads shared preferences for a window update.
+  void refreshComposerButtonPreference() {
+    final value =
+        _preferences.getBool(showComposerAiButtonPreferenceKey) ??
+        defaultShowComposerAiButton;
+    if (_showComposerAiButton == value) return;
+    _showComposerAiButton = value;
+    notifyListeners();
+  }
+
+  Future<void> setShowComposerAiButton(bool value) async {
+    if (_showComposerAiButton == value) return;
+    await _preferences.setBool(showComposerAiButtonPreferenceKey, value);
+    _showComposerAiButton = value;
+    notifyListeners();
+  }
 
   Future<void> setAiSummaryPrompt(String value) async {
     final normalized = _normalizeSummaryPrompt(value);

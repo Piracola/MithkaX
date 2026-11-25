@@ -191,12 +191,12 @@ enum MobileMessageActionMenuStyle {
 }
 
 /// What the bottom panel of a channel you subscribe to but cannot post in
-/// shows. Mirrors exteraless's channel-bottom trio: the stock mute bar, the
+/// shows. Mirrors the reference client's channel-bottom trio: the stock mute bar, the
 /// discussion / direct-message actions, or nothing at all.
 enum ChannelBottomBarMode {
-  mute(AppStringKeys.mithkaxChannelBottomBarMute, HeroAppIcons.bell),
-  actions(AppStringKeys.mithkaxChannelBottomBarActions, HeroAppIcons.message),
-  hidden(AppStringKeys.mithkaxChannelBottomBarHidden, HeroAppIcons.eyeSlash);
+  mute(AppStringKeys.channelBottomBarMute, HeroAppIcons.bell),
+  actions(AppStringKeys.channelBottomBarActions, HeroAppIcons.message),
+  hidden(AppStringKeys.channelBottomBarHidden, HeroAppIcons.eyeSlash);
 
   const ChannelBottomBarMode(this.label, this.icon);
 
@@ -1246,6 +1246,9 @@ class ThemeController extends ChangeNotifier {
   }
 
   static const _modeKey = 'appearanceMode';
+  static const _mediaPanelSegmentKey = 'mediaPanelSegment';
+  static const _channelBottomBarModeKey = 'channelBottomBarMode.v1';
+  static const _showChannelPostStatsKey = 'showChannelPostStats.v1';
   static const _themingEnabledKey = 'appearanceThemingEnabled';
   static const _brandKey = 'brandColor';
   static const _cloudThemeKey = 'telegramCloudTheme';
@@ -1308,8 +1311,6 @@ class ThemeController extends ChangeNotifier {
   static const _alwaysShowMessageTimeKey = 'alwaysShowMessageTime';
   static const _mobileMessageActionMenuStyleKey =
       'mobileMessageActionMenuStyle.v1';
-  static const _channelBottomBarModeKey = 'channelBottomBarMode.v1';
-  static const _showChannelPostStatsKey = 'showChannelPostStats.v1';
   static const _enterToSendKey = 'enterToSend';
   static const _openChatsAtLatestKey = 'openChatsAtLatest';
   static const _hideChatContextPaneKey = 'hideChatContextPane';
@@ -1328,7 +1329,6 @@ class ThemeController extends ChangeNotifier {
   static const _autoRevealRestrictedMediaKey = 'autoRevealRestrictedMedia';
   static const _liquidGlassBottomBarKey = 'liquidGlassBottomBar';
   static const _simpleModeKey = 'simpleMode';
-  static const _mediaPanelSegmentKey = 'mediaPanelSegment';
   static const _showChannelsTabKey = 'showChannelsTab';
   static const _showContactsTabKey = 'showContactsTab';
   static const _showMomentsTabKey = 'showMomentsTab';
@@ -1355,6 +1355,8 @@ class ThemeController extends ChangeNotifier {
   int? _activeAccountUserId;
   late bool _usePerAccountTheming;
   late bool _themingEnabled;
+  late ChannelBottomBarMode _channelBottomBarMode;
+  bool _showChannelPostStats = true;
   late AppearanceMode _mode;
   late Color _brandColor;
   TelegramCloudTheme? _lightCloudTheme;
@@ -1409,8 +1411,6 @@ class ThemeController extends ChangeNotifier {
   bool _showMessageMetaIndicators = false;
   bool _alwaysShowMessageTime = false;
   late MobileMessageActionMenuStyle _mobileMessageActionMenuStyle;
-  late ChannelBottomBarMode _channelBottomBarMode;
-  bool _showChannelPostStats = true;
   bool _enterToSend = false;
   bool _openChatsAtLatest = false;
   bool _hideChatContextPane = false;
@@ -1894,6 +1894,28 @@ class ThemeController extends ChangeNotifier {
   /// the chat header button opens it.
   bool get hideChatContextPane => _hideChatContextPane;
   LinkOpenMode get linkOpenMode => _linkOpenMode;
+  String get mediaPanelSegment =>
+      _prefs.getString(_mediaPanelSegmentKey) ?? 'emoji';
+
+  set mediaPanelSegment(String value) {
+    if (_prefs.getString(_mediaPanelSegmentKey) == value) return;
+    _prefs.setString(_mediaPanelSegmentKey, value);
+  }
+
+  set channelBottomBarMode(ChannelBottomBarMode value) {
+    if (_channelBottomBarMode == value) return;
+    _channelBottomBarMode = value;
+    _prefs.setString(_channelBottomBarModeKey, value.name);
+    notifyListeners();
+  }
+
+  set showChannelPostStats(bool value) {
+    if (_showChannelPostStats == value) return;
+    _showChannelPostStats = value;
+    _prefs.setBool(_showChannelPostStatsKey, value);
+    notifyListeners();
+  }
+
   bool get showSavedMessagesIdentity => _showSavedMessagesIdentity;
   bool get preserveSenderWhenRepeating => _preserveSenderWhenRepeating;
   bool get forwardRichMarkdown => _forwardRichMarkdown;
@@ -1929,11 +1951,6 @@ class ThemeController extends ChangeNotifier {
   /// More panel. Local presentation pref only; never rewrites other settings.
   bool get simpleMode => _simpleMode;
 
-  /// The composer media panel segment (emoji/sticker/gif) the user last used;
-  /// the panel reopens on it. Silent by design: nothing visual depends on it,
-  /// so a segment switch must not rebuild the app.
-  String get mediaPanelSegment =>
-      _prefs.getString(_mediaPanelSegmentKey) ?? 'emoji';
   bool get showChannelsTab => _showChannelsTab;
   bool get showContactsTab => _showContactsTab;
   bool get showMomentsTab => _showMomentsTab;
@@ -2935,20 +2952,6 @@ class ThemeController extends ChangeNotifier {
     notifyListeners();
   }
 
-  set channelBottomBarMode(ChannelBottomBarMode value) {
-    if (_channelBottomBarMode == value) return;
-    _channelBottomBarMode = value;
-    _prefs.setString(_channelBottomBarModeKey, value.name);
-    notifyListeners();
-  }
-
-  set showChannelPostStats(bool value) {
-    if (_showChannelPostStats == value) return;
-    _showChannelPostStats = value;
-    _prefs.setBool(_showChannelPostStatsKey, value);
-    notifyListeners();
-  }
-
   set enterToSend(bool value) {
     if (_enterToSend == value) return;
     _enterToSend = value;
@@ -3090,13 +3093,6 @@ class ThemeController extends ChangeNotifier {
     _simpleMode = value;
     _prefs.setBool(_simpleModeKey, value);
     notifyListeners();
-  }
-
-  /// Silent setter: no listener is notified because no widget rebuilds from
-  /// this value — it is read only when the composer cache is (re)built.
-  set mediaPanelSegment(String value) {
-    if (_prefs.getString(_mediaPanelSegmentKey) == value) return;
-    _prefs.setString(_mediaPanelSegmentKey, value);
   }
 
   set showChannelsTab(bool value) {

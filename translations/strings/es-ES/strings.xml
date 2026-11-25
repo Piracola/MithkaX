@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- MithkaX's string catalogue. Edit translations here; run tools/gen_assets.py to push them into the app. -->
+<!-- Mithka's string catalogue. Edit translations here; run translations/tools/gen_assets.py to push them into the app. -->
 <resources>
     <string name="aboutCheckForUpdates">Buscar actualizaciones</string>
     <string name="aboutCheckingForUpdates">Buscando…</string>
@@ -234,6 +234,8 @@
     <string name="aiServerModelHint">Nombre del modelo</string>
     <string name="aiServerPrivacy">El texto usado por las funciones de IA activadas se envía a este punto de conexión. La clave de API permanece en el almacenamiento seguro del dispositivo.</string>
     <string name="aiSettingsTitle">Ajustes de IA</string>
+    <string name="aiShowComposerButton">Mostrar botón de IA en el cuadro de mensaje</string>
+    <string name="aiShowComposerButtonDescription">Desactívalo para quitar el botón de destellos junto al campo de mensaje.</string>
     <string name="aiSummarizePrompts">Prompts de resumen</string>
     <string name="aiSummarizeUsing">Resumir con</string>
     <string name="aiSummaryActions">Tareas</string>
@@ -875,6 +877,8 @@
     <string name="chatCannotSendMessages">No puedes enviar mensajes en este chat</string>
     <string name="chatConnectedBusinessBot">Bot de empresa conectado</string>
     <string name="chatContactCallsOnly">Solo se permiten llamadas con contactos</string>
+    <string name="chatContextPaneHide">Ocultar información del grupo</string>
+    <string name="chatContextPaneShow">Mostrar información del grupo</string>
     <string name="chatDelete">Eliminar</string>
     <string name="chatDeleteActionsDone">Listo</string>
     <string name="chatDeleteActionsFailed">No se pudo aplicar la acción: {value1}</string>
@@ -4167,4 +4171,17 @@
     <string name="mithkaxScheduledDeleteThreeDays">3 días</string>
     <string name="mithkaxScheduledDeleteOneWeek">1 semana</string>
     <string name="mithkaxScheduledDeleteOneMonth">1 mes</string>
+
+    <string name="channelBottomBar">Barra inferior del canal</string>
+    <string name="channelBottomBarHidden">Ocultar por completo</string>
+    <string name="channelBottomBarMute">Predeterminada (silenciar / activar)</string>
+    <string name="channelBottomBarNote">Solo afecta a los canales a los que estás suscrito pero no puedes publicar. Con «Debate y mensajes directos», un canal que no tenga ninguno de los dos oculta la barra por completo.</string>
+    <string name="channelDeleteTopic">Eliminar tema</string>
+    <string name="channelMarkAllReadFailed">No se pudo marcar como leído</string>
+    <string name="channelPanelDirect">Mensajes directos</string>
+    <string name="channelPanelDiscussion">Debatir</string>
+    <string name="channelPostForwards">{value1} reenvíos</string>
+    <string name="channelPostStats">Mostrar visualizaciones y reenvíos en las publicaciones del canal</string>
+    <string name="channelPostViews">{value1} visualizaciones</string>
+    <string name="channelBottomBarActions">Debate y mensajes directos</string>
 </resources>

@@ -1409,7 +1409,7 @@ class ChatViewAppearanceSettingsView extends StatelessWidget {
         ),
         appearance._navigationRow(
           context,
-          AppStrings.t(AppStringKeys.mithkaxChannelBottomBar),
+          AppStrings.t(AppStringKeys.channelBottomBar),
           AppStrings.t(theme.channelBottomBarMode.label),
           () => Navigator.of(context).push(
             AppPageRoute<void>(
@@ -1421,7 +1421,7 @@ class ChatViewAppearanceSettingsView extends StatelessWidget {
         appearance._toggleRow(
           context,
           HeroAppIcons.eye.data,
-          AppStrings.t(AppStringKeys.mithkaxChannelPostStats),
+          AppStrings.t(AppStringKeys.channelPostStats),
           theme.showChannelPostStats,
           (value) => theme.showChannelPostStats = value,
         ),

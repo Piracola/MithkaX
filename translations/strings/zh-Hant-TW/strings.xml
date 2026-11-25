@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- MithkaX's string catalogue. Edit translations here; run tools/gen_assets.py to push them into the app. -->
+<!-- Mithka's string catalogue. Edit translations here; run translations/tools/gen_assets.py to push them into the app. -->
 <resources>
     <string name="aboutCheckForUpdates">檢查更新</string>
     <string name="aboutCheckingForUpdates">檢查中…</string>
@@ -234,6 +234,8 @@
     <string name="aiServerModelHint">模型名稱</string>
     <string name="aiServerPrivacy">已啟用 AI 功能使用的文字會傳送到此端點。API 金鑰只會保存在此裝置的安全儲存空間。</string>
     <string name="aiSettingsTitle">AI 設定</string>
+    <string name="aiShowComposerButton">在訊息輸入框中顯示 AI 按鈕</string>
+    <string name="aiShowComposerButtonDescription">關閉後會移除訊息輸入框旁的閃光按鈕。</string>
     <string name="aiSummarizePrompts">摘要提示詞</string>
     <string name="aiSummarizeUsing">摘要使用</string>
     <string name="aiSummaryActions">待辦事項</string>
@@ -875,6 +877,8 @@
     <string name="chatCannotSendMessages">你無法在此聊天中傳送訊息</string>
     <string name="chatConnectedBusinessBot">已連接的商務機器人</string>
     <string name="chatContactCallsOnly">僅支援與聯絡人通話</string>
+    <string name="chatContextPaneHide">隱藏群組資訊</string>
+    <string name="chatContextPaneShow">顯示群組資訊</string>
     <string name="chatDelete">刪除</string>
     <string name="chatDeleteActionsDone">操作已完成</string>
     <string name="chatDeleteActionsFailed">操作失敗：{value1}</string>
@@ -4150,4 +4154,17 @@
     <string name="mithkaxScheduledDeleteThreeDays">3 天</string>
     <string name="mithkaxScheduledDeleteOneWeek">1 週</string>
     <string name="mithkaxScheduledDeleteOneMonth">1 個月</string>
+
+    <string name="channelBottomBar">頻道底欄</string>
+    <string name="channelBottomBarHidden">徹底隱藏</string>
+    <string name="channelBottomBarMute">預設（靜音 / 取消靜音）</string>
+    <string name="channelBottomBarNote">只影響已訂閱但不能發言的頻道。選擇「討論與私聊」時，頻道既沒有討論群組也沒有私聊就完全隱藏底欄。</string>
+    <string name="channelDeleteTopic">刪除主題</string>
+    <string name="channelMarkAllReadFailed">標示為已讀失敗</string>
+    <string name="channelPanelDirect">私聊</string>
+    <string name="channelPanelDiscussion">討論</string>
+    <string name="channelPostForwards">{value1} 次轉發</string>
+    <string name="channelPostStats">頻道貼文顯示閱讀次數和轉發次數</string>
+    <string name="channelPostViews">{value1} 次閱讀</string>
+    <string name="channelBottomBarActions">討論與私聊</string>
 </resources>

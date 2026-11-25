@@ -14,6 +14,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+
 import '../components/app_confirm_dialog.dart';
 import '../components/app_icons.dart';
 import '../components/toast.dart';
@@ -275,7 +276,7 @@ class _TransferSection extends StatelessWidget {
   }
 }
 
-/// The destructive tail of the data-management block (exteraless
+/// The destructive tail of the data-management block (the reference client
 /// ClearMessageDatabase parity): wipes the kept-message mirror — every
 /// account's deleted/edited copies plus their media snapshots — behind a
 /// confirm card. The row's value is the database's on-disk size, refreshed
@@ -349,7 +350,7 @@ class _ClearDatabaseRowState extends State<_ClearDatabaseRow> {
   }
 }
 
-/// Forwarding out of protected chats as a copy — exteraless
+/// Forwarding out of protected chats as a copy — the reference client
 /// ForwardProtectedAsCopy parity. Ships ON: the copy path only re-sends
 /// what the account can already read.
 class _ForwardingSection extends StatelessWidget {

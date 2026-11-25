@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- MithkaX's string catalogue. Edit translations here; run tools/gen_assets.py to push them into the app. -->
+<!-- Mithka's string catalogue. Edit translations here; run translations/tools/gen_assets.py to push them into the app. -->
 <resources>
     <string name="aboutCheckForUpdates">Nach Updates suchen</string>
     <string name="aboutCheckingForUpdates">Suche…</string>
@@ -234,6 +234,8 @@
     <string name="aiServerModelHint">Modellname</string>
     <string name="aiServerPrivacy">Text für aktivierte KI-Funktionen wird an diesen Endpunkt gesendet. Dein API-Schlüssel bleibt im sicheren Speicher dieses Geräts.</string>
     <string name="aiSettingsTitle">KI-Einstellungen</string>
+    <string name="aiShowComposerButton">KI-Taste im Nachrichtenfeld anzeigen</string>
+    <string name="aiShowComposerButtonDescription">Ausschalten, um die Funkel-Taste neben dem Nachrichtenfeld zu entfernen.</string>
     <string name="aiSummarizePrompts">Zusammenfassungs-Prompts</string>
     <string name="aiSummarizeUsing">Zusammenfassen mit</string>
     <string name="aiSummaryActions">Aufgaben</string>
@@ -875,6 +877,8 @@
     <string name="chatCannotSendMessages">Du kannst in diesem Chat keine Nachrichten senden</string>
     <string name="chatConnectedBusinessBot">Verbundener Business-Bot</string>
     <string name="chatContactCallsOnly">Anrufe sind nur mit Kontakten möglich</string>
+    <string name="chatContextPaneHide">Gruppeninfo ausblenden</string>
+    <string name="chatContextPaneShow">Gruppeninfo einblenden</string>
     <string name="chatDelete">Löschen</string>
     <string name="chatDeleteActionsDone">Erledigt</string>
     <string name="chatDeleteActionsFailed">Aktion konnte nicht ausgeführt werden: {value1}</string>
@@ -4167,4 +4171,17 @@
     <string name="mithkaxScheduledDeleteThreeDays">3 Tage</string>
     <string name="mithkaxScheduledDeleteOneWeek">1 Woche</string>
     <string name="mithkaxScheduledDeleteOneMonth">1 Monat</string>
+
+    <string name="channelBottomBar">Untere Kanalleiste</string>
+    <string name="channelBottomBarHidden">Vollständig ausblenden</string>
+    <string name="channelBottomBarMute">Standard (stumm / laut)</string>
+    <string name="channelBottomBarNote">Gilt nur für abonnierte Kanäle, in denen du nicht schreiben kannst. Bei „Diskussion und Direktnachrichten“ wird die Leiste vollständig ausgeblendet, wenn der Kanal weder das eine noch das andere hat.</string>
+    <string name="channelDeleteTopic">Thema löschen</string>
+    <string name="channelMarkAllReadFailed">Als gelesen markieren fehlgeschlagen</string>
+    <string name="channelPanelDirect">Direktnachrichten</string>
+    <string name="channelPanelDiscussion">Diskutieren</string>
+    <string name="channelPostForwards">{value1} Weiterleitungen</string>
+    <string name="channelPostStats">Aufrufe und Weiterleitungen bei Kanalbeiträgen anzeigen</string>
+    <string name="channelPostViews">{value1} Aufrufe</string>
+    <string name="channelBottomBarActions">Diskussion und Direktnachrichten</string>
 </resources>

@@ -11,6 +11,7 @@ import 'package:flutter/foundation.dart';
 import 'package:mithka/l10n/app_localizations.dart';
 import 'package:mithka/l10n/gram_amount.dart';
 import 'package:mithka/notifications/scope_notification_settings.dart';
+
 import '../history/message_history_models.dart';
 import 'json_helpers.dart';
 import 'message_gift.dart';
@@ -437,6 +438,8 @@ class RichMessageBlock {
   final int videoDuration;
   final MessageMusic? music;
   final MessageVoice? voice;
+
+  /// The attached file of a [RichMessageBlockKind.document] block.
   final MessageDocument? document;
   final bool hasSpoiler;
 
@@ -2714,6 +2717,20 @@ abstract final class TDParse {
           '@type': 'messageAudio',
           'audio': block['audio'],
         });
+      case 'pageBlockDocument':
+      case 'RichBlockDocument':
+        // Files attached to a rich post arrive as document blocks. Without
+        // this case they were dropped and the post showed no files at all.
+        final caption = _richBlockCaption(block['caption']);
+        return RichMessageBlock.media(
+          kind: RichMessageBlockKind.document,
+          document: mediaAttachment({
+            '@type': 'messageDocument',
+            'document': block['document'],
+          }).document,
+          caption: caption.text,
+          captionEntities: caption.entities,
+        );
       case 'pageBlockVoiceNote':
       case 'RichBlockVoiceNote':
         final caption = _richBlockCaption(block['caption']);
@@ -2724,23 +2741,6 @@ abstract final class TDParse {
         return RichMessageBlock.media(
           kind: RichMessageBlockKind.voiceNote,
           voice: voice,
-          caption: caption.text,
-          captionEntities: caption.entities,
-        );
-      case 'pageBlockDocument':
-      case 'RichBlockDocument':
-        // A rich message's attachments arrive as `pageBlockDocument` blocks;
-        // without this case the whole block was dropped and the file never
-        // appeared in the transcript.
-        final document = mediaAttachment({
-          '@type': 'messageDocument',
-          'document': block['document'],
-        }).document;
-        if (document == null) return null;
-        final caption = _richBlockCaption(block['caption']);
-        return RichMessageBlock.media(
-          kind: RichMessageBlockKind.document,
-          document: document,
           caption: caption.text,
           captionEntities: caption.entities,
         );
@@ -3411,10 +3411,13 @@ abstract final class TDParse {
       case 'pageBlockList':
         _appendPageBlockList(builder, block.objects('items'));
       case 'pageBlockBlockQuote':
-      case 'pageBlockExpandableBlockQuote':
         _appendPageBlocks(builder, block.objects('blocks'));
         _appendCredit(builder, block.obj('credit'));
         builder.entity(start, 'textEntityTypeBlockQuote');
+      case 'pageBlockExpandableBlockQuote':
+        _appendPageBlocks(builder, block.objects('blocks'));
+        _appendCredit(builder, block.obj('credit'));
+        builder.entity(start, 'textEntityTypeExpandableBlockQuote');
       case 'pageBlockPullQuote':
         _appendRichText(builder, block['text']);
         _appendCredit(builder, block.obj('credit'));
@@ -3427,13 +3430,13 @@ abstract final class TDParse {
       case 'pageBlockEmbedded':
         _appendCaption(builder, block.obj('caption'));
       case 'pageBlockDocument':
-        // The preview/notification text of a captioned attachment is its
-        // caption; an uncaptioned file still names itself instead of leaving
-        // the chat list row empty.
-        _appendCaption(builder, block.obj('caption'));
-        if (builder.length == start) {
-          final name = block.obj('document')?.str('file_name') ?? '';
-          if (name.isNotEmpty) builder.write(name);
+        final document = block.obj('document');
+        final caption = block.obj('caption');
+        final captionStart = builder.length;
+        _appendCaption(builder, caption);
+        // A file without a caption is still named in previews and search.
+        if (builder.length == captionStart) {
+          builder.buffer.write(document?.str('file_name') ?? '');
         }
       case 'pageBlockMap':
       case 'richBlockMap':

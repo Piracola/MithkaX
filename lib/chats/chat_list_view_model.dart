@@ -976,7 +976,7 @@ class ChatListViewModel extends ChangeNotifier {
   // MARK: - Pinned order (edit-mode drag)
 
   /// Reorders the pinned band by moving [chatId] onto [targetId]'s slot, like
-  /// exteraless's edit-mode drag that swaps two dialogs' pinnedNum and commits
+  /// the reference client's edit-mode drag that swaps two dialogs' pinnedNum and commits
   /// reorderPinnedDialogs on leave.
   ///
   /// The local order maps flip immediately so the list follows the finger;
@@ -1046,7 +1046,7 @@ class ChatListViewModel extends ChangeNotifier {
   }
 
   /// Sends the visible list's full pinned order through `setPinnedChats`,
-  /// the TDLib counterpart of exteraless's reorderPinnedDialogs commit.
+  /// the TDLib counterpart of the reference client's reorderPinnedDialogs commit.
   void _commitPinnedOrder() {
     final folderId = _selectedFilter.folderId;
     final List<int> pinnedIds;

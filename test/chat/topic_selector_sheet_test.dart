@@ -181,7 +181,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 400));
     await tester.pumpAndSettle();
 
-    // The header's topics control opens the topic list sheet.
+    // The # button opens the topic list sheet.
     await tester.tap(find.byKey(const ValueKey('chatHeaderTopics')));
     await tester.pumpAndSettle();
 

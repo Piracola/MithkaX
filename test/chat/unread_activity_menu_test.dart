@@ -3,9 +3,9 @@
 //
 //  The floating @ / reaction pills inside a chat keep their tap-to-jump
 //  behavior. Long press on @ opens the narrow anchored "Mark all as read"
-//  menu (exteraless's ReadAllMentionsMenu over the chat's side control, not a
+//  menu (the reference client's ReadAllMentionsMenu over the chat's side control, not a
 //  bottom sheet); long press on the reaction pill clears reactions directly,
-//  exactly like exteraless's side control.
+//  exactly like the reference client's side control.
 //
 
 import 'dart:async';

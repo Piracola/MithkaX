@@ -88,7 +88,7 @@ GifItem _gif() => GifItem(
   // opening TDLib download waiters: the animation file feeds the (frameless)
   // video controller, the thumbnail is what the header actually paints.
   file: TdFileRef(id: 4201, localPath: 'pubspec.yaml'),
-  thumbnail: TdFileRef(id: 9201, localPath: 'assets/brand_mark.png'),
+  thumbnail: TdFileRef(id: 9201, localPath: 'assets/penguin.png'),
 );
 
 StickerItem _sticker({bool animated = false, bool video = false}) =>
