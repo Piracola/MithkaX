@@ -4008,7 +4008,6 @@
     <string name="videoPlayerUseSystemOrientation">システムの向きを使用</string>
     <string name="videoPlayerWaitingForFile">動画ファイルを待機中</string>
     <string name="videoTrimFailed">トリミングした動画を作成できませんでした。</string>
-    <string name="vipBadgeLabel">VIP</string>
     <string name="voiceNotePreviewVoiceMessage">音声メッセージ</string>
     <string name="mediaSpoilerReveal">ネタバレ。タップして表示</string>
     <string name="downloadsTasks">ダウンロードタスク</string>

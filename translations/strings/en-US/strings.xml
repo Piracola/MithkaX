@@ -4020,7 +4020,6 @@
     <string name="videoPlayerUseSystemOrientation">Use system orientation</string>
     <string name="videoPlayerWaitingForFile">Waiting for video file</string>
     <string name="videoTrimFailed">The trimmed video was not created.</string>
-    <string name="vipBadgeLabel">VIP</string>
     <string name="voiceNotePreviewVoiceMessage">Voice message</string>
     <string name="mediaSpoilerReveal">Spoiler. Tap to reveal</string>
     <string name="downloadsTasks">Download tasks</string>

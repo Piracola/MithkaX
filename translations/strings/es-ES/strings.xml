@@ -4020,7 +4020,6 @@
     <string name="videoPlayerUseSystemOrientation">Usar orientación del sistema</string>
     <string name="videoPlayerWaitingForFile">Esperando el archivo de vídeo</string>
     <string name="videoTrimFailed">No se creó el vídeo recortado.</string>
-    <string name="vipBadgeLabel">VIP</string>
     <string name="voiceNotePreviewVoiceMessage">Mensaje de voz</string>
     <string name="mediaSpoilerReveal">Spoiler. Toca para mostrar</string>
     <string name="downloadsTasks">Tareas de descarga</string>

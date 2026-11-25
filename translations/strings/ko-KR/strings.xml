@@ -4008,7 +4008,6 @@
     <string name="videoPlayerUseSystemOrientation">시스템 방향 사용</string>
     <string name="videoPlayerWaitingForFile">동영상 파일 대기 중</string>
     <string name="videoTrimFailed">잘라낸 동영상을 만들지 못했습니다.</string>
-    <string name="vipBadgeLabel">VIP</string>
     <string name="voiceNotePreviewVoiceMessage">음성 메시지</string>
     <string name="mediaSpoilerReveal">스포일러. 탭하여 표시</string>
     <string name="downloadsTasks">다운로드 작업</string>

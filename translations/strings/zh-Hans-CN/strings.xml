@@ -4008,7 +4008,6 @@
     <string name="videoPlayerUseSystemOrientation">使用系统屏幕方向</string>
     <string name="videoPlayerWaitingForFile">等待视频文件</string>
     <string name="videoTrimFailed">未能生成裁剪后的视频。</string>
-    <string name="vipBadgeLabel">VIP</string>
     <string name="voiceNotePreviewVoiceMessage">语音消息</string>
     <string name="mediaSpoilerReveal">剧透内容，点击显示</string>
     <string name="downloadsTasks">下载任务</string>

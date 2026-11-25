@@ -4020,7 +4020,6 @@
     <string name="videoPlayerUseSystemOrientation">Utiliser l’orientation du système</string>
     <string name="videoPlayerWaitingForFile">En attente du fichier vidéo</string>
     <string name="videoTrimFailed">La vidéo découpée n'a pas été créée.</string>
-    <string name="vipBadgeLabel">VIP</string>
     <string name="voiceNotePreviewVoiceMessage">Message vocal</string>
     <string name="mediaSpoilerReveal">Spoiler. Touchez pour afficher</string>
     <string name="downloadsTasks">Téléchargements</string>

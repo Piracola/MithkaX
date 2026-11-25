@@ -3703,7 +3703,6 @@ abstract final class AppStringKeys {
   static const videoPlayerUseSystemOrientation =
       'videoPlayerUseSystemOrientation';
   static const videoPlayerWaitingForFile = 'videoPlayerWaitingForFile';
-  static const vipBadgeLabel = 'vipBadgeLabel';
   static const blockingBlocklist = 'blockingBlocklist';
   static const blockingCountry = 'blockingCountry';
   static const blockingCountryDescription = 'blockingCountryDescription';
