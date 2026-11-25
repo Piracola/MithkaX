@@ -103,6 +103,7 @@ class ChatListViewModel extends ChangeNotifier {
     @visibleForTesting this._membershipForTesting,
     @visibleForTesting TdClient? clientForTesting,
     this.accountSlot,
+    this.selectFirstFilterOnLoad = false,
   }) : _client = clientForTesting ?? TdClient.shared {
     // Registered at construction, not onAppear: the scope cache can fill (or
     // refill after an account switch) before the list first appears, and any
@@ -122,6 +123,18 @@ class ChatListViewModel extends ChangeNotifier {
   ChatFilterOption _selectedFilter = const ChatFilterOption(
     title: AppStringKeys.topicChatAllFilter,
   );
+
+  /// Whether the user has picked a folder (a tab, a swipe or the picker).
+  /// Until they do, every folder snapshot lands the list on the first tab —
+  /// which is the folder at `main_chat_list_position` 0, not necessarily
+  /// "All chats". After a pick, updates keep the chosen folder instead of
+  /// yanking the list back to the front.
+  ///
+  /// Only the main chat list opts in ([selectFirstFilterOnLoad]); the picker,
+  /// moments and topic-channel models must keep showing the whole account
+  /// until their own surface asks for a folder.
+  bool _userChosenFilter = false;
+  final bool selectFirstFilterOnLoad;
   String? notice;
   bool _initialLoading = true;
   Timer? _resortTimer;
@@ -614,13 +627,38 @@ class ChatListViewModel extends ChangeNotifier {
       const ChatFilterOption(title: AppStringKeys.topicChatAllFilter),
     );
     _filters = folders;
-    if (_selectedFilter.folderId != null &&
+    if (_userChosenFilter) {
+      if (_selectedFilter.folderId != null &&
+          !_filters.any((f) => f.folderId == _selectedFilter.folderId)) {
+        _selectedFilter = _allFilter;
+        _loadChats(_pageSize);
+        _prefetchMainChats();
+        _resort();
+      }
+      _selectedFilter = _filters.firstWhere(
+        (filter) => filter.folderId == _selectedFilter.folderId,
+        orElse: () => _allFilter,
+      );
+    } else if (selectFirstFilterOnLoad) {
+      // Opening the app lands on the first tab. "All chats" is only that tab
+      // when `main_chat_list_position` puts it first; a reordered strip must
+      // open on the folder the user placed at the front, not on All.
+      final initial = filters.first;
+      if (initial.folderId != _selectedFilter.folderId) {
+        _selectedFilter = initial;
+        _loadChats(_pageSize);
+        if (initial.isAll) _prefetchMainChats();
+        _resort();
+      }
+    } else if (_selectedFilter.folderId != null &&
         !_filters.any((f) => f.folderId == _selectedFilter.folderId)) {
       _selectedFilter = _allFilter;
       _loadChats(_pageSize);
       _prefetchMainChats();
       _resort();
     }
+    // Refreshed snapshots carry new unread counts and titles; the selection
+    // must point at the current instance, not the one from the last update.
     _selectedFilter = _filters.firstWhere(
       (filter) => filter.folderId == _selectedFilter.folderId,
       orElse: () => _allFilter,
@@ -678,6 +716,7 @@ class ChatListViewModel extends ChangeNotifier {
   }
 
   void selectFilter(ChatFilterOption filter) {
+    _userChosenFilter = true;
     if (filter.folderId == _selectedFilter.folderId) return;
     _selectedFilter = filter;
     _loadChats(_pageSize);
@@ -688,6 +727,7 @@ class ChatListViewModel extends ChangeNotifier {
   }
 
   void selectAllFilter() {
+    _userChosenFilter = true;
     if (_selectedFilter.isAll) return;
     _selectedFilter = _allFilter;
     _loadChats(_pageSize);

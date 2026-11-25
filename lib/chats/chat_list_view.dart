@@ -1466,7 +1466,9 @@ class _ChatListViewState extends State<ChatListView>
   static const _searchPillExtent =
       AppSpacing.md + AppMetric.searchHeight + AppSpacing.sm;
 
-  final ChatListViewModel _model = ChatListViewModel();
+  final ChatListViewModel _model = ChatListViewModel(
+    selectFirstFilterOnLoad: true,
+  );
   late final ScrollController _scrollController = _newScrollController();
 
   /// Drives the folder swipe. [_folderDrag] is the live horizontal travel of
