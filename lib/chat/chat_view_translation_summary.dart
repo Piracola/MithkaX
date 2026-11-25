@@ -420,7 +420,7 @@ extension _ChatViewTranslationSummary on _ChatViewState {
       _chatTranslatable = decision.translatable;
       _chatTranslationSettingsKey = settingsKey;
       ChatHeaderStateCache.updateLanguageState(
-        accountSlot: TdClient.shared.activeSlot,
+        accountSlot: _sessionKey.accountSlot,
         chatId: widget.chatId,
         detectedChatLanguage: detected,
         complete: true,
