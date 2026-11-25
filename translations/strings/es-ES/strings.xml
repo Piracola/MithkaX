@@ -390,6 +390,7 @@
     <string name="appLockAutoLockDisabled">Desactivado</string>
     <string name="appLockAutoLockFiveHours">Después de 5 horas</string>
     <string name="appLockAutoLockFiveMinutes">Después de 5 minutos</string>
+    <string name="appLockAutoLockImmediately">Inmediatamente</string>
     <string name="appLockAutoLockOneHour">Después de 1 hora</string>
     <string name="appLockAutoLockOneMinute">Después de 1 minuto</string>
     <string name="appLockBiometricDescription">Cuando aparezca el bloqueo, usa {value1} para desbloquear Mithka X.</string>

@@ -390,6 +390,7 @@
     <string name="appLockAutoLockDisabled">사용 안 함</string>
     <string name="appLockAutoLockFiveHours">5시간 후</string>
     <string name="appLockAutoLockFiveMinutes">5분 후</string>
+    <string name="appLockAutoLockImmediately">즉시</string>
     <string name="appLockAutoLockOneHour">1시간 후</string>
     <string name="appLockAutoLockOneMinute">1분 후</string>
     <string name="appLockBiometricDescription">앱 잠금 화면이 나타나면 {value1}(으)로 Mithka X를 잠금 해제할 수 있습니다.</string>

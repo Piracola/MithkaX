@@ -390,6 +390,7 @@
     <string name="appLockAutoLockDisabled">停用</string>
     <string name="appLockAutoLockFiveHours">離開 5 小時後</string>
     <string name="appLockAutoLockFiveMinutes">離開 5 分鐘後</string>
+    <string name="appLockAutoLockImmediately">立即</string>
     <string name="appLockAutoLockOneHour">離開 1 小時後</string>
     <string name="appLockAutoLockOneMinute">離開 1 分鐘後</string>
     <string name="appLockBiometricDescription">App 鎖定畫面顯示後，可使用{value1}解鎖 Mithka X。</string>

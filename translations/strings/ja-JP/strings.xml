@@ -390,6 +390,7 @@
     <string name="appLockAutoLockDisabled">無効</string>
     <string name="appLockAutoLockFiveHours">5 時間後</string>
     <string name="appLockAutoLockFiveMinutes">5 分後</string>
+    <string name="appLockAutoLockImmediately">すぐに</string>
     <string name="appLockAutoLockOneHour">1 時間後</string>
     <string name="appLockAutoLockOneMinute">1 分後</string>
     <string name="appLockBiometricDescription">アプリロックの表示後、{value1}で Mithka X をロック解除できます。</string>

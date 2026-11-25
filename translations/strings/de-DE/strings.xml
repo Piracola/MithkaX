@@ -390,6 +390,7 @@
     <string name="appLockAutoLockDisabled">Deaktiviert</string>
     <string name="appLockAutoLockFiveHours">Nach 5 Stunden</string>
     <string name="appLockAutoLockFiveMinutes">Nach 5 Minuten</string>
+    <string name="appLockAutoLockImmediately">Sofort</string>
     <string name="appLockAutoLockOneHour">Nach 1 Stunde</string>
     <string name="appLockAutoLockOneMinute">Nach 1 Minute</string>
     <string name="appLockBiometricDescription">Wenn die App-Sperre erscheint, entsperre Mithka X mit {value1}.</string>

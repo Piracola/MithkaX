@@ -390,6 +390,7 @@
     <string name="appLockAutoLockDisabled">Disabled</string>
     <string name="appLockAutoLockFiveHours">After 5 hours</string>
     <string name="appLockAutoLockFiveMinutes">After 5 minutes</string>
+    <string name="appLockAutoLockImmediately">Immediately</string>
     <string name="appLockAutoLockOneHour">After 1 hour</string>
     <string name="appLockAutoLockOneMinute">After 1 minute</string>
     <string name="appLockBiometricDescription">After app lock appears, use {value1} to unlock Mithka X.</string>

@@ -827,6 +827,7 @@ abstract final class AppStringKeys {
   static const appLockAutoLock = 'appLockAutoLock';
   static const appLockAutoLockDescription = 'appLockAutoLockDescription';
   static const appLockAutoLockDisabled = 'appLockAutoLockDisabled';
+  static const appLockAutoLockImmediately = 'appLockAutoLockImmediately';
   static const appLockAutoLockOneMinute = 'appLockAutoLockOneMinute';
   static const appLockAutoLockFiveMinutes = 'appLockAutoLockFiveMinutes';
   static const appLockAutoLockOneHour = 'appLockAutoLockOneHour';
