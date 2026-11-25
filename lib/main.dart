@@ -808,6 +808,17 @@ class _MithkaAppState extends State<MithkaApp> with WidgetsBindingObserver {
   }
 
   @override
+  void didChangeLocales(List<Locale>? locales) {
+    super.didChangeLocales(locales);
+    _theme.syncTypographyLocale(
+      appLocale: _locale.locale,
+      systemLocale: locales?.isNotEmpty == true
+          ? locales!.first
+          : ui.PlatformDispatcher.instance.locale,
+    );
+  }
+
+  @override
   void didChangePlatformBrightness() {
     super.didChangePlatformBrightness();
     if (_theme.mode != AppearanceMode.system) return;
@@ -851,6 +862,8 @@ class _MithkaAppState extends State<MithkaApp> with WidgetsBindingObserver {
   ThemeData _themeData(Brightness brightness, ThemeController theme) {
     final colors = theme.uiColorsFor(brightness);
     final families = theme.effectiveFontFamilyChain();
+    final typographyLocale = theme.effectiveTypographyLocale;
+    final fontCacheRevision = theme.fontCacheRevision;
     final seedColor = theme.usesCloudThemeForUi(brightness)
         ? colors.linkBlue
         : theme.brandColor;
@@ -858,6 +871,8 @@ class _MithkaAppState extends State<MithkaApp> with WidgetsBindingObserver {
     if (memo != null &&
         memo.colors == colors &&
         memo.seedColor == seedColor &&
+        memo.typographyLocale == typographyLocale &&
+        memo.fontCacheRevision == fontCacheRevision &&
         listEquals(memo.families, families)) {
       return memo.data;
     }
@@ -895,6 +910,8 @@ class _MithkaAppState extends State<MithkaApp> with WidgetsBindingObserver {
       colors: colors,
       families: families,
       seedColor: seedColor,
+      typographyLocale: typographyLocale,
+      fontCacheRevision: fontCacheRevision,
       data: data,
     );
     return data;
@@ -926,6 +943,11 @@ class _MithkaAppState extends State<MithkaApp> with WidgetsBindingObserver {
       ],
       child: _MithkaAppConsumer(
         builder: (context, theme, accounts, locale, _) {
+          theme.syncTypographyLocale(
+            appLocale: locale.locale,
+            systemLocale: ui.PlatformDispatcher.instance.locale,
+            notify: false,
+          );
           return MaterialApp(
             navigatorKey: appNavigatorKey,
             title: 'Mithka X',
@@ -1093,12 +1115,16 @@ class _ThemeDataMemo {
     required this.colors,
     required this.families,
     required this.seedColor,
+    required this.typographyLocale,
+    required this.fontCacheRevision,
     required this.data,
   });
 
   final AppColors colors;
   final List<String> families;
   final Color seedColor;
+  final Locale? typographyLocale;
+  final int fontCacheRevision;
   final ThemeData data;
 }
 
