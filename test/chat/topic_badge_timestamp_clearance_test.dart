@@ -188,9 +188,10 @@ void main() {
     await tester.pump();
   });
 
-  // exteraless keeps a per-chat tabs position: a bot forum can move its topic
-  // strip from under the header to above the composer, and the choice sticks.
-  testWidgets('topic tabs move above the composer and remember the choice', (
+  // exteraless keeps a per-chat tabs position: a bot forum can walk its topic
+  // strip from under the header to the side dock and then above the composer,
+  // and the choice sticks.
+  testWidgets('topic tabs walk top, side, composer and remember', (
     tester,
   ) async {
     tester.view.devicePixelRatio = 1;
@@ -254,6 +255,16 @@ void main() {
     final headerSide = tester.getRect(strip);
     expect(headerSide.top, lessThan(200));
 
+    // exteraless's first step docks the tabs at the conversation's side.
+    await tester.tap(find.byKey(const ValueKey('topic-tabs-placement-toggle')));
+    await tester.pump();
+    expect(find.byType(TopicTabStrip), findsNothing);
+    final sideBar = tester.getRect(find.byType(TopicTabsSideBar));
+    expect(sideBar.width, 64);
+    expect(sideBar.left, 0);
+    expect(prefs.getString('mithka.topicTabsPlacement.v1.0.$_chatId'), 'side');
+
+    // The side bar's own control continues to the composer.
     await tester.tap(find.byKey(const ValueKey('topic-tabs-placement-toggle')));
     await tester.pump();
 

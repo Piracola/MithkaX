@@ -4188,5 +4188,6 @@
     <string name="mithkaxTopicTabsDone">Fertig</string>
     <string name="mithkaxTopicTabsReorder">Tabs neu anordnen</string>
     <string name="mithkaxTopicTabsMoveToBottom">Tableiste nach unten</string>
+    <string name="mithkaxTopicTabsMoveToSide">Tableiste zur Seite</string>
     <string name="mithkaxTopicTabsMoveToTop">Tableiste nach oben</string>
 </resources>

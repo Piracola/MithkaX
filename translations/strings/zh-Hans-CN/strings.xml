@@ -4171,5 +4171,6 @@
     <string name="mithkaxTopicTabsDone">完成</string>
     <string name="mithkaxTopicTabsReorder">重排标签页</string>
     <string name="mithkaxTopicTabsMoveToBottom">标签栏移到底部</string>
+    <string name="mithkaxTopicTabsMoveToSide">标签栏移到侧边</string>
     <string name="mithkaxTopicTabsMoveToTop">标签栏移到顶部</string>
 </resources>

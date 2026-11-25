@@ -4188,5 +4188,6 @@
     <string name="mithkaxTopicTabsDone">Listo</string>
     <string name="mithkaxTopicTabsReorder">Reordenar pestañas</string>
     <string name="mithkaxTopicTabsMoveToBottom">Mover la barra de pestañas abajo</string>
+    <string name="mithkaxTopicTabsMoveToSide">Mover la barra de pestañas al lateral</string>
     <string name="mithkaxTopicTabsMoveToTop">Mover la barra de pestañas arriba</string>
 </resources>

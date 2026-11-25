@@ -1376,6 +1376,12 @@ class _ChatViewState extends State<ChatView> {
         widget.chatId,
       );
 
+  /// Where the topic tabs actually sit: only a bot topic chat offers the
+  /// position control (exteraless's bot forum), so every other topic chat
+  /// keeps the default top bar even if an older build stored another spot.
+  TopicTabsPlacement get _effectiveTopicTabsPlacement =>
+      _vm.isBotTopicChat ? _topicTabsPlacement : TopicTabsPlacement.top;
+
   // The split shell's topic-list relay: while this transcript lives in a
 
   // sidebar-placement shell, its topic list is handed to the shell, which
@@ -2389,12 +2395,36 @@ class _ChatViewState extends State<ChatView> {
                               final searchPane = _searchUsesResultsPane(width);
                               _searchResultsPaneVisible = searchPane;
                               final searching = _search.isActive;
-                              // The strip can sit under the header or above
-                              // the composer (exteraless's per-chat tabs
+                              // The strip can sit under the header, docked at
+                              // the conversation's left edge, or above the
+                              // composer (exteraless's per-chat tabs
                               // position); the host places it so it never
                               // becomes a sibling of the composer.
-                              final topicTabStrip = _topicTabStripOrNull(
+                              final placement = _effectiveTopicTabsPlacement;
+                              final topicTabs = _topicTabsOrNull(
                                 themeController,
+                              );
+                              final sideTabs =
+                                  placement == TopicTabsPlacement.side
+                                  ? topicTabs
+                                  : null;
+                              final transcriptColumn = Column(
+                                children: [
+                                  // The chat-level translation bar
+                                  // belongs to the transcript, not
+                                  // the header (search and selection
+                                  // swap the header out, so it hides
+                                  // with them).
+                                  if (_showsChatTranslationPanel &&
+                                      !searching &&
+                                      !_isSelecting)
+                                    _chatTranslationPanel(),
+                                  Expanded(
+                                    child: _transcriptLayer(
+                                      searchPane: searchPane,
+                                    ),
+                                  ),
+                                ],
                               );
                               final shell = ChatHeaderTrailingPaneLayout(
                                 header: showPeerRestrictionBlock
@@ -2409,29 +2439,31 @@ class _ChatViewState extends State<ChatView> {
                                     : _withTopicNavigation(
                                         Column(
                                           children: [
-                                            if (topicTabStrip != null &&
-                                                _topicTabsPlacement ==
+                                            if (topicTabs != null &&
+                                                placement ==
                                                     TopicTabsPlacement.top)
-                                              topicTabStrip,
-                                            // The chat-level translation bar
-                                            // belongs to the transcript, not
-                                            // the header (search and selection
-                                            // swap the header out, so it hides
-                                            // with them).
-                                            if (_showsChatTranslationPanel &&
-                                                !searching &&
-                                                !_isSelecting)
-                                              _chatTranslationPanel(),
+                                              topicTabs,
                                             Expanded(
-                                              child: _transcriptLayer(
-                                                searchPane: searchPane,
-                                              ),
+                                              child: sideTabs == null
+                                                  ? transcriptColumn
+                                                  : Row(
+                                                      crossAxisAlignment:
+                                                          CrossAxisAlignment
+                                                              .stretch,
+                                                      children: [
+                                                        sideTabs,
+                                                        Expanded(
+                                                          child:
+                                                              transcriptColumn,
+                                                        ),
+                                                      ],
+                                                    ),
                                             ),
                                             _chatMusicPlayer(),
-                                            if (topicTabStrip != null &&
-                                                _topicTabsPlacement ==
+                                            if (topicTabs != null &&
+                                                placement ==
                                                     TopicTabsPlacement.bottom)
-                                              topicTabStrip,
+                                              topicTabs,
                                             // A narrow chat trades the composer
                                             // for the hit navigator; a wide one
                                             // keeps composing beside the results.

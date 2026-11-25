@@ -4171,5 +4171,6 @@
     <string name="mithkaxTopicTabsDone">완료</string>
     <string name="mithkaxTopicTabsReorder">탭 순서 변경</string>
     <string name="mithkaxTopicTabsMoveToBottom">탭 표시줄을 아래로 이동</string>
+    <string name="mithkaxTopicTabsMoveToSide">탭 표시줄을 측면으로 이동</string>
     <string name="mithkaxTopicTabsMoveToTop">탭 표시줄을 위로 이동</string>
 </resources>

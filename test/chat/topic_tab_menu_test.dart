@@ -177,12 +177,16 @@ void main() {
     required int chatId,
     required String title,
     bool isForum = false,
+    Map<String, Object> extraPrefs = const {},
   }) async {
     tester.view.physicalSize = const Size(390, 844);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
 
-    SharedPreferences.setMockInitialValues({'communitiesEnabled': false});
+    SharedPreferences.setMockInitialValues({
+      'communitiesEnabled': false,
+      ...extraPrefs,
+    });
     final prefs = await SharedPreferences.getInstance();
     final theme = ThemeController(prefs);
     final accounts = AccountStore(prefs);
@@ -319,36 +323,72 @@ void main() {
     await tester.pump(const Duration(seconds: 6));
   });
 
-  testWidgets('the tab menu moves the tabs to the composer side', (
+  testWidgets('the bot topic tab menu moves the tabs to the side', (
     tester,
   ) async {
+    TopicTabsPlacementStore.shared.resetForTesting();
+    await openChat(tester, chatId: _botChatId, title: 'Topics Bot');
+
+    final strip = find.byType(TopicTabStrip);
+    final headerSide = tester.getRect(strip);
+    await tester.longPress(find.byKey(const ValueKey('topic-tab-900')));
+    await tester.pumpAndSettle();
+
+    final move = find.byKey(const ValueKey('app-anchored-menu-tabs-position'));
+    expect(move, findsOneWidget);
+    // The first step of exteraless's cycle is the side dock.
+    expect(find.text('Move tab bar to the side'), findsOneWidget);
+    await tester.tap(move);
+    await tester.pumpAndSettle();
+
+    // The horizontal bar became the 64dp side column at the transcript's
+    // left edge, and the choice stuck.
+    expect(find.byType(TopicTabStrip), findsNothing);
+    final sideBar = tester.getRect(find.byType(TopicTabsSideBar));
+    expect(sideBar.width, 64);
+    expect(sideBar.left, 0);
+    expect(sideBar.top, greaterThanOrEqualTo(headerSide.top));
+    final prefs = await SharedPreferences.getInstance();
+    expect(
+      prefs.getString('mithka.topicTabsPlacement.v1.0.$_botChatId'),
+      'side',
+    );
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(const Duration(seconds: 6));
+  });
+
+  // Only a bot topic chat offers the position control; a normal forum keeps
+  // its server-defined top bar, even with a placement an older build stored.
+  testWidgets('a forum chat keeps the tabs fixed at the top', (tester) async {
     TopicTabsPlacementStore.shared.resetForTesting();
     await openChat(
       tester,
       chatId: _forumChatId,
       title: 'Forum Group',
       isForum: true,
+      extraPrefs: {'mithka.topicTabsPlacement.v1.0.$_forumChatId': 'bottom'},
     );
 
     final strip = find.byType(TopicTabStrip);
-    final headerSide = tester.getRect(strip);
+    expect(strip, findsOneWidget);
+    expect(
+      tester.getRect(strip).top,
+      lessThan(200),
+      reason: 'a stored side/bottom placement must not move a forum\'s tabs',
+    );
+    expect(
+      find.byKey(const ValueKey('topic-tabs-placement-toggle')),
+      findsNothing,
+    );
+
     await revealTopicTab(tester, 50);
     await tester.longPress(find.byKey(const ValueKey('topic-tab-50')));
     await tester.pumpAndSettle();
-
-    final move = find.byKey(const ValueKey('app-anchored-menu-tabs-position'));
-    expect(move, findsOneWidget);
-    await tester.tap(move);
-    await tester.pumpAndSettle();
-
-    // The interaction is not only the strip's arrow: the tab menu carries the
-    // same move, reachable from any topic tab.
-    final composerSide = tester.getRect(strip);
-    expect(composerSide.top, greaterThan(headerSide.top + 200));
-    final prefs = await SharedPreferences.getInstance();
+    expect(find.byKey(const ValueKey('app-anchored-menu')), findsOneWidget);
     expect(
-      prefs.getString('mithka.topicTabsPlacement.v1.0.$_forumChatId'),
-      'bottom',
+      find.byKey(const ValueKey('app-anchored-menu-tabs-position')),
+      findsNothing,
     );
 
     await tester.pumpWidget(const SizedBox.shrink());

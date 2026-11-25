@@ -16,6 +16,7 @@ import 'package:mithka/components/app_icons.dart';
 import 'package:mithka/components/chat_folder_icons.dart';
 import 'package:mithka/l10n/app_localizations.dart';
 import 'package:mithka/theme/app_theme.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 const _botChatAllTabKey = ValueKey('topic-tab-all');
 
@@ -54,6 +55,44 @@ void main() {
         reordering: reordering,
         onReorder: onReorder,
         onReorderDone: onReorderDone,
+      ),
+    ),
+  );
+
+  Widget sideBarHost({
+    required List<TopicNavigationItem> topics,
+    required int chatId,
+    int? selectedTopicId,
+    bool showUnreadBadges = true,
+    bool isLoading = false,
+    ValueChanged<int?>? onSelected,
+    void Function(TopicNavigationItem topic, Rect anchor)? onLongPress,
+    TopicTabsPlacement placement = TopicTabsPlacement.side,
+    VoidCallback? onTogglePlacement,
+  }) => MaterialApp(
+    theme: ThemeData(extensions: [AppColors.light]),
+    locale: const Locale('en'),
+    localizationsDelegates: const [AppLocalizations.delegate],
+    supportedLocales: AppLocalizations.supportedLocales,
+    home: Scaffold(
+      body: SizedBox(
+        height: 600,
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            TopicTabsSideBar(
+              chatId: chatId,
+              topics: topics,
+              selectedTopicId: selectedTopicId,
+              showUnreadBadges: showUnreadBadges,
+              isLoading: isLoading,
+              onSelected: onSelected ?? (_) {},
+              onLongPress: onLongPress,
+              onTogglePlacement: onTogglePlacement,
+            ),
+            const Expanded(child: SizedBox()),
+          ],
+        ),
       ),
     ),
   );
@@ -277,7 +316,7 @@ void main() {
     expect(scrollable.position.pixels, closeTo(offsetBefore, 0.5));
   });
 
-  testWidgets('the placement toggle moves the bar and mirrors its side', (
+  testWidgets('the placement toggle walks top, side, bottom and back', (
     tester,
   ) async {
     tester.view.physicalSize = const Size(600, 300);
@@ -289,7 +328,25 @@ void main() {
       stripHost(chatId: 11, topics: topics, onTogglePlacement: () => toggles++),
     );
 
-    // Tabs on top offer a downward move.
+    // Tabs on top offer exteraless's first step: dock at the side.
+    expect(
+      find.byWidgetPredicate(
+        (widget) =>
+            widget is AppIcon && identical(widget.icon, HeroAppIcons.arrowLeft),
+      ),
+      findsOneWidget,
+    );
+    await tester.tap(find.byKey(const ValueKey('topic-tabs-placement-toggle')));
+    expect(toggles, 1);
+
+    // The side bar's own control offers the way down to the composer.
+    await tester.pumpWidget(
+      sideBarHost(
+        chatId: 11,
+        topics: topics,
+        onTogglePlacement: () => toggles++,
+      ),
+    );
     expect(
       find.byWidgetPredicate(
         (widget) =>
@@ -298,7 +355,7 @@ void main() {
       findsOneWidget,
     );
     await tester.tap(find.byKey(const ValueKey('topic-tabs-placement-toggle')));
-    expect(toggles, 1);
+    expect(toggles, 2);
 
     // Tabs above the composer offer the way back up.
     await tester.pumpWidget(
@@ -364,5 +421,165 @@ void main() {
     expect(reorderPinnedTopicIds([10, 20, 30], 2, 0), [30, 10, 20]);
     // Out-of-range requests leave the order alone.
     expect(reorderPinnedTopicIds([10, 20], 5, 0), [10, 20]);
+  });
+
+  // exteraless's side tabs (`TopicsTabsView`'s `VerticalTabView`s): a 64dp
+  // column docked at the conversation's left edge, the glyph above up to
+  // three lines of the name, the unread pill on the glyph and the brand bar
+  // on the selected row's left edge.
+  testWidgets('the side bar docks 64dp wide with icon-over-name tabs', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(390, 600);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    await tester.pumpWidget(
+      sideBarHost(chatId: 21, topics: topics, selectedTopicId: 10),
+    );
+
+    expect(tester.getSize(find.byType(TopicTabsSideBar)).width, 64);
+    expect(find.byKey(const ValueKey('topic-tabs-side-bar')), findsOneWidget);
+    expect(find.text('All'), findsOneWidget);
+    expect(find.text('Support'), findsOneWidget);
+    expect(find.text('FAQ'), findsOneWidget);
+    expect(find.byType(FolderUnreadBadge), findsNWidgets(2));
+
+    // The selected row carries the brand bar on its left edge; the other rows
+    // stay plain.
+    final brandBars = find.byWidgetPredicate(
+      (widget) =>
+          widget is Container &&
+          widget.decoration is BoxDecoration &&
+          (widget.decoration as BoxDecoration).color == AppTheme.brand &&
+          widget.constraints is BoxConstraints &&
+          (widget.constraints as BoxConstraints).maxWidth == 3,
+    );
+    expect(brandBars, findsOneWidget);
+  });
+
+  testWidgets('side bar taps and long presses resolve their topic', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(390, 600);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    final selections = <int?>[];
+    final pressed = <int>[];
+    await tester.pumpWidget(
+      sideBarHost(
+        chatId: 22,
+        topics: topics,
+        onSelected: selections.add,
+        onLongPress: (topic, _) => pressed.add(topic.id),
+      ),
+    );
+
+    await tester.tap(find.text('Support'));
+    await tester.pump();
+    expect(selections, [10]);
+
+    await tester.longPress(find.byKey(const ValueKey('topic-tab-10')));
+    expect(pressed, [10]);
+
+    // The All pseudo-topic has nothing to manage.
+    await tester.longPress(find.byKey(_botChatAllTabKey));
+    expect(pressed, [10]);
+  });
+
+  testWidgets('the side bar keeps an empty topic page quiet', (tester) async {
+    tester.view.physicalSize = const Size(390, 600);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    await tester.pumpWidget(
+      sideBarHost(chatId: 23, topics: const [], isLoading: true),
+    );
+
+    expect(tester.takeException(), isNull);
+    expect(find.byType(ErrorWidget), findsNothing);
+    expect(find.byKey(_botChatAllTabKey), findsOneWidget);
+  });
+
+  testWidgets('side reorder drags the pinned topics and closes on Done', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(390, 600);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    final pinnedTopics = [
+      const TopicNavigationItem(id: 10, name: 'Pinned A', isPinned: true),
+      const TopicNavigationItem(id: 20, name: 'Pinned B', isPinned: true),
+      const TopicNavigationItem(id: 30, name: 'Recent'),
+    ];
+    var done = 0;
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: ThemeData(extensions: [AppColors.light]),
+        locale: const Locale('en'),
+        localizationsDelegates: const [AppLocalizations.delegate],
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: Scaffold(
+          body: SizedBox(
+            height: 600,
+            child: Row(
+              children: [
+                TopicTabsSideBar(
+                  chatId: 24,
+                  topics: pinnedTopics,
+                  selectedTopicId: 10,
+                  onSelected: (_) {},
+                  reordering: true,
+                  onReorder: (_) {},
+                  onReorderDone: () => done++,
+                ),
+                const Expanded(child: SizedBox()),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+
+    expect(
+      find.byKey(const ValueKey('topic-tabs-side-reorder')),
+      findsOneWidget,
+    );
+    expect(find.text('Pinned A'), findsOneWidget);
+    expect(find.text('Pinned B'), findsOneWidget);
+    expect(find.text('Recent'), findsNothing);
+    expect(
+      find.byKey(const ValueKey('topic-tabs-placement-toggle')),
+      findsNothing,
+    );
+
+    await tester.tap(find.byKey(const ValueKey('topic-tabs-reorder-done')));
+    expect(done, 1);
+  });
+
+  test('the placement store round-trips the side home', () async {
+    SharedPreferences.setMockInitialValues({});
+    final store = TopicTabsPlacementStore.shared;
+    store.resetForTesting();
+    await store.save(0, 42, TopicTabsPlacement.side);
+    expect(store.placementFor(0, 42), TopicTabsPlacement.side);
+    expect(await store.load(0, 42), TopicTabsPlacement.side);
+    await store.save(0, 42, TopicTabsPlacement.bottom);
+    expect(await store.load(0, 42), TopicTabsPlacement.bottom);
+    // exteraless's cycle order is top → side → bottom → top.
+    expect(
+      nextTopicTabsPlacement(TopicTabsPlacement.top),
+      TopicTabsPlacement.side,
+    );
+    expect(
+      nextTopicTabsPlacement(TopicTabsPlacement.side),
+      TopicTabsPlacement.bottom,
+    );
+    expect(
+      nextTopicTabsPlacement(TopicTabsPlacement.bottom),
+      TopicTabsPlacement.top,
+    );
   });
 }

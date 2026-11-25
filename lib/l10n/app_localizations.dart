@@ -459,6 +459,7 @@ abstract final class AppStringKeys {
   static const mithkaxTopicTabsDone = 'mithkaxTopicTabsDone';
   static const mithkaxTopicTabsReorder = 'mithkaxTopicTabsReorder';
   static const mithkaxTopicTabsMoveToBottom = 'mithkaxTopicTabsMoveToBottom';
+  static const mithkaxTopicTabsMoveToSide = 'mithkaxTopicTabsMoveToSide';
   static const mithkaxTopicTabsMoveToTop = 'mithkaxTopicTabsMoveToTop';
   static const addMembersDone = 'addMembersDone';
   static const addMembersDoneWithCount = 'addMembersDoneWithCount';
