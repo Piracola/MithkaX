@@ -91,6 +91,37 @@ void main() {
     expect(message.contentFlashAtMillis, greaterThan(0));
   });
 
+  test('a pending send never blinks while its body settles', () {
+    final model = ChatViewModel(
+      chatId: _chatId,
+      title: 'Bot',
+      markReadOnOpen: false,
+      sessionMessages: [
+        ChatMessage(
+          id: 2,
+          chatId: _chatId,
+          isOutgoing: true,
+          text: '',
+          date: 2,
+          isSending: true,
+        ),
+      ],
+    );
+    addTearDown(model.dispose);
+    model.primeMessageIndexesForTesting();
+    final message = model.messages.single;
+
+    model.applyLiveUpdateForTesting({
+      '@type': 'updateMessageContent',
+      'chat_id': _chatId,
+      'message_id': 2,
+      'new_content': _textContent('caption arriving'),
+    });
+
+    expect(message.text, 'caption arriving');
+    expect(message.contentFlashToken, 0);
+  });
+
   test('an identical content repaint does not bump the token', () {
     final model = _model();
     addTearDown(model.dispose);

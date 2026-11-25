@@ -1187,7 +1187,9 @@ extension ChatViewModelUpdates on ChatViewModel {
       // The update flash belongs to a body that really changed. Content
       // updates that repaint the same text (a media refresh, our own echo)
       // must not blink the bubble.
-      if (target.text != text) {
+      // A pending send's body is still the composer's business — the edit
+      // blink belongs to messages the reader was already looking at.
+      if (target.text != text && !target.isSending) {
         ++target.contentFlashToken;
         target.contentFlashAtMillis = DateTime.now().millisecondsSinceEpoch;
       }

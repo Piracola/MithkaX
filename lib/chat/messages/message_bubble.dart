@@ -315,7 +315,7 @@ class _MessageBubbleState extends State<_ScopedMessageBubble>
   );
 
   late final Animation<double> _contentFlashOpacity = Tween<double>(
-    begin: 0.32,
+    begin: 0.45,
     end: 1,
   ).animate(CurvedAnimation(parent: _contentFlash, curve: Curves.easeOut));
 
