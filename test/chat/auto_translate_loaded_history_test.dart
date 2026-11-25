@@ -11,44 +11,43 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mithka/chat/ai_translation/auto_translate_policy.dart';
 import 'package:mithka/tdlib/td_models.dart';
 
-ChatMessage _message(int id, {String? translation}) => ChatMessage(
-  id: id,
-  isOutgoing: false,
-  text: 'hello $id',
-  date: id,
-)
-  ..translationText = translation
-  ..translationLanguageCode = translation == null ? null : 'zh-Hans';
+ChatMessage _message(int id, {String? translation}) =>
+    ChatMessage(id: id, isOutgoing: false, text: 'hello $id', date: id)
+      ..translationText = translation
+      ..translationLanguageCode = translation == null ? null : 'zh-Hans';
 
 void main() {
-  test('an older loaded page is a candidate even when the newest 32 are done', () {
-    // 60 loaded messages: scrolling up paged 1..30 in after 31..60 existed.
-    final loaded = [for (var id = 1; id <= 60; id++) _message(id, translation: 'x')];
-    // The newest page (ids 20..60) was translated when it was the window.
-    for (var id = 20; id <= 60; id++) {
-      loaded[id - 1].translationText = 'translated $id';
-    }
-    loaded[18].translationText = null; // id 19, outside the old 32 window
-    loaded[18].translationLanguageCode = null;
+  test(
+    'an older loaded page is a candidate even when the newest 32 are done',
+    () {
+      // 60 loaded messages: scrolling up paged 1..30 in after 31..60 existed.
+      final loaded = [
+        for (var id = 1; id <= 60; id++) _message(id, translation: 'x'),
+      ];
+      // The newest page (ids 20..60) was translated when it was the window.
+      for (var id = 20; id <= 60; id++) {
+        loaded[id - 1].translationText = 'translated $id';
+      }
+      loaded[18].translationText = null; // id 19, outside the old 32 window
+      loaded[18].translationLanguageCode = null;
 
-    final candidates = automaticTranslationLoadedCandidates(
-      loaded,
-      targetLanguageCode: 'zh-Hans',
-    );
+      final candidates = automaticTranslationLoadedCandidates(
+        loaded,
+        targetLanguageCode: 'zh-Hans',
+      );
 
-    expect(
-      candidates.map((message) => message.id),
-      contains(19),
-      reason: 'the page loaded by scrolling up must still be translated',
-    );
-    // Newest-first: the older page waits behind the untranslated tail.
-    expect(candidates.first.id, 19);
-  });
+      expect(
+        candidates.map((message) => message.id),
+        contains(19),
+        reason: 'the page loaded by scrolling up must still be translated',
+      );
+      // Newest-first: the older page waits behind the untranslated tail.
+      expect(candidates.first.id, 19);
+    },
+  );
 
   test('a pass is bounded and continues from the newest end', () {
-    final loaded = [
-      for (var id = 1; id <= 40; id++) _message(id),
-    ];
+    final loaded = [for (var id = 1; id <= 40; id++) _message(id)];
 
     final first = automaticTranslationLoadedCandidates(
       loaded,
@@ -73,9 +72,7 @@ void main() {
   });
 
   test('failed ids stay out of every later pass', () {
-    final loaded = [
-      for (var id = 1; id <= 3; id++) _message(id),
-    ];
+    final loaded = [for (var id = 1; id <= 3; id++) _message(id)];
     final candidates = automaticTranslationLoadedCandidates(
       loaded,
       targetLanguageCode: 'zh-Hans',

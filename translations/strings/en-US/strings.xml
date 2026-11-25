@@ -4167,4 +4167,8 @@
     <string name="mithkaxScheduledDeleteThreeDays">3 days</string>
     <string name="mithkaxScheduledDeleteOneWeek">1 week</string>
     <string name="mithkaxScheduledDeleteOneMonth">1 month</string>
+    <string name="mithkaxTopicTabsDone">Done</string>
+    <string name="mithkaxTopicTabsReorder">Reorder tabs</string>
+    <string name="mithkaxTopicTabsMoveToBottom">Move tab bar to the bottom</string>
+    <string name="mithkaxTopicTabsMoveToTop">Move tab bar to the top</string>
 </resources>

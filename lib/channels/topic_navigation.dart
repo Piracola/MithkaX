@@ -1,4 +1,4 @@
-import 'package:flutter/widgets.dart';
+import 'package:flutter/material.dart';
 import '../app/adaptive_split_layout.dart';
 import '../chat/stickers/custom_emoji.dart';
 import '../components/app_icons.dart';
@@ -9,6 +9,7 @@ import '../l10n/app_localizations.dart';
 import '../tdlib/td_models.dart';
 import '../theme/app_theme.dart';
 import 'topic_list_row.dart';
+import 'topic_tabs_placement.dart';
 
 class TopicNavigationItem {
   const TopicNavigationItem({
@@ -432,6 +433,17 @@ class TopicTabStripScrollMemory {
   static void resetForTesting() => _offsets.clear();
 }
 
+/// Applies one drag in pinned-tab reorder mode. ReorderableListView's
+/// `onReorderItem` has already adjusted [newIndex] for the removal, so the id
+/// list is simply moved; out-of-range indices leave it untouched.
+List<int> reorderPinnedTopicIds(List<int> ids, int oldIndex, int newIndex) {
+  if (oldIndex < 0 || oldIndex >= ids.length) return ids;
+  final next = List<int>.of(ids);
+  final moved = next.removeAt(oldIndex);
+  next.insert(newIndex.clamp(0, next.length), moved);
+  return next;
+}
+
 /// The topic tab strip: a horizontal, folder-tab-styled selector pinned
 /// under the chat header for forum groups and bot topic chats on narrow
 /// layouts. Mirrors the chat list's folder tabs — label with the topic
@@ -449,6 +461,11 @@ class TopicTabStrip extends StatefulWidget {
     this.badgeOverflowLabel,
     this.isLoading = false,
     this.onLongPress,
+    this.placement = TopicTabsPlacement.top,
+    this.onTogglePlacement,
+    this.reordering = false,
+    this.onReorder,
+    this.onReorderDone,
   });
 
   /// The chat whose topics these are; keys the scroll-offset memory.
@@ -473,6 +490,21 @@ class TopicTabStrip extends StatefulWidget {
   /// Long press on a real topic tab, with the tab's global rect as the
   /// anchor for the host's topic menu. The "All" pseudo-tab never fires it.
   final void Function(TopicNavigationItem topic, Rect anchor)? onLongPress;
+
+  /// Where the strip sits in the conversation. Only changes the icon and the
+  /// toggle's own semantics: the host owns the actual placement.
+  final TopicTabsPlacement placement;
+
+  /// Moves the strip between the top of the conversation and the composer,
+  /// the way exteraless's tabs toggle does. Null hides the control.
+  final VoidCallback? onTogglePlacement;
+
+  /// Pinned-tab reorder mode (exteraless's FilterReorder): only the pinned
+  /// topics are draggable, and the ordering is persisted server-side by the
+  /// host's [onReorder].
+  final bool reordering;
+  final ValueChanged<List<int>>? onReorder;
+  final VoidCallback? onReorderDone;
 
   @override
   State<TopicTabStrip> createState() => _TopicTabStripState();
@@ -512,6 +544,11 @@ class _TopicTabStripState extends State<TopicTabStrip> {
     );
     final topics = widget.topics;
     final isLoading = widget.isLoading;
+    final reordering = widget.reordering;
+    final pinned = [
+      for (final topic in topics)
+        if (topic.isPinned) topic,
+    ];
     // The strip scrolls horizontally, so a rightward drag on it means "show
     // earlier tabs" — never the page's back swipe. Keep the whole bar out of
     // that gesture, including the gaps between tabs.
@@ -525,41 +562,178 @@ class _TopicTabStripState extends State<TopicTabStrip> {
           color: c.navBar,
           border: Border(bottom: BorderSide(color: c.divider, width: 0.5)),
         ),
-        child: ListView.separated(
-          controller: _controller,
-          scrollDirection: Axis.horizontal,
-          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
-          itemCount: topics.length + 1 + (isLoading ? 1 : 0),
-          separatorBuilder: (_, _) => const SizedBox(width: 28),
-          itemBuilder: (context, index) {
-            // Index 0 is the "All" tab; topics occupy 1..topics.length, and the
-            // loading placeholder is the LAST slot. Getting this off by one
-            // reads topics[-1] on an empty page and Flutter swaps in an error
-            // box, which release builds paint as an opaque grey block over the
-            // strip's right side.
-            if (isLoading && index == topics.length + 1) {
-              // Topic info is still loading: the placeholder tab keeps the same
-              // bar color as the header so the strip reads as one unified
-              // surface instead of a grey block sticking out.
-              return SizedBox(height: tabHeight);
-            }
-            final all = index == 0;
-            final topic = all ? null : topics[index - 1];
-            final selected = all
-                ? widget.selectedTopicId == null
-                : topic!.id == widget.selectedTopicId;
-            return _TopicTab(
-              key: ValueKey('topic-tab-${topic?.id ?? "all"}'),
+        child: Row(
+          children: [
+            // exteraless puts the position control inside the tab bar; tabs
+            // stay on top until the reader moves them above the composer.
+            if (!reordering && widget.onTogglePlacement != null)
+              _TopicTabsPlacementToggle(
+                placement: widget.placement,
+                onTap: widget.onTogglePlacement!,
+              ),
+            Expanded(
+              child: reordering
+                  ? _reorderList(pinned)
+                  : ListView.separated(
+                      controller: _controller,
+                      scrollDirection: Axis.horizontal,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: AppSpacing.lg,
+                      ),
+                      itemCount: topics.length + 1 + (isLoading ? 1 : 0),
+                      separatorBuilder: (_, _) => const SizedBox(width: 28),
+                      itemBuilder: (context, index) {
+                        // Index 0 is the "All" tab; topics occupy
+                        // 1..topics.length, and the loading placeholder is the
+                        // LAST slot. Getting this off by one reads topics[-1]
+                        // on an empty page and Flutter swaps in an error box,
+                        // which release builds paint as an opaque grey block
+                        // over the strip's right side.
+                        if (isLoading && index == topics.length + 1) {
+                          // Topic info is still loading: the placeholder tab
+                          // keeps the same bar color as the header so the
+                          // strip reads as one unified surface instead of a
+                          // grey block sticking out.
+                          return SizedBox(height: tabHeight);
+                        }
+                        final all = index == 0;
+                        final topic = all ? null : topics[index - 1];
+                        final selected = all
+                            ? widget.selectedTopicId == null
+                            : topic!.id == widget.selectedTopicId;
+                        return _TopicTab(
+                          key: ValueKey('topic-tab-${topic?.id ?? "all"}'),
+                          topic: topic,
+                          selected: selected,
+                          showUnreadBadge: widget.showUnreadBadges,
+                          badgeOverflowLabel: widget.badgeOverflowLabel,
+                          onTap: () => widget.onSelected(topic?.id),
+                          onLongPress: topic == null
+                              ? null
+                              : (anchor) =>
+                                    widget.onLongPress?.call(topic, anchor),
+                        );
+                      },
+                    ),
+            ),
+            if (reordering && widget.onReorderDone != null)
+              _TopicTabsReorderDoneButton(onTap: widget.onReorderDone!),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Reorder mode (exteraless's FilterReorder): only pinned topics move, and
+  /// the order is the pin order the server stores. Long-press-to-drag keeps
+  /// the bar scrollable while a long strip is being rearranged.
+  Widget _reorderList(List<TopicNavigationItem> pinned) {
+    return ReorderableListView.builder(
+      key: const ValueKey('topic-tabs-reorder'),
+      scrollDirection: Axis.horizontal,
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+      buildDefaultDragHandles: false,
+      itemCount: pinned.length,
+      onReorderItem: (oldIndex, newIndex) {
+        widget.onReorder?.call(
+          reorderPinnedTopicIds(
+            [for (final topic in pinned) topic.id],
+            oldIndex,
+            newIndex,
+          ),
+        );
+      },
+      itemBuilder: (context, index) {
+        final topic = pinned[index];
+        return ReorderableDelayedDragStartListener(
+          key: ValueKey('topic-tab-reorder-${topic.id}'),
+          index: index,
+          child: Padding(
+            padding: EdgeInsets.only(
+              right: index == pinned.length - 1 ? 0 : 28,
+            ),
+            child: _TopicTab(
               topic: topic,
-              selected: selected,
+              selected: topic.id == widget.selectedTopicId,
               showUnreadBadge: widget.showUnreadBadges,
               badgeOverflowLabel: widget.badgeOverflowLabel,
-              onTap: () => widget.onSelected(topic?.id),
-              onLongPress: topic == null
-                  ? null
-                  : (anchor) => widget.onLongPress?.call(topic, anchor),
-            );
-          },
+              onTap: () => widget.onSelected(topic.id),
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+/// The top/bottom placement control: an up arrow when the tabs sit above the
+/// composer, a down arrow while they sit under the header.
+class _TopicTabsPlacementToggle extends StatelessWidget {
+  const _TopicTabsPlacementToggle({
+    required this.placement,
+    required this.onTap,
+  });
+
+  final TopicTabsPlacement placement;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final moveToBottom = placement == TopicTabsPlacement.top;
+    return Semantics(
+      button: true,
+      label:
+          (moveToBottom
+                  ? AppStringKeys.mithkaxTopicTabsMoveToBottom
+                  : AppStringKeys.mithkaxTopicTabsMoveToTop)
+              .l10n(context),
+      child: GestureDetector(
+        key: const ValueKey('topic-tabs-placement-toggle'),
+        behavior: HitTestBehavior.opaque,
+        onTap: onTap,
+        child: SizedBox(
+          width: 40,
+          child: Center(
+            child: AppIcon(
+              moveToBottom ? HeroAppIcons.arrowDown : HeroAppIcons.arrowUp,
+              size: 18,
+              color: context.colors.textSecondary,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Closes reorder mode, the check exteraless hangs at the bar's trailing edge.
+class _TopicTabsReorderDoneButton extends StatelessWidget {
+  const _TopicTabsReorderDoneButton({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      key: const ValueKey('topic-tabs-reorder-done'),
+      behavior: HitTestBehavior.opaque,
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            AppIcon(HeroAppIcons.check, size: 18, color: AppTheme.brand),
+            const SizedBox(width: 4),
+            Text(
+              AppStringKeys.mithkaxTopicTabsDone.l10n(context),
+              style: TextStyle(
+                fontSize: AppTextSize.callout,
+                fontWeight: FontWeight.w600,
+                color: AppTheme.brand,
+              ),
+            ),
+          ],
         ),
       ),
     );

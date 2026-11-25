@@ -701,6 +701,12 @@ class ChatViewModel extends ChangeNotifier {
   /// ([canManageTopics]) or a bot topic chat whose bot allows management.
   bool get canPinAndEditTopics => canManageTopics || botTopicsManageable;
 
+  /// Whether the tab strip's pinned block can be rearranged: the same rights
+  /// that allow pinning, plus at least two pinned topics to swap.
+  bool get canReorderPinnedTopics =>
+      canPinAndEditTopics &&
+      forumTopics.where((topic) => topic.isPinned).length > 1;
+
   bool get supportsTopics => isForum || supportsBotTopics;
 
   /// A private chat with a topics-enabled bot: no supergroup rights exist

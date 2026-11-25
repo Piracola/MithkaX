@@ -35,10 +35,12 @@ void main() {
     // pending timer.
     scratch = Directory.systemTemp.createTempSync('sticker_reply_quote');
     stickerPath = '${scratch.path}/sticker.png';
-    File(stickerPath).writeAsBytesSync(base64Decode(
-      'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk'
-      'YAAAAAYAAjCB0C8AAAAASUVORK5CYII=',
-    ));
+    File(stickerPath).writeAsBytesSync(
+      base64Decode(
+        'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk'
+        'YAAAAAYAAjCB0C8AAAAASUVORK5CYII=',
+      ),
+    );
     updates = StreamController<Map<String, dynamic>>.broadcast();
     TdClient.shared.configureProxy(
       TdClientProxyTransport(
@@ -120,9 +122,7 @@ void main() {
 
     // The quote hangs above the sticker, not beside or below it.
     final quoteRect = tester.getRect(quote);
-    final stickerRect = tester.getRect(
-      find.byType(TDImage).first,
-    );
+    final stickerRect = tester.getRect(find.byType(TDImage).first);
     expect(quoteRect.bottom, lessThanOrEqualTo(stickerRect.top));
 
     // A 120pt sticker would make a 120pt quote unreadable; the panel keeps a

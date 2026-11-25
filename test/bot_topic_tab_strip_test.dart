@@ -11,6 +11,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mithka/channels/topic_navigation.dart';
+import 'package:mithka/channels/topic_tabs_placement.dart';
+import 'package:mithka/components/app_icons.dart';
 import 'package:mithka/components/chat_folder_icons.dart';
 import 'package:mithka/l10n/app_localizations.dart';
 import 'package:mithka/theme/app_theme.dart';
@@ -28,6 +30,11 @@ void main() {
     bool isLoading = false,
     ValueChanged<int?>? onSelected,
     void Function(TopicNavigationItem topic, Rect anchor)? onLongPress,
+    TopicTabsPlacement placement = TopicTabsPlacement.top,
+    VoidCallback? onTogglePlacement,
+    bool reordering = false,
+    ValueChanged<List<int>>? onReorder,
+    VoidCallback? onReorderDone,
   }) => MaterialApp(
     theme: ThemeData(extensions: [AppColors.light]),
     locale: const Locale('en'),
@@ -42,6 +49,11 @@ void main() {
         isLoading: isLoading,
         onSelected: onSelected ?? (_) {},
         onLongPress: onLongPress,
+        placement: placement,
+        onTogglePlacement: onTogglePlacement,
+        reordering: reordering,
+        onReorder: onReorder,
+        onReorderDone: onReorderDone,
       ),
     ),
   );
@@ -263,5 +275,94 @@ void main() {
       ),
     );
     expect(scrollable.position.pixels, closeTo(offsetBefore, 0.5));
+  });
+
+  testWidgets('the placement toggle moves the bar and mirrors its side', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(600, 300);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    var toggles = 0;
+    await tester.pumpWidget(
+      stripHost(chatId: 11, topics: topics, onTogglePlacement: () => toggles++),
+    );
+
+    // Tabs on top offer a downward move.
+    expect(
+      find.byWidgetPredicate(
+        (widget) =>
+            widget is AppIcon && identical(widget.icon, HeroAppIcons.arrowDown),
+      ),
+      findsOneWidget,
+    );
+    await tester.tap(find.byKey(const ValueKey('topic-tabs-placement-toggle')));
+    expect(toggles, 1);
+
+    // Tabs above the composer offer the way back up.
+    await tester.pumpWidget(
+      stripHost(
+        chatId: 11,
+        topics: topics,
+        placement: TopicTabsPlacement.bottom,
+        onTogglePlacement: () => toggles++,
+      ),
+    );
+    expect(
+      find.byWidgetPredicate(
+        (widget) =>
+            widget is AppIcon && identical(widget.icon, HeroAppIcons.arrowUp),
+      ),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('reorder mode drags only pinned tabs and closes on Done', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(600, 300);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    final pinnedTopics = [
+      const TopicNavigationItem(id: 10, name: 'Pinned A', isPinned: true),
+      const TopicNavigationItem(id: 20, name: 'Pinned B', isPinned: true),
+      const TopicNavigationItem(id: 30, name: 'Recent'),
+    ];
+    var done = 0;
+    List<int>? reordered;
+    await tester.pumpWidget(
+      stripHost(
+        chatId: 12,
+        topics: pinnedTopics,
+        reordering: true,
+        onReorder: (ids) => reordered = ids,
+        onReorderDone: () => done++,
+      ),
+    );
+
+    expect(find.byKey(const ValueKey('topic-tabs-reorder')), findsOneWidget);
+    // Unpinned topics stay out of the draggable block, and the All tab is not
+    // part of the pin order.
+    expect(find.text('Pinned A'), findsOneWidget);
+    expect(find.text('Pinned B'), findsOneWidget);
+    expect(find.text('Recent'), findsNothing);
+    expect(find.byKey(const ValueKey('topic-tab-all')), findsNothing);
+    expect(
+      find.byKey(const ValueKey('topic-tabs-placement-toggle')),
+      findsNothing,
+    );
+
+    await tester.tap(find.byKey(const ValueKey('topic-tabs-reorder-done')));
+    expect(done, 1);
+    expect(reordered, isNull);
+  });
+
+  test('a drag move rewrites only the pinned order', () {
+    expect(reorderPinnedTopicIds([10, 20, 30], 0, 2), [20, 30, 10]);
+    expect(reorderPinnedTopicIds([10, 20, 30], 2, 0), [30, 10, 20]);
+    // Out-of-range requests leave the order alone.
+    expect(reorderPinnedTopicIds([10, 20], 5, 0), [10, 20]);
   });
 }

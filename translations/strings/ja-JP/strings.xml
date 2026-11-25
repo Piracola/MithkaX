@@ -4150,4 +4150,8 @@
     <string name="mithkaxScheduledDeleteThreeDays">3日</string>
     <string name="mithkaxScheduledDeleteOneWeek">1週間</string>
     <string name="mithkaxScheduledDeleteOneMonth">1か月</string>
+    <string name="mithkaxTopicTabsDone">完了</string>
+    <string name="mithkaxTopicTabsReorder">タブを並べ替え</string>
+    <string name="mithkaxTopicTabsMoveToBottom">タブバーを下へ移動</string>
+    <string name="mithkaxTopicTabsMoveToTop">タブバーを上へ移動</string>
 </resources>

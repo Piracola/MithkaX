@@ -308,6 +308,30 @@ class ForumTopicIndex extends ChangeNotifier {
     if (displayChanged) notifyListeners();
   }
 
+  /// Re-inserts the pinned entries in [pinnedIds] order after the reader
+  /// dragged the tab strip. The server owns the final order; this keeps the
+  /// strip, the rail and the topic list from snapping back while the request
+  /// is in flight.
+  void reorderPinned(int slot, int chatId, List<int> pinnedIds) {
+    final topics = _topics[(slot, chatId)];
+    if (topics == null || pinnedIds.length < 2) return;
+    final pinned = <ForumTopicIndexEntry>[];
+    final pinnedIdSet = pinnedIds.toSet();
+    for (final id in pinnedIds) {
+      final entry = topics[id];
+      if (entry != null && entry.isPinned) pinned.add(entry);
+    }
+    if (pinned.length < 2) return;
+    final rest = [
+      for (final entry in topics.values)
+        if (!pinnedIdSet.contains(entry.id)) entry,
+    ];
+    _topics[(slot, chatId)] = {
+      for (final entry in [...pinned, ...rest]) entry.id: entry,
+    };
+    notifyListeners();
+  }
+
   void _evictStaleChats() {
     var live = 0;
     for (final chatIds in _topicChats.values) {

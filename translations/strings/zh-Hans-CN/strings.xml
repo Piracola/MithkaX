@@ -4150,4 +4150,8 @@
     <string name="mithkaxScheduledDeleteThreeDays">3 天</string>
     <string name="mithkaxScheduledDeleteOneWeek">1 周</string>
     <string name="mithkaxScheduledDeleteOneMonth">1 个月</string>
+    <string name="mithkaxTopicTabsDone">完成</string>
+    <string name="mithkaxTopicTabsReorder">重排标签页</string>
+    <string name="mithkaxTopicTabsMoveToBottom">标签栏移到底部</string>
+    <string name="mithkaxTopicTabsMoveToTop">标签栏移到顶部</string>
 </resources>

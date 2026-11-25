@@ -35,6 +35,7 @@ import '../channels/topic_list_actions.dart';
 import '../channels/topic_list_host.dart';
 import '../channels/topic_list_row.dart';
 import '../channels/topic_navigation.dart';
+import '../channels/topic_tabs_placement.dart';
 import '../chats/chat_delete_dialog.dart';
 import '../chats/chat_delete_policy.dart';
 import '../chats/chat_list_view.dart';
@@ -1433,6 +1434,14 @@ class _ChatViewState extends State<ChatView> {
   int _shellLayoutGeneration = 0;
   int _cachedShellLayoutGeneration = -1;
   double _cachedShellLayoutWidth = double.nan;
+
+  /// Where this chat's topic tabs sit: exteraless keeps the tabs position per
+  /// dialog, so a forum can move its strip above the composer without
+  /// dragging every other chat's tabs along.
+  TopicTabsPlacement _topicTabsPlacement = TopicTabsPlacement.top;
+
+  /// Pinned-tab reorder mode; the strip shows its Done control while set.
+  bool _reorderingTopicTabs = false;
   Widget? _cachedShellLayout;
   bool _shortTranscriptFillScheduled = false;
   bool _isFillingShortTranscript = false;
@@ -1561,6 +1570,11 @@ class _ChatViewState extends State<ChatView> {
       chatId: widget.chatId,
       forumTopicId: widget.forumTopicId,
     );
+    _topicTabsPlacement = TopicTabsPlacementStore.shared.placementFor(
+      _sessionKey.accountSlot,
+      widget.chatId,
+    );
+    unawaited(_loadTopicTabsPlacement());
     _sessionRenderState = widget.initialMessageId == null
         ? _sessionCache.read(
             accountSlot: _sessionKey.accountSlot,
@@ -1746,6 +1760,14 @@ class _ChatViewState extends State<ChatView> {
       // A switch to another conversation or topic invalidates every recorded
       // reading position, this one included.
       _forgetJumpOrigin();
+    }
+    if (oldWidget.chatId != widget.chatId) {
+      _reorderingTopicTabs = false;
+      _topicTabsPlacement = TopicTabsPlacementStore.shared.placementFor(
+        _sessionKey.accountSlot,
+        widget.chatId,
+      );
+      unawaited(_loadTopicTabsPlacement());
     }
     if (!identical(oldWidget.exitController, widget.exitController)) {
       _detachExitController?.call();
@@ -7477,6 +7499,13 @@ class _ChatViewState extends State<ChatView> {
                               final searchPane = _searchUsesResultsPane(width);
                               _searchResultsPaneVisible = searchPane;
                               final searching = _search.isActive;
+                              // The strip can sit under the header or above
+                              // the composer (exteraless's per-chat tabs
+                              // position); the host places it so it never
+                              // becomes a sibling of the composer.
+                              final topicTabStrip = _topicTabStripOrNull(
+                                themeController,
+                              );
                               final shell = ChatHeaderTrailingPaneLayout(
                                 header: showPeerRestrictionBlock
                                     ? _header()
@@ -7487,36 +7516,42 @@ class _ChatViewState extends State<ChatView> {
                                           : _header()),
                                 body: showPeerRestrictionBlock
                                     ? _restrictedPeerBlockPage()
-                                    : _topicTabStrip(
-                                        _withTopicNavigation(
-                                          Column(
-                                            children: [
-                                              // The chat-level translation bar
-                                              // belongs to the transcript, not
-                                              // the header (search and selection
-                                              // swap the header out, so it hides
-                                              // with them).
-                                              if (_showsChatTranslationPanel &&
-                                                  !searching &&
-                                                  !_isSelecting)
-                                                _chatTranslationPanel(),
-                                              Expanded(
-                                                child: _transcriptLayer(
-                                                  searchPane: searchPane,
-                                                ),
+                                    : _withTopicNavigation(
+                                        Column(
+                                          children: [
+                                            if (topicTabStrip != null &&
+                                                _topicTabsPlacement ==
+                                                    TopicTabsPlacement.top)
+                                              topicTabStrip,
+                                            // The chat-level translation bar
+                                            // belongs to the transcript, not
+                                            // the header (search and selection
+                                            // swap the header out, so it hides
+                                            // with them).
+                                            if (_showsChatTranslationPanel &&
+                                                !searching &&
+                                                !_isSelecting)
+                                              _chatTranslationPanel(),
+                                            Expanded(
+                                              child: _transcriptLayer(
+                                                searchPane: searchPane,
                                               ),
-                                              _chatMusicPlayer(),
-                                              // A narrow chat trades the composer
-                                              // for the hit navigator; a wide one
-                                              // keeps composing beside the results.
-                                              if (searching && !searchPane)
-                                                _searchNavigator()
-                                              else if (_isSelecting)
-                                                _selectionActionBar()
-                                              else
-                                                _composerArea(),
-                                            ],
-                                          ),
+                                            ),
+                                            _chatMusicPlayer(),
+                                            if (topicTabStrip != null &&
+                                                _topicTabsPlacement ==
+                                                    TopicTabsPlacement.bottom)
+                                              topicTabStrip,
+                                            // A narrow chat trades the composer
+                                            // for the hit navigator; a wide one
+                                            // keeps composing beside the results.
+                                            if (searching && !searchPane)
+                                              _searchNavigator()
+                                            else if (_isSelecting)
+                                              _selectionActionBar()
+                                            else
+                                              _composerArea(),
+                                          ],
                                         ),
                                       ),
                                 trailingPane: searchPane
@@ -7576,32 +7611,73 @@ class _ChatViewState extends State<ChatView> {
     );
   }
 
-  /// The topic tab strip: a folder-tab-styled selector pinned under the
-  /// header, shown for forum groups and bot topic chats on narrow layouts —
-  /// the whole chat included, where the "All" tab is the selected one. Wide
-  /// shells render their rail instead.
-  Widget _topicTabStrip(Widget child) {
-    if (!_topicsKnown || usesSplitSelectionLayout(MediaQuery.sizeOf(context))) {
-      return child;
-    }
-    final theme = context.watch<ThemeController>();
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        TopicTabStrip(
-          chatId: widget.chatId,
-          topics: [
-            for (final topic in _vm.forumTopics) _topicNavigationItem(topic),
-          ],
-          selectedTopicId: widget.forumTopicId,
-          onSelected: _openTopicTranscript,
-          showUnreadBadges: theme.showFolderUnreadBadges,
-          badgeOverflowLabel: theme.unreadBadgeOverflowMode.format,
-          isLoading: _vm.forumTopicsLoading && _vm.forumTopics.isEmpty,
-          onLongPress: _showTopicTabMenu,
+  /// Restores this chat's saved tabs placement without rebuilding into the
+  /// default first: the store keeps an in-memory copy, so the toggle survives
+  /// transcript swaps even before the disk answer lands.
+  Future<void> _loadTopicTabsPlacement() async {
+    final chatId = widget.chatId;
+    final placement = await TopicTabsPlacementStore.shared.load(
+      _sessionKey.accountSlot,
+      chatId,
+    );
+    if (!mounted || widget.chatId != chatId) return;
+    if (placement == _topicTabsPlacement) return;
+    setState(() => _topicTabsPlacement = placement);
+  }
+
+  Future<void> _toggleTopicTabsPlacement() async {
+    final next = _topicTabsPlacement == TopicTabsPlacement.top
+        ? TopicTabsPlacement.bottom
+        : TopicTabsPlacement.top;
+    setState(() => _topicTabsPlacement = next);
+    await TopicTabsPlacementStore.shared.save(
+      _sessionKey.accountSlot,
+      widget.chatId,
+      next,
+    );
+  }
+
+  /// Commits a dragged pinned-tab order: the view model reorders the strip,
+  /// rail and topic list first, then sends `setPinnedForumTopics`.
+  void _reorderTopicTabs(List<int> pinnedIds) {
+    unawaited(() async {
+      final error = await _vm.reorderPinnedForumTopics(pinnedIds);
+      if (!mounted || error == null) return;
+      showToast(
+        context,
+        AppStrings.t(
+          AppStringKeys.groupAdministrationCouldnTReorderPinnedTopicsValue1,
+          {'value1': error},
         ),
-        Expanded(child: child),
+      );
+    }());
+  }
+
+  /// The topic tab strip: a folder-tab-styled selector pinned under the
+  /// header (or above the composer, per the chat's saved placement), shown
+  /// for forum groups and bot topic chats on narrow layouts — the whole chat
+  /// included, where the "All" tab is the selected one. Wide shells render
+  /// their rail instead.
+  Widget? _topicTabStripOrNull(ThemeController theme) {
+    if (!_topicsKnown || usesSplitSelectionLayout(MediaQuery.sizeOf(context))) {
+      return null;
+    }
+    return TopicTabStrip(
+      chatId: widget.chatId,
+      topics: [
+        for (final topic in _vm.forumTopics) _topicNavigationItem(topic),
       ],
+      selectedTopicId: widget.forumTopicId,
+      onSelected: _openTopicTranscript,
+      showUnreadBadges: theme.showFolderUnreadBadges,
+      badgeOverflowLabel: theme.unreadBadgeOverflowMode.format,
+      isLoading: _vm.forumTopicsLoading && _vm.forumTopics.isEmpty,
+      onLongPress: _showTopicTabMenu,
+      placement: _topicTabsPlacement,
+      onTogglePlacement: () => unawaited(_toggleTopicTabsPlacement()),
+      reordering: _reorderingTopicTabs,
+      onReorder: _reorderTopicTabs,
+      onReorderDone: () => setState(() => _reorderingTopicTabs = false),
     );
   }
 
@@ -9984,6 +10060,15 @@ class _ChatViewState extends State<ChatView> {
           label: AppStrings.t(AppStringKeys.groupAdministrationEditTopic),
           icon: HeroAppIcons.pen,
           onSelected: () => unawaited(_editTopic(topic)),
+        ),
+      // exteraless's FilterReorder lives on a pinned tab's menu: only pins
+      // have a server-side order to rewrite.
+      if (_vm.canReorderPinnedTopics && topic.isPinned)
+        AppMenuAction(
+          key: 'reorder-tabs',
+          label: AppStrings.t(AppStringKeys.mithkaxTopicTabsReorder),
+          icon: HeroAppIcons.arrowsRightLeft,
+          onSelected: () => setState(() => _reorderingTopicTabs = true),
         ),
       if (_vm.canCloseTopic(topic))
         AppMenuAction(
