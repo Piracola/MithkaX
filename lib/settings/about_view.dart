@@ -104,13 +104,14 @@ class _AboutViewState extends State<AboutView> {
                 // name sits a token's gap below the ink rather than below the
                 // canvas' empty margin.
                 Image(
-                  image: const ResizeImage(
-                    AssetImage(brandMarkInkAsset),
+                  image: ResizeImage(
+                    AssetImage(
+                      brandMarkInkAssetFor(Theme.of(context).brightness),
+                    ),
                     width: 300,
                   ),
                   height: 84,
                   fit: BoxFit.contain,
-                  color: c.textPrimary,
                   filterQuality: FilterQuality.high,
                 ),
                 const SizedBox(height: AppSpacing.md),

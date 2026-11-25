@@ -88,10 +88,11 @@ class _TermsSheet extends StatelessWidget {
                       ClipRRect(
                         borderRadius: BorderRadius.circular(AppRadius.card),
                         child: Image(
-                          image: const AssetImage(brandMarkAsset),
+                          image: AssetImage(
+                            brandMarkAssetFor(Theme.of(context).brightness),
+                          ),
                           width: 48,
                           height: 48,
-                          color: c.textPrimary,
                           filterQuality: FilterQuality.high,
                         ),
                       ),

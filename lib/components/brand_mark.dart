@@ -1,17 +1,28 @@
 import 'package:flutter/widgets.dart';
 
-/// The app mark: one flat glyph on transparency.
+/// The app mark: one flat glyph filled with the launcher icon's aurora
+/// gradient.
 ///
-/// The artwork carries a single colour, so every surface tints it to its own
-/// ink instead of shipping a copy per theme: pass the ink to `Image.color`
-/// (its blend mode is [BlendMode.srcIn], so only the mark's alpha survives).
-/// The theme's primary text colour already follows the light/dark appearance,
-/// and the splash passes white because it sits on the brand gradient.
+/// Two palettes ship, because the mark has to sit on both surfaces: the azure
+/// fill (the launcher icon's night body) reads on a light page, the frost fill
+/// (its day body) glows on a dark one. [brandMarkAssetFor] picks per
+/// appearance; the splash always uses [brandMarkFrostAsset] because it sits on
+/// the brand gradient.
 const String brandMarkAsset = 'assets/brand_mark.png';
+const String brandMarkFrostAsset = 'assets/brand_mark_frost.png';
 
-/// The same glyph with its transparent canvas trimmed away, for layouts that
-/// space the mark by its ink rather than by a square box.
+/// The same glyphs with their transparent canvas trimmed away, for layouts
+/// that space the mark by its ink rather than by a square box.
 const String brandMarkInkAsset = 'assets/brand_mark_ink.png';
+const String brandMarkInkFrostAsset = 'assets/brand_mark_ink_frost.png';
+
+/// The square mark for [brightness].
+String brandMarkAssetFor(Brightness brightness) =>
+    brightness == Brightness.dark ? brandMarkFrostAsset : brandMarkAsset;
+
+/// The canvas-trimmed mark for [brightness].
+String brandMarkInkAssetFor(Brightness brightness) =>
+    brightness == Brightness.dark ? brandMarkInkFrostAsset : brandMarkInkAsset;
 
 /// The mark as vector geometry on a 24 × 24 grid, vertically filling it.
 ///

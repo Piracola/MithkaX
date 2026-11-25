@@ -225,11 +225,13 @@ flutter:
     - assets/l10n/
     # Country flag sprite, built by tool/build_flag_sprite.py.
     - assets/flags/
-    # The app mark: one flat glyph, tinted at paint time so a single asset
-    # serves both appearances (lib/components/brand_mark.dart). The canvas
-    # trimmed twin is for layouts that space it by the ink.
+    # The app mark: one flat glyph per appearance, filled with the launcher
+    # icon's aurora gradient (lib/components/brand_mark.dart). The canvas
+    # trimmed twins are for layouts that space the mark by its ink.
     - assets/brand_mark.png
+    - assets/brand_mark_frost.png
     - assets/brand_mark_ink.png
+    - assets/brand_mark_ink_frost.png
     # Full launcher PNGs are only read by the macOS Dock plugin.
     # iOS uses its native icon catalogue; every Flutter picker uses WebP.
     - path: assets/app_icons/white.png

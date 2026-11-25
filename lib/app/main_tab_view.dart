@@ -2083,10 +2083,9 @@ class _MessageEmptyPane extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               Image.asset(
-                brandMarkAsset,
+                brandMarkAssetFor(Theme.of(context).brightness),
                 width: 92,
                 height: 92,
-                color: c.textTertiary,
                 filterQuality: FilterQuality.high,
               ),
               const SizedBox(width: 18),

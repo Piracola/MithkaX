@@ -26,19 +26,16 @@ class _Accounts extends AccountStore {
 void main() {
   final desktop = TargetPlatformVariant.only(TargetPlatform.macOS);
 
-  testWidgets('Premium mark follows the desktop status control', (
+  testWidgets('the desktop account row carries no Premium mark', (
     tester,
   ) async {
+    // A Premium account still shows the emoji status control; the gold badge
+    // that used to sit beside it was removed from the sidebar outright.
     await _pump(tester);
     final status = find.byKey(const ValueKey('desktop-title-bar-status'));
-    final badge = find.byKey(const ValueKey('desktop-title-bar-vip'));
     expect(status, findsOneWidget);
-    expect(badge, findsOneWidget);
-    expect(tester.getSize(badge), const Size.square(18));
-    expect(
-      tester.getRect(badge).left,
-      greaterThan(tester.getRect(status).right),
-    );
+    expect(find.byKey(const ValueKey('desktop-title-bar-vip')), findsNothing);
+    expect(find.byType(VipBadge), findsNothing);
     await tester.pumpWidget(const SizedBox.shrink());
   }, variant: desktop);
 

@@ -1963,12 +1963,9 @@ class _TopicChatViewState extends State<TopicChatView> {
       decoration: BoxDecoration(
         color: widget.headerColor ?? c.navBar,
         image: DecorationImage(
-          image: const AssetImage(brandMarkAsset),
+          image: AssetImage(brandMarkAssetFor(Theme.of(context).brightness)),
           fit: BoxFit.cover,
           opacity: 0.04,
-          // The watermark is the mark in the header's own ink, so it follows
-          // the light/dark appearance instead of baking a colour.
-          colorFilter: ColorFilter.mode(c.textPrimary, BlendMode.srcIn),
         ),
       ),
       child: Column(

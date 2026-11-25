@@ -528,15 +528,14 @@ class _LoginViewState extends State<LoginView> {
     );
   }
 
-  /// The mark on its own, with no tile behind it, tinted to the login lane's
-  /// ink so it follows the light and dark appearance.
+  /// The mark on its own, with no tile behind it. The asset carries the
+  /// appearance-specific aurora fill, so no tint is applied over it.
   Widget _brandMark(double size) => ExcludeSemantics(
     child: Image(
-      image: const AssetImage(brandMarkAsset),
+      image: AssetImage(brandMarkAssetFor(Theme.of(context).brightness)),
       width: size,
       height: size,
       fit: BoxFit.contain,
-      color: context.colors.textPrimary,
       filterQuality: FilterQuality.high,
     ),
   );

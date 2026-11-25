@@ -19,7 +19,6 @@ import '../chats/search_view.dart';
 import '../components/app_icons.dart';
 import '../components/app_interactive_surface.dart';
 import '../components/brand_mark.dart';
-import '../components/vip_badge.dart';
 import '../l10n/app_localizations.dart';
 import '../platform/adaptive_platform.dart';
 import '../profile/emoji_status_picker.dart';
@@ -532,10 +531,6 @@ class _DesktopPrimaryWindowFrameState extends State<DesktopPrimaryWindowFrame> {
                                   ),
                                 ),
                               ),
-                              const SizedBox(width: 4),
-                              const VipBadge(
-                                key: ValueKey('desktop-title-bar-vip'),
-                              ),
                             ],
                           ],
                         ),
@@ -732,12 +727,11 @@ class _MacosTitleBarAvatar extends StatelessWidget {
       // The mark is 1024x1024: 4 MB of RGBA for a 24 pt slot without a decode
       // hint. Width only, so the square aspect survives.
       return Image.asset(
-        brandMarkAsset,
+        brandMarkAssetFor(Theme.of(context).brightness),
         width: size,
         height: size,
         cacheWidth: (size * 4).round(),
         fit: BoxFit.cover,
-        color: context.colors.textPrimary,
       );
     }
     return Container(
@@ -971,11 +965,11 @@ class SplashView extends StatelessWidget {
             // The asset is 1024x1024 and would otherwise decode at full size
             // (4 MB of RGBA) for a 192 pt slot. Width only keeps it square.
             Image(
-              image: ResizeImage(AssetImage(brandMarkAsset), width: 576),
+              // The frost fill is the launcher icon's own body, which is what
+              // reads on the brand gradient in either appearance.
+              image: ResizeImage(AssetImage(brandMarkFrostAsset), width: 576),
               width: AppMetric.splashMarkSize,
               height: AppMetric.splashMarkSize,
-              // White on the gradient, both appearances.
-              color: Colors.white,
               filterQuality: FilterQuality.high,
             ),
             SizedBox(height: AppSpacing.lg + AppSpacing.sm),

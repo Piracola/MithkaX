@@ -12,6 +12,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mithka/components/brand_mark.dart';
 import 'package:mithka/l10n/app_localizations.dart';
 import 'package:mithka/settings/about_view.dart';
 import 'package:mithka/theme/app_theme.dart';
@@ -54,7 +55,7 @@ void main() {
     });
   });
 
-  Future<void> pumpAbout(WidgetTester tester, AppColors colors) async {
+  Future<void> pumpAbout(WidgetTester tester, Brightness brightness) async {
     SharedPreferences.setMockInitialValues({});
     final theme = ThemeController(await SharedPreferences.getInstance());
     addTearDown(theme.dispose);
@@ -70,7 +71,12 @@ void main() {
             GlobalWidgetsLocalizations.delegate,
           ],
           supportedLocales: AppLocalizations.supportedLocales,
-          theme: ThemeData(extensions: [colors]),
+          theme: ThemeData(
+            brightness: brightness,
+            extensions: [
+              brightness == Brightness.dark ? AppColors.dark : AppColors.light,
+            ],
+          ),
           home: const AboutView(showBackButton: false),
         ),
       ),
@@ -81,7 +87,7 @@ void main() {
   }
 
   testWidgets('the app name sits one gap under the mark', (tester) async {
-    await pumpAbout(tester, AppColors.light);
+    await pumpAbout(tester, Brightness.light);
 
     final mark = find.byType(Image).first;
     final name = find.text('Mithka X');
@@ -90,15 +96,21 @@ void main() {
     expect(tester.getSize(mark).height, 84);
   });
 
-  testWidgets('the mark is tinted to the theme ink, not baked', (tester) async {
-    // One asset serves both appearances: the artwork carries only alpha, so
-    // the widget must hand each theme its own ink or the mark disappears into
-    // the surface it sits on.
-    for (final colors in [AppColors.light, AppColors.dark]) {
-      await pumpAbout(tester, colors);
+  testWidgets('the mark carries the aurora fill for its appearance', (
+    tester,
+  ) async {
+    // Each appearance ships its own fill — azure ink on a light page, the
+    // frost body on a dark one — so the widget must pick the matching asset
+    // and must not tint over it.
+    for (final (brightness, asset) in [
+      (Brightness.light, brandMarkInkAsset),
+      (Brightness.dark, brandMarkInkFrostAsset),
+    ]) {
+      await pumpAbout(tester, brightness);
       final mark = tester.widget<Image>(find.byType(Image).first);
-      expect(mark.color, colors.textPrimary, reason: '$colors');
-      expect(mark.image, isA<ResizeImage>());
+      final provider = (mark.image as ResizeImage).imageProvider as AssetImage;
+      expect(provider.assetName, asset, reason: '$brightness');
+      expect(mark.color, isNull, reason: '$brightness');
     }
   });
 }
