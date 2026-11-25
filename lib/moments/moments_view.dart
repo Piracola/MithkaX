@@ -120,6 +120,33 @@ class ChannelPost {
   final ValueNotifier<int> revision = ValueNotifier<int>(0);
 }
 
+/// Whether a channel post has anything its feed row can paint.
+///
+/// Service banners (the channel's photo or name changed, a member joined) are
+/// not posts: the row has no body for them and drew an empty card with just a
+/// header and an action row. Payloads the row cannot draw (a poll, a
+/// location, a voice note) have the same shape — their text is a bracketed
+/// preview label the row deliberately suppresses. The feed drops those
+/// instead; the chat transcript still shows the service banner and the media.
+@visibleForTesting
+bool channelPostHasBody(ChannelPost post) {
+  for (final message in post.messages) {
+    if (message.isService) continue;
+    final text = message.text.trim();
+    if (text.isNotEmpty && !(text.startsWith('[') && text.endsWith(']'))) {
+      return true;
+    }
+    if (message.isAlbumVisualMedia) return true;
+    if (message.video != null) return true;
+    if (message.music != null) return true;
+    if (_hasStickerMedia(message)) return true;
+  }
+  // A forwarded post with no body still names its source, and a reply quote
+  // is content of its own.
+  if (post.message.hasForwardAttribution) return true;
+  return post.message.replyToMessageId != null;
+}
+
 class ChannelPostThreadTarget {
   const ChannelPostThreadTarget({
     required this.chatId,
@@ -1465,6 +1492,11 @@ class _ChannelMomentsViewState extends State<ChannelMomentsView> {
         _postsByChannel.values
             .expand((items) => items)
             .where((post) => post.message.date > completeSince)
+            // A service banner or a payload the row cannot draw must not
+            // become an empty card in the feed.
+            .where(
+              (post) => !post.message.isService && channelPostHasBody(post),
+            )
             .toList()
           ..sort((a, b) => b.message.date.compareTo(a.message.date));
     final grouped = _groupPostAlbums(posts);
@@ -2791,13 +2823,22 @@ class _MomentsComposerHeader extends StatelessWidget {
                       : Stack(
                           fit: StackFit.expand,
                           children: [
-                            RepaintBoundary(
-                              child: ImageFiltered(
-                                imageFilter: ui.ImageFilter.blur(
-                                  sigmaX: 28,
-                                  sigmaY: 28,
+                            // A sigma-28 gaussian spreads about 3σ (84 px)
+                            // past the child and ImageFiltered does not clip
+                            // its output, so the banner's blur painted a dark
+                            // halo below the 166 px band while the scrim
+                            // stopped at the band — the two layers showed
+                            // different heights. Clip the blur to the band so
+                            // both cover the same rect.
+                            ClipRect(
+                              child: RepaintBoundary(
+                                child: ImageFiltered(
+                                  imageFilter: ui.ImageFilter.blur(
+                                    sigmaX: 28,
+                                    sigmaY: 28,
+                                  ),
+                                  child: TDImage(photo: photo, cornerRadius: 0),
                                 ),
-                                child: TDImage(photo: photo, cornerRadius: 0),
                               ),
                             ),
                             ColoredBox(

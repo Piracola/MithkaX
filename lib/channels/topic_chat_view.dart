@@ -1384,6 +1384,10 @@ class _TopicChatViewState extends State<TopicChatView> {
       final loadedMessages = _topicMessages[topic.id];
       final messages = loadedMessages ?? [topic.lastMessage];
       for (final message in messages) {
+        // A topic's last message is often a service banner (its photo or name
+        // changed, a member joined). Those belong to the topic header, not to
+        // the post feed — as a post they were a card with no body.
+        if (message.isService) continue;
         posts.add(
           _TopicPost(
             topic: topic,
