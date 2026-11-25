@@ -48,6 +48,7 @@ class InstantViewView extends StatefulWidget {
     this.initialPage,
     this.fallbackUrl,
     this.allowWebFallback = true,
+    this.fallbackToBrowserOnFailure = false,
   });
 
   final String url;
@@ -65,6 +66,11 @@ class InstantViewView extends StatefulWidget {
   /// page itself (exteraless's `WebInstantView`). On by default; callers that
   /// know the page cannot be read (a file, an app link) turn it off.
   final bool allowWebFallback;
+
+  /// Opens the browser instead of showing the error state when every attempt
+  /// fails — the behaviour a preview card had before it learned to try the
+  /// reader. Retry from the reader's own error state stays manual.
+  final bool fallbackToBrowserOnFailure;
 
   @override
   State<InstantViewView> createState() => _InstantViewViewState();
@@ -149,7 +155,7 @@ class _InstantViewViewState extends State<InstantViewView> {
     _ => false,
   };
 
-  Future<void> _load() async {
+  Future<void> _load({bool retry = false}) async {
     if (_loading || _extracting) return;
     setState(() {
       _loading = true;
@@ -183,11 +189,23 @@ class _InstantViewViewState extends State<InstantViewView> {
       return;
     }
     setState(() => _loading = false);
-    if (!widget.allowWebFallback || !_webViewSupported) {
+    if (widget.allowWebFallback && _webViewSupported) {
+      await _loadFromWeb();
+      if (!mounted || _page != null) return;
+    } else {
       setState(() => _error = failure);
-      return;
     }
-    await _loadFromWeb();
+    if (widget.fallbackToBrowserOnFailure && !retry) {
+      await _fallbackToBrowser();
+    }
+  }
+
+  Future<void> _fallbackToBrowser() async {
+    final route = ModalRoute.of(context);
+    if (!mounted || route == null || !route.isCurrent) return;
+    final url = widget.fallbackUrl ?? widget.url;
+    await openIvUrlInBrowser(context, url);
+    if (mounted) unawaited(Navigator.of(context).maybePop());
   }
 
   /// exteraless's `WebInstantView`: when Telegram has no template, read the
@@ -624,7 +642,7 @@ class _InstantViewViewState extends State<InstantViewView> {
     }
     if (_page == null) {
       return _InstantViewError(
-        onRetry: () => unawaited(_load()),
+        onRetry: () => unawaited(_load(retry: true)),
         onOpenInBrowser: () =>
             openIvUrlInBrowser(context, widget.fallbackUrl ?? widget.url),
       );

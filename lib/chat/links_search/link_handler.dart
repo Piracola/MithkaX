@@ -1602,6 +1602,7 @@ Future<bool> openInstantViewPage(
           accountSlot: accountSlot,
           loader: resolvedLoader,
           fallbackUrl: fallbackUrl,
+          fallbackToBrowserOnFailure: !waitForPage,
         ),
       ),
     );

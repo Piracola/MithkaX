@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mithka/chat/instant_view/instant_view_models.dart';
 import 'package:mithka/chat/instant_view/instant_view_web.dart';
@@ -245,6 +247,17 @@ void main() {
         page.blocks.whereType<IvPhotoBlock>().single.photo.url,
         'https://upload.wikimedia.org/real.png',
       );
+    });
+
+    test('decodes Android and WKWebView JavaScript results', () {
+      const json = '{"title":"x","content":[]}';
+      expect(decodeInstantViewWebResult(json), isNotNull);
+      // Android's evaluateJavascript hands strings back JSON-quoted.
+      expect(decodeInstantViewWebResult(jsonEncode(json)), isNotNull);
+      expect(decodeInstantViewWebResult('"null"'), isNull);
+      expect(decodeInstantViewWebResult('null'), isNull);
+      expect(decodeInstantViewWebResult(''), isNull);
+      expect(decodeInstantViewWebResult(42), isNull);
     });
 
     test('a page without content is empty', () {
