@@ -244,6 +244,14 @@ void main() {
     expect(find.byType(ChatView), findsOneWidget);
   }
 
+  /// The strip is horizontally scrollable and now carries the tabs-position
+  /// control at its leading edge: on a 390pt phone the last tab starts just
+  /// past the viewport, so bring it into view before pressing it.
+  Future<void> revealTopicTab(WidgetTester tester, int topicId) async {
+    await tester.ensureVisible(find.byKey(ValueKey('topic-tab-$topicId')));
+    await tester.pumpAndSettle();
+  }
+
   testWidgets('long press opens an anchored pin/edit/close/delete menu', (
     tester,
   ) async {
@@ -254,6 +262,7 @@ void main() {
       isForum: true,
     );
 
+    await revealTopicTab(tester, 50);
     await tester.longPress(find.byKey(const ValueKey('topic-tab-50')));
     await tester.pumpAndSettle();
 
@@ -292,6 +301,7 @@ void main() {
     expect(pin['is_pinned'], true);
 
     // Closing a topic is the other management verb other clients offer here.
+    await revealTopicTab(tester, 50);
     await tester.longPress(find.byKey(const ValueKey('topic-tab-50')));
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const ValueKey('app-anchored-menu-close')));
@@ -402,6 +412,7 @@ void main() {
     );
 
     final tab = find.byKey(const ValueKey('topic-tab-50'));
+    await revealTopicTab(tester, 50);
     final tabRect = tester.getRect(tab);
     await tester.longPress(tab);
     await tester.pumpAndSettle();
