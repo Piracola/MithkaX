@@ -483,7 +483,7 @@ class InstantViewWebExtractor {
       );
     _controller = controller;
     debugPrint('instantView.web: load $url');
-    _timeout = Timer(const Duration(seconds: 30), () {
+    _timeout = Timer(const Duration(seconds: 20), () {
       debugPrint('instantView.web: timeout $url');
       _finish(null);
     });

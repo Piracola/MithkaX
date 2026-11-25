@@ -128,7 +128,7 @@ class _InternalBrowserViewState extends State<InternalBrowserView> {
           await InstantViewWebExtractor.instantViewExtractionScript();
       await _controller.runJavaScript(script);
       final json = await completer.future.timeout(
-        const Duration(seconds: 30),
+        const Duration(seconds: 20),
         onTimeout: () => null,
       );
       if (!mounted) return;
