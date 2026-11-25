@@ -1197,13 +1197,12 @@ class _ChatHeaderAction extends StatelessWidget {
   }
 }
 
-/// The chat's overflow button — exteraless's `⋮` action-bar item.
+/// The chat's menu button — the header's `☰`, exteraless's `headerItem`.
 ///
-/// Every chat type carries it, so the same secondary commands (search first)
-/// live in one predictable place. It is deliberately NOT the chat-info
-/// control: that one keeps its own glyph and opens the details page, while
-/// this one opens a menu — a vertical ellipsis never reads as the `☰`/gear
-/// info button beside it.
+/// It used to be the details page's door; the title took that job so this one
+/// could carry every chat command in one predictable place. The glyph is the
+/// three-bar action-bar menu, exactly the control exteraless puts at the far
+/// right of a chat header.
 class _ChatHeaderMenuButton extends StatelessWidget {
   const _ChatHeaderMenuButton({required this.onPressed});
 
@@ -1227,7 +1226,7 @@ class _ChatHeaderMenuButton extends StatelessWidget {
         height: math.max(44, AppMetric.hitTarget),
         child: Center(
           child: AppIcon(
-            HeroAppIcons.ellipsisVertical,
+            HeroAppIcons.bars,
             size: AppIconSize.nav,
             color: c.textPrimary,
           ),
@@ -7197,6 +7196,17 @@ class _ChatViewState extends State<ChatView> {
     unawaited(_openChatInfo());
   }
 
+  /// Where the header's details control used to go: the side panel on a phone
+  /// layout, the full info page on a wide one. The title tap uses the same
+  /// path, so both platforms keep their own presentation.
+  void _openChatDetails() {
+    if (widget.onOpenFullInfo != null) {
+      _handleFullInfoPressed();
+      return;
+    }
+    _handleInfoPressed();
+  }
+
   void _handleFullInfoPressed() {
     final onOpenFullInfo = widget.onOpenFullInfo;
     if (onOpenFullInfo != null) {
@@ -9012,6 +9022,12 @@ class _ChatViewState extends State<ChatView> {
                       icon: HeroAppIcons.tableCells,
                       onTap: () => unawaited(_openBotMenuApp(_vm.botMenu!)),
                     ),
+                  _ChatHeaderAction(
+                    key: const ValueKey('chatHeaderSearch'),
+                    label: AppStringKeys.chatSearchInThisChat.l10n(context),
+                    icon: HeroAppIcons.magnifyingGlass,
+                    onTap: _openSearch,
+                  ),
                   if (_canViewAsMoments)
                     _ChatHeaderAction(
                       key: const ValueKey('chatHeaderViewAsMoments'),
@@ -9029,24 +9045,21 @@ class _ChatViewState extends State<ChatView> {
                           ? null
                           : _handleInfoPressed,
                       onOpenFullInfo: _handleFullInfoPressed,
-                    )
-                  else
+                    ),
+                  if (_showsTopicSurfaces)
                     _ChatHeaderAction(
-                      key: const ValueKey('chatHeaderInfo'),
-                      label: AppStringKeys.chatInfoTitle.l10n(context),
-                      icon: widget.onOpenFullInfo == null
-                          ? HeroAppIcons.bars
-                          : HeroAppIcons.gear,
-                      onTap: widget.onOpenFullInfo == null
-                          ? _handleInfoPressed
-                          : _handleFullInfoPressed,
+                      // The title opens the details page now, so the list of
+                      // topics needs its own control — exteraless keeps a
+                      // topics-panel toggle in this slot.
+                      key: const ValueKey('chatHeaderTopics'),
+                      label: AppStringKeys.topicChatAllTopics.l10n(context),
+                      icon: HeroAppIcons.hashtag,
+                      onTap: _openTopicList,
                     ),
                   if (_showsTopicSurfaces && _vm.canCreateForumTopics)
                     _ChatHeaderAction(
-                      // The title itself opens the topic list, so the header
-                      // carries the one action the list cannot: starting a
-                      // topic. A chat whose rights refuse creation shows no
-                      // button at all.
+                      // A chat whose rights refuse creation shows no button at
+                      // all rather than a dimmed one.
                       key: const ValueKey('chatHeaderNewTopic'),
                       label: AppStringKeys.groupAdministrationNewTopic.l10n(
                         context,
@@ -9172,7 +9185,25 @@ class _ChatViewState extends State<ChatView> {
           ),
           icon: _vm.isMuted ? HeroAppIcons.bell : HeroAppIcons.bellSlash,
           sectionStart: true,
-          onSelected: () => unawaited(_muteFromMenu()),
+          // A muted chat unmutes on the tap, like exteraless; a live one opens
+          // the durations as a submenu of this same card, so the command and
+          // its lengths stay one control instead of a sheet on top of a menu.
+          onSelected: _vm.isMuted ? () => unawaited(_vm.setMuteFor(0)) : null,
+          children: _vm.isMuted
+              ? null
+              : [
+                  for (final option in const [
+                    (AppStringKeys.chatMuteFor1Hour, 60 * 60),
+                    (AppStringKeys.chatMuteFor8Hours, 8 * 60 * 60),
+                    (AppStringKeys.chatMuteFor2Days, 2 * 24 * 60 * 60),
+                    (AppStringKeys.chatMuteForever, 2147483647),
+                  ])
+                    AppMenuAction(
+                      key: 'mute-${option.$2}',
+                      label: AppStrings.t(option.$1),
+                      onSelected: () => unawaited(_vm.setMuteFor(option.$2)),
+                    ),
+                ],
         ),
       if (_canToggleChatTranslation)
         AppMenuAction(
@@ -9313,38 +9344,6 @@ class _ChatViewState extends State<ChatView> {
 
   /// Mute with exteraless's durations. An already-muted chat unmutes on the
   /// tap; otherwise the sheet asks until when.
-  Future<void> _muteFromMenu() async {
-    if (_vm.isMuted) {
-      await _vm.setMuteFor(0);
-      return;
-    }
-    final selected = await showAppCupertinoModalPopup<int>(
-      context: context,
-      builder: (sheet) => CupertinoActionSheet(
-        title: Text(AppStrings.t(AppStringKeys.chatMute)),
-        actions: [
-          for (final option in const [
-            (AppStringKeys.chatMuteFor1Hour, 60 * 60),
-            (AppStringKeys.chatMuteFor8Hours, 8 * 60 * 60),
-            (AppStringKeys.chatMuteFor2Days, 2 * 24 * 60 * 60),
-            (AppStringKeys.chatMuteForever, 2147483647),
-          ])
-            CupertinoActionSheetAction(
-              key: ValueKey('chat-menu-mute-${option.$2}'),
-              onPressed: () => Navigator.of(sheet).pop(option.$2),
-              child: Text(AppStrings.t(option.$1)),
-            ),
-        ],
-        cancelButton: CupertinoActionSheetAction(
-          onPressed: () => Navigator.of(sheet).pop(),
-          child: Text(AppStrings.t(AppStringKeys.countryPickerCancel)),
-        ),
-      ),
-    );
-    if (selected == null || !mounted) return;
-    await _vm.setMuteFor(selected);
-  }
-
   /// The auto-delete chooser, same options and request as the details page.
   Future<void> _chooseAutoDeleteFromMenu() async {
     final selected = await showAppCupertinoModalPopup<int>(
@@ -9636,20 +9635,7 @@ class _ChatViewState extends State<ChatView> {
       mainAxisAlignment: MainAxisAlignment.center,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        if (_showsTopicSurfaces)
-          Row(
-            children: [
-              Expanded(child: title),
-              const SizedBox(width: 4),
-              AppIcon(
-                HeroAppIcons.chevronDown,
-                size: 14,
-                color: c.textSecondary,
-              ),
-            ],
-          )
-        else
-          title,
+        title,
         if (subtitle.isNotEmpty)
           Text(
             subtitle,
@@ -9666,23 +9652,15 @@ class _ChatViewState extends State<ChatView> {
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: text,
     );
-    if (_showsTopicSurfaces) {
-      return GestureDetector(
-        key: const ValueKey('chatHeaderTitle'),
-        behavior: HitTestBehavior.opaque,
-        onTap: _openTopicList,
-        child: content,
-      );
-    }
-    if ((_vm.peerUserId ?? 0) > 0) {
-      return GestureDetector(
-        key: const ValueKey('chatHeaderTitle'),
-        behavior: HitTestBehavior.opaque,
-        onTap: _openPeerProfile,
-        child: content,
-      );
-    }
-    return content;
+    // The title is the details door for every chat: the header's own control
+    // is the menu now, and a title that opened the topic list left the
+    // details page reachable only from a button nobody could name.
+    return GestureDetector(
+      key: const ValueKey('chatHeaderTitle'),
+      behavior: HitTestBehavior.opaque,
+      onTap: _openChatDetails,
+      child: content,
+    );
   }
 
   /// Follows the topic a send just started from this bot topic chat's "All"

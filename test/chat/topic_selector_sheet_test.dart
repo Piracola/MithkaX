@@ -181,8 +181,8 @@ void main() {
     await tester.pump(const Duration(milliseconds: 400));
     await tester.pumpAndSettle();
 
-    // The title opens the topic list sheet.
-    await tester.tap(find.byKey(const ValueKey('chatHeaderTitle')));
+    // The header's topics control opens the topic list sheet.
+    await tester.tap(find.byKey(const ValueKey('chatHeaderTopics')));
     await tester.pumpAndSettle();
 
     expect(_row('all'), findsOneWidget);
@@ -211,7 +211,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byKey(const ValueKey('topic-selector-list')), findsNothing);
 
-    await tester.tap(find.byKey(const ValueKey('chatHeaderTitle')));
+    await tester.tap(find.byKey(const ValueKey('chatHeaderTopics')));
     await tester.pumpAndSettle();
     expect(_checkIn(_row('50')), findsOneWidget);
     expect(_railIn(_row('50')), findsOneWidget);
