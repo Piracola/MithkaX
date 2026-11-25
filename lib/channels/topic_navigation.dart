@@ -112,6 +112,9 @@ class TopicNavigationLayout extends StatelessWidget {
     this.onTopicMenu,
     this.generalAvatarTitle = '',
     this.generalAvatarPhoto,
+    this.placement = TopicTabsPlacement.top,
+    this.onTogglePlacement,
+    this.bottomBar,
   });
 
   final List<TopicNavigationItem> topics;
@@ -130,6 +133,18 @@ class TopicNavigationLayout extends StatelessWidget {
   final String generalAvatarTitle;
   final TdFileRef? generalAvatarPhoto;
 
+  /// Where the horizontal topic tab bar sits: above the topic content, or
+  /// between it and [bottomBar] (the composer), the way exteraless's per-chat
+  /// tabs position works. The vertical rail ignores it.
+  final TopicTabsPlacement placement;
+
+  /// Moves the tab bar to the other side. Null hides the control (wide
+  /// layouts keep their rail/top tabs fixed).
+  final VoidCallback? onTogglePlacement;
+
+  /// Kept below the tab bar in both placements — the topic screen's composer.
+  final Widget? bottomBar;
+
   @override
   Widget build(BuildContext context) {
     final vertical =
@@ -146,12 +161,17 @@ class TopicNavigationLayout extends StatelessWidget {
       onTopicMenu: onTopicMenu,
       generalAvatarTitle: generalAvatarTitle,
       generalAvatarPhoto: generalAvatarPhoto,
+      placement: placement,
+      onTogglePlacement: vertical ? null : onTogglePlacement,
     );
     if (!vertical) {
+      final tabs = SizedBox(height: 44, child: navigation);
       return Column(
         children: [
-          SizedBox(height: 44, child: navigation),
+          if (placement == TopicTabsPlacement.top) tabs,
           Expanded(child: child),
+          if (placement == TopicTabsPlacement.bottom) tabs,
+          ?bottomBar,
         ],
       );
     }
@@ -164,7 +184,14 @@ class TopicNavigationLayout extends StatelessWidget {
                 : (constraints.maxWidth * 0.24).clamp(120.0, 196.0),
             child: navigation,
           ),
-          Expanded(child: child),
+          Expanded(
+            child: Column(
+              children: [
+                Expanded(child: child),
+                ?bottomBar,
+              ],
+            ),
+          ),
         ],
       ),
     );
@@ -183,6 +210,8 @@ class _TopicNavigation extends StatelessWidget {
     this.onTopicMenu,
     this.generalAvatarTitle = '',
     this.generalAvatarPhoto,
+    this.placement = TopicTabsPlacement.top,
+    this.onTogglePlacement,
   });
 
   final List<TopicNavigationItem> topics;
@@ -197,10 +226,13 @@ class _TopicNavigation extends StatelessWidget {
   final TopicRowMenuRequest? onTopicMenu;
   final String generalAvatarTitle;
   final TdFileRef? generalAvatarPhoto;
+  final TopicTabsPlacement placement;
+  final VoidCallback? onTogglePlacement;
 
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
+    final list = detailed ? _detailedList(context) : _compactList(context);
     return Container(
       key: ValueKey(
         vertical ? 'topic-navigation-left' : 'topic-navigation-top',
@@ -211,18 +243,30 @@ class _TopicNavigation extends StatelessWidget {
             ? Border(right: BorderSide(color: c.divider, width: 0.5))
             : Border(bottom: BorderSide(color: c.divider, width: 0.5)),
       ),
-      child: Column(
-        children: [
-          if (detailed && (onCreateTopic != null || onMarkAllRead != null))
-            _RailHeader(
-              onCreateTopic: onCreateTopic,
-              onMarkAllRead: onMarkAllRead,
+      // A wide rail keeps its header; the horizontal bar puts the tabs
+      // position control at the leading edge, like the chat transcript's.
+      child: vertical
+          ? Column(
+              children: [
+                if (detailed &&
+                    (onCreateTopic != null || onMarkAllRead != null))
+                  _RailHeader(
+                    onCreateTopic: onCreateTopic,
+                    onMarkAllRead: onMarkAllRead,
+                  ),
+                Expanded(child: list),
+              ],
+            )
+          : Row(
+              children: [
+                if (onTogglePlacement != null)
+                  _TopicTabsPlacementToggle(
+                    placement: placement,
+                    onTap: onTogglePlacement!,
+                  ),
+                Expanded(child: list),
+              ],
             ),
-          Expanded(
-            child: detailed ? _detailedList(context) : _compactList(context),
-          ),
-        ],
-      ),
     );
   }
 

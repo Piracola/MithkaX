@@ -13,6 +13,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mithka/auth/account_store.dart';
 import 'package:mithka/auth/auth_manager.dart';
+import 'package:mithka/channels/topic_navigation.dart';
+import 'package:mithka/channels/topic_tabs_placement.dart';
 import 'package:mithka/chat/chat_view.dart';
 import 'package:mithka/chats/chat_list_view.dart';
 import 'package:mithka/l10n/app_localizations.dart';
@@ -312,6 +314,42 @@ void main() {
     expect(close['chat_id'], _forumChatId);
     expect(close['forum_topic_id'], 50);
     expect(close['is_closed'], true);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(const Duration(seconds: 6));
+  });
+
+  testWidgets('the tab menu moves the tabs to the composer side', (
+    tester,
+  ) async {
+    TopicTabsPlacementStore.shared.resetForTesting();
+    await openChat(
+      tester,
+      chatId: _forumChatId,
+      title: 'Forum Group',
+      isForum: true,
+    );
+
+    final strip = find.byType(TopicTabStrip);
+    final headerSide = tester.getRect(strip);
+    await revealTopicTab(tester, 50);
+    await tester.longPress(find.byKey(const ValueKey('topic-tab-50')));
+    await tester.pumpAndSettle();
+
+    final move = find.byKey(const ValueKey('app-anchored-menu-tabs-position'));
+    expect(move, findsOneWidget);
+    await tester.tap(move);
+    await tester.pumpAndSettle();
+
+    // The interaction is not only the strip's arrow: the tab menu carries the
+    // same move, reachable from any topic tab.
+    final composerSide = tester.getRect(strip);
+    expect(composerSide.top, greaterThan(headerSide.top + 200));
+    final prefs = await SharedPreferences.getInstance();
+    expect(
+      prefs.getString('mithka.topicTabsPlacement.v1.0.$_forumChatId'),
+      'bottom',
+    );
 
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump(const Duration(seconds: 6));
