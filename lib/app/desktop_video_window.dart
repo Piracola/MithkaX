@@ -26,6 +26,7 @@ import '../media/video_playback_reporting.dart';
 import '../tdlib/td_client.dart';
 import '../tdlib/td_image_loader.dart';
 import '../theme/app_theme.dart';
+import '../theme/platform_font_defaults.dart';
 import 'desktop_media_window_registry.dart';
 import 'video_split_controller.dart';
 
@@ -171,13 +172,38 @@ class DesktopVideoWindowService {
   }
 }
 
-class DesktopVideoWindowApp extends StatelessWidget {
+class DesktopVideoWindowApp extends StatefulWidget {
   const DesktopVideoWindowApp({super.key, required this.arguments});
 
   final DesktopVideoWindowArguments arguments;
 
   @override
+  State<DesktopVideoWindowApp> createState() => _DesktopVideoWindowAppState();
+}
+
+class _DesktopVideoWindowAppState extends State<DesktopVideoWindowApp>
+    with WidgetsBindingObserver {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void didChangeLocales(List<Locale>? locales) {
+    super.didChangeLocales(locales);
+    if (mounted) setState(() {});
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final arguments = widget.arguments;
     // Flutter's service extensions are isolate-scoped. A debug-paint toggle on
     // a detached engine must never leak into the product chrome as yellow text
     // baselines or layout outlines. Reassert this on every child rebuild so a
@@ -187,14 +213,47 @@ class DesktopVideoWindowApp extends StatelessWidget {
     debugPaintLayerBordersEnabled = false;
     debugPaintPointersEnabled = false;
     debugRepaintRainbowEnabled = false;
+    final systemLocale = WidgetsBinding.instance.platformDispatcher.locale;
+    final typographyLocale = PlatformFontDefaults.effectiveTypographyLocale(
+      systemLocale: systemLocale,
+    );
+    final families = PlatformFontDefaults.effectiveFontChain(
+      systemLocale: systemLocale,
+    );
+    final primaryFont = families.isEmpty ? null : families.first;
+    final fallbackFonts = families.length > 1
+        ? families.skip(1).toList()
+        : null;
+    final darkBase = ThemeData.dark();
+    final darkTextTheme = darkBase.textTheme.apply(
+      fontFamily: primaryFont,
+      fontFamilyFallback: fallbackFonts,
+    );
+    final darkPrimaryTextTheme = darkBase.primaryTextTheme.apply(
+      fontFamily: primaryFont,
+      fontFamilyFallback: fallbackFonts,
+    );
+    final rootTextStyle = AppTextStyle.body(Colors.white).copyWith(
+      fontFamily: primaryFont,
+      fontFamilyFallback: fallbackFonts,
+      locale: typographyLocale,
+    );
     return MaterialApp(
       title: arguments.title,
       debugShowCheckedModeBanner: false,
-      theme: ThemeData.dark().copyWith(scaffoldBackgroundColor: Colors.black),
+      locale: AppLocalizations.resolve(systemLocale),
+      localeResolutionCallback: (locale, _) => locale == null
+          ? AppLocalizations.fallbackLocale
+          : AppLocalizations.resolve(locale),
+      theme: darkBase.copyWith(
+        scaffoldBackgroundColor: Colors.black,
+        textTheme: darkTextTheme,
+        primaryTextTheme: darkPrimaryTextTheme,
+      ),
       // The player's screens bring no text style of their own; without this
       // default a Text that omits its weight draws at weight 900.
       builder: (context, child) => DefaultTextStyle(
-        style: AppTextStyle.body(Colors.white),
+        style: rootTextStyle,
         child: child ?? const SizedBox.shrink(),
       ),
       supportedLocales: AppLocalizations.supportedLocales,

@@ -20,6 +20,7 @@ import '../platform/ohos_support.dart';
 import '../tdlib/td_image_loader.dart';
 import '../tdlib/td_models.dart';
 import '../theme/app_theme.dart';
+import '../theme/platform_font_defaults.dart';
 import 'desktop_image_preview_window_models.dart';
 import 'desktop_image_preview_window_stub.dart'
     if (dart.library.io) 'desktop_image_preview_window_io.dart'
@@ -223,16 +224,52 @@ class _PreviewActionSession {
   int? windowId;
 }
 
-class DesktopImagePreviewWindowApp extends StatelessWidget {
+class DesktopImagePreviewWindowApp extends StatefulWidget {
   const DesktopImagePreviewWindowApp({super.key, required this.arguments});
 
   final DesktopImagePreviewWindowArguments arguments;
 
   @override
+  State<DesktopImagePreviewWindowApp> createState() =>
+      _DesktopImagePreviewWindowAppState();
+}
+
+class _DesktopImagePreviewWindowAppState
+    extends State<DesktopImagePreviewWindowApp>
+    with WidgetsBindingObserver {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void didChangeLocales(List<Locale>? locales) {
+    super.didChangeLocales(locales);
+    if (mounted) setState(() {});
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final arguments = widget.arguments;
+    final systemLocale = WidgetsBinding.instance.platformDispatcher.locale;
+    final rawLocale = AppLocalizations.localeFromTag(arguments.localeTag);
     final locale = AppLocalizations.resolve(
-      AppLocalizations.localeFromTag(arguments.localeTag) ??
-          AppLocalizations.fallbackLocale,
+      rawLocale ?? AppLocalizations.fallbackLocale,
+    );
+    final typographyLocale = PlatformFontDefaults.effectiveTypographyLocale(
+      appLocale: rawLocale ?? locale,
+      systemLocale: systemLocale,
+    );
+    final families = PlatformFontDefaults.effectiveFontChain(
+      appLocale: rawLocale ?? locale,
+      systemLocale: systemLocale,
     );
     return WidgetsApp(
       color: const Color(0xFF0C0D0F),
@@ -245,6 +282,16 @@ class DesktopImagePreviewWindowApp extends StatelessWidget {
         GlobalMaterialLocalizations.delegate,
         GlobalWidgetsLocalizations.delegate,
       ],
+      builder: (context, child) => DefaultTextStyle.merge(
+        style: TextStyle(
+          fontFamily: families.isEmpty ? null : families.first,
+          fontFamilyFallback: families.length > 1
+              ? families.skip(1).toList()
+              : null,
+          locale: typographyLocale,
+        ),
+        child: child ?? const SizedBox.shrink(),
+      ),
       pageRouteBuilder: <T>(settings, builder) => PageRouteBuilder<T>(
         settings: settings,
         pageBuilder: (context, _, _) => builder(context),
