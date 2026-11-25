@@ -280,6 +280,8 @@ extension ChatViewModelHeaderTopics on ChatViewModel {
         chatLanguageDetectedAt: existing?.chatLanguageDetectedAt,
         chatLanguageDetectionNewestMessageId:
             existing?.chatLanguageDetectionNewestMessageId,
+        chatTranslatable: existing?.chatTranslatable ?? false,
+        translationSettingsKey: existing?.translationSettingsKey ?? '',
       ),
     );
   }

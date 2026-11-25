@@ -710,10 +710,21 @@ class TranslationController extends ChangeNotifier {
   bool shouldTranslateLanguage(String? sourceLanguageCode) {
     final source = normalizeLanguageCode(sourceLanguageCode);
     if (source == null || source == 'und') return true;
+    final sourceBase = _baseLanguageCode(source);
     final target = normalizeLanguageCode(_targetLanguageCode);
-    if (source == target) return false;
-    return !_ignoredLanguageCodes.contains(source);
+    if (target != null && _baseLanguageCode(target) == sourceBase) {
+      return false;
+    }
+    // The detector is coarse for scripts it cannot separate (ML Kit answers
+    // `zh` for both Chinese scripts), so an ignored language covers every
+    // script of that language.
+    return !_ignoredLanguageCodes.any(
+      (code) =>
+          _baseLanguageCode(normalizeLanguageCode(code) ?? code) == sourceBase,
+    );
   }
+
+  static String _baseLanguageCode(String code) => code.split('-').first;
 
   void _persistStringSet(String key, Set<String> values) {
     final sorted = values.toList()..sort();

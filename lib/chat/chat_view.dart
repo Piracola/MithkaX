@@ -99,6 +99,7 @@ import 'admin/group_remark_controller.dart';
 import 'ai_translation/ai_chat_translation_service.dart';
 import 'ai_translation/apple_pcc_unread_summary_provider.dart';
 import 'ai_translation/auto_translate_policy.dart';
+import 'ai_translation/chat_translation_language_cache.dart';
 import 'ai_translation/chat_translation_panel.dart';
 import 'ai_translation/message_translation_cache.dart';
 import 'ai_translation/openai_compatible_unread_summary_provider.dart';
@@ -1071,6 +1072,16 @@ class _ChatViewState extends State<ChatView> {
   DateTime? _chatLanguageDetectedAt;
   String? _detectedChatLanguage;
 
+  /// Whether the classifier found this chat's messages to be in a language
+  /// the user translates. This is exteraless's `isDialogTranslatable`: a
+  /// per-message language verdict, not a comparison of one dominant language
+  /// with the target (which misread ML Kit's `zh` answer as foreign to
+  /// `zh-Hans` and offered translate-all in Chinese chats).
+  bool _chatTranslatable = false;
+
+  /// The target/ignored-language pair [_chatTranslatable] was decided with.
+  String _chatTranslationSettingsKey = '';
+
   bool _autoTranslationRunning = false;
 
   bool _autoTranslationPassPending = false;
@@ -1179,6 +1190,8 @@ class _ChatViewState extends State<ChatView> {
     if (headerSnapshot != null &&
         headerSnapshot.chatLanguageDetectionComplete) {
       _detectedChatLanguage = headerSnapshot.detectedChatLanguage;
+      _chatTranslatable = headerSnapshot.chatTranslatable;
+      _chatTranslationSettingsKey = headerSnapshot.translationSettingsKey;
       _chatLanguageDetectionComplete = true;
       _chatLanguageDetectedAt = headerSnapshot.chatLanguageDetectedAt;
       _chatLanguageDetectionNewestMessageId =
@@ -2199,22 +2212,29 @@ class _ChatViewState extends State<ChatView> {
     return mask != 0 && _dismissedBotApiWarningMask != mask;
   }
 
+  /// exteraless refuses the dialog-level translation feature for secret chats
+  /// and the self chat; neither has messages Telegram will translate.
+  bool get _chatTranslationSupported =>
+      !_vm.isSecretChat && !_vm.isSavedMessages;
+
   bool get _automaticTranslationEnabled =>
       _hasAvailableTranslationOption &&
+      _chatTranslationSupported &&
       _translation.translateChats &&
-      _translation.autoTranslateEnabledFor(widget.chatId) &&
-      _translation.shouldTranslateLanguage(_detectedChatLanguage);
+      _translation.autoTranslateEnabledFor(widget.chatId);
 
-  /// The chat's language is known and differs from the translation target —
-  /// the only case where offering "translate this chat" makes sense. An
-  /// undetected language (native identification unavailable, or a chat with
-  /// nothing to sample) is not treated as foreign: that kept the bulk
-  /// translate control in every chat, Chinese ones included.
-  bool get _chatLanguageDiffersFromTarget {
-    if (!_chatLanguageDetectionComplete) return false;
-    final detected = _detectedChatLanguage;
-    if (detected == null) return false;
-    return _translation.shouldTranslateLanguage(detected);
+  /// The chat's messages carry a language the user translates, judged from
+  /// per-message detections (exteraless's `isDialogTranslatable`). A chat
+  /// already in the target language, and a chat whose samples could not be
+  /// identified, both come back false.
+  bool get _chatNeedsTranslation =>
+      _chatLanguageDetectionComplete && _chatTranslatable;
+
+  /// What the classifier's `shouldTranslate` answer depends on. A change
+  /// invalidates a cached verdict even when no message arrived.
+  String get _translationSettingsKey {
+    final ignored = _translation.ignoredLanguageCodes.toList()..sort();
+    return '${_translation.targetLanguageCode}|${ignored.join(',')}';
   }
 
   bool get _hasIncomingTranslatableMessages => _vm.messages.any(
@@ -2225,14 +2245,16 @@ class _ChatViewState extends State<ChatView> {
   );
 
   bool get _showsChatTranslationPanel {
-    if (!_hasAvailableTranslationOption) return false;
+    if (!_hasAvailableTranslationOption || !_chatTranslationSupported) {
+      return false;
+    }
     if (_automaticTranslationEnabled) return true;
     if (!_translation.translateChats ||
         _translation.autoTranslateSuggestionDismissedFor(widget.chatId) ||
         !_hasIncomingTranslatableMessages) {
       return false;
     }
-    return _chatLanguageDiffersFromTarget;
+    return _chatNeedsTranslation;
   }
 
   Widget _chatTranslationPanel() => ChatTranslationPanel(
