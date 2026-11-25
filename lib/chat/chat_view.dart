@@ -36,6 +36,7 @@ import '../channels/topic_list_actions.dart';
 import '../channels/topic_list_host.dart';
 import '../channels/topic_list_row.dart';
 import '../channels/topic_navigation.dart';
+import '../channels/topic_tabs_placement.dart';
 import '../chats/chat_delete_dialog.dart';
 import '../chats/chat_delete_policy.dart';
 import '../chats/chat_list_view.dart';
@@ -948,6 +949,19 @@ class _ChatViewState extends State<ChatView> {
   int _cachedShellLayoutGeneration = -1;
 
   double _cachedShellLayoutWidth = double.nan;
+
+  /// Where this chat's topic tabs sit: exteraless keeps the tabs position per
+  /// dialog, so a forum can move its strip above the composer without
+  /// dragging every other chat's tabs along.
+  TopicTabsPlacement _topicTabsPlacement = TopicTabsPlacement.top;
+
+  /// Pinned-tab reorder mode; the strip shows its Done control while set.
+  bool _reorderingTopicTabs = false;
+
+  /// Message ids the transcript is actually painting right now. The automatic
+  /// translation pass reads it so the reader's viewport is translated before
+  /// the background walk continues through older loaded pages.
+  final Set<int> _viewportMessageIds = <int>{};
   Widget? _cachedShellLayout;
 
   bool _shortTranscriptFillScheduled = false;
@@ -1133,6 +1147,11 @@ class _ChatViewState extends State<ChatView> {
       chatId: widget.chatId,
       forumTopicId: widget.forumTopicId,
     );
+    _topicTabsPlacement = TopicTabsPlacementStore.shared.placementFor(
+      _sessionKey.accountSlot,
+      widget.chatId,
+    );
+    unawaited(_loadTopicTabsPlacement());
     _sessionRenderState = widget.initialMessageId == null
         ? _sessionCache.read(
             accountSlot: _sessionKey.accountSlot,
@@ -1318,6 +1337,14 @@ class _ChatViewState extends State<ChatView> {
       // A switch to another conversation or topic invalidates every recorded
       // reading position, this one included.
       _forgetJumpOrigin();
+    }
+    if (oldWidget.chatId != widget.chatId) {
+      _reorderingTopicTabs = false;
+      _topicTabsPlacement = TopicTabsPlacementStore.shared.placementFor(
+        _sessionKey.accountSlot,
+        widget.chatId,
+      );
+      unawaited(_loadTopicTabsPlacement());
     }
     if (!identical(oldWidget.exitController, widget.exitController)) {
       _detachExitController?.call();
@@ -2351,6 +2378,13 @@ class _ChatViewState extends State<ChatView> {
                               final searchPane = _searchUsesResultsPane(width);
                               _searchResultsPaneVisible = searchPane;
                               final searching = _search.isActive;
+                              // The strip can sit under the header or above
+                              // the composer (exteraless's per-chat tabs
+                              // position); the host places it so it never
+                              // becomes a sibling of the composer.
+                              final topicTabStrip = _topicTabStripOrNull(
+                                themeController,
+                              );
                               final shell = ChatHeaderTrailingPaneLayout(
                                 header: showPeerRestrictionBlock
                                     ? _header()
@@ -2361,36 +2395,42 @@ class _ChatViewState extends State<ChatView> {
                                           : _header()),
                                 body: showPeerRestrictionBlock
                                     ? _restrictedPeerBlockPage()
-                                    : _topicTabStrip(
-                                        _withTopicNavigation(
-                                          Column(
-                                            children: [
-                                              // The chat-level translation bar
-                                              // belongs to the transcript, not
-                                              // the header (search and selection
-                                              // swap the header out, so it hides
-                                              // with them).
-                                              if (_showsChatTranslationPanel &&
-                                                  !searching &&
-                                                  !_isSelecting)
-                                                _chatTranslationPanel(),
-                                              Expanded(
-                                                child: _transcriptLayer(
-                                                  searchPane: searchPane,
-                                                ),
+                                    : _withTopicNavigation(
+                                        Column(
+                                          children: [
+                                            if (topicTabStrip != null &&
+                                                _topicTabsPlacement ==
+                                                    TopicTabsPlacement.top)
+                                              topicTabStrip,
+                                            // The chat-level translation bar
+                                            // belongs to the transcript, not
+                                            // the header (search and selection
+                                            // swap the header out, so it hides
+                                            // with them).
+                                            if (_showsChatTranslationPanel &&
+                                                !searching &&
+                                                !_isSelecting)
+                                              _chatTranslationPanel(),
+                                            Expanded(
+                                              child: _transcriptLayer(
+                                                searchPane: searchPane,
                                               ),
-                                              _chatMusicPlayer(),
-                                              // A narrow chat trades the composer
-                                              // for the hit navigator; a wide one
-                                              // keeps composing beside the results.
-                                              if (searching && !searchPane)
-                                                _searchNavigator()
-                                              else if (_isSelecting)
-                                                _selectionActionBar()
-                                              else
-                                                _composerArea(),
-                                            ],
-                                          ),
+                                            ),
+                                            _chatMusicPlayer(),
+                                            if (topicTabStrip != null &&
+                                                _topicTabsPlacement ==
+                                                    TopicTabsPlacement.bottom)
+                                              topicTabStrip,
+                                            // A narrow chat trades the composer
+                                            // for the hit navigator; a wide one
+                                            // keeps composing beside the results.
+                                            if (searching && !searchPane)
+                                              _searchNavigator()
+                                            else if (_isSelecting)
+                                              _selectionActionBar()
+                                            else
+                                              _composerArea(),
+                                          ],
                                         ),
                                       ),
                                 trailingPane: searchPane

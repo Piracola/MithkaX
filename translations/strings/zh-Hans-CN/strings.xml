@@ -4168,4 +4168,8 @@
     <string name="channelPostStats">频道帖子显示阅读量和转发次数</string>
     <string name="channelPostViews">{value1} 次阅读</string>
     <string name="channelBottomBarActions">讨论与私聊</string>
+    <string name="mithkaxTopicTabsDone">完成</string>
+    <string name="mithkaxTopicTabsReorder">重排标签页</string>
+    <string name="mithkaxTopicTabsMoveToBottom">标签栏移到底部</string>
+    <string name="mithkaxTopicTabsMoveToTop">标签栏移到顶部</string>
 </resources>

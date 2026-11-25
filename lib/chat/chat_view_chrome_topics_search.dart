@@ -810,29 +810,69 @@ extension _ChatViewChrome on _ChatViewState {
 
   /// shells render their rail instead.
 
-  Widget _topicTabStrip(Widget child) {
+  Widget? _topicTabStripOrNull(ThemeController theme) {
     if (!_topicsKnown || usesSplitSelectionLayout(MediaQuery.sizeOf(context))) {
-      return child;
+      return null;
     }
-    final theme = context.watch<ThemeController>();
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        TopicTabStrip(
-          chatId: widget.chatId,
-          topics: [
-            for (final topic in _vm.forumTopics) _topicNavigationItem(topic),
-          ],
-          selectedTopicId: widget.forumTopicId,
-          onSelected: _openTopicTranscript,
-          showUnreadBadges: theme.showFolderUnreadBadges,
-          badgeOverflowLabel: theme.unreadBadgeOverflowMode.format,
-          isLoading: _vm.forumTopicsLoading && _vm.forumTopics.isEmpty,
-          onLongPress: _showTopicTabMenu,
-        ),
-        Expanded(child: child),
+    return TopicTabStrip(
+      chatId: widget.chatId,
+      topics: [
+        for (final topic in _vm.forumTopics) _topicNavigationItem(topic),
       ],
+      selectedTopicId: widget.forumTopicId,
+      onSelected: _openTopicTranscript,
+      showUnreadBadges: theme.showFolderUnreadBadges,
+      badgeOverflowLabel: theme.unreadBadgeOverflowMode.format,
+      isLoading: _vm.forumTopicsLoading && _vm.forumTopics.isEmpty,
+      onLongPress: _showTopicTabMenu,
+      placement: _topicTabsPlacement,
+      onTogglePlacement: () => unawaited(_toggleTopicTabsPlacement()),
+      reordering: _reorderingTopicTabs,
+      onReorder: _reorderTopicTabs,
+      onReorderDone: () => _updateState(() => _reorderingTopicTabs = false),
     );
+  }
+
+  /// Restores this chat's saved tabs placement without rebuilding into the
+  /// default first: the store keeps an in-memory copy, so the toggle survives
+  /// transcript swaps even before the disk answer lands.
+  Future<void> _loadTopicTabsPlacement() async {
+    final chatId = widget.chatId;
+    final placement = await TopicTabsPlacementStore.shared.load(
+      _sessionKey.accountSlot,
+      chatId,
+    );
+    if (!mounted || widget.chatId != chatId) return;
+    if (placement == _topicTabsPlacement) return;
+    _updateState(() => _topicTabsPlacement = placement);
+  }
+
+  Future<void> _toggleTopicTabsPlacement() async {
+    final next = _topicTabsPlacement == TopicTabsPlacement.top
+        ? TopicTabsPlacement.bottom
+        : TopicTabsPlacement.top;
+    _updateState(() => _topicTabsPlacement = next);
+    await TopicTabsPlacementStore.shared.save(
+      _sessionKey.accountSlot,
+      widget.chatId,
+      next,
+    );
+  }
+
+  /// Commits a dragged pinned-tab order: the view model reorders the strip,
+  /// rail and topic list first, then sends `setPinnedForumTopics`.
+  void _reorderTopicTabs(List<int> pinnedIds) {
+    unawaited(() async {
+      final error = await _vm.reorderPinnedForumTopics(pinnedIds);
+      if (!mounted || error == null) return;
+      showToast(
+        context,
+        AppStrings.t(
+          AppStringKeys.groupAdministrationCouldnTReorderPinnedTopicsValue1,
+          {'value1': error},
+        ),
+      );
+    }());
   }
 
   /// The read-all menu behind a long press on the mention pill: one anchored
@@ -968,6 +1008,29 @@ extension _ChatViewChrome on _ChatViewState {
           icon: HeroAppIcons.pen,
           onSelected: () => unawaited(_editTopic(topic)),
         ),
+      // exteraless's FilterReorder lives on a pinned tab's menu: only pins
+      // have a server-side order to rewrite.
+      if (_vm.canReorderPinnedTopics && topic.isPinned)
+        AppMenuAction(
+          key: 'reorder-tabs',
+          label: AppStrings.t(AppStringKeys.mithkaxTopicTabsReorder),
+          icon: HeroAppIcons.arrowsRightLeft,
+          onSelected: () => _updateState(() => _reorderingTopicTabs = true),
+        ),
+      // The strip's leading arrow is the quick control; repeating the move in
+      // the tab menu makes the interaction reachable from any topic tab.
+      AppMenuAction(
+        key: 'tabs-position',
+        label: AppStrings.t(
+          _topicTabsPlacement == TopicTabsPlacement.top
+              ? AppStringKeys.mithkaxTopicTabsMoveToBottom
+              : AppStringKeys.mithkaxTopicTabsMoveToTop,
+        ),
+        icon: _topicTabsPlacement == TopicTabsPlacement.top
+            ? HeroAppIcons.arrowDown
+            : HeroAppIcons.arrowUp,
+        onSelected: () => unawaited(_toggleTopicTabsPlacement()),
+      ),
       if (_vm.canCloseTopic(topic))
         AppMenuAction(
           key: 'close',

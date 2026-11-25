@@ -4168,4 +4168,8 @@
     <string name="channelPostStats">チャンネル投稿に表示回数と転送数を表示</string>
     <string name="channelPostViews">{value1} 回表示</string>
     <string name="channelBottomBarActions">ディスカッションとダイレクトメッセージ</string>
+    <string name="mithkaxTopicTabsDone">完了</string>
+    <string name="mithkaxTopicTabsReorder">タブを並べ替え</string>
+    <string name="mithkaxTopicTabsMoveToBottom">タブバーを下へ移動</string>
+    <string name="mithkaxTopicTabsMoveToTop">タブバーを上へ移動</string>
 </resources>

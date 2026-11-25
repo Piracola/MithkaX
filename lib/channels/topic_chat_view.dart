@@ -51,6 +51,7 @@ import 'topic_list_host.dart';
 import 'topic_list_row.dart';
 import 'topic_navigation.dart';
 import 'topic_post_content.dart';
+import 'topic_tabs_placement.dart';
 
 export 'topic_list_actions.dart'
     show
@@ -361,6 +362,7 @@ class _TopicChatViewState extends State<TopicChatView> {
   late bool _hasForumTabs = widget.hasForumTabs;
   final int _accountClientId = TdClient.shared.activeClientId;
   final int _accountSlot = TdClient.shared.activeSlot;
+  TopicTabsPlacement _topicTabsPlacement = TopicTabsPlacement.top;
   int? _supergroupId;
   int _topicLayoutRevision = 0;
   StreamSubscription<Map<String, dynamic>>? _supergroupUpdates;
@@ -382,6 +384,11 @@ class _TopicChatViewState extends State<TopicChatView> {
     _selectedThreadId = widget.initialThreadId;
     _pendingInitialMessageId = widget.initialMessageId;
     _scroll.addListener(_scheduleVisibleMessageUpdate);
+    _topicTabsPlacement = TopicTabsPlacementStore.shared.placementFor(
+      _accountSlot,
+      widget.chat.id,
+    );
+    unawaited(_loadTopicTabsPlacement());
     if (widget.chat.isForum) {
       _supergroupUpdates = TdClient.shared.updatesOf('updateSupergroup').listen(
         (update) {
@@ -411,6 +418,27 @@ class _TopicChatViewState extends State<TopicChatView> {
           .listen(_applyTopicUpdate);
     }
     _loadTopics();
+  }
+
+  Future<void> _loadTopicTabsPlacement() async {
+    final placement = await TopicTabsPlacementStore.shared.load(
+      _accountSlot,
+      widget.chat.id,
+    );
+    if (!mounted || placement == _topicTabsPlacement) return;
+    setState(() => _topicTabsPlacement = placement);
+  }
+
+  Future<void> _toggleTopicTabsPlacement() async {
+    final next = _topicTabsPlacement == TopicTabsPlacement.top
+        ? TopicTabsPlacement.bottom
+        : TopicTabsPlacement.top;
+    setState(() => _topicTabsPlacement = next);
+    await TopicTabsPlacementStore.shared.save(
+      _accountSlot,
+      widget.chat.id,
+      next,
+    );
   }
 
   /// Reads whether this account may create and manage topics in the forum.
@@ -1906,43 +1934,51 @@ class _TopicChatViewState extends State<TopicChatView> {
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
-    final body = Column(
-      children: [
-        if (_selectedThreadId == null && widget.chat.lastMessage.isNotEmpty)
-          _pinnedLine(),
-        Expanded(child: _content()),
-        if (canComposeInTopicSurface(
+    final pinned =
+        _selectedThreadId == null && widget.chat.lastMessage.isNotEmpty
+        ? _pinnedLine()
+        : null;
+    final composer =
+        canComposeInTopicSurface(
           chat: widget.chat,
           forumTopicId: _selectedThreadId,
-        ))
-          _bottomComposer(),
+        )
+        ? _bottomComposer()
+        : null;
+    final transcript = Column(
+      children: [
+        ?pinned,
+        Expanded(child: _content()),
       ],
     );
+    final body = _topicListOverlaid
+        ? Column(
+            children: [
+              Expanded(child: transcript),
+              ?composer,
+            ],
+          )
+        : TopicNavigationLayout(
+            topics: [for (final topic in _topics) _navigationItem(topic)],
+            selectedTopicId: _selectedThreadId,
+            hasForumTabs: _hasForumTabs,
+            onSelected: _selectTopic,
+            onCreateTopic: _canCreateTopics ? _openCreateTopicDialog : null,
+            onMarkAllRead: _hasUnreadTopics ? _markAllTopicsRead : null,
+            onTopicMenu: _showTopicRowMenu,
+            generalAvatarTitle: widget.chat.title,
+            generalAvatarPhoto: widget.chat.photo,
+            placement: _topicTabsPlacement,
+            onTogglePlacement: () => unawaited(_toggleTopicTabsPlacement()),
+            bottomBar: composer,
+            child: transcript,
+          );
     return Scaffold(
       backgroundColor: c.background,
       body: Column(
         children: [
           _header(),
-          Expanded(
-            child: _topicListOverlaid
-                ? body
-                : TopicNavigationLayout(
-                    topics: [
-                      for (final topic in _topics) _navigationItem(topic),
-                    ],
-                    selectedTopicId: _selectedThreadId,
-                    hasForumTabs: _hasForumTabs,
-                    onSelected: _selectTopic,
-                    onCreateTopic: _canCreateTopics
-                        ? _openCreateTopicDialog
-                        : null,
-                    onMarkAllRead: _hasUnreadTopics ? _markAllTopicsRead : null,
-                    onTopicMenu: _showTopicRowMenu,
-                    generalAvatarTitle: widget.chat.title,
-                    generalAvatarPhoto: widget.chat.photo,
-                    child: body,
-                  ),
-          ),
+          Expanded(child: body),
         ],
       ),
     );

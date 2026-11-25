@@ -58,14 +58,18 @@ List<ChatMessage> automaticTranslationCandidates(
   List<ChatMessage> messages, {
   required String targetLanguageCode,
   Set<int> excludedMessageIds = const {},
+  Set<int> visibleMessageIds = const {},
   int limit = 12,
 }) {
   final target = TranslationController.normalizeLanguageCode(
     targetLanguageCode,
   );
-  final result = <ChatMessage>[];
+  final onScreen = <ChatMessage>[];
+  final rest = <ChatMessage>[];
+  // The walk is not truncated at [limit]: a message inside the viewport may
+  // sit far from the newest end (the reader scrolled up), and it must jump
+  // the queue. Scanning the loaded list is cheap next to a translation call.
   for (final message in messages.reversed) {
-    if (result.length >= limit) break;
     if (message.id <= 0 ||
         message.isOutgoing ||
         message.isService ||
@@ -80,10 +84,39 @@ List<ChatMessage> automaticTranslationCandidates(
               message.translationLanguageCode,
             ) ==
             target;
-    if (!hasTargetTranslation) result.add(message);
+    if (hasTargetTranslation) continue;
+    (visibleMessageIds.contains(message.id) ? onScreen : rest).add(message);
   }
-  return result;
+  return [...onScreen, ...rest].take(limit).toList(growable: false);
 }
+
+/// The messages an automatic translation pass may translate.
+///
+/// A pass walks EVERY message the transcript has loaded. It must never be fed
+/// a newest-N window: paging older history (the user scrolling up) prepends
+/// messages that are then permanently outside such a window, so "translate
+/// this chat" silently stopped translating exactly the pages that arrived
+/// after the switch was flipped.
+///
+/// Messages currently painted in the viewport come first ([visibleMessageIds])
+/// so opening or scrolling a chat translates what the reader is looking at
+/// before the background walk continues. [limit] only bounds how many leave
+/// per pass — applying a translation notifies the view model, which schedules
+/// the next pass, so the walk covers the rest of the loaded history after the
+/// screen is done.
+List<ChatMessage> automaticTranslationLoadedCandidates(
+  List<ChatMessage> loadedMessages, {
+  required String targetLanguageCode,
+  Set<int> excludedMessageIds = const {},
+  Set<int> visibleMessageIds = const {},
+  int limit = 12,
+}) => automaticTranslationCandidates(
+  loadedMessages,
+  targetLanguageCode: targetLanguageCode,
+  excludedMessageIds: excludedMessageIds,
+  visibleMessageIds: visibleMessageIds,
+  limit: limit,
+);
 
 List<String> automaticTranslationLanguageSamples(
   List<ChatMessage> messages, {

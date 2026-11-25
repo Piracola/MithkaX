@@ -4185,4 +4185,8 @@
     <string name="channelPostStats">Mostrar visualizaciones y reenvíos en las publicaciones del canal</string>
     <string name="channelPostViews">{value1} visualizaciones</string>
     <string name="channelBottomBarActions">Debate y mensajes directos</string>
+    <string name="mithkaxTopicTabsDone">Listo</string>
+    <string name="mithkaxTopicTabsReorder">Reordenar pestañas</string>
+    <string name="mithkaxTopicTabsMoveToBottom">Mover la barra de pestañas abajo</string>
+    <string name="mithkaxTopicTabsMoveToTop">Mover la barra de pestañas arriba</string>
 </resources>

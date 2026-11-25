@@ -382,6 +382,7 @@ extension _ChatViewScrollSession on _ChatViewState {
     final newlyVisible = <ChatMessage>[];
     final newlyVisiblePosts = <ChatMessage>[];
     final onScreenPostIds = <int>{};
+    final onScreenMessageIds = <int>{};
 
     for (final entry in _mountedTranscriptEntries.entries) {
       final itemRenderObject = entry.value;
@@ -398,6 +399,10 @@ extension _ChatViewScrollSession on _ChatViewState {
       final entryMessages =
           _trackedTranscriptEntries[entry.key]?.messages ??
           const <ChatMessage>[];
+      for (final message in entryMessages) {
+        if (message.isService || message.id <= 0) continue;
+        onScreenMessageIds.add(message.id);
+      }
       for (final message in entryMessages) {
         if (message.isOutgoing || message.isService) continue;
         final observation = _unreadProgress.observeVisibleIncoming(
@@ -434,6 +439,15 @@ extension _ChatViewScrollSession on _ChatViewState {
             0) {
       _showEntryUnreadBanner = false;
       changed = true;
+    }
+
+    if (!setEquals(onScreenMessageIds, _viewportMessageIds)) {
+      _viewportMessageIds
+        ..clear()
+        ..addAll(onScreenMessageIds);
+      // Scrolling changed what is on screen: messages that just came into
+      // view should not wait behind the background walk.
+      _scheduleAutomaticTranslations();
     }
 
     if (newlyVisible.isNotEmpty) {

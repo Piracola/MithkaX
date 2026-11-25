@@ -881,14 +881,22 @@ extension ChatViewModelUpdates on ChatViewModel {
     if (q.animatedSticker != null) {
       return AppStrings.t(AppStringKeys.composerAnimatedEmojiPreview);
     }
+    if (q.stickerFileId != null) {
+      // A quoted sticker has no text of its own. Returning '' left the reply
+      // panel blank — Telegram names the kind instead ("Sticker").
+      return AppStrings.t(AppStringKeys.tdMessageSticker);
+    }
     if (q.image != null) {
-      final placeholder = switch (q.contentType) {
+      if (q.text.trim().isNotEmpty) return q.text;
+      // A captionless photo/video/GIF quote needs a label too; the old ''
+      // collapsed the panel to its bare frame.
+      return switch (q.contentType) {
         'messagePhoto' => AppStrings.t(AppStringKeys.composerImagePreview),
         'messageVideo' => AppStrings.t(AppStringKeys.chatVideoPlaceholder),
+        'messageVideoNote' => AppStrings.t(AppStringKeys.tdMessageVideoMessage),
         'messageAnimation' => AppStrings.t(AppStringKeys.tdMessageGif),
-        _ => null,
+        _ => q.text,
       };
-      return q.text == placeholder ? '' : q.text;
     }
     return q.text;
   }
@@ -1214,6 +1222,15 @@ extension ChatViewModelUpdates on ChatViewModel {
     final targets = _messageRefs(messageId);
     if (targets.isEmpty) return;
     for (final target in targets) {
+      // The update flash belongs to a body that really changed. Content
+      // updates that repaint the same text (a media refresh, our own echo)
+      // must not blink the bubble.
+      // A pending send's body is still the composer's business — the edit
+      // blink belongs to messages the reader was already looking at.
+      if (target.text != text && !target.isSending) {
+        ++target.contentFlashToken;
+        target.contentFlashAtMillis = DateTime.now().millisecondsSinceEpoch;
+      }
       target.text = text;
       target.textQuoteSource = text;
       target.textQuoteSourceEntities = entities ?? target.textEntities;

@@ -418,13 +418,13 @@ extension _ChatViewTranslationSummary on _ChatViewState {
     _autoTranslationRunning = true;
     if (mounted) _updateState(() {});
     try {
-      final messages = _vm.messages.length > 32
-          ? _vm.messages.sublist(_vm.messages.length - 32)
-          : _vm.messages;
-      final candidates = automaticTranslationCandidates(
-        messages,
+      // The pass walks every loaded message (paging older history must keep
+      // translating), with the messages actually on screen first.
+      final candidates = automaticTranslationLoadedCandidates(
+        _vm.messages,
         targetLanguageCode: _translationTargetLanguage(_translation),
         excludedMessageIds: _autoTranslationFailedMessageIds,
+        visibleMessageIds: _viewportMessageIds,
       );
       for (final message in candidates) {
         if (!mounted || !_automaticTranslationEnabled) break;

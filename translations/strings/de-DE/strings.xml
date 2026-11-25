@@ -4185,4 +4185,8 @@
     <string name="channelPostStats">Aufrufe und Weiterleitungen bei Kanalbeiträgen anzeigen</string>
     <string name="channelPostViews">{value1} Aufrufe</string>
     <string name="channelBottomBarActions">Diskussion und Direktnachrichten</string>
+    <string name="mithkaxTopicTabsDone">Fertig</string>
+    <string name="mithkaxTopicTabsReorder">Tabs neu anordnen</string>
+    <string name="mithkaxTopicTabsMoveToBottom">Tableiste nach unten</string>
+    <string name="mithkaxTopicTabsMoveToTop">Tableiste nach oben</string>
 </resources>

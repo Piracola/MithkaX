@@ -456,6 +456,10 @@ abstract final class AppStringKeys {
   static const mithkaxScheduledDeleteOneWeek = 'mithkaxScheduledDeleteOneWeek';
   static const mithkaxScheduledDeleteOneMonth =
       'mithkaxScheduledDeleteOneMonth';
+  static const mithkaxTopicTabsDone = 'mithkaxTopicTabsDone';
+  static const mithkaxTopicTabsReorder = 'mithkaxTopicTabsReorder';
+  static const mithkaxTopicTabsMoveToBottom = 'mithkaxTopicTabsMoveToBottom';
+  static const mithkaxTopicTabsMoveToTop = 'mithkaxTopicTabsMoveToTop';
   static const addMembersDone = 'addMembersDone';
   static const addMembersDoneWithCount = 'addMembersDoneWithCount';
   static const addMembersInviteMembersTitle = 'addMembersInviteMembersTitle';

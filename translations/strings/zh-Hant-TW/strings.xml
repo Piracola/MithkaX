@@ -4168,4 +4168,8 @@
     <string name="channelPostStats">頻道貼文顯示閱讀次數和轉發次數</string>
     <string name="channelPostViews">{value1} 次閱讀</string>
     <string name="channelBottomBarActions">討論與私聊</string>
+    <string name="mithkaxTopicTabsDone">完成</string>
+    <string name="mithkaxTopicTabsReorder">重排標籤頁</string>
+    <string name="mithkaxTopicTabsMoveToBottom">標籤列移到底部</string>
+    <string name="mithkaxTopicTabsMoveToTop">標籤列移到頂部</string>
 </resources>
