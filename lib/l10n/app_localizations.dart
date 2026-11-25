@@ -2264,6 +2264,8 @@ abstract final class AppStringKeys {
   static const imageEditTitle = 'imageEditTitle';
   static const instantViewTitle = 'instantViewTitle';
   static const instantViewTextSize = 'instantViewTextSize';
+  static const instantViewExtracting = 'instantViewExtracting';
+  static const instantViewOpenLocal = 'instantViewOpenLocal';
   static const instantViewPreviousMatch = 'instantViewPreviousMatch';
   static const instantViewNextMatch = 'instantViewNextMatch';
   static const instantViewSearch = 'instantViewSearch';

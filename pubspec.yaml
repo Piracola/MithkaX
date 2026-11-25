@@ -225,6 +225,9 @@ flutter:
     - assets/l10n/
     # Country flag sprite, built by tool/build_flag_sprite.py.
     - assets/flags/
+    # Telegram's Readability-based page extractor, run in the in-app WebView
+    # when a link has no server-side Instant View (instant_view_web.dart).
+    - assets/instant_view/
     # The app mark: one flat glyph per appearance, filled with the launcher
     # icon's aurora gradient (lib/components/brand_mark.dart). The canvas
     # trimmed twins are for layouts that space the mark by its ink.

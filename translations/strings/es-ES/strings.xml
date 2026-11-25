@@ -2098,6 +2098,8 @@
     <string name="imageEditTitle">Editar imagen</string>
     <string name="imagePreviewTitle">Vista previa de imagen</string>
     <string name="instantViewTextSize">Tamaño del texto</string>
+    <string name="instantViewExtracting">Extrayendo el artículo…</string>
+    <string name="instantViewOpenLocal">Abrir vista instantánea</string>
     <string name="instantViewSearch">Buscar</string>
     <string name="instantViewPreviousMatch">Coincidencia anterior</string>
     <string name="instantViewNextMatch">Coincidencia siguiente</string>

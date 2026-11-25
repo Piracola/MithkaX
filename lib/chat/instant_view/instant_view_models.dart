@@ -611,11 +611,27 @@ class IvTableCell {
 // ---------------------------------------------------------------------------
 
 class IvPhoto {
-  const IvPhoto({required this.media, this.miniThumb});
+  const IvPhoto({
+    required this.media,
+    this.miniThumb,
+    this.url,
+    this.width,
+    this.height,
+  });
+
   final MediaAttachment media;
   final Uint8List? miniThumb;
 
-  bool get isEmpty => media.image == null && miniThumb == null;
+  /// Remote image extracted from a web page by the local Instant View; when
+  /// set, [media] carries no TDLib file and the renderer loads this URL.
+  final String? url;
+  final int? width;
+  final int? height;
+
+  bool get isEmpty =>
+      media.image == null &&
+      miniThumb == null &&
+      (url == null || url!.trim().isEmpty);
 }
 
 class IvVideo {

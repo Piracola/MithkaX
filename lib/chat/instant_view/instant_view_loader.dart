@@ -84,6 +84,14 @@ class InstantViewLoader {
   /// The locally cached page for [url], when this loader already fetched it.
   InstantViewPage? cached(String url) => _cache[normalize(url)];
 
+  /// Stores a page produced elsewhere (the local web extractor) so reopening
+  /// the same link renders instantly and nested links share the copy.
+  void remember(String url, InstantViewPage page) {
+    final key = normalize(url);
+    if (key.isEmpty || page.isEmpty) return;
+    _remember(key, page);
+  }
+
   /// Loads [url], preferring the local TDLib copy and falling back to the
   /// network, then to the full Instant View. Throws [InstantViewUnavailable]
   /// when Telegram has no page for the URL.

@@ -2091,6 +2091,8 @@
     <string name="imageEditTitle">编辑图片</string>
     <string name="imagePreviewTitle">图片预览</string>
     <string name="instantViewTextSize">文字大小</string>
+    <string name="instantViewExtracting">正在提取文章…</string>
+    <string name="instantViewOpenLocal">在即时预览中打开</string>
     <string name="instantViewSearch">搜索</string>
     <string name="instantViewPreviousMatch">上一个匹配</string>
     <string name="instantViewNextMatch">下一个匹配</string>

@@ -2091,6 +2091,8 @@
     <string name="imageEditTitle">画像を編集</string>
     <string name="imagePreviewTitle">画像プレビュー</string>
     <string name="instantViewTextSize">文字サイズ</string>
+    <string name="instantViewExtracting">記事を抽出中…</string>
+    <string name="instantViewOpenLocal">インスタントビューで開く</string>
     <string name="instantViewSearch">検索</string>
     <string name="instantViewPreviousMatch">前の一致</string>
     <string name="instantViewNextMatch">次の一致</string>

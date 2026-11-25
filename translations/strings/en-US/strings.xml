@@ -2098,6 +2098,8 @@
     <string name="imageEditTitle">Edit Image</string>
     <string name="imagePreviewTitle">Image preview</string>
     <string name="instantViewTextSize">Text size</string>
+    <string name="instantViewExtracting">Extracting article…</string>
+    <string name="instantViewOpenLocal">Open instant view</string>
     <string name="instantViewSearch">Search</string>
     <string name="instantViewPreviousMatch">Previous match</string>
     <string name="instantViewNextMatch">Next match</string>

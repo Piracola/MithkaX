@@ -160,8 +160,8 @@ class IvPhotoView extends StatelessWidget {
   final bool hasSpoiler;
 
   double get _aspectRatio {
-    final width = photo.media.width ?? 0;
-    final height = photo.media.height ?? 0;
+    final width = photo.width ?? photo.media.width ?? 0;
+    final height = photo.height ?? photo.media.height ?? 0;
     if (width <= 0 || height <= 0) return 16 / 9;
     return (width / height).clamp(0.4, 3.2);
   }
@@ -169,11 +169,21 @@ class IvPhotoView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final ref = photo.media.image;
+    final remote = photo.url?.trim() ?? '';
     final image = ClipRRect(
       borderRadius: BorderRadius.circular(_mediaRadius),
       child: AspectRatio(
         aspectRatio: _aspectRatio,
-        child: TDImage(photo: ref, cornerRadius: 0, showProgress: true),
+        child: ref != null
+            ? TDImage(photo: ref, cornerRadius: 0, showProgress: true)
+            : remote.isEmpty
+            ? const ColoredBox(color: Color(0x11000000))
+            : Image.network(
+                remote,
+                fit: BoxFit.cover,
+                errorBuilder: (_, _, _) =>
+                    const ColoredBox(color: Color(0x11000000)),
+              ),
       ),
     );
     if (ref == null) return image;

@@ -1,12 +1,18 @@
 import 'dart:async';
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 import 'package:webview_flutter_android/webview_flutter_android.dart';
 import '../../components/app_icons.dart';
 import '../../components/app_interactive_surface.dart';
+import '../../components/toast.dart';
 import '../../components/ui_components.dart';
 import '../../l10n/app_localizations.dart';
+import '../../theme/app_motion.dart';
 import '../../theme/app_theme.dart';
+import '../instant_view/instant_view_view.dart';
+import '../instant_view/instant_view_web.dart';
 import 'link_browser.dart';
 
 class InternalBrowserView extends StatefulWidget {
@@ -30,6 +36,8 @@ class _InternalBrowserViewState extends State<InternalBrowserView> {
   var _canGoBack = false;
   var _canGoForward = false;
   var _navigationRevision = 0;
+  var _instantBusy = false;
+  Completer<Map<String, dynamic>?>? _instantCompleter;
 
   @override
   void initState() {
@@ -41,6 +49,10 @@ class _InternalBrowserViewState extends State<InternalBrowserView> {
             onPermissionRequest: (request) => unawaited(request.deny()),
           )
           ..setJavaScriptMode(JavaScriptMode.unrestricted)
+          ..addJavaScriptChannel(
+            'MithkaIV',
+            onMessageReceived: _onInstantMessage,
+          )
           ..setNavigationDelegate(
             NavigationDelegate(
               onProgress: (value) {
@@ -85,6 +97,62 @@ class _InternalBrowserViewState extends State<InternalBrowserView> {
       unawaited(android.setMixedContentMode(MixedContentMode.neverAllow));
     }
     unawaited(_controller.loadRequest(widget.initialUri));
+  }
+
+  void _onInstantMessage(JavaScriptMessage message) {
+    final completer = _instantCompleter;
+    if (completer == null || completer.isCompleted) return;
+    final raw = message.message.trim();
+    if (raw.isEmpty || raw == 'null') {
+      completer.complete(null);
+      return;
+    }
+    try {
+      final decoded = jsonDecode(raw);
+      completer.complete(decoded is Map<String, dynamic> ? decoded : null);
+    } catch (_) {
+      completer.complete(null);
+    }
+  }
+
+  /// exteraless's "Open local Instant View": read the page already loaded in
+  /// this WebView and show it in the article surface.
+  Future<void> _openInstantView() async {
+    if (_instantBusy) return;
+    final url = _currentUri.toString();
+    final completer = Completer<Map<String, dynamic>?>();
+    _instantCompleter = completer;
+    setState(() => _instantBusy = true);
+    try {
+      final script =
+          await InstantViewWebExtractor.instantViewExtractionScript();
+      await _controller.runJavaScript(script);
+      final json = await completer.future.timeout(
+        const Duration(seconds: 30),
+        onTimeout: () => null,
+      );
+      if (!mounted) return;
+      final page = json == null
+          ? null
+          : parseWebInstantViewPage(json, url: url);
+      if (page == null || page.isEmpty) {
+        showToast(context, AppStrings.t(AppStringKeys.instantViewLoadFailed));
+        return;
+      }
+      await Navigator.of(context).push<void>(
+        AppPageRoute<void>(
+          pageBuilder: (_, _, _) =>
+              InstantViewView(url: url, initialPage: page, fallbackUrl: url),
+        ),
+      );
+    } catch (_) {
+      if (mounted) {
+        showToast(context, AppStrings.t(AppStringKeys.instantViewLoadFailed));
+      }
+    } finally {
+      _instantCompleter = null;
+      if (mounted) setState(() => _instantBusy = false);
+    }
   }
 
   void _recordUrl(String? value) {
@@ -194,6 +262,14 @@ class _InternalBrowserViewState extends State<InternalBrowserView> {
                     ),
                     icon: HeroAppIcons.arrowsRotate,
                     onTap: () => unawaited(_controller.reload()),
+                  ),
+                  _BrowserToolbarButton(
+                    semanticLabel: AppStrings.t(
+                      AppStringKeys.instantViewOpenLocal,
+                    ),
+                    icon: HeroAppIcons.newspaper,
+                    enabled: !_instantBusy,
+                    onTap: () => unawaited(_openInstantView()),
                   ),
                   const SizedBox(width: AppSpacing.sm),
                   Expanded(

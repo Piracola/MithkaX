@@ -2091,6 +2091,8 @@
     <string name="imageEditTitle">이미지 편집</string>
     <string name="imagePreviewTitle">이미지 미리보기</string>
     <string name="instantViewTextSize">글자 크기</string>
+    <string name="instantViewExtracting">기사를 추출하는 중…</string>
+    <string name="instantViewOpenLocal">인스턴트 뷰로 열기</string>
     <string name="instantViewSearch">검색</string>
     <string name="instantViewPreviousMatch">이전 일치 항목</string>
     <string name="instantViewNextMatch">다음 일치 항목</string>
