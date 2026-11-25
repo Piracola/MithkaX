@@ -151,6 +151,7 @@ import 'messages/media_album_layout.dart';
 import 'messages/media_spoiler.dart';
 import 'messages/message_action_menu.dart';
 import 'messages/message_action_menu_presentation.dart';
+import 'messages/message_arrival.dart';
 import 'messages/message_bubble.dart';
 import 'messages/message_bubble_repository_view.dart';
 import 'messages/message_quote_selection_dialog.dart';
@@ -889,6 +890,13 @@ class _ChatViewState extends State<ChatView> {
   int _transcriptGestureGeneration = 0;
   int? _lastNewestMessageId;
   int? _lastOldestMessageId;
+
+  /// Live arrivals whose row still owes the entrance animation. The transcript
+  /// sync fills this right before it rebuilds, and the next frame drains it, so
+  /// exactly the rows built for that arrival animate — never a row that was
+  /// already on screen, and never one that scrolls in later.
+  final Set<int> _arrivalAnimationIds = <int>{};
+  bool _arrivalAnimationDrainScheduled = false;
 
   final ChatUnreadProgress _unreadProgress = ChatUnreadProgress();
 
@@ -4418,7 +4426,17 @@ class _ChatViewState extends State<ChatView> {
             key: visibilityKey,
             messageId: entry.last.id,
             mountedEntries: _mountedTranscriptEntries,
-            child: _messageNavigationHighlight(entry, positionedMessageBody),
+            child: MessageArrival(
+              // A live arrival rises in; every other build of this row opens
+              // at rest, so scrolling and re-syncs never replay it.
+              animate:
+                  _arrivalAnimationIds.any(
+                    (id) => entry.messages.any((m) => m.id == id),
+                  ) &&
+                  !MediaQuery.disableAnimationsOf(context),
+              outgoing: message.isOutgoing,
+              child: _messageNavigationHighlight(entry, positionedMessageBody),
+            ),
           ),
         ],
       ),

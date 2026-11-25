@@ -320,6 +320,13 @@ class _MessageBubbleState extends State<_ScopedMessageBubble>
 
   bool _showTappedTimestamp = false;
 
+  /// The detail timestamp a banded outgoing bubble wants to draw as the
+  /// leading item of its band. Set per build of [_row]; [_withFloatingBand]
+  /// consumes it and reports back through [_bandTimestampShown] so the
+  /// floating overlay never draws the same timestamp twice.
+  Widget? _pendingBandTimestamp;
+  bool _bandTimestampShown = false;
+
   // Hover feeds nothing but the 10px detail timestamp, so it rides a notifier:
   // a setState here rebuilt the entire bubble on every pointer crossing, and on
   // desktop the cursor crosses a bubble boundary on most scroll frames.
@@ -1137,6 +1144,13 @@ class _MessageBubbleState extends State<_ScopedMessageBubble>
     final platform = Theme.of(context).platform;
     final desktopInteraction = isDesktopTargetPlatform(platform);
     final desktopTouchInteraction = _supportsDesktopTouchGestures(platform);
+    // Own messages read their meta on one line: the send time leads the band
+    // of outside chips. Only a visible timestamp is armed — hover keeps its
+    // floating overlay, and a bubble without a band keeps it too.
+    _bandTimestampShown = false;
+    _pendingBandTimestamp = outgoing && showDetailTime
+        ? IgnorePointer(child: _messageDetailTimestamp())
+        : null;
     final contentBody = _contentBody(outgoing);
     final body = GestureDetector(
       key: _bubbleKey,
@@ -1298,7 +1312,7 @@ class _MessageBubbleState extends State<_ScopedMessageBubble>
         clipBehavior: Clip.none,
         children: [
           messageRow,
-          if (!timeInSenderHeader)
+          if (!timeInSenderHeader && !_bandTimestampShown)
             _detailTimestampOverlay(
               outgoing,
               showDetailTime
@@ -1958,13 +1972,17 @@ class _MessageBubbleState extends State<_ScopedMessageBubble>
             }),
           )
         : null;
-    final showBand =
+    final hasChips =
         showReplies ||
         ghostMarker != null ||
         showEditedChip ||
         viewsChip != null ||
         forwardsChip != null;
-    if (!showBand) return child;
+    // The send time only joins a band that is already there: a bubble without
+    // chips keeps the floating timestamp and its zero-height geometry.
+    final bandTimestamp = outgoing && hasChips ? _pendingBandTimestamp : null;
+    if (!hasChips) return child;
+    _bandTimestampShown = bandTimestamp != null;
     // The edited mark rides the band's chip language like its siblings.
     final editedChip = showEditedChip
         ? IgnorePointer(
@@ -2021,6 +2039,10 @@ class _MessageBubbleState extends State<_ScopedMessageBubble>
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
+                  if (bandTimestamp != null) ...[
+                    bandTimestamp,
+                    if (bandChips.isNotEmpty) const SizedBox(width: 8),
+                  ],
                   for (var i = 0; i < bandChips.length; i++) ...[
                     if (i > 0) const SizedBox(width: 4),
                     bandChips[i],

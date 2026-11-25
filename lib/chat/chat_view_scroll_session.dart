@@ -1388,6 +1388,14 @@ extension _ChatViewScrollSession on _ChatViewState {
         liveIncomingMessageIds: liveIncomingMessageIds,
         currentMessageIds: _vm.messages.map((message) => message.id),
       );
+      // Live arrivals get the entrance animation. The initial page and every
+      // history page-in stay still: only ids TDLib pushed while this
+      // transcript was already on screen are queued, and the next frame
+      // drains the queue once their rows are built.
+      if (_initialTranscriptReady) {
+        _arrivalAnimationIds.addAll(appendedIncomingIds);
+        _scheduleArrivalAnimationDrain();
+      }
       if (prependedOlder && _revealLoadedOlderPage) {
         _revealLoadedOlderPage = false;
         if (_transcriptGestureGeneration ==
@@ -1506,6 +1514,20 @@ extension _ChatViewScrollSession on _ChatViewState {
     _scheduleSessionScrollAnchorMaintenance();
     _scheduleRestoredBottomCorrection();
     _scheduleParkedShortTranscriptRepair();
+  }
+
+  /// Queues the arrival ids for the rebuild and forgets them one frame after
+  /// it, so a row that was not laid out in that first pass can still play its
+  /// entrance; a row that is already mounted ignores a stale id anyway.
+  void _scheduleArrivalAnimationDrain() {
+    if (_arrivalAnimationIds.isEmpty || _arrivalAnimationDrainScheduled) return;
+    _arrivalAnimationDrainScheduled = true;
+    scheduleChatPostFrame(() {
+      scheduleChatPostFrame(() {
+        _arrivalAnimationDrainScheduled = false;
+        _arrivalAnimationIds.clear();
+      });
+    });
   }
 
   void _reportChatKindIfReady() {
