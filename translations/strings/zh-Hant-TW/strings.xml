@@ -2089,6 +2089,16 @@
     <string name="imageEditTextTool">文字</string>
     <string name="imageEditTitle">編輯圖片</string>
     <string name="imagePreviewTitle">圖片預覽</string>
+    <string name="instantViewTextSize">文字大小</string>
+    <string name="instantViewSearch">搜尋</string>
+    <string name="instantViewPreviousMatch">上一個相符項</string>
+    <string name="instantViewNextMatch">下一個相符項</string>
+    <string name="instantViewTitle">即時預覽</string>
+    <string name="instantViewOpenInBrowser">在瀏覽器中開啟</string>
+    <string name="instantViewLoadFailed">無法載入此頁面</string>
+    <string name="instantViewShowMore">展開</string>
+    <string name="instantViewShowLess">收合</string>
+    <string name="instantViewRetry">重試</string>
     <string name="keywordBlockerAddFromMessageTitle">封鎖關鍵字</string>
     <string name="keywordBlockerDescription">新增關鍵字後，符合的訊息將不會顯示在聊天中，也不會觸發本機通知。支援一般關鍵字、re:正則、regex:正則、/正則/i。遠端列表每行一條規則，以 # 或 // 開頭為註解。</string>
     <string name="keywordBlockerDownload">下載</string>

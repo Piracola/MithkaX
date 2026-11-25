@@ -2096,6 +2096,16 @@
     <string name="imageEditTextTool">Texte</string>
     <string name="imageEditTitle">Modifier l’image</string>
     <string name="imagePreviewTitle">Aperçu de l’image</string>
+    <string name="instantViewTextSize">Taille du texte</string>
+    <string name="instantViewSearch">Rechercher</string>
+    <string name="instantViewPreviousMatch">Correspondance précédente</string>
+    <string name="instantViewNextMatch">Correspondance suivante</string>
+    <string name="instantViewTitle">Aperçu instantané</string>
+    <string name="instantViewOpenInBrowser">Ouvrir dans le navigateur</string>
+    <string name="instantViewLoadFailed">Impossible de charger cette page</string>
+    <string name="instantViewShowMore">Afficher plus</string>
+    <string name="instantViewShowLess">Afficher moins</string>
+    <string name="instantViewRetry">Réessayer</string>
     <string name="keywordBlockerAddFromMessageTitle">Bloquer un mot-clé</string>
     <string name="keywordBlockerDescription">Après ajout de mots-clés, les messages correspondants ne s’afficheront pas dans le chat et ne déclencheront pas de notifications locales. Sont pris en charge les mots-clés simples, re:regex, regex:regex et /regex/i. Dans les listes distantes, chaque ligne contient une règle ; les lignes commençant par # ou // sont des commentaires.</string>
     <string name="keywordBlockerDownload">Télécharger</string>

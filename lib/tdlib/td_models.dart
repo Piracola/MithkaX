@@ -1293,6 +1293,7 @@ class MessageLinkPreview {
     this.showMediaAboveDescription = false,
     this.showAboveText = false,
     this.type = '',
+    this.instantViewVersion = 0,
   });
 
   final String url;
@@ -1310,6 +1311,12 @@ class MessageLinkPreview {
   final bool showMediaAboveDescription;
   final bool showAboveText;
   final String type;
+
+  /// Telegram's Instant View version for the page (1 or 2); 0 means the
+  /// preview has no native article.
+  final int instantViewVersion;
+
+  bool get hasInstantView => instantViewVersion > 0;
 
   bool get hasText =>
       siteName.isNotEmpty ||
@@ -2069,6 +2076,7 @@ abstract final class TDParse {
           preview.boolean('show_media_above_description') ?? false,
       showAboveText: preview.boolean('show_above_text') ?? false,
       type: type?.type ?? '',
+      instantViewVersion: preview.integer('instant_view_version') ?? 0,
     );
     return link.hasText || link.hasMedia ? link : null;
   }

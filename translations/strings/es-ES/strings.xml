@@ -2096,6 +2096,16 @@
     <string name="imageEditTextTool">Texto</string>
     <string name="imageEditTitle">Editar imagen</string>
     <string name="imagePreviewTitle">Vista previa de imagen</string>
+    <string name="instantViewTextSize">Tamaño del texto</string>
+    <string name="instantViewSearch">Buscar</string>
+    <string name="instantViewPreviousMatch">Coincidencia anterior</string>
+    <string name="instantViewNextMatch">Coincidencia siguiente</string>
+    <string name="instantViewTitle">Vista instantánea</string>
+    <string name="instantViewOpenInBrowser">Abrir en el navegador</string>
+    <string name="instantViewLoadFailed">No se pudo cargar esta página</string>
+    <string name="instantViewShowMore">Mostrar más</string>
+    <string name="instantViewShowLess">Mostrar menos</string>
+    <string name="instantViewRetry">Reintentar</string>
     <string name="keywordBlockerAddFromMessageTitle">Bloquear palabra clave</string>
     <string name="keywordBlockerDescription">Después de añadir palabras clave, los mensajes coincidentes no se mostrarán en los chats ni activarán notificaciones locales. Admite palabras clave normales, re:regex, regex:regex y /regex/i. En las listas remotas, cada línea contiene una regla; las líneas que empiezan por # o // son comentarios.</string>
     <string name="keywordBlockerDownload">Descargar</string>

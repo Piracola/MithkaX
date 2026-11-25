@@ -2089,6 +2089,16 @@
     <string name="imageEditTextTool">テキスト</string>
     <string name="imageEditTitle">画像を編集</string>
     <string name="imagePreviewTitle">画像プレビュー</string>
+    <string name="instantViewTextSize">文字サイズ</string>
+    <string name="instantViewSearch">検索</string>
+    <string name="instantViewPreviousMatch">前の一致</string>
+    <string name="instantViewNextMatch">次の一致</string>
+    <string name="instantViewTitle">インスタントビュー</string>
+    <string name="instantViewOpenInBrowser">ブラウザで開く</string>
+    <string name="instantViewLoadFailed">このページを読み込めませんでした</string>
+    <string name="instantViewShowMore">もっと見る</string>
+    <string name="instantViewShowLess">折りたたむ</string>
+    <string name="instantViewRetry">再試行</string>
     <string name="keywordBlockerAddFromMessageTitle">キーワードをブロック</string>
     <string name="keywordBlockerDescription">キーワードを追加すると、一致するメッセージはチャットに表示されず、ローカル通知も届きません。通常のキーワード、re:正規表現、regex:正規表現、/正規表現/i に対応しています。リモートリストは1行に1ルールで、# または // で始まる行はコメントです。</string>
     <string name="keywordBlockerDownload">ダウンロード</string>

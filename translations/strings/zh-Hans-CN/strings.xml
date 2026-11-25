@@ -2089,6 +2089,16 @@
     <string name="imageEditTextTool">文字</string>
     <string name="imageEditTitle">编辑图片</string>
     <string name="imagePreviewTitle">图片预览</string>
+    <string name="instantViewTextSize">文字大小</string>
+    <string name="instantViewSearch">搜索</string>
+    <string name="instantViewPreviousMatch">上一个匹配</string>
+    <string name="instantViewNextMatch">下一个匹配</string>
+    <string name="instantViewTitle">即时预览</string>
+    <string name="instantViewOpenInBrowser">在浏览器中打开</string>
+    <string name="instantViewLoadFailed">无法加载此页面</string>
+    <string name="instantViewShowMore">展开</string>
+    <string name="instantViewShowLess">收起</string>
+    <string name="instantViewRetry">重试</string>
     <string name="keywordBlockerAddFromMessageTitle">屏蔽关键词</string>
     <string name="keywordBlockerDescription">添加关键词后，匹配的消息将不会在聊天中显示，也不会触发本地通知。支持普通关键词、re:正则、regex:正则、/正则/i。远程列表每行一条规则，# 或 // 开头为注释。</string>
     <string name="keywordBlockerDownload">下载</string>

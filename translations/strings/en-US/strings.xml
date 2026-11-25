@@ -2096,6 +2096,16 @@
     <string name="imageEditTextTool">Text</string>
     <string name="imageEditTitle">Edit Image</string>
     <string name="imagePreviewTitle">Image preview</string>
+    <string name="instantViewTextSize">Text size</string>
+    <string name="instantViewSearch">Search</string>
+    <string name="instantViewPreviousMatch">Previous match</string>
+    <string name="instantViewNextMatch">Next match</string>
+    <string name="instantViewTitle">Instant view</string>
+    <string name="instantViewOpenInBrowser">Open in browser</string>
+    <string name="instantViewLoadFailed">Couldn’t load this page</string>
+    <string name="instantViewShowMore">Show more</string>
+    <string name="instantViewShowLess">Show less</string>
+    <string name="instantViewRetry">Try again</string>
     <string name="keywordBlockerAddFromMessageTitle">Block keyword</string>
     <string name="keywordBlockerDescription">After you add keywords, matching messages will be hidden in chats and will not trigger local notifications. Supports plain keywords, re:regex, regex:regex, and /regex/i. Remote lists use one rule per line; lines starting with # or // are comments.</string>
     <string name="keywordBlockerDownload">Download</string>

@@ -3902,7 +3902,17 @@ class _MessageBubbleState extends State<_ScopedMessageBubble>
 
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
-      onTap: preview.url.isEmpty ? null : () => openLink(context, preview.url),
+      onTap: preview.url.isEmpty
+          ? null
+          : () {
+              if (preview.hasInstantView) {
+                unawaited(
+                  openInstantViewPage(context, preview.url, waitForPage: false),
+                );
+                return;
+              }
+              unawaited(openLink(context, preview.url));
+            },
       child: Container(
         key: ValueKey('messageLinkPreviewCard-${message.id}'),
         width: maxWidth,
@@ -3936,6 +3946,36 @@ class _MessageBubbleState extends State<_ScopedMessageBubble>
               ),
             if (media != null && !preview.showMediaAboveDescription)
               mobileSelectionDisabled(media),
+            if (preview.hasInstantView)
+              Container(
+                key: ValueKey('messageInstantViewBadge-${message.id}'),
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(vertical: 6),
+                decoration: BoxDecoration(
+                  color: link.withValues(alpha: 0.10),
+                  border: Border(
+                    top: BorderSide(
+                      color: previewLine.withValues(alpha: 0.18),
+                      width: 0.67,
+                    ),
+                  ),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    AppIcon(HeroAppIcons.flash, size: 13, color: link),
+                    const SizedBox(width: 4),
+                    Text(
+                      AppStrings.t(AppStringKeys.instantViewTitle),
+                      style: TextStyle(
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w600,
+                        color: link,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
           ],
         ),
       ),

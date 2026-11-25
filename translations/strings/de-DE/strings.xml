@@ -2096,6 +2096,16 @@
     <string name="imageEditTextTool">Text</string>
     <string name="imageEditTitle">Bild bearbeiten</string>
     <string name="imagePreviewTitle">Bildvorschau</string>
+    <string name="instantViewTextSize">Textgröße</string>
+    <string name="instantViewSearch">Suchen</string>
+    <string name="instantViewPreviousMatch">Vorheriger Treffer</string>
+    <string name="instantViewNextMatch">Nächster Treffer</string>
+    <string name="instantViewTitle">Instant-Ansicht</string>
+    <string name="instantViewOpenInBrowser">Im Browser öffnen</string>
+    <string name="instantViewLoadFailed">Diese Seite konnte nicht geladen werden</string>
+    <string name="instantViewShowMore">Mehr anzeigen</string>
+    <string name="instantViewShowLess">Weniger anzeigen</string>
+    <string name="instantViewRetry">Erneut versuchen</string>
     <string name="keywordBlockerAddFromMessageTitle">Schlüsselwort blockieren</string>
     <string name="keywordBlockerDescription">Nach dem Hinzufügen von Schlüsselwörtern werden passende Nachrichten nicht im Chat angezeigt und lösen keine lokalen Benachrichtigungen aus. Unterstützt normale Schlüsselwörter, re:Regex, regex:Regex und /Regex/i. Remote-Listen enthalten eine Regel pro Zeile; Zeilen mit # oder // sind Kommentare.</string>
     <string name="keywordBlockerDownload">Herunterladen</string>

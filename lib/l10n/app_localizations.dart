@@ -2261,6 +2261,16 @@ abstract final class AppStringKeys {
   static const imagePreviewTitle = 'imagePreviewTitle';
   static const imageEditTextTool = 'imageEditTextTool';
   static const imageEditTitle = 'imageEditTitle';
+  static const instantViewTitle = 'instantViewTitle';
+  static const instantViewTextSize = 'instantViewTextSize';
+  static const instantViewPreviousMatch = 'instantViewPreviousMatch';
+  static const instantViewNextMatch = 'instantViewNextMatch';
+  static const instantViewSearch = 'instantViewSearch';
+  static const instantViewOpenInBrowser = 'instantViewOpenInBrowser';
+  static const instantViewLoadFailed = 'instantViewLoadFailed';
+  static const instantViewShowMore = 'instantViewShowMore';
+  static const instantViewShowLess = 'instantViewShowLess';
+  static const instantViewRetry = 'instantViewRetry';
   static const keywordBlockerAddFromMessageTitle =
       'keywordBlockerAddFromMessageTitle';
   static const keywordBlockerDescription = 'keywordBlockerDescription';
