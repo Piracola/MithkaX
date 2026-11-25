@@ -2189,6 +2189,18 @@ class _ChatViewState extends State<ChatView> {
       _translation.autoTranslateEnabledFor(widget.chatId) &&
       _translation.shouldTranslateLanguage(_detectedChatLanguage);
 
+  /// The chat's language is known and differs from the translation target —
+  /// the only case where offering "translate this chat" makes sense. An
+  /// undetected language (native identification unavailable, or a chat with
+  /// nothing to sample) is not treated as foreign: that kept the bulk
+  /// translate control in every chat, Chinese ones included.
+  bool get _chatLanguageDiffersFromTarget {
+    if (!_chatLanguageDetectionComplete) return false;
+    final detected = _detectedChatLanguage;
+    if (detected == null) return false;
+    return _translation.shouldTranslateLanguage(detected);
+  }
+
   bool get _hasIncomingTranslatableMessages => _vm.messages.any(
     (message) =>
         !message.isOutgoing &&
@@ -2201,11 +2213,10 @@ class _ChatViewState extends State<ChatView> {
     if (_automaticTranslationEnabled) return true;
     if (!_translation.translateChats ||
         _translation.autoTranslateSuggestionDismissedFor(widget.chatId) ||
-        !_hasIncomingTranslatableMessages ||
-        !_chatLanguageDetectionComplete) {
+        !_hasIncomingTranslatableMessages) {
       return false;
     }
-    return _translation.shouldTranslateLanguage(_detectedChatLanguage);
+    return _chatLanguageDiffersFromTarget;
   }
 
   Widget _chatTranslationPanel() => ChatTranslationPanel(

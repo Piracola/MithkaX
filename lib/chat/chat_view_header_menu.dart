@@ -86,10 +86,16 @@ extension _ChatViewHeaderMenu on _ChatViewState {
     unawaited(_showTopicSelector());
   }
 
+  /// exteraless offers the chat-level translate command only where it would
+  /// change what is read: the chat's language is known to differ from the
+  /// target. A chat already in the target language, or one whose language is
+  /// still unknown, carries no Translate entry (turning an active translation
+  /// off always stays reachable).
   bool get _canToggleChatTranslation =>
       _hasAvailableTranslationOption &&
       _translation.translateChats &&
-      _hasIncomingTranslatableMessages;
+      _hasIncomingTranslatableMessages &&
+      (_automaticTranslationEnabled || _chatLanguageDiffersFromTarget);
 
   String get _chatDisplayTitle =>
       _vm.peerTitle.isEmpty ? widget.title : _vm.peerTitle;
