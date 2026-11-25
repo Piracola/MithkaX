@@ -1184,6 +1184,10 @@ extension ChatViewModelUpdates on ChatViewModel {
     final targets = _messageRefs(messageId);
     if (targets.isEmpty) return;
     for (final target in targets) {
+      // The update flash belongs to a body that really changed. Content
+      // updates that repaint the same text (a media refresh, our own echo)
+      // must not blink the bubble.
+      if (target.text != text) ++target.contentFlashToken;
       target.text = text;
       target.textQuoteSource = text;
       target.textQuoteSourceEntities = entities ?? target.textEntities;

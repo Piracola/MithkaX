@@ -980,6 +980,13 @@ class ChatMessage {
   bool richMessageIsFull;
 
   bool isEdited; // shows a "已编辑" tag
+
+  /// Bumped when an in-place content update actually changed this message's
+  /// body (a bot or another device edited it). The bubble plays a short
+  /// update flash when the value it last painted differs, which is what tells
+  /// the reader the text under their eyes just changed.
+  int contentFlashToken = 0;
+
   bool isSending;
   bool isSendAcknowledged;
   int viewCount;

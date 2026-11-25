@@ -299,10 +299,27 @@ class _ScopedMessageBubble extends StatefulWidget {
 }
 
 class _MessageBubbleState extends State<_ScopedMessageBubble>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   void _updateState(VoidCallback fn) => setState(fn);
 
   final VoicePlayer _voice = VoicePlayer();
+
+  /// The edit blink: when a bot (or another device) rewrites a message in
+  /// place, the bubble's body fades back in once, the way exteraless
+  /// cross-fades the changed text. Renders that change no content never run
+  /// it — [ChatMessage.contentFlashToken] only moves on a real body change.
+  late final AnimationController _contentFlash = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 320),
+    value: 1,
+  );
+
+  late final Animation<double> _contentFlashOpacity = Tween<double>(
+    begin: 0.32,
+    end: 1,
+  ).animate(CurvedAnimation(parent: _contentFlash, curve: Curves.easeOut));
+
+  int _paintedContentFlashToken = 0;
 
   final GlobalKey _bubbleKey = GlobalKey();
 
@@ -1058,6 +1075,7 @@ class _MessageBubbleState extends State<_ScopedMessageBubble>
     super.initState();
     _sensitiveContentController.addListener(_handleSensitiveContentChange);
     _swipe = MessageSwipeReplyController(vsync: this);
+    _paintedContentFlashToken = message.contentFlashToken;
   }
 
   @override
@@ -1070,6 +1088,11 @@ class _MessageBubbleState extends State<_ScopedMessageBubble>
     if (oldWidget.bubble.message.id != widget.bubble.message.id ||
         oldWidget.bubble.message.chatId != widget.bubble.message.chatId) {
       _showRestrictedContent = false;
+      // The slot was rebound to another message: the token of the message
+      // that used to live here says nothing about this one, so adopting it
+      // silently also disarms a queued flash from the old occupancy.
+      _paintedContentFlashToken = message.contentFlashToken;
+      _contentFlash.value = 1;
     }
     final oldController =
         oldWidget.bubble.sensitiveContentController ??
@@ -1088,6 +1111,7 @@ class _MessageBubbleState extends State<_ScopedMessageBubble>
     _desktopTouchLongPressTimer?.cancel();
     _sensitiveContentController.removeListener(_handleSensitiveContentChange);
     _swipe.dispose();
+    _contentFlash.dispose();
     _hoveringTimestamp.dispose();
     _voice.dispose();
     for (final r in _linkRecognizers) {
@@ -1100,6 +1124,7 @@ class _MessageBubbleState extends State<_ScopedMessageBubble>
   Widget build(BuildContext context) {
     if (message.isService) return const SizedBox.shrink();
     _resolveTheme();
+    _noteContentUpdate();
     final outgoing = isOutgoingTranscriptMessage(message, widget.bubble.meId);
     final mobileSelectionArmed =
         widget.bubble.mobileTextSelectionAreaKey != null;
@@ -1125,6 +1150,18 @@ class _MessageBubbleState extends State<_ScopedMessageBubble>
 
   void _replyToThisMessage() => widget.bubble.onReply?.call(message);
 
+  /// Plays the update blink when the body changed since the last paint.
+  /// Deferred to a post-frame callback: starting an AnimationController
+  /// inside build notifies its listeners while the tree is still building.
+  void _noteContentUpdate() {
+    final token = message.contentFlashToken;
+    if (token == _paintedContentFlashToken) return;
+    _paintedContentFlashToken = token;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _contentFlash.forward(from: 0);
+    });
+  }
+
   bool _supportsDesktopTouchGestures(TargetPlatform platform) =>
       platform == TargetPlatform.windows || platform == TargetPlatform.linux;
 
@@ -1138,38 +1175,44 @@ class _MessageBubbleState extends State<_ScopedMessageBubble>
     final desktopInteraction = isDesktopTargetPlatform(platform);
     final desktopTouchInteraction = _supportsDesktopTouchGestures(platform);
     final contentBody = _contentBody(outgoing);
-    final body = GestureDetector(
-      key: _bubbleKey,
-      behavior: HitTestBehavior.opaque,
-      onTap: () => _handleTap(alwaysShowTime),
-      // A long press on a link opens the link's own menu; everywhere else it
-      // is the message's menu (exteraless checks the pressed span first).
-      onLongPressStart:
-          !desktopTouchInteraction &&
-              widget.bubble.mobileTextSelectionAreaKey == null
-          ? _handleLongPressStart
-          : null,
-      onSecondaryTapUp: desktopInteraction ? null : _handleSecondaryTapUp,
-      child: KeyedSubtree(
-        key: ValueKey('messageTapTarget-${message.id}'),
-        child: desktopInteraction
-            ? Listener(
-                onPointerDown: (event) => _handleDesktopPointerDown(
-                  event,
-                  touchGesturesEnabled: desktopTouchInteraction,
-                ),
-                onPointerMove: _handleDesktopPointerMove,
-                onPointerUp: _handleDesktopPointerUp,
-                onPointerCancel: _handleDesktopPointerCancel,
-                child: KeyedSubtree(
-                  key: ValueKey('messageTextSelectionArea-${message.id}'),
-                  child: DesktopMessageTextSelectionArea(
-                    selectionAreaKey: _desktopSelectionAreaKey,
-                    child: contentBody,
+    // The update blink wraps only the bubble's body: reaction chips, buttons
+    // and the avatar keep their ink while a bot-edited body flashes.
+    final body = FadeTransition(
+      key: ValueKey('messageUpdateFlash-${message.id}'),
+      opacity: _contentFlashOpacity,
+      child: GestureDetector(
+        key: _bubbleKey,
+        behavior: HitTestBehavior.opaque,
+        onTap: () => _handleTap(alwaysShowTime),
+        // A long press on a link opens the link's own menu; everywhere else it
+        // is the message's menu (exteraless checks the pressed span first).
+        onLongPressStart:
+            !desktopTouchInteraction &&
+                widget.bubble.mobileTextSelectionAreaKey == null
+            ? _handleLongPressStart
+            : null,
+        onSecondaryTapUp: desktopInteraction ? null : _handleSecondaryTapUp,
+        child: KeyedSubtree(
+          key: ValueKey('messageTapTarget-${message.id}'),
+          child: desktopInteraction
+              ? Listener(
+                  onPointerDown: (event) => _handleDesktopPointerDown(
+                    event,
+                    touchGesturesEnabled: desktopTouchInteraction,
                   ),
-                ),
-              )
-            : contentBody,
+                  onPointerMove: _handleDesktopPointerMove,
+                  onPointerUp: _handleDesktopPointerUp,
+                  onPointerCancel: _handleDesktopPointerCancel,
+                  child: KeyedSubtree(
+                    key: ValueKey('messageTextSelectionArea-${message.id}'),
+                    child: DesktopMessageTextSelectionArea(
+                      selectionAreaKey: _desktopSelectionAreaKey,
+                      child: contentBody,
+                    ),
+                  ),
+                )
+              : contentBody,
+        ),
       ),
     );
     final contentWidget = ConstrainedBox(
