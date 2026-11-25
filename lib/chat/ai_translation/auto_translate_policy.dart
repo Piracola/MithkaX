@@ -85,6 +85,28 @@ List<ChatMessage> automaticTranslationCandidates(
   return result;
 }
 
+/// The messages an automatic translation pass may translate.
+///
+/// A pass walks EVERY message the transcript has loaded, newest first. It must
+/// never be fed a newest-N window: paging older history (the user scrolling
+/// up) prepends messages that are then permanently outside such a window, so
+/// "translate this chat" silently stopped translating exactly the pages that
+/// arrived after the switch was flipped. [limit] only bounds how many leave
+/// per pass — applying a translation notifies the view model, which schedules
+/// the next pass, so the walk continues further back until the loaded history
+/// is covered.
+List<ChatMessage> automaticTranslationLoadedCandidates(
+  List<ChatMessage> loadedMessages, {
+  required String targetLanguageCode,
+  Set<int> excludedMessageIds = const {},
+  int limit = 12,
+}) => automaticTranslationCandidates(
+  loadedMessages,
+  targetLanguageCode: targetLanguageCode,
+  excludedMessageIds: excludedMessageIds,
+  limit: limit,
+);
+
 List<String> automaticTranslationLanguageSamples(
   List<ChatMessage> messages, {
   int maximumMessages = 16,

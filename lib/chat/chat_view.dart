@@ -6804,11 +6804,11 @@ class _ChatViewState extends State<ChatView> {
     _autoTranslationRunning = true;
     if (mounted) setState(() {});
     try {
-      final messages = _vm.messages.length > 32
-          ? _vm.messages.sublist(_vm.messages.length - 32)
-          : _vm.messages;
-      final candidates = automaticTranslationCandidates(
-        messages,
+      // Paging older history must translate too: the pass sees every loaded
+      // message, not a newest-N window (see
+      // [automaticTranslationLoadedCandidates]).
+      final candidates = automaticTranslationLoadedCandidates(
+        _vm.messages,
         targetLanguageCode: _translationTargetLanguage(_translation),
         excludedMessageIds: _autoTranslationFailedMessageIds,
       );
