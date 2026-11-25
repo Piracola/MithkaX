@@ -73,6 +73,70 @@ void main() {
     expect(find.text('Immediately'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets('unlocking fades the gate out over a confirmation check', (
+    tester,
+  ) async {
+    final harness = await _pumpLock(tester);
+    await _enterPin(tester, harness.controller);
+    expect(harness.controller.locked, isFalse);
+
+    // The successful frame is a confirmation, not an empty PIN prompt.
+    expect(find.text('Unlocked'), findsOneWidget);
+    expect(find.text('2'), findsNothing);
+
+    await tester.pump(const Duration(milliseconds: 160));
+    expect(find.text('Unlocked'), findsOneWidget);
+    final mid = tester
+        .widget<Opacity>(find.byKey(const ValueKey('app-lock-gate-opacity')))
+        .opacity;
+    expect(mid, greaterThan(0));
+    expect(mid, lessThan(1));
+
+    await tester.pump(const Duration(milliseconds: 260));
+    await tester.pumpAndSettle();
+    expect(find.text('Unlocked'), findsNothing);
+    expect(find.text('Unlock Mithka X'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('a re-lock covers the app at full opacity on its first frame', (
+    tester,
+  ) async {
+    final harness = await _pumpLock(tester);
+    await _enterPin(tester, harness.controller);
+    await tester.pumpAndSettle();
+    expect(find.text('Unlock Mithka X'), findsNothing);
+
+    harness.controller.lock();
+    await tester.pump();
+
+    expect(find.text('Unlock Mithka X'), findsOneWidget);
+    final opacity = tester
+        .widget<Opacity>(find.byKey(const ValueKey('app-lock-gate-opacity')))
+        .opacity;
+    expect(opacity, 1.0);
+  });
+}
+
+/// Enters the harness PIN and drives the hashing isolate to completion, but
+/// stops pumping the moment the controller unlocks so a caller can inspect
+/// the exit transition.
+Future<void> _enterPin(
+  WidgetTester tester,
+  LocalAppLockController controller,
+) async {
+  for (final digit in const [2, 4, 6, 8]) {
+    await tester.tap(find.text('$digit'));
+    await tester.pump();
+  }
+  for (var attempt = 0; attempt < 100 && controller.locked; attempt += 1) {
+    await tester.runAsync(
+      () => Future<void>.delayed(const Duration(milliseconds: 10)),
+    );
+    await tester.pump();
+  }
+  await tester.pump();
 }
 
 Future<void> _drainHash(WidgetTester tester, _LockHarness harness) async {

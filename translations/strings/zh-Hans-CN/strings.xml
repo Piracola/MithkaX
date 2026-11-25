@@ -436,6 +436,7 @@
     <string name="appLockTryBiometric">使用{value1}</string>
     <string name="appLockUnlockMethod">解锁方式</string>
     <string name="appLockUnlockTitle">解锁 Mithka X</string>
+    <string name="appLockUnlocked">已解锁</string>
     <string name="appLockUseBiometric">使用{value1}解锁</string>
     <string name="appLockVerifyTitle">验证应用锁</string>
     <string name="appLockWrongGesture">手势不正确。</string>

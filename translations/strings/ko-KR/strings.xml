@@ -436,6 +436,7 @@
     <string name="appLockTryBiometric">{value1} 사용</string>
     <string name="appLockUnlockMethod">잠금 해제 방법</string>
     <string name="appLockUnlockTitle">Mithka X 잠금 해제</string>
+    <string name="appLockUnlocked">잠금 해제됨</string>
     <string name="appLockUseBiometric">{value1}(으)로 잠금 해제</string>
     <string name="appLockVerifyTitle">앱 잠금 확인</string>
     <string name="appLockWrongGesture">제스처가 올바르지 않습니다.</string>

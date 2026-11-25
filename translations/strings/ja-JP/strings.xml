@@ -436,6 +436,7 @@
     <string name="appLockTryBiometric">{value1}を使用</string>
     <string name="appLockUnlockMethod">ロック解除方法</string>
     <string name="appLockUnlockTitle">Mithka X のロックを解除</string>
+    <string name="appLockUnlocked">ロック解除</string>
     <string name="appLockUseBiometric">{value1}でロック解除</string>
     <string name="appLockVerifyTitle">アプリロックを確認</string>
     <string name="appLockWrongGesture">ジェスチャーが正しくありません。</string>

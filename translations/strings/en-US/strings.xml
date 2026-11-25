@@ -436,6 +436,7 @@
     <string name="appLockTryBiometric">Use {value1}</string>
     <string name="appLockUnlockMethod">Unlock method</string>
     <string name="appLockUnlockTitle">Unlock Mithka X</string>
+    <string name="appLockUnlocked">Unlocked</string>
     <string name="appLockUseBiometric">Unlock with {value1}</string>
     <string name="appLockVerifyTitle">Verify app lock</string>
     <string name="appLockWrongGesture">That gesture is not correct.</string>

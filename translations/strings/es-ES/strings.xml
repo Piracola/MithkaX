@@ -436,6 +436,7 @@
     <string name="appLockTryBiometric">Usar {value1}</string>
     <string name="appLockUnlockMethod">Método de desbloqueo</string>
     <string name="appLockUnlockTitle">Desbloquear Mithka X</string>
+    <string name="appLockUnlocked">Desbloqueado</string>
     <string name="appLockUseBiometric">Desbloquear con {value1}</string>
     <string name="appLockVerifyTitle">Verificar bloqueo</string>
     <string name="appLockWrongGesture">Ese gesto no es correcto.</string>

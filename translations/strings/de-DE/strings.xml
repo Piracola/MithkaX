@@ -436,6 +436,7 @@
     <string name="appLockTryBiometric">{value1} verwenden</string>
     <string name="appLockUnlockMethod">Entsperrmethode</string>
     <string name="appLockUnlockTitle">Mithka X entsperren</string>
+    <string name="appLockUnlocked">Entsperrt</string>
     <string name="appLockUseBiometric">Mit {value1} entsperren</string>
     <string name="appLockVerifyTitle">App-Sperre bestätigen</string>
     <string name="appLockWrongGesture">Diese Geste ist nicht korrekt.</string>

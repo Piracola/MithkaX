@@ -861,6 +861,7 @@ abstract final class AppStringKeys {
   static const appLockLockNow = 'appLockLockNow';
   static const appLockUnlockMethod = 'appLockUnlockMethod';
   static const appLockUnlockTitle = 'appLockUnlockTitle';
+  static const appLockUnlocked = 'appLockUnlocked';
   static const appLockUseBiometric = 'appLockUseBiometric';
   static const appLockVerifyTitle = 'appLockVerifyTitle';
   static const appLockWrongGesture = 'appLockWrongGesture';

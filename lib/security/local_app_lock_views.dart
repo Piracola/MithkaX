@@ -139,9 +139,16 @@ class LocalAppLockGate extends StatefulWidget {
 }
 
 class _LocalAppLockGateState extends State<LocalAppLockGate>
-    with WidgetsBindingObserver {
+    with WidgetsBindingObserver, SingleTickerProviderStateMixin {
   int? _automaticBiometricEpoch;
   int? _pendingAutomaticBiometricEpoch;
+
+  /// Drives the unlock hand-off: 1 shows the gate, 0 has fully handed the
+  /// screen back to the app. Locking jumps straight back to 1 so a resume
+  /// after the timeout can never paint the chat list for a frame first.
+  late final AnimationController _visibility;
+  LocalAppLockController? _lock;
+  bool _overlayVisible = false;
 
   bool get _foreground {
     final state = WidgetsBinding.instance.lifecycleState;
@@ -151,11 +158,49 @@ class _LocalAppLockGateState extends State<LocalAppLockGate>
   @override
   void initState() {
     super.initState();
+    // Eager: dispose() must never be the first reader, or the ticker lookup
+    // would run against a deactivated element.
+    _visibility = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 340),
+      value: 1,
+    )..addStatusListener(_handleVisibilityStatus);
     WidgetsBinding.instance.addObserver(this);
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final lock = context.read<LocalAppLockController>();
+    if (!identical(lock, _lock)) {
+      _lock?.removeListener(_handleLockChanged);
+      _lock = lock..addListener(_handleLockChanged);
+    }
+  }
+
+  void _handleLockChanged() {
+    final locked = _lock?.locked ?? false;
+    if (locked) {
+      // No entrance fade: the gate must cover the app on the very first
+      // frame after a re-lock. The emblem still springs in by itself.
+      if (!_overlayVisible) setState(() => _overlayVisible = true);
+      if (_visibility.value != 1) _visibility.value = 1;
+    } else if (_overlayVisible &&
+        _visibility.status != AnimationStatus.reverse) {
+      _visibility.reverse();
+    }
+  }
+
+  void _handleVisibilityStatus(AnimationStatus status) {
+    if (status == AnimationStatus.dismissed && _overlayVisible && mounted) {
+      setState(() => _overlayVisible = false);
+    }
+  }
+
+  @override
   void dispose() {
+    _lock?.removeListener(_handleLockChanged);
+    _visibility.dispose();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
@@ -190,12 +235,16 @@ class _LocalAppLockGateState extends State<LocalAppLockGate>
   @override
   Widget build(BuildContext context) {
     final controller = context.watch<LocalAppLockController>();
-    if (!controller.locked) return const SizedBox.shrink();
-    if (controller.storageUnavailable) {
-      return _AppLockStorageUnavailableView(controller: controller);
+    final locked = controller.locked;
+    if (locked && !_overlayVisible) {
+      // First frame of a launch that starts locked: show the gate at once,
+      // never a frame of the app underneath.
+      _overlayVisible = true;
     }
+    if (!locked && !_overlayVisible) return const SizedBox.shrink();
     final epoch = controller.lockEpoch;
     final tryBiometricFirst =
+        locked &&
         controller.biometricEnabled &&
         controller.biometricAvailable &&
         _automaticBiometricEpoch != epoch;
@@ -208,13 +257,39 @@ class _LocalAppLockGateState extends State<LocalAppLockGate>
         unawaited(_authenticateAutomatically(controller, epoch));
       });
     }
-    return _AppUnlockView(
-      key: ValueKey(epoch),
-      controller: controller,
-      biometricPending:
-          tryBiometricFirst ||
-          _pendingAutomaticBiometricEpoch == epoch ||
-          controller.authenticatingBiometrics,
+    final Widget gate = controller.storageUnavailable
+        ? _AppLockStorageUnavailableView(controller: controller)
+        : _AppUnlockView(
+            key: ValueKey(epoch),
+            controller: controller,
+            unlocked: !locked,
+            biometricPending:
+                locked &&
+                (tryBiometricFirst ||
+                    _pendingAutomaticBiometricEpoch == epoch ||
+                    controller.authenticatingBiometrics),
+          );
+    return IgnorePointer(
+      ignoring: !locked,
+      child: ExcludeSemantics(
+        excluding: !locked,
+        child: AnimatedBuilder(
+          animation: _visibility,
+          child: gate,
+          builder: (context, child) {
+            final t = Curves.easeOutCubic.transform(
+              _visibility.value.clamp(0.0, 1.0),
+            );
+            return Opacity(
+              key: const ValueKey('app-lock-gate-opacity'),
+              opacity: t,
+              // A hair of growth reads as the lock plate handing the screen
+              // forward, and never exposes an edge the way a slide would.
+              child: Transform.scale(scale: 1 + (1 - t) * 0.035, child: child),
+            );
+          },
+        ),
+      ),
     );
   }
 }
@@ -264,10 +339,16 @@ class _AppUnlockView extends StatelessWidget {
     super.key,
     required this.controller,
     required this.biometricPending,
+    this.unlocked = false,
   });
 
   final LocalAppLockController controller;
   final bool biometricPending;
+
+  /// True while the gate is fading out after a successful unlock. The view
+  /// stays mounted for the transition, so it must not look like a fresh
+  /// challenge during those frames.
+  final bool unlocked;
 
   @override
   Widget build(BuildContext context) {
@@ -286,6 +367,7 @@ class _AppUnlockView extends StatelessWidget {
                 : AppStringKeys.appLockDrawGesture,
             leading: const _ActiveAccountLockAvatar(),
             lockScreenStyle: true,
+            unlocked: unlocked,
             biometricPending: biometricPending,
             biometricKind: controller.biometricKind,
             showBiometric:
@@ -867,6 +949,7 @@ class _CredentialChallenge extends StatefulWidget {
     this.onBiometric,
     this.lockScreenStyle = false,
     this.biometricPending = false,
+    this.unlocked = false,
   });
 
   final AppLockCredentialType type;
@@ -879,6 +962,7 @@ class _CredentialChallenge extends StatefulWidget {
   final Future<String?> Function()? onBiometric;
   final bool lockScreenStyle;
   final bool biometricPending;
+  final bool unlocked;
 
   @override
   State<_CredentialChallenge> createState() => _CredentialChallengeState();
@@ -943,6 +1027,7 @@ class _CredentialChallengeState extends State<_CredentialChallenge>
         event is! KeyDownEvent ||
         keyboardModifiersPressed() ||
         _busy ||
+        widget.unlocked ||
         widget.biometricPending) {
       return KeyEventResult.ignored;
     }
@@ -963,7 +1048,9 @@ class _CredentialChallengeState extends State<_CredentialChallenge>
   }
 
   Widget _withKeyboardInput(Widget child) {
-    if (widget.type != AppLockCredentialType.pin || widget.biometricPending) {
+    if (widget.type != AppLockCredentialType.pin ||
+        widget.biometricPending ||
+        widget.unlocked) {
       return child;
     }
     return Focus(
@@ -975,7 +1062,7 @@ class _CredentialChallengeState extends State<_CredentialChallenge>
   }
 
   Future<void> _submit(String credential) async {
-    if (_busy || widget.biometricPending) return;
+    if (_busy || widget.biometricPending || widget.unlocked) return;
     setState(() {
       _busy = true;
       _error = null;
@@ -995,6 +1082,7 @@ class _CredentialChallengeState extends State<_CredentialChallenge>
 
   void _addDigit(int digit) {
     if (_busy ||
+        widget.unlocked ||
         widget.biometricPending ||
         _pin.length >= LocalAppLockController.pinLength) {
       return;
@@ -1011,7 +1099,9 @@ class _CredentialChallengeState extends State<_CredentialChallenge>
   }
 
   void _deleteDigit() {
-    if (_busy || widget.biometricPending || _pin.isEmpty) return;
+    if (_busy || widget.unlocked || widget.biometricPending || _pin.isEmpty) {
+      return;
+    }
     unawaited(AppHaptics.tap());
     setState(() {
       _error = null;
@@ -1119,7 +1209,9 @@ class _CredentialChallengeState extends State<_CredentialChallenge>
   Widget _buildLockScreen(BuildContext context) => LayoutBuilder(
     builder: (context, constraints) {
       final palette = _AppLockPalette.of(context);
-      final prompt = widget.biometricPending
+      final prompt = widget.unlocked
+          ? AppStringKeys.appLockUnlocked
+          : widget.biometricPending
           ? _biometricUnlockName(widget.biometricKind)
           : _error ?? widget.prompt;
       final patternSize = math.min(constraints.maxWidth - 40, 440.0);
@@ -1147,6 +1239,7 @@ class _CredentialChallengeState extends State<_CredentialChallenge>
                           _LockEmblem(
                             error: _error != null && !widget.biometricPending,
                             pending: widget.biometricPending,
+                            unlocked: widget.unlocked,
                             biometricKind: widget.biometricKind,
                             child: widget.leading,
                           ),
@@ -1164,7 +1257,9 @@ class _CredentialChallengeState extends State<_CredentialChallenge>
                               key: ValueKey(prompt),
                               textAlign: TextAlign.center,
                               style: AppTextStyle.body(
-                                _error == null || widget.biometricPending
+                                widget.unlocked ||
+                                        _error == null ||
+                                        widget.biometricPending
                                     ? palette.secondary
                                     : palette.error,
                                 weight: AppTextWeight.medium,
@@ -1175,7 +1270,9 @@ class _CredentialChallengeState extends State<_CredentialChallenge>
                       ),
                     ),
                     const SizedBox(height: 28),
-                    if (widget.biometricPending)
+                    if (widget.unlocked)
+                      _UnlockedCheck(palette: palette)
+                    else if (widget.biometricPending)
                       _BiometricWaiting(
                         kind: widget.biometricKind,
                         palette: palette,
@@ -1261,12 +1358,14 @@ class _LockEmblem extends StatefulWidget {
     required this.error,
     required this.pending,
     required this.biometricKind,
+    this.unlocked = false,
   });
 
   final Widget? child;
   final bool error;
   final bool pending;
   final AppLockBiometricKind biometricKind;
+  final bool unlocked;
 
   @override
   State<_LockEmblem> createState() => _LockEmblemState();
@@ -1355,7 +1454,11 @@ class _LockEmblemState extends State<_LockEmblem>
                   alignment: Alignment.center,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    color: widget.error ? palette.error : palette.badgeFill,
+                    color: widget.unlocked
+                        ? palette.accent
+                        : widget.error
+                        ? palette.error
+                        : palette.badgeFill,
                     border: Border.all(
                       color: palette.backdrop.withValues(alpha: 0.65),
                       width: 2,
@@ -1369,11 +1472,13 @@ class _LockEmblemState extends State<_LockEmblem>
                     ],
                   ),
                   child: AppIcon(
-                    widget.pending
+                    widget.unlocked
+                        ? HeroAppIcons.check
+                        : widget.pending
                         ? _biometricIcon(widget.biometricKind)
                         : HeroAppIcons.lock,
                     size: 16,
-                    color: widget.error || !widget.pending
+                    color: widget.unlocked || widget.error || !widget.pending
                         ? Colors.white
                         : palette.accent,
                   ),
@@ -1476,6 +1581,52 @@ class _BiometricWaiting extends StatelessWidget {
       ),
     ),
   );
+}
+
+/// The confirmation that plays for the 340 ms the gate takes to hand the
+/// screen back: the lock plate grows into a check while everything fades.
+class _UnlockedCheck extends StatelessWidget {
+  const _UnlockedCheck({required this.palette});
+
+  final _AppLockPalette palette;
+
+  @override
+  Widget build(BuildContext context) {
+    final onAccent =
+        ThemeData.estimateBrightnessForColor(palette.accent) == Brightness.dark
+        ? Colors.white
+        : Colors.black87;
+    return SizedBox(
+      width: 116,
+      height: 116,
+      child: Center(
+        child: TweenAnimationBuilder<double>(
+          tween: Tween<double>(begin: 0.82, end: 1),
+          duration: const Duration(milliseconds: 280),
+          curve: Curves.easeOutBack,
+          builder: (context, value, child) =>
+              Transform.scale(scale: value, child: child),
+          child: Container(
+            width: 92,
+            height: 92,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: palette.accent,
+              boxShadow: [
+                BoxShadow(
+                  color: palette.accent.withValues(alpha: 0.35),
+                  blurRadius: 34,
+                  spreadRadius: 5,
+                ),
+              ],
+            ),
+            child: AppIcon(HeroAppIcons.check, size: 44, color: onAccent),
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 class _LockFooter extends StatelessWidget {

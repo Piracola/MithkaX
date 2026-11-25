@@ -1031,7 +1031,15 @@ class _MithkaAppState extends State<MithkaApp> with WidgetsBindingObserver {
                   Positioned.fill(
                     child: ExcludeSemantics(
                       excluding: appLock.locked,
-                      child: framedUnlockedApp,
+                      // The gate fades away over the app; settling the app
+                      // from a hair of over-scale gives the hand-off depth.
+                      // It never scales below 1, so no edge is ever exposed.
+                      child: AnimatedScale(
+                        scale: appLock.locked ? 1.012 : 1,
+                        duration: const Duration(milliseconds: 340),
+                        curve: Curves.easeOutCubic,
+                        child: framedUnlockedApp,
+                      ),
                     ),
                   ),
                   const Positioned.fill(child: LocalAppLockGate()),
