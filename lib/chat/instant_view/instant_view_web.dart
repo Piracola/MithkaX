@@ -15,12 +15,9 @@
 //  any renderable content is dropped.
 //
 
-import 'dart:async';
 import 'dart:convert';
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
-import 'package:webview_flutter/webview_flutter.dart';
 
 import '../../tdlib/td_models.dart';
 import 'instant_view_models.dart';
@@ -472,102 +469,14 @@ Map<String, dynamic>? decodeInstantViewWebResult(Object? raw) {
   }
 }
 
-/// Loads [url] in a WebView and runs Telegram's `instant.js` against the live
-/// document, the way exteraless's `WebInstantView` builds an article for a page
-/// with no server-side Instant View template.
-///
-/// The caller mounts [controller] while [result] is pending; an offstage
-/// `WebViewWidget` is enough for the page to load and run scripts.
-class InstantViewWebExtractor {
-  InstantViewWebExtractor({required this.url});
+String? _scriptCache;
 
-  final String url;
-  final Completer<Map<String, dynamic>?> _done = Completer();
-  WebViewController? _controller;
-  Timer? _timeout;
-  var _injected = false;
-
-  WebViewController? get controller => _controller;
-
-  Future<Map<String, dynamic>?> get result => _done.future;
-
-  /// Creates the controller and starts loading. Throws when the platform has
-  /// no WebView implementation.
-  void start() {
-    final controller = WebViewController()
-      ..setJavaScriptMode(JavaScriptMode.unrestricted)
-      ..setBackgroundColor(const Color(0x00000000))
-      ..setNavigationDelegate(
-        NavigationDelegate(
-          onPageFinished: (url) => unawaited(_inject()),
-          onWebResourceError: (error) {
-            if (error.isForMainFrame ?? true) _finish(null);
-          },
-        ),
-      );
-    _controller = controller;
-    debugPrint('instantView.web: load $url');
-    _timeout = Timer(const Duration(seconds: 20), () {
-      debugPrint('instantView.web: timeout $url');
-      _finish(null);
-    });
-    unawaited(
-      controller.loadRequest(Uri.parse(url)).catchError((Object _) {
-        _finish(null);
-      }),
-    );
-  }
-
-  Future<void> _inject() async {
-    if (_injected) return;
-    _injected = true;
-    final controller = _controller;
-    if (controller == null) return;
-    try {
-      final script = await _instantScript();
-      final raw = await controller.runJavaScriptReturningResult(script);
-      _finish(decodeInstantViewWebResult(raw));
-    } catch (_) {
-      // One retry: the first `onPageFinished` can fire before the document is
-      // scriptable on slower WebView implementations.
-      try {
-        final script = await _instantScript();
-        await Future<void>.delayed(const Duration(milliseconds: 400));
-        final raw = await controller.runJavaScriptReturningResult(script);
-        _finish(decodeInstantViewWebResult(raw));
-      } catch (_) {
-        _finish(null);
-      }
-    }
-  }
-
-  void _finish(Map<String, dynamic>? json) {
-    if (_done.isCompleted) return;
-    _timeout?.cancel();
-    debugPrint(
-      'instantView.web: done $url (${json == null ? 'no article' : 'json'})',
-    );
-    _done.complete(json);
-  }
-
-  void dispose() {
-    _timeout?.cancel();
-    if (!_done.isCompleted) _done.complete(null);
-    _controller = null;
-  }
-
-  static String? _script;
-
-  static Future<String> _instantScript() => instantViewExtractionScript();
-
-  /// The patched Telegram extractor, for the in-app browser's own WebView.
-  static Future<String> instantViewExtractionScript() async {
-    final cached = _script;
-    if (cached != null) return cached;
-    final loaded = await rootBundle.loadString(
-      'assets/instant_view/instant.js',
-    );
-    _script = loaded;
-    return loaded;
-  }
+/// The patched Telegram extractor, injected into the in-app browser's WebView
+/// by its "Open local Instant View" action.
+Future<String> instantViewExtractionScript() async {
+  final cached = _scriptCache;
+  if (cached != null) return cached;
+  final loaded = await rootBundle.loadString('assets/instant_view/instant.js');
+  _scriptCache = loaded;
+  return loaded;
 }

@@ -145,8 +145,7 @@ class _InternalBrowserViewState extends State<InternalBrowserView> {
     final url = _currentUri.toString();
     setState(() => _instantBusy = true);
     try {
-      final script =
-          await InstantViewWebExtractor.instantViewExtractionScript();
+      final script = await instantViewExtractionScript();
       final raw = await _controller
           .runJavaScriptReturningResult(script)
           .timeout(const Duration(seconds: 20));

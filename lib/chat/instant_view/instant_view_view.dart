@@ -11,11 +11,9 @@
 
 import 'dart:async';
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:webview_flutter/webview_flutter.dart';
 
 import '../../components/app_icons.dart';
 import '../../components/app_interactive_surface.dart';
@@ -24,13 +22,11 @@ import '../../components/ui_components.dart';
 import '../../l10n/app_localizations.dart';
 import '../../theme/app_motion.dart';
 import '../../theme/app_theme.dart';
-import '../links_search/link_preview_fixer.dart';
 import 'instant_view_blocks.dart';
 import 'instant_view_links.dart';
 import 'instant_view_loader.dart';
 import 'instant_view_models.dart';
 import 'instant_view_text.dart';
-import 'instant_view_web.dart';
 
 /// Default and allowed article text sizes, matching exteraless's 12–30pt
 /// Instant View size slider.
@@ -47,8 +43,6 @@ class InstantViewView extends StatefulWidget {
     this.loader,
     this.initialPage,
     this.fallbackUrl,
-    this.allowWebFallback = true,
-    this.fallbackToBrowserOnFailure = false,
   });
 
   final String url;
@@ -61,16 +55,6 @@ class InstantViewView extends StatefulWidget {
   /// Where "Open in browser" (and a failed automatic load) goes. Defaults to
   /// [url].
   final String? fallbackUrl;
-
-  /// When Telegram has no Instant View for [url], extract the article from the
-  /// page itself (exteraless's `WebInstantView`). On by default; callers that
-  /// know the page cannot be read (a file, an app link) turn it off.
-  final bool allowWebFallback;
-
-  /// Opens the browser instead of showing the error state when every attempt
-  /// fails — the behaviour a preview card had before it learned to try the
-  /// reader. Retry from the reader's own error state stays manual.
-  final bool fallbackToBrowserOnFailure;
 
   @override
   State<InstantViewView> createState() => _InstantViewViewState();
@@ -88,8 +72,6 @@ class _InstantViewViewState extends State<InstantViewView> {
   InstantViewPage? _page;
   Object? _error;
   var _loading = false;
-  var _extracting = false;
-  InstantViewWebExtractor? _webExtractor;
   var _showBackToTop = false;
   var _fontSize = _baseInstantViewFontSize;
   var _searching = false;
@@ -112,7 +94,6 @@ class _InstantViewViewState extends State<InstantViewView> {
 
   @override
   void dispose() {
-    _webExtractor?.dispose();
     _scroll
       ..removeListener(_onScroll)
       ..dispose();
@@ -146,110 +127,26 @@ class _InstantViewViewState extends State<InstantViewView> {
     if (_searching && _query.trim().isNotEmpty) _refreshMatches();
   }
 
-  /// Platforms where `webview_flutter` has an implementation; elsewhere the
-  /// reader keeps the error state and offers the browser.
-  static bool get _webViewSupported => switch (defaultTargetPlatform) {
-    TargetPlatform.android ||
-    TargetPlatform.iOS ||
-    TargetPlatform.macOS => true,
-    _ => false,
-  };
-
-  Future<void> _load({bool retry = false}) async {
-    if (_loading || _extracting) return;
+  Future<void> _load() async {
+    if (_loading) return;
     setState(() {
       _loading = true;
       _error = null;
     });
-    InstantViewPage? page;
-    Object? failure;
     try {
-      page = await _loader.load(widget.url);
-    } catch (error) {
-      failure = error;
-    }
-    // A preview mirror can carry the Instant View the original host lacks:
-    // x.com has none, fixupx.com does. Reading the mirror keeps the article
-    // the sender's card promised.
-    final mirror = LinkPreviewFixer.shared.readerUrl(widget.url);
-    if (page == null && mirror != null && mirror != widget.url) {
-      try {
-        page = await _loader.load(mirror);
-        _loader.remember(widget.url, page);
-      } catch (error) {
-        failure ??= error;
-      }
-    }
-    if (!mounted) return;
-    if (page != null) {
+      final page = await _loader.load(widget.url);
+      if (!mounted) return;
       setState(() {
-        _adopt(page!);
+        _adopt(page);
         _loading = false;
       });
-      return;
-    }
-    setState(() => _loading = false);
-    if (widget.allowWebFallback && _webViewSupported) {
-      await _loadFromWeb();
-      if (!mounted || _page != null) return;
-    } else {
-      setState(() => _error = failure);
-    }
-    if (widget.fallbackToBrowserOnFailure && !retry) {
-      await _fallbackToBrowser();
-    }
-  }
-
-  Future<void> _fallbackToBrowser() async {
-    final route = ModalRoute.of(context);
-    if (!mounted || route == null || !route.isCurrent) return;
-    final url = widget.fallbackUrl ?? widget.url;
-    await openIvUrlInBrowser(context, url);
-    if (mounted) unawaited(Navigator.of(context).maybePop());
-  }
-
-  /// exteraless's `WebInstantView`: when Telegram has no template, read the
-  /// page locally and render the same article surface.
-  Future<void> _loadFromWeb() async {
-    final sourceUrl =
-        LinkPreviewFixer.shared.readerUrl(widget.url) ?? widget.url;
-    final extractor = InstantViewWebExtractor(url: sourceUrl);
-    try {
-      extractor.start();
-    } catch (_) {
-      setState(() => _error = InstantViewUnavailable(widget.url));
-      return;
-    }
-    setState(() {
-      _extracting = true;
-      _webExtractor = extractor;
-      _error = null;
-    });
-    final json = await extractor.result;
-    if (!mounted) {
-      extractor.dispose();
-      return;
-    }
-    final page = json == null
-        ? null
-        : parseWebInstantViewPage(json, url: sourceUrl);
-    extractor.dispose();
-    if (page == null || page.isEmpty) {
+    } catch (error) {
+      if (!mounted) return;
       setState(() {
-        _extracting = false;
-        _webExtractor = null;
-        _error = InstantViewUnavailable(widget.url);
+        _error = error;
+        _loading = false;
       });
-      return;
     }
-    _loader
-      ..remember(widget.url, page)
-      ..remember(sourceUrl, page);
-    setState(() {
-      _extracting = false;
-      _webExtractor = null;
-      _adopt(page);
-    });
   }
 
   void _scrollToAnchor(String anchor, String fallbackUrl) {
@@ -609,40 +506,11 @@ class _InstantViewViewState extends State<InstantViewView> {
 
   Widget _body(BuildContext context) {
     if (_page == null && _error == null) {
-      final controller = _webExtractor?.controller;
-      return Stack(
-        children: [
-          if (controller != null)
-            // Offstage keeps the platform view out of the layout and the paint
-            // while the page still loads and runs `instant.js`.
-            Offstage(
-              child: SizedBox(
-                width: 800,
-                height: 600,
-                child: WebViewWidget(controller: controller),
-              ),
-            ),
-          Center(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const CircularProgressIndicator(),
-                if (_extracting) ...[
-                  const SizedBox(height: AppSpacing.md),
-                  Text(
-                    AppStrings.t(AppStringKeys.instantViewExtracting),
-                    style: AppTextStyle.caption(context.colors.textSecondary),
-                  ),
-                ],
-              ],
-            ),
-          ),
-        ],
-      );
+      return const Center(child: CircularProgressIndicator());
     }
     if (_page == null) {
       return _InstantViewError(
-        onRetry: () => unawaited(_load(retry: true)),
+        onRetry: () => unawaited(_load()),
         onOpenInBrowser: () =>
             openIvUrlInBrowser(context, widget.fallbackUrl ?? widget.url),
       );

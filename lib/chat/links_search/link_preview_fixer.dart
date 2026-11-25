@@ -134,11 +134,6 @@ class LinkPreviewFixer extends ChangeNotifier {
     };
   }
 
-  /// The mirror a reader should read when [url] has no Telegram Instant View,
-  /// or null when no rule matches. Unlike [previewUrl] this ignores the
-  /// switch: the caller has already decided to read the page.
-  String? readerUrl(String url) => fixedUrl(url);
-
   /// The mirror to fetch [text]'s preview from, or null when the preference is
   /// off, the text has no link, or its first link has no rule.
   String? previewUrl(
