@@ -38,7 +38,6 @@ import '../components/confirm_dialog.dart';
 import '../components/photo_avatar.dart';
 import '../components/toast.dart';
 import '../components/ui_components.dart';
-import '../components/vip_badge.dart';
 import '../moments/story_management_view.dart';
 import '../moments/story_viewer_view.dart';
 import '../platform/adaptive_platform.dart';
@@ -1193,7 +1192,6 @@ class _ProfileDetailViewState extends State<ProfileDetailView> {
           const SizedBox(width: 6),
           StatusEmojiView(id: _emojiStatusId, size: 24),
         ],
-        if (_isPremium) ...[const SizedBox(width: 6), const VipBadge()],
       ],
     );
   }

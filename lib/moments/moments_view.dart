@@ -46,7 +46,6 @@ import '../components/desktop_content_constraint.dart';
 import '../components/photo_avatar.dart';
 import '../components/toast.dart';
 import '../components/ui_components.dart';
-import '../components/vip_badge.dart';
 import '../l10n/app_localizations.dart';
 import '../media/app_asset_picker.dart';
 import '../platform/adaptive_platform.dart';
@@ -983,7 +982,6 @@ class _ChannelMomentsViewState extends State<ChannelMomentsView> {
   int _meProfileAccentColorId = -1;
   int _meProfileIconId = 0;
   int _meEmojiStatusId = 0;
-  bool _meIsPremium = false;
   bool _loadingPosts = false;
   bool _loadingPostableChannels = false;
   bool _refreshingLiveUpdates = false;
@@ -1231,7 +1229,6 @@ class _ChannelMomentsViewState extends State<ChannelMomentsView> {
     _meProfileAccentColorId = me.integer('profile_accent_color_id') ?? -1;
     _meProfileIconId = me.int64('profile_background_custom_emoji_id') ?? 0;
     _meEmojiStatusId = TDParse.emojiStatusCustomEmojiId(me.obj('emoji_status'));
-    _meIsPremium = me.boolean('is_premium') ?? false;
   }
 
   void _handleTdUpdate(Map<String, dynamic> update) {
@@ -2529,7 +2526,6 @@ class _ChannelMomentsViewState extends State<ChannelMomentsView> {
             profileColors: _profileHeaderColors(context),
             profileIconId: scoped == null ? _meProfileIconId : 0,
             emojiStatusId: scoped == null ? _meEmojiStatusId : 0,
-            isPremium: scoped == null && _meIsPremium,
             canCompose: _postableChannels.isNotEmpty,
             onCompose: _openNewPostComposer,
           );
@@ -2755,7 +2751,6 @@ class _MomentsComposerHeader extends StatelessWidget {
     this.profileColors,
     this.profileIconId = 0,
     this.emojiStatusId = 0,
-    this.isPremium = false,
     required this.canCompose,
     required this.onCompose,
   });
@@ -2766,7 +2761,6 @@ class _MomentsComposerHeader extends StatelessWidget {
   final List<Color>? profileColors;
   final int profileIconId;
   final int emojiStatusId;
-  final bool isPremium;
   final bool canCompose;
   final VoidCallback onCompose;
 
@@ -2850,10 +2844,6 @@ class _MomentsComposerHeader extends StatelessWidget {
                                       size: 22,
                                       color: foreground,
                                     ),
-                                  ],
-                                  if (isPremium) ...[
-                                    const SizedBox(width: 6),
-                                    const VipBadge(),
                                   ],
                                 ],
                               ),

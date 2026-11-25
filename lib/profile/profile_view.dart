@@ -28,7 +28,6 @@ import '../components/desktop_row_actions.dart';
 import '../components/drawer_controller.dart' as dc;
 import '../components/photo_avatar.dart';
 import '../components/ui_components.dart';
-import '../components/vip_badge.dart';
 import '../config/build_flags.dart';
 import '../platform/adaptive_platform.dart';
 import '../settings/edit_profile_view.dart';
@@ -398,10 +397,6 @@ class _ProfileViewState extends State<ProfileView> {
                               ),
                             ),
                             _nameStatusIcon(user),
-                            if (_vm.isPremiumForView(user)) ...[
-                              const SizedBox(width: 6),
-                              const VipBadge(),
-                            ],
                           ],
                         ),
                         if (identities.isNotEmpty) ...[

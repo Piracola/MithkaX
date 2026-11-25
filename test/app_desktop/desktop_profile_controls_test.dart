@@ -7,7 +7,6 @@ import 'package:mithka/app/app_navigator.dart';
 import 'package:mithka/app/content_view.dart';
 import 'package:mithka/auth/account_store.dart';
 import 'package:mithka/auth/auth_manager.dart';
-import 'package:mithka/components/vip_badge.dart';
 import 'package:mithka/l10n/app_localizations.dart';
 import 'package:mithka/theme/app_theme.dart';
 import 'package:mithka/theme/theme_controller.dart';
@@ -35,7 +34,6 @@ void main() {
     final status = find.byKey(const ValueKey('desktop-title-bar-status'));
     expect(status, findsOneWidget);
     expect(find.byKey(const ValueKey('desktop-title-bar-vip')), findsNothing);
-    expect(find.byType(VipBadge), findsNothing);
     await tester.pumpWidget(const SizedBox.shrink());
   }, variant: desktop);
 
@@ -43,10 +41,8 @@ void main() {
     tester,
   ) async {
     await _pump(tester, premium: false);
-    expect(find.byType(VipBadge), findsNothing);
     await tester.pumpWidget(const SizedBox.shrink());
     await _pump(tester, ready: false);
-    expect(find.byType(VipBadge), findsNothing);
     await tester.pumpWidget(const SizedBox.shrink());
   }, variant: desktop);
 
