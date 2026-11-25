@@ -389,7 +389,7 @@ class _StickerViewerState extends State<StickerViewer> {
                   _setTitle,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(fontSize: 18, color: c.textPrimary),
+                  style: AppTextStyle.title(c.textPrimary),
                 ),
               ),
               if (canOpen) ...[

@@ -213,10 +213,9 @@ class _FileDetailViewState extends State<FileDetailView> {
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
                 textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w600,
-                  color: c.textPrimary,
+                style: AppTextStyle.title(
+                  c.textPrimary,
+                  weight: AppTextWeight.semibold,
                 ),
               ),
             ),

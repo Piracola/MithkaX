@@ -471,14 +471,11 @@ class _InspectorHeader extends StatelessWidget {
                         ? AppStringKeys.videoDebuggerLive
                         : AppStringKeys.videoDebuggerIdle,
                   ),
-                  style: TextStyle(
-                    color: widget.isLive
+                  style: AppTextStyle.caption(
+                    widget.isLive
                         ? const Color(0xFFB8F28B)
                         : Colors.white.withValues(alpha: 0.6),
-                    fontSize: 11,
-                    fontWeight: FontWeight.w400,
-                    letterSpacing: 0.8,
-                  ),
+                  ).copyWith(letterSpacing: 0.8),
                 ),
               ],
             ),

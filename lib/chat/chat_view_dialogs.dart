@@ -344,12 +344,9 @@ class _MessageDeleteOptionsDialogState
             children: [
               Text(
                 AppStringKeys.chatDeleteSingleMessageQuestion.l10n(context),
-                style: TextStyle(
-                  fontSize: 19,
-                  height: 1.28,
-                  fontWeight: FontWeight.w600,
-                  color: c.textPrimary,
-                  decoration: TextDecoration.none,
+                style: AppTextStyle.title(
+                  c.textPrimary,
+                  weight: AppTextWeight.semibold,
                 ),
               ),
               const SizedBox(height: 22),
@@ -1092,12 +1089,7 @@ class _MessageTextSelectionDialogState
                                 border: InputBorder.none,
                                 isCollapsed: true,
                               ),
-                              style: TextStyle(
-                                fontSize: 32,
-                                height: 1.35,
-                                color: c.textPrimary,
-                                decoration: TextDecoration.none,
-                              ),
+                              style: AppTextStyle.largeDisplay(c.textPrimary),
                             ),
                           ),
                         ),

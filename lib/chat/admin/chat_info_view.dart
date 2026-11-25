@@ -608,10 +608,9 @@ class _ChatInfoViewState extends State<ChatInfoView> {
                       _vm.title,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w600,
-                        color: c.textPrimary,
+                      style: AppTextStyle.title(
+                        c.textPrimary,
+                        weight: AppTextWeight.semibold,
                       ),
                     ),
                     const SizedBox(height: 5),
@@ -712,7 +711,7 @@ class _ChatInfoViewState extends State<ChatInfoView> {
         children: [
           AppIcon(HeroAppIcons.lock, size: 10, color: c.textTertiary),
           const SizedBox(width: 3),
-          Text(text, style: TextStyle(fontSize: 11, color: c.textTertiary)),
+          Text(text, style: AppTextStyle.caption(c.textTertiary)),
         ],
       ),
     );
@@ -2029,10 +2028,9 @@ class _CreateChatFolderPromptState extends State<_CreateChatFolderPrompt> {
                   children: [
                     Text(
                       AppStrings.t(AppStringKeys.chatInfoCreateFolderTitle),
-                      style: TextStyle(
-                        color: c.textPrimary,
-                        fontSize: 19,
-                        fontWeight: FontWeight.w600,
+                      style: AppTextStyle.display(
+                        c.textPrimary,
+                        weight: AppTextWeight.semibold,
                       ),
                     ),
                     const SizedBox(height: 16),

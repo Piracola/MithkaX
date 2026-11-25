@@ -332,11 +332,9 @@ class _LongMessageRichTextPrompt extends StatelessWidget {
             children: [
               Text(
                 AppStringKeys.composerLongMessageTitle.l10n(context),
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w600,
-                  color: c.textPrimary,
-                  decoration: TextDecoration.none,
+                style: AppTextStyle.title(
+                  c.textPrimary,
+                  weight: AppTextWeight.semibold,
                 ),
               ),
               const SizedBox(height: 10),
@@ -581,11 +579,9 @@ class _ComposerLinkDialogState extends State<_ComposerLinkDialog> {
           children: [
             Text(
               AppStringKeys.composerFormatLink.l10n(context),
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w600,
-                color: c.textPrimary,
-                decoration: TextDecoration.none,
+              style: AppTextStyle.title(
+                c.textPrimary,
+                weight: AppTextWeight.semibold,
               ),
             ),
             const SizedBox(height: 14),

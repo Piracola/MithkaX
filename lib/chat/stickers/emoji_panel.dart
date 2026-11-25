@@ -601,7 +601,7 @@ class _EmojiPanelCellState extends State<EmojiPanelCell>
             widget.emoji ?? '',
             maxLines: 1,
             textScaler: TextScaler.noScaling,
-            style: const TextStyle(fontSize: 26),
+            style: const TextStyle(fontSize: AppIconSize.simpleComposer),
           );
     return Listener(
       onPointerDown: (event) =>

@@ -59,10 +59,9 @@ class MessageContactCardContent extends StatelessWidget {
                     )
                   : Text(
                       initials.toUpperCase(),
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w600,
-                        color: AppTheme.brand,
+                      style: AppTextStyle.title(
+                        AppTheme.brand,
+                        weight: AppTextWeight.semibold,
                       ),
                     ),
             ),
@@ -760,7 +759,7 @@ class MessageSuggestedPostStatusContent extends StatelessWidget {
                   const SizedBox(height: 2),
                   Text(
                     detail.join(' · '),
-                    style: TextStyle(color: secondary, fontSize: 11),
+                    style: AppTextStyle.caption(secondary),
                   ),
                 ],
               ],

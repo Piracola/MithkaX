@@ -101,8 +101,8 @@ class IvBlockView extends StatelessWidget {
         return _Text(
           text: title,
           style: ctx.typography.base.copyWith(
-            fontSize: 27,
-            height: 1.22,
+            fontSize: AppTextSize.largeDisplay,
+            height: AppTextLeading.largeDisplay,
             fontWeight: FontWeight.w700,
             color: ctx.textColor,
           ),
@@ -161,8 +161,8 @@ class IvBlockView extends StatelessWidget {
         return _Text(
           text: subheader,
           style: ctx.typography.base.copyWith(
-            fontSize: 18,
-            height: 1.32,
+            fontSize: AppTextSize.title,
+            height: AppTextLeading.title,
             fontWeight: FontWeight.w600,
             color: ctx.textColor,
           ),
@@ -818,8 +818,8 @@ class _IvPullQuote extends StatelessWidget {
           textAlign: TextAlign.center,
           style: ctx.typography.copyWith(
             base: ctx.typography.base.copyWith(
-              fontSize: 19,
-              height: 1.4,
+              fontSize: AppTextSize.title,
+              height: AppTextLeading.title,
               fontStyle: FontStyle.italic,
               color: ctx.textColor,
             ),
@@ -1209,10 +1209,7 @@ class _IvRelatedArticles extends StatelessWidget {
                                   ].join(' · '),
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
-                                  style: TextStyle(
-                                    fontSize: 11,
-                                    color: c.textTertiary,
-                                  ),
+                                  style: AppTextStyle.caption(c.textTertiary),
                                 ),
                               ),
                           ],

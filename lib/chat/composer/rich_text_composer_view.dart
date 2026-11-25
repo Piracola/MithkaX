@@ -2595,7 +2595,7 @@ class _RichTextComposerViewState extends State<RichTextComposerView> {
                 scrollDirection: Axis.horizontal,
                 child: Math.tex(
                   math.controller.text,
-                  textStyle: TextStyle(fontSize: 18, color: c.textPrimary),
+                  textStyle: AppTextStyle.title(c.textPrimary),
                   onErrorFallback: (_) => Text(
                     math.controller.text,
                     style: TextStyle(color: c.textSecondary),

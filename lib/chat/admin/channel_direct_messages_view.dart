@@ -264,11 +264,8 @@ class _DirectMessagesTopicRow extends StatelessWidget {
                       if (topic.lastMessage != null)
                         Text(
                           DateText.listLabel(topic.lastMessage!.date),
-                          style: TextStyle(
-                            color: unread
-                                ? AppTheme.brand
-                                : colors.textTertiary,
-                            fontSize: 11,
+                          style: AppTextStyle.caption(
+                            unread ? AppTheme.brand : colors.textTertiary,
                           ),
                         ),
                     ],
@@ -919,7 +916,7 @@ class _SuggestedPostActions extends StatelessWidget {
               if (details.isNotEmpty)
                 Text(
                   details.join(' · '),
-                  style: TextStyle(color: colors.textSecondary, fontSize: 11),
+                  style: AppTextStyle.caption(colors.textSecondary),
                 ),
             ],
           ),
@@ -1115,10 +1112,9 @@ class _SuggestedPostComposerSheetState
                       ? AppStringKeys.suggestedPostEditOffer
                       : AppStringKeys.suggestedPostComposerTitle,
                 ),
-                style: TextStyle(
-                  color: colors.textPrimary,
-                  fontSize: 19,
-                  fontWeight: FontWeight.w600,
+                style: AppTextStyle.display(
+                  colors.textPrimary,
+                  weight: AppTextWeight.semibold,
                 ),
               ),
               if (!widget.offerOnly) ...[

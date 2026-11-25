@@ -257,10 +257,9 @@ class _PreviewMessage extends StatelessWidget {
           bubbleColor: bubbleColor,
           textColor: textColor,
           name: name,
-          nameStyle: TextStyle(
-            color: nameColor,
-            fontSize: 11,
-            fontWeight: FontWeight.w500,
+          nameStyle: AppTextStyle.caption(
+            nameColor,
+            weight: AppTextWeight.medium,
           ),
           role: readabilityMode == SenderNameReadabilityMode.background
               ? (outgoing ? MemberRole.owner : MemberRole.admin)
@@ -281,10 +280,7 @@ class _PreviewMessage extends StatelessWidget {
               ),
             ],
           ),
-          child: Text(
-            message,
-            style: TextStyle(color: textColor, fontSize: 14),
-          ),
+          child: Text(message, style: AppTextStyle.callout(textColor)),
         ),
       ],
     );

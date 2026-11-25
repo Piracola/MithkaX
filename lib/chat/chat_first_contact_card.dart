@@ -263,7 +263,7 @@ class ChatFirstContactCard extends StatelessWidget {
                     label,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: TextStyle(color: c.textTertiary, fontSize: 10.5),
+                    style: AppTextStyle.tiny(c.textTertiary),
                   ),
                   const SizedBox(height: 2),
                   Row(
@@ -277,10 +277,9 @@ class ChatFirstContactCard extends StatelessWidget {
                           value,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            color: c.textPrimary,
-                            fontSize: 12.5,
-                            fontWeight: FontWeight.w600,
+                          style: AppTextStyle.caption(
+                            c.textPrimary,
+                            weight: AppTextWeight.semibold,
                           ),
                         ),
                       ),

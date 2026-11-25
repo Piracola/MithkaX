@@ -948,10 +948,9 @@ class _SharedMediaViewState extends State<SharedMediaView> {
           Expanded(
             child: Text(
               title,
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w600,
-                color: c.textPrimary,
+              style: AppTextStyle.title(
+                c.textPrimary,
+                weight: AppTextWeight.semibold,
               ),
             ),
           ),
@@ -1156,10 +1155,9 @@ class _SharedMediaViewState extends State<SharedMediaView> {
                 label,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
-                  color: color,
+                style: AppTextStyle.caption(
+                  color,
+                  weight: selected ? AppTextWeight.semibold : null,
                 ),
               ),
             ],
@@ -1810,7 +1808,7 @@ class _SharedMediaViewState extends State<SharedMediaView> {
                     ),
                     child: Text(
                       formatMediaDuration(message.videoDuration!),
-                      style: const TextStyle(fontSize: 11, color: Colors.white),
+                      style: AppTextStyle.caption(Colors.white),
                     ),
                   ),
                 ),
@@ -2584,10 +2582,9 @@ class _SharedMediaViewState extends State<SharedMediaView> {
       ),
       child: Text(
         AppStrings.t(AppStringKeys.sharedMediaFilterDownloaded),
-        style: const TextStyle(
-          fontSize: 11,
-          fontWeight: FontWeight.w600,
-          color: Color(0xFF1ABC7B),
+        style: AppTextStyle.caption(
+          const Color(0xFF1ABC7B),
+          weight: AppTextWeight.semibold,
         ),
       ),
     );

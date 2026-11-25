@@ -1852,10 +1852,7 @@ class _MessageBubbleState extends State<_ScopedMessageBubble>
                         ),
                         child: Text(
                           formatCallDuration(duration),
-                          style: const TextStyle(
-                            fontSize: 11,
-                            color: Colors.white,
-                          ),
+                          style: AppTextStyle.caption(Colors.white),
                         ),
                       ),
                     ),
@@ -4055,10 +4052,9 @@ class _MessageBubbleState extends State<_ScopedMessageBubble>
                     const SizedBox(width: 4),
                     Text(
                       AppStrings.t(AppStringKeys.instantViewTitle),
-                      style: TextStyle(
-                        fontSize: 12.5,
-                        fontWeight: FontWeight.w600,
-                        color: link,
+                      style: AppTextStyle.caption(
+                        link,
+                        weight: AppTextWeight.semibold,
                       ),
                     ),
                   ],
@@ -4107,12 +4103,7 @@ class _MessageBubbleState extends State<_ScopedMessageBubble>
                         music.title,
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: 18,
-                          height: 1.25,
-                          fontWeight: FontWeight.w500,
-                          color: c.textPrimary,
-                        ),
+                        style: AppTextStyle.title(c.textPrimary),
                       ),
                       if (performer.isNotEmpty) ...[
                         const SizedBox(height: 10),
@@ -4268,7 +4259,7 @@ class _MessageBubbleState extends State<_ScopedMessageBubble>
               '${formatMediaDuration(position.inSeconds)}/'
               '${total.inSeconds > 0 ? formatMediaDuration(total.inSeconds) : '--:--'}',
               textAlign: TextAlign.right,
-              style: TextStyle(fontSize: 11, color: c.textSecondary),
+              style: AppTextStyle.caption(c.textSecondary),
             ),
           ),
         ],
@@ -5347,10 +5338,7 @@ class _MessageBubbleState extends State<_ScopedMessageBubble>
                     children: [
                       Text(
                         formatMediaDuration(dur),
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 11,
-                        ),
+                        style: AppTextStyle.caption(Colors.white),
                       ),
                       if (inline) ...[
                         const SizedBox(width: 4),
@@ -6004,12 +5992,9 @@ class _GhostBandChip extends StatelessWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       textScaler: TextScaler.noScaling,
-                      style: TextStyle(
-                        color: foreground,
-                        fontSize: 11,
-                        height: 1.1,
-                        fontWeight: FontWeight.w500,
-                        decoration: TextDecoration.none,
+                      style: AppTextStyle.caption(
+                        foreground,
+                        weight: AppTextWeight.medium,
                       ),
                     ),
                   ),

@@ -2974,11 +2974,7 @@ class _VideoPlayerViewState extends State<VideoPlayerView>
                 const SizedBox(height: 8),
                 Text(
                   '${(value * 100).round()}%',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w400,
-                  ),
+                  style: AppTextStyle.caption(Colors.white),
                 ),
               ],
             ),

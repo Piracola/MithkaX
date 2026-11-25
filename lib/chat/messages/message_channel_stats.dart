@@ -67,13 +67,12 @@ class MessageChannelStatChip extends StatelessWidget {
           Text(
             formatChannelStatCount(count),
             textScaler: TextScaler.noScaling,
-            style: TextStyle(
-              color: foreground,
-              fontSize: 11,
-              height: 1.1,
-              fontWeight: FontWeight.w500,
-              decoration: TextDecoration.none,
-            ),
+            // The chip is a fixed band in a stacked stats row; the role's
+            // reading leading would grow it past the space the row reserves.
+            style: AppTextStyle.caption(
+              foreground,
+              weight: AppTextWeight.medium,
+            ).copyWith(height: 1.1),
           ),
         ],
       ),

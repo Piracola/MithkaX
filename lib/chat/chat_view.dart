@@ -3494,11 +3494,7 @@ class _ChatViewState extends State<ChatView> {
               Text(
                 _vm.peerTitle,
                 textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w600,
-                  color: c.textPrimary,
-                ),
+                style: AppTextStyle.display(c.textPrimary),
               ),
               if (_vm.memberCount > 0) ...[
                 const SizedBox(height: 6),

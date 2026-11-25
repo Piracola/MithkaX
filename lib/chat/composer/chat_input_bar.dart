@@ -2040,7 +2040,12 @@ class _ChatInputBarState extends State<ChatInputBar>
               )
             : Center(
                 child: result.emoji.isNotEmpty
-                    ? Text(result.emoji, style: const TextStyle(fontSize: 28))
+                    ? Text(
+                        result.emoji,
+                        style: const TextStyle(
+                          fontSize: AppIconSize.simpleComposerPanel,
+                        ),
+                      )
                     : AppIcon(
                         _inlineResultIcon(result.type),
                         size: 26,
@@ -2069,7 +2074,7 @@ class _ChatInputBarState extends State<ChatInputBar>
         borderRadius: BorderRadius.circular(AppRadius.sm),
       ),
       child: result.emoji.isNotEmpty
-          ? Text(result.emoji, style: const TextStyle(fontSize: 20))
+          ? Text(result.emoji, style: const TextStyle(fontSize: AppIconSize.xl))
           : AppIcon(
               _inlineResultIcon(result.type),
               size: 21,
@@ -5052,7 +5057,7 @@ class _ChatInputBarState extends State<ChatInputBar>
                     item.$2.l10n(context),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: TextStyle(fontSize: 11, color: c.textSecondary),
+                    style: AppTextStyle.caption(c.textSecondary),
                   ),
                 ],
               ),
@@ -6476,12 +6481,13 @@ class _ChatInputBarState extends State<ChatInputBar>
                   maxLines: 1,
                   softWrap: false,
                   overflow: TextOverflow.visible,
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w600,
-                    color: paused ? c.textSecondary : c.textPrimary,
-                    fontFeatures: const [FontFeature.tabularFigures()],
-                  ),
+                  style:
+                      AppTextStyle.display(
+                        paused ? c.textSecondary : c.textPrimary,
+                        weight: AppTextWeight.semibold,
+                      ).copyWith(
+                        fontFeatures: const [FontFeature.tabularFigures()],
+                      ),
                 ),
               ),
               // Balances the dot so the timer, not the dot and timer, sits

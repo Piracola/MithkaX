@@ -316,11 +316,9 @@ class _RepositoryBubbleThumbnailState
                       maxLines: 2,
                       textAlign: TextAlign.center,
                       overflow: TextOverflow.clip,
-                      style: TextStyle(
-                        color: Color(processed.foregroundColorValue),
-                        fontSize: 10.5,
-                        height: 1.08,
-                        fontWeight: FontWeight.w600,
+                      style: AppTextStyle.tiny(
+                        Color(processed.foregroundColorValue),
+                        weight: AppTextWeight.semibold,
                       ),
                     ),
                   ),

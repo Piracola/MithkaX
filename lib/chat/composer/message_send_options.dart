@@ -606,7 +606,9 @@ class _MessageSendOptionsSheetState extends State<_MessageSendOptionsSheet> {
                                         effect.emoji.isEmpty
                                             ? '✨'
                                             : effect.emoji,
-                                        style: const TextStyle(fontSize: 23),
+                                        style: const TextStyle(
+                                          fontSize: AppIconSize.toolbar,
+                                        ),
                                       ),
                               ),
                             );
@@ -690,10 +692,9 @@ class _MessageSendOptionsSheetState extends State<_MessageSendOptionsSheet> {
     padding: const EdgeInsets.fromLTRB(4, 4, 4, 6),
     child: Text(
       text,
-      style: TextStyle(
-        color: context.colors.textPrimary,
-        fontSize: 18,
-        fontWeight: FontWeight.w600,
+      style: AppTextStyle.title(
+        context.colors.textPrimary,
+        weight: AppTextWeight.semibold,
       ),
     ),
   );

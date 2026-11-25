@@ -182,10 +182,9 @@ class _MediaSendPreviewViewState extends State<MediaSendPreviewView> {
                     AppStrings.t(
                       AppStringKeys.mediaSendPreviewVideoPresentation,
                     ),
-                    style: TextStyle(
-                      color: c.textPrimary,
-                      fontSize: 18,
-                      fontWeight: FontWeight.w600,
+                    style: AppTextStyle.title(
+                      c.textPrimary,
+                      weight: AppTextWeight.semibold,
                     ),
                   ),
                   const SizedBox(height: 12),

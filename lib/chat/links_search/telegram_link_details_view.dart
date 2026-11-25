@@ -56,10 +56,7 @@ class TelegramLinkDetailsView extends StatelessWidget {
                 Text(
                   title,
                   textAlign: TextAlign.center,
-                  style: AppTextStyle.title(
-                    c.textPrimary,
-                    weight: AppTextWeight.bold,
-                  ).copyWith(fontSize: 21),
+                  style: AppTextStyle.display(c.textPrimary),
                 ),
                 if (subtitle.trim().isNotEmpty) ...[
                   const SizedBox(height: 7),

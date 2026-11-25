@@ -41,7 +41,7 @@ class StickerPreview extends StatelessWidget {
       return Center(
         child: Text(
           item.emoji.isEmpty ? '🎴' : item.emoji,
-          style: const TextStyle(fontSize: 30),
+          style: const TextStyle(fontSize: AppIconSize.simpleComposerPanel),
         ),
       );
     }
@@ -55,7 +55,7 @@ class StickerPreview extends StatelessWidget {
     return Center(
       child: Text(
         item.emoji.isEmpty ? '🎴' : item.emoji,
-        style: const TextStyle(fontSize: 30),
+        style: const TextStyle(fontSize: AppIconSize.simpleComposerPanel),
       ),
     );
   }

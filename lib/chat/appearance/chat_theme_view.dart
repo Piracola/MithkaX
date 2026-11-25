@@ -252,10 +252,7 @@ class _ChatThemeViewState extends State<ChatThemeView> {
             const SizedBox(height: 7),
             Text(
               AppStringKeys.chatWallpaperNoTheme.l10n(context),
-              style: TextStyle(
-                fontSize: 11,
-                color: context.colors.textSecondary,
-              ),
+              style: AppTextStyle.caption(context.colors.textSecondary),
             ),
           ],
         ),
@@ -278,7 +275,7 @@ class _ChatThemeViewState extends State<ChatThemeView> {
           child: Text(
             theme.label,
             style: const TextStyle(
-              fontSize: 29,
+              fontSize: AppIconSize.simpleComposerPanel,
               shadows: [Shadow(color: Color(0x66000000), blurRadius: 6)],
             ),
           ),

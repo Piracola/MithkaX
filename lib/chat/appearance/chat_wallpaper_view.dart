@@ -696,10 +696,7 @@ class _ChatWallpaperViewState extends State<ChatWallpaperView> {
               const SizedBox(height: 6),
               Text(
                 AppStringKeys.groupAppearanceNone.l10n(context),
-                style: TextStyle(
-                  fontSize: 11,
-                  color: context.colors.textSecondary,
-                ),
+                style: AppTextStyle.caption(context.colors.textSecondary),
               ),
             ],
           ),
@@ -946,7 +943,7 @@ class _ChatWallpaperViewState extends State<ChatWallpaperView> {
                 child: Text(
                   emoji,
                   style: const TextStyle(
-                    fontSize: 27,
+                    fontSize: AppIconSize.simpleComposerPanel,
                     shadows: [Shadow(color: Color(0x66000000), blurRadius: 6)],
                   ),
                 ),
@@ -1080,10 +1077,9 @@ class _ChatWallpaperViewState extends State<ChatWallpaperView> {
                 child: Text(
                   AppStringKeys.chatWallpaperTelegramCurrent.l10n(context),
                   textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: Color(0xFFFFFFFF),
+                  style: AppTextStyle.caption(
+                    const Color(0xFFFFFFFF),
+                    weight: AppTextWeight.semibold,
                   ),
                 ),
               ),

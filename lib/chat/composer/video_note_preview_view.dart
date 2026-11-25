@@ -313,10 +313,7 @@ class _VideoNotePreviewViewState extends State<VideoNotePreviewView> {
                         ),
                         Text(
                           '${formatMediaDuration((_trimRange.start / 1000).floor())}–${formatMediaDuration((_trimRange.end / 1000).ceil())}',
-                          style: TextStyle(
-                            color: colors.textSecondary,
-                            fontSize: 11,
-                          ),
+                          style: AppTextStyle.caption(colors.textSecondary),
                         ),
                       ],
                     ),

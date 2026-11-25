@@ -539,11 +539,9 @@ class _StickerSetCreateViewState extends State<StickerSetCreateView> {
                       padding: const EdgeInsets.fromLTRB(14, 12, 14, 8),
                       child: Text(
                         AppStringKeys.stickerStudioSetType.l10n(context),
-                        style: TextStyle(
-                          fontSize: 11,
-                          letterSpacing: 0.5,
-                          color: colors.textSecondary,
-                        ),
+                        style: AppTextStyle.caption(
+                          colors.textSecondary,
+                        ).copyWith(letterSpacing: 0.5),
                       ),
                     ),
                     for (final type in OwnedStickerSetType.values)
@@ -787,7 +785,10 @@ class _StickerSetCreateViewState extends State<StickerSetCreateView> {
                       draft.emojis,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: TextStyle(fontSize: 20, color: colors.textPrimary),
+                      style: TextStyle(
+                        fontSize: AppIconSize.xl,
+                        color: colors.textPrimary,
+                      ),
                     ),
                     Text(
                       context.l10n.t(AppStringKeys.stickerStudioFormatFile, {
@@ -1604,7 +1605,7 @@ class _StickerSetManageViewState extends State<StickerSetManageView> {
                   context.l10n.t(AppStringKeys.stickerStudioMaskBadge, {
                     'value1': mask.point.name,
                   }),
-                  style: TextStyle(fontSize: 9, color: colors.textSecondary),
+                  style: AppTextStyle.tiny(colors.textSecondary),
                 ),
               ),
             ),

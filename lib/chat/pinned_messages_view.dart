@@ -329,7 +329,7 @@ class _PinnedMessagesViewState extends State<PinnedMessagesView> {
       text,
       maxLines: 4,
       overflow: TextOverflow.ellipsis,
-      style: TextStyle(fontSize: 18, height: 1.3, color: c.textPrimary),
+      style: AppTextStyle.title(c.textPrimary),
     );
   }
 

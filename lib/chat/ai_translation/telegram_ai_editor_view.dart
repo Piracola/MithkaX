@@ -97,12 +97,12 @@ Widget _aiPrimaryButton(
                     ),
                     child: Text(
                       badge,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                        height: 1,
-                      ),
+                      // Kept at 1: the pill's own padding sizes the box, and
+                      // role leading would make it taller than the button row.
+                      style: AppTextStyle.caption(
+                        Colors.white,
+                        weight: AppTextWeight.semibold,
+                      ).copyWith(height: 1),
                     ),
                   ),
                 ],
@@ -1030,10 +1030,9 @@ class _TelegramAiStylesViewState extends State<TelegramAiStylesView> {
                               ? AppStringKeys.telegramAiEditorCreateStyle
                               : AppStringKeys.telegramAiEditorEditStyle,
                         ),
-                        style: TextStyle(
-                          color: c.textPrimary,
-                          fontSize: 18,
-                          fontWeight: FontWeight.w600,
+                        style: AppTextStyle.display(
+                          c.textPrimary,
+                          weight: AppTextWeight.semibold,
                         ),
                       ),
                       const SizedBox(height: 14),

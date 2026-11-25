@@ -125,11 +125,9 @@ class _UnreadChatSummaryViewState extends State<UnreadChatSummaryView> {
               children: [
                 Text(
                   _pageHeading(context),
-                  style: TextStyle(
-                    color: c.textPrimary,
-                    fontSize: 25,
-                    height: 1.2,
-                    fontWeight: FontWeight.w600,
+                  style: AppTextStyle.largeDisplay(
+                    c.textPrimary,
+                    weight: AppTextWeight.semibold,
                   ),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
@@ -547,11 +545,9 @@ class _UnreadChatSummaryViewState extends State<UnreadChatSummaryView> {
       children: [
         Text(
           '$index. ${topic.title}',
-          style: TextStyle(
-            color: c.textPrimary,
-            fontSize: 18,
-            height: 1.35,
-            fontWeight: FontWeight.w600,
+          style: AppTextStyle.title(
+            c.textPrimary,
+            weight: AppTextWeight.semibold,
           ),
         ),
         if (timeRange != null) ...[
@@ -781,10 +777,9 @@ class _UnreadChatSummaryViewState extends State<UnreadChatSummaryView> {
 
   Widget _sectionHeading(BuildContext context, String title) => Text(
     title,
-    style: TextStyle(
-      color: context.colors.textPrimary,
-      fontSize: 18,
-      fontWeight: FontWeight.w600,
+    style: AppTextStyle.display(
+      context.colors.textPrimary,
+      weight: AppTextWeight.semibold,
     ),
   );
 

@@ -1197,10 +1197,9 @@ class _ActionRow extends StatelessWidget {
                       child: Center(
                         child: Text(
                           '+1',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w600,
-                            color: palette.foreground,
+                          style: AppTextStyle.title(
+                            palette.foreground,
+                            weight: AppTextWeight.semibold,
                           ),
                         ),
                       ),

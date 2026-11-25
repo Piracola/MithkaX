@@ -267,10 +267,9 @@ class IvVideoView extends StatelessWidget {
                   ),
                   child: Text(
                     _durationLabel(video.duration),
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
+                    style: AppTextStyle.caption(
+                      Colors.white,
+                      weight: AppTextWeight.semibold,
                     ),
                   ),
                 ),

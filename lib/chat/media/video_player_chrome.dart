@@ -114,21 +114,20 @@ class MithkaDesktopVideoChrome extends StatelessWidget {
                                     title.trim().isEmpty ? 'Video' : title,
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      decoration: TextDecoration.none,
-                                      fontSize: 18,
-                                      height: 1.12,
-                                      letterSpacing: -0.25,
-                                      fontWeight: FontWeight.w400,
-                                      shadows: [
-                                        Shadow(
-                                          color: Color(0xB3000000),
-                                          blurRadius: 8,
-                                          offset: Offset(0, 1),
+                                    style:
+                                        AppTextStyle.title(
+                                          Colors.white,
+                                          weight: AppTextWeight.regular,
+                                        ).copyWith(
+                                          letterSpacing: -0.25,
+                                          shadows: [
+                                            const Shadow(
+                                              color: Color(0xB3000000),
+                                              blurRadius: 8,
+                                              offset: Offset(0, 1),
+                                            ),
+                                          ],
                                         ),
-                                      ],
-                                    ),
                                   ),
                                   const SizedBox(height: 4),
                                   Text(
@@ -1816,14 +1815,14 @@ class _MithkaVideoTimelineState extends State<_MithkaVideoTimeline> {
                                           _positionFor(fraction),
                                         ),
                                         textAlign: TextAlign.center,
-                                        style: const TextStyle(
-                                          color: Colors.white,
-                                          fontSize: 11,
-                                          fontWeight: FontWeight.w400,
-                                          fontFeatures: [
-                                            FontFeature.tabularFigures(),
-                                          ],
-                                        ),
+                                        style:
+                                            AppTextStyle.caption(
+                                              Colors.white,
+                                            ).copyWith(
+                                              fontFeatures: [
+                                                const FontFeature.tabularFigures(),
+                                              ],
+                                            ),
                                       ),
                                     ),
                                   ),
@@ -2386,11 +2385,8 @@ class _FocusableVideoMenuItemState extends State<_FocusableVideoMenuItem> {
                     widget.label,
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.96),
-                      fontSize: 14.5,
-                      height: 1.2,
-                      fontWeight: FontWeight.w400,
+                    style: AppTextStyle.callout(
+                      Colors.white.withValues(alpha: 0.96),
                     ),
                   ),
                 ),

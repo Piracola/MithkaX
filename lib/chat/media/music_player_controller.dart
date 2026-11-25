@@ -1622,7 +1622,7 @@ class _MusicMiniPlayerCardState extends State<MusicMiniPlayerCard> {
                       subtitle,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: TextStyle(fontSize: 11, color: c.textTertiary),
+                      style: AppTextStyle.caption(c.textTertiary),
                     ),
                   ],
                 ],
@@ -1950,12 +1950,10 @@ class _MusicScrubberState extends State<_MusicScrubber> {
     final totalMs = widget.total.inMilliseconds;
     final elapsed = Duration(milliseconds: (totalMs * fraction).round());
     final remaining = widget.total - elapsed;
-    final labelStyle = TextStyle(
-      fontSize: 11,
-      fontWeight: FontWeight.w500,
-      color: _touching ? c.textSecondary : c.textTertiary,
-      fontFeatures: const [FontFeature.tabularFigures()],
-    );
+    final labelStyle = AppTextStyle.caption(
+      _touching ? c.textSecondary : c.textTertiary,
+      weight: AppTextWeight.medium,
+    ).copyWith(fontFeatures: const [FontFeature.tabularFigures()]);
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTapDown: (_) => _setTouching(true),
@@ -2634,10 +2632,9 @@ class _MusicPlaylistsSheet extends StatelessWidget {
                     Expanded(
                       child: Text(
                         AppStrings.t(AppStringKeys.musicPlayerPlaylists),
-                        style: TextStyle(
-                          fontSize: 19,
-                          fontWeight: FontWeight.w600,
-                          color: c.textPrimary,
+                        style: AppTextStyle.display(
+                          c.textPrimary,
+                          weight: AppTextWeight.semibold,
                         ),
                       ),
                     ),
@@ -2840,10 +2837,9 @@ class _CreatePlaylistDialogState extends State<_CreatePlaylistDialog> {
             children: [
               Text(
                 AppStrings.t(AppStringKeys.musicPlayerCreatePlaylist),
-                style: TextStyle(
-                  color: c.textPrimary,
-                  fontSize: 19,
-                  fontWeight: FontWeight.w600,
+                style: AppTextStyle.display(
+                  c.textPrimary,
+                  weight: AppTextWeight.semibold,
                 ),
               ),
               const SizedBox(height: 16),
@@ -3037,10 +3033,9 @@ class _PlaylistTracksSheet extends StatelessWidget {
                               playlist.title,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                fontSize: 19,
-                                fontWeight: FontWeight.w600,
-                                color: c.textPrimary,
+                              style: AppTextStyle.display(
+                                c.textPrimary,
+                                weight: AppTextWeight.semibold,
                               ),
                             ),
                             Text(
@@ -3146,10 +3141,9 @@ class _PlayedChatTracksSheet extends StatelessWidget {
                           source.title,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            fontSize: 19,
-                            fontWeight: FontWeight.w600,
-                            color: c.textPrimary,
+                          style: AppTextStyle.display(
+                            c.textPrimary,
+                            weight: AppTextWeight.semibold,
                           ),
                         ),
                         Text(
@@ -3304,7 +3298,7 @@ class _QueueRow extends StatelessWidget {
                     ].join(' · '),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: TextStyle(fontSize: 11, color: c.textTertiary),
+                    style: AppTextStyle.caption(c.textTertiary),
                   ),
                 ],
               ),
