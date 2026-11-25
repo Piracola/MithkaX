@@ -7,7 +7,6 @@
 //  through the view model. Port of the Swift `ChatInputBar`.
 //
 
-import '../../platform/app_haptics.dart';
 import 'dart:async';
 import 'dart:io';
 import 'dart:math' as math;
@@ -46,6 +45,7 @@ import '../../media/app_asset_picker.dart';
 import '../../media/camera_capture.dart';
 import '../../media/media_metadata.dart';
 import '../../platform/adaptive_platform.dart';
+import '../../platform/app_haptics.dart';
 import '../../platform/desktop_clipboard_images.dart';
 import '../../platform/desktop_screenshot.dart';
 import '../../platform/keyboard_image_paste.dart';
@@ -121,12 +121,12 @@ import 'voice_note_trimmer.dart';
 import 'voice_recording_clock.dart';
 import 'voice_recording_session.dart';
 
-part 'chat_input_bar_overlays_dialogs.dart';
-part 'chat_input_bar_voice.dart';
-part 'chat_input_bar_bots_mentions.dart';
 part 'chat_input_bar_ai_send.dart';
 part 'chat_input_bar_attachments_pickers.dart';
+part 'chat_input_bar_bots_mentions.dart';
+part 'chat_input_bar_overlays_dialogs.dart';
 part 'chat_input_bar_panels_rows.dart';
+part 'chat_input_bar_voice.dart';
 
 enum _Panel { none, function, emoji, sticker, voice }
 
