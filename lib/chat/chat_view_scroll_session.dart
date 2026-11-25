@@ -1378,6 +1378,7 @@ extension _ChatViewScrollSession on _ChatViewState {
     }
     final rebasedParkedShortArm = parkedShortArm || expandedInitialWindow;
     final liveIncomingMessageIds = _vm.consumeLiveIncomingMessageIds();
+    final liveOutgoingMessageIds = _vm.consumeLiveOutgoingMessageIds();
     final newest = _latestServerMessage(_vm.messages);
     final transcriptBoundaryChanged = chatTranscriptBoundaryChanged(
       previousCount: _lastCount,
@@ -1386,7 +1387,9 @@ extension _ChatViewScrollSession on _ChatViewState {
       currentNewestMessageId: newest?.id,
       previousOldestMessageId: _lastOldestMessageId,
       currentOldestMessageId: oldest?.id,
-      hasBufferedLiveMessages: liveIncomingMessageIds.isNotEmpty,
+      hasBufferedLiveMessages:
+          liveIncomingMessageIds.isNotEmpty ||
+          liveOutgoingMessageIds.isNotEmpty,
     );
     if (transcriptBoundaryChanged) {
       final wasNearBottom = _isNearBottom(72);
@@ -1402,13 +1405,21 @@ extension _ChatViewScrollSession on _ChatViewState {
         liveIncomingMessageIds: liveIncomingMessageIds,
         currentMessageIds: _vm.messages.map((message) => message.id),
       );
-      // Live arrivals get the entrance animation. The initial page and every
-      // history page-in stay still: only ids TDLib pushed while this
-      // transcript was already on screen are queued, and the next frame
-      // drains the queue once their rows are built.
+      final appendedOutgoingIds = appendedLiveOutgoingMessageIds(
+        liveOutgoingMessageIds: liveOutgoingMessageIds,
+        currentMessageIds: _vm.messages.map((message) => message.id),
+      );
+      // Live arrivals get the entrance animation — incoming ones and own
+      // sends alike. The initial page and every history page-in stay still:
+      // only ids TDLib pushed while this transcript was already on screen are
+      // queued. The moment is recorded rather than a bare id, so a row that
+      // is rebuilt under a new key while the entrance runs (a pending send
+      // settling onto its server id) picks the entrance up where it was.
       if (_initialTranscriptReady) {
-        _arrivalAnimationIds.addAll(appendedIncomingIds);
-        _scheduleArrivalAnimationDrain();
+        _queueArrivalAnimations([
+          ...appendedIncomingIds,
+          ...appendedOutgoingIds,
+        ]);
       }
       if (prependedOlder && _revealLoadedOlderPage) {
         _revealLoadedOlderPage = false;
@@ -1530,9 +1541,33 @@ extension _ChatViewScrollSession on _ChatViewState {
     _scheduleParkedShortTranscriptRepair();
   }
 
-  /// Queues the arrival ids for the rebuild and forgets them one frame after
-  /// it, so a row that was not laid out in that first pass can still play its
-  /// entrance; a row that is already mounted ignores a stale id anyway.
+  /// Queues live arrivals for the rebuild and records the frame-clock moment
+  /// of that first frame, so a row rebuilt under a new key later on (a pending
+  /// send settling onto its server id) can pick the entrance up at the share
+  /// already played instead of restarting or cutting. The bare ids are
+  /// forgotten a frame after the rebuild, exactly as before; the moments age
+  /// out after the entrance window.
+  void _queueArrivalAnimations(Iterable<int> ids) {
+    final queued = ids.toList(growable: false);
+    if (queued.isEmpty) return;
+    _arrivalAnimationIds.addAll(queued);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final startedAt = SchedulerBinding.instance.currentFrameTimeStamp;
+      _arrivalAnimationStartedAt.removeWhere(
+        (_, moment) =>
+            startedAt - moment > _ChatViewState._arrivalAnimationRetention,
+      );
+      for (final id in queued) {
+        _arrivalAnimationStartedAt.putIfAbsent(id, () => startedAt);
+      }
+    });
+    _scheduleArrivalAnimationDrain();
+  }
+
+  /// Forgets the queued ids one frame after the rebuild, so a row that was not
+  /// laid out in that first pass can still play its entrance; a row that is
+  /// already mounted ignores a stale id anyway.
   void _scheduleArrivalAnimationDrain() {
     if (_arrivalAnimationIds.isEmpty || _arrivalAnimationDrainScheduled) return;
     _arrivalAnimationDrainScheduled = true;

@@ -997,6 +997,13 @@ class ChatMessage {
 
   bool isSending;
   bool isSendAcknowledged;
+
+  /// The temporary id TDLib gave this message while it was only a local echo
+  /// of an own send; 0 for every message that never was one. A send settles
+  /// onto its server id by replacing the row, so this is the only handle that
+  /// follows the bubble across that swap (the entrance it is playing).
+  int localEchoId = 0;
+
   int viewCount;
   int forwardCount;
   bool hasCommentThread;

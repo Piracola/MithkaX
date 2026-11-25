@@ -14,6 +14,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 import 'package:mithka/l10n/app_localizations.dart';
 import 'package:provider/provider.dart';
@@ -898,6 +899,15 @@ class _ChatViewState extends State<ChatView> {
   /// already on screen, and never one that scrolls in later.
   final Set<int> _arrivalAnimationIds = <int>{};
   bool _arrivalAnimationDrainScheduled = false;
+
+  /// Frame-clock moment each live arrival (incoming message or own send)
+  /// reached the transcript, by TDLib id. A row reads its own moment back on
+  /// every build — directly, or through the local echo id of a send that has
+  /// settled onto its server id since — so the entrance continues across that
+  /// rebuild instead of restarting or cutting. Entries age out after the
+  /// entrance window.
+  final Map<int, Duration> _arrivalAnimationStartedAt = <int, Duration>{};
+  static const Duration _arrivalAnimationRetention = Duration(seconds: 5);
 
   final ChatUnreadProgress _unreadProgress = ChatUnreadProgress();
 
@@ -4487,6 +4497,7 @@ class _ChatViewState extends State<ChatView> {
       entry.last.id,
       GlobalKey.new,
     );
+    final arrivalStartedAt = _arrivalAnimationStartedAtFor(entry);
     return KeyedSubtree(
       key: entry.key,
       child: Column(
@@ -4510,13 +4521,16 @@ class _ChatViewState extends State<ChatView> {
             messageId: entry.last.id,
             mountedEntries: _mountedTranscriptEntries,
             child: MessageArrival(
-              // A live arrival rises in; every other build of this row opens
-              // at rest, so scrolling and re-syncs never replay it.
+              // A live arrival rises in — incoming messages and own sends
+              // alike; every other build of this row opens at rest, so
+              // scrolling and re-syncs never replay it.
               animate:
-                  _arrivalAnimationIds.any(
-                    (id) => entry.messages.any((m) => m.id == id),
-                  ) &&
+                  (arrivalStartedAt != null ||
+                      _arrivalAnimationIds.any(
+                        (id) => entry.messages.any((m) => m.id == id),
+                      )) &&
                   !MediaQuery.disableAnimationsOf(context),
+              startedAt: arrivalStartedAt,
               outgoing: message.isOutgoing,
               child: _messageNavigationHighlight(entry, positionedMessageBody),
             ),
@@ -4524,6 +4538,23 @@ class _ChatViewState extends State<ChatView> {
         ],
       ),
     );
+  }
+
+  /// When [entry]'s entrance started, if it is playing (or was, a moment
+  /// ago). The lookup follows the local echo of an own send: the row is
+  /// rebuilt under its server id the moment the send settles, and it must
+  /// finish the entrance the pending bubble started rather than cut to rest.
+  Duration? _arrivalAnimationStartedAtFor(_TranscriptEntry entry) {
+    if (_arrivalAnimationStartedAt.isEmpty) return null;
+    for (final message in entry.messages) {
+      final startedAt = _arrivalAnimationStartedAt[message.id];
+      if (startedAt != null) return startedAt;
+      if (message.localEchoId != 0) {
+        final echoStartedAt = _arrivalAnimationStartedAt[message.localEchoId];
+        if (echoStartedAt != null) return echoStartedAt;
+      }
+    }
+    return null;
   }
 
   /// Washes the row holding a search hit or a just-opened reply destination.

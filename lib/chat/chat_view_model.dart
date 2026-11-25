@@ -777,6 +777,13 @@ class ChatViewModel extends ChangeNotifier {
 
   final ChatLiveMessageBuffer _liveIncomingMessages = ChatLiveMessageBuffer();
 
+  /// Own messages TDLib pushed into the open transcript (a local echo of a
+  /// send from this device, or the same account sending from another one).
+  /// They are not unread traffic, so they ride their own buffer — the
+  /// transcript only uses them to play the same entrance incoming messages
+  /// get.
+  final ChatLiveMessageBuffer _liveOutgoingMessages = ChatLiveMessageBuffer();
+
   bool _isLoadingOlder = false;
 
   bool _isLoadingNewer = false;
@@ -1116,6 +1123,8 @@ class ChatViewModel extends ChangeNotifier {
   }
 
   List<int> consumeLiveIncomingMessageIds() => _liveIncomingMessages.takeAll();
+
+  List<int> consumeLiveOutgoingMessageIds() => _liveOutgoingMessages.takeAll();
 
   ChatSendFailure? consumeSendFailure() {
     final failure = _pendingSendFailure;

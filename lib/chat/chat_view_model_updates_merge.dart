@@ -44,8 +44,9 @@ extension ChatViewModelUpdates on ChatViewModel {
         final canAppendToTranscript = shouldMergeLiveMessageIntoChatWindow(
           historyReachesLatest: _historyReachesLatest,
         );
-        if (!message.isOutgoing && !message.isService) {
-          _liveIncomingMessages.add(message.id);
+        if (!message.isService) {
+          (message.isOutgoing ? _liveOutgoingMessages : _liveIncomingMessages)
+              .add(message.id);
         }
         if (!isPendingChatMessage(message)) {
           _knownLatestMessageId = math.max(_knownLatestMessageId, message.id);
@@ -1306,6 +1307,7 @@ extension ChatViewModelUpdates on ChatViewModel {
       _applyKeywordFilter();
       return;
     }
+    sentMessage.localEchoId = pendingMessageId;
     if (pendingMessage != null) {
       sentMessage.inheritLocalMediaFrom(pendingMessage);
     }
