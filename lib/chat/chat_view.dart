@@ -1442,6 +1442,11 @@ class _ChatViewState extends State<ChatView> {
 
   /// Pinned-tab reorder mode; the strip shows its Done control while set.
   bool _reorderingTopicTabs = false;
+
+  /// Message ids the transcript is actually painting right now. The automatic
+  /// translation pass reads it so the reader's viewport is translated before
+  /// the background walk continues through older loaded pages.
+  final Set<int> _viewportMessageIds = <int>{};
   Widget? _cachedShellLayout;
   bool _shortTranscriptFillScheduled = false;
   bool _isFillingShortTranscript = false;
@@ -2474,6 +2479,7 @@ class _ChatViewState extends State<ChatView> {
     final newlyVisible = <ChatMessage>[];
     final newlyVisiblePosts = <ChatMessage>[];
     final onScreenPostIds = <int>{};
+    final onScreenMessageIds = <int>{};
 
     for (final entry in _mountedTranscriptEntries.entries) {
       final itemRenderObject = entry.value;
@@ -2490,6 +2496,10 @@ class _ChatViewState extends State<ChatView> {
       final entryMessages =
           _trackedTranscriptEntries[entry.key]?.messages ??
           const <ChatMessage>[];
+      for (final message in entryMessages) {
+        if (message.isService || message.id <= 0) continue;
+        onScreenMessageIds.add(message.id);
+      }
       for (final message in entryMessages) {
         if (message.isOutgoing || message.isService) continue;
         final observation = _unreadProgress.observeVisibleIncoming(
@@ -2526,6 +2536,15 @@ class _ChatViewState extends State<ChatView> {
             0) {
       _showEntryUnreadBanner = false;
       changed = true;
+    }
+
+    if (!setEquals(onScreenMessageIds, _viewportMessageIds)) {
+      _viewportMessageIds
+        ..clear()
+        ..addAll(onScreenMessageIds);
+      // Scrolling changed what is on screen: messages that just came into
+      // view should not wait behind the background walk.
+      _scheduleAutomaticTranslations();
     }
 
     if (newlyVisible.isNotEmpty) {
@@ -6833,6 +6852,7 @@ class _ChatViewState extends State<ChatView> {
         _vm.messages,
         targetLanguageCode: _translationTargetLanguage(_translation),
         excludedMessageIds: _autoTranslationFailedMessageIds,
+        visibleMessageIds: _viewportMessageIds,
       );
       for (final message in candidates) {
         if (!mounted || !_automaticTranslationEnabled) break;
@@ -10070,6 +10090,21 @@ class _ChatViewState extends State<ChatView> {
           icon: HeroAppIcons.arrowsRightLeft,
           onSelected: () => setState(() => _reorderingTopicTabs = true),
         ),
+      // The strip's leading arrow is the quick control; repeating the move in
+      // the tab menu makes the interaction reachable from any topic tab, the
+      // way exteraless exposes it from the tabs menu as well.
+      AppMenuAction(
+        key: 'tabs-position',
+        label: AppStrings.t(
+          _topicTabsPlacement == TopicTabsPlacement.top
+              ? AppStringKeys.mithkaxTopicTabsMoveToBottom
+              : AppStringKeys.mithkaxTopicTabsMoveToTop,
+        ),
+        icon: _topicTabsPlacement == TopicTabsPlacement.top
+            ? HeroAppIcons.arrowDown
+            : HeroAppIcons.arrowUp,
+        onSelected: () => unawaited(_toggleTopicTabsPlacement()),
+      ),
       if (_vm.canCloseTopic(topic))
         AppMenuAction(
           key: 'close',

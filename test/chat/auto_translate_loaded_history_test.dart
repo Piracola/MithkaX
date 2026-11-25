@@ -46,6 +46,21 @@ void main() {
     },
   );
 
+  test('messages in the viewport go before the background walk', () {
+    final loaded = [for (var id = 1; id <= 40; id++) _message(id)];
+
+    final candidates = automaticTranslationLoadedCandidates(
+      loaded,
+      targetLanguageCode: 'zh-Hans',
+      visibleMessageIds: {2, 5},
+    );
+
+    // On-screen messages first (newest-first inside the viewport), then the
+    // newest untranslated tail.
+    expect(candidates.take(3).map((message) => message.id), [5, 2, 40]);
+    expect(candidates.length, 12);
+  });
+
   test('a pass is bounded and continues from the newest end', () {
     final loaded = [for (var id = 1; id <= 40; id++) _message(id)];
 
