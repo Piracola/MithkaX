@@ -14,7 +14,8 @@ import 'dart:ui' as ui;
 import 'package:flutter/foundation.dart' show precisionErrorTolerance;
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/rendering.dart' show RenderProxyBox, SelectedContent;
+import 'package:flutter/rendering.dart'
+    show RenderParagraph, RenderProxyBox, SelectedContent;
 import 'package:flutter/services.dart';
 import 'package:flutter_math_fork/flutter_math.dart';
 import 'package:mithka/l10n/app_localizations.dart';
@@ -69,6 +70,7 @@ import 'message_channel_stats.dart';
 import 'message_direction.dart';
 import 'message_gift_card.dart';
 import 'message_gram_envelope.dart';
+import 'message_link_menu.dart';
 import 'message_reaction_chips.dart';
 import 'message_reply_count_badge.dart';
 import 'message_special_content.dart';
@@ -88,9 +90,11 @@ typedef ImageGalleryOpenCallback =
     void Function({required List<TdFileRef> items, required int startIndex});
 
 /// Inner padding of an ordinary text message bubble.
+/// exteraless lays text out at 11dp from the bubble's edge and 8dp from its
+/// top (`ChatMessageCell.layoutTextXY`); the old 12/9 read slightly larger.
 const EdgeInsets messageTextBubblePadding = EdgeInsets.symmetric(
-  horizontal: 12,
-  vertical: 9,
+  horizontal: 11,
+  vertical: 8,
 );
 
 /// Corner radius of an ordinary text message bubble.
@@ -106,6 +110,33 @@ double messageBubbleMaxWidth(double layoutWidth, [TargetPlatform? platform]) {
   return isDesktopTargetPlatform(platform)
       ? math.min(proportional, 720)
       : proportional;
+}
+
+/// A link run's tap recogniser, carrying what the long-press menu needs.
+///
+/// Flutter gives a [TextSpan] exactly one recogniser, so tap and long press
+/// cannot each own the run. The tap stays here — it wins the gesture arena the
+/// way it always has — and the bubble resolves the link under the finger at
+/// `onLongPressStart` through `RenderParagraph.getSpanForPosition`, the same
+/// order exteraless uses (`pressedLink` before `didLongPressLink`).
+class _MessageLinkRecognizer extends TapGestureRecognizer {
+  _MessageLinkRecognizer({
+    required this.kind,
+    required this.copyValue,
+    required this.onOpen,
+    this.qrValue,
+  });
+
+  final MessageLinkKind kind;
+
+  /// What 复制 writes: the target URL for a link, the visible run otherwise.
+  final String copyValue;
+
+  /// The route a tap already takes.
+  final VoidCallback onOpen;
+
+  /// Non-null only for links a QR code can carry.
+  final String? qrValue;
 }
 
 class MessageBubble extends StatelessWidget {
@@ -404,6 +435,89 @@ class _MessageBubbleState extends State<_ScopedMessageBubble>
       },
       child: selectable,
     );
+  }
+
+  void _handleLongPressStart(LongPressStartDetails details) {
+    final hit = _linkHitAt(details.globalPosition);
+    if (hit != null) {
+      unawaited(_showLinkMenu(hit));
+      return;
+    }
+    _handleLongPress();
+  }
+
+  /// Resolves the link under [globalPosition], if the press landed on one.
+  ///
+  /// Every message run is painted by some [RenderParagraph]; the pressed point
+  /// names one character, and that character's span tells whether the reader
+  /// held a link. The paragraph's own box for that character anchors the menu.
+  ({_MessageLinkRecognizer link, Rect rect})? _linkHitAt(
+    Offset globalPosition,
+  ) {
+    final root = context.findRenderObject();
+    if (root is! RenderObject || !root.attached) return null;
+    ({_MessageLinkRecognizer link, Rect rect})? found;
+    void visit(RenderObject node) {
+      if (found != null) return;
+      if (node is RenderParagraph && node.attached) {
+        final local = node.globalToLocal(globalPosition);
+        if (local.dx >= 0 &&
+            local.dy >= 0 &&
+            local.dx <= node.size.width &&
+            local.dy <= node.size.height) {
+          final position = node.getPositionForOffset(local);
+          final span = node.text.getSpanForPosition(position);
+          final recognizer = span is TextSpan ? span.recognizer : null;
+          if (recognizer is _MessageLinkRecognizer) {
+            final length = node.text.toPlainText().length;
+            final start = position.offset
+                .clamp(0, math.max(0, length - 1))
+                .toInt();
+            final boxes = node.getBoxesForSelection(
+              TextSelection(baseOffset: start, extentOffset: start + 1),
+              boxHeightStyle: ui.BoxHeightStyle.max,
+            );
+            final origin = node.localToGlobal(Offset.zero);
+            final rect = boxes.isEmpty
+                ? origin & node.size
+                : Rect.fromLTRB(
+                    origin.dx + boxes.first.left,
+                    origin.dy + boxes.first.top,
+                    origin.dx + boxes.first.right,
+                    origin.dy + boxes.first.bottom,
+                  );
+            found = (link: recognizer, rect: rect);
+          }
+        }
+      }
+      node.visitChildren(visit);
+    }
+
+    visit(root);
+    return found;
+  }
+
+  Future<void> _showLinkMenu(
+    ({_MessageLinkRecognizer link, Rect rect}) hit,
+  ) async {
+    final link = hit.link;
+    final action = await showMessageLinkMenu(
+      context,
+      MessageLinkHit(kind: link.kind, anchor: hit.rect, qrValue: link.qrValue),
+    );
+    if (!mounted || action == null) return;
+    switch (action) {
+      case MessageLinkMenuAction.open:
+        link.onOpen();
+      case MessageLinkMenuAction.copy:
+        await Clipboard.setData(ClipboardData(text: link.copyValue));
+        if (mounted) {
+          showToast(context, AppStrings.t(AppStringKeys.messageLinkCopied));
+        }
+      case MessageLinkMenuAction.showQr:
+        final value = link.qrValue;
+        if (value != null) await showMessageLinkQr(context, value);
+    }
   }
 
   void _handleLongPress([
@@ -1027,10 +1141,12 @@ class _MessageBubbleState extends State<_ScopedMessageBubble>
       key: _bubbleKey,
       behavior: HitTestBehavior.opaque,
       onTap: () => _handleTap(alwaysShowTime),
-      onLongPress:
+      // A long press on a link opens the link's own menu; everywhere else it
+      // is the message's menu (exteraless checks the pressed span first).
+      onLongPressStart:
           !desktopTouchInteraction &&
               widget.bubble.mobileTextSelectionAreaKey == null
-          ? _handleLongPress
+          ? _handleLongPressStart
           : null,
       onSecondaryTapUp: desktopInteraction ? null : _handleSecondaryTapUp,
       child: KeyedSubtree(
@@ -1255,7 +1371,7 @@ class _MessageBubbleState extends State<_ScopedMessageBubble>
               textColor: _incomingTextColor,
               name: message.senderName!,
               nameStyle: TextStyle(
-                fontSize: 12,
+                fontSize: AppTextSize.chatSecondary(AppTextSize.messageBody()),
                 color: senderNameColor,
                 fontWeight: FontWeight.w500,
               ),
@@ -1319,7 +1435,11 @@ class _MessageBubbleState extends State<_ScopedMessageBubble>
     key: const ValueKey('messageTappedTimestamp'),
     maxLines: 1,
     textScaler: TextScaler.noScaling,
-    style: TextStyle(fontSize: 10, height: 1.2, color: _colors.textTertiary),
+    style: TextStyle(
+      fontSize: AppTextSize.chatTime,
+      height: 1.2,
+      color: _colors.textTertiary,
+    ),
   );
 
   Widget _repeatBadge() => GestureDetector(
@@ -2577,7 +2697,8 @@ class _MessageBubbleState extends State<_ScopedMessageBubble>
         _ => 15.0,
       },
       RichMessageBlockKind.footer => 13.0,
-      _ => 15.0,
+      // A rich paragraph is a message body: same size as any other body run.
+      _ => AppTextSize.messageBody(),
     };
     if (block.text.isNotEmpty && block.kind == RichMessageBlockKind.heading) {
       entities.add(
@@ -4206,7 +4327,7 @@ class _MessageBubbleState extends State<_ScopedMessageBubble>
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: TextStyle(
-                fontSize: 12,
+                fontSize: AppTextSize.chatSecondary(AppTextSize.messageBody()),
                 fontWeight: FontWeight.w500,
                 color: textColor,
               ),
@@ -4237,7 +4358,7 @@ class _MessageBubbleState extends State<_ScopedMessageBubble>
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: TextStyle(
-                fontSize: 12,
+                fontSize: AppTextSize.chatSecondary(AppTextSize.messageBody()),
                 fontWeight: FontWeight.w500,
                 color: textColor,
               ),
@@ -4498,7 +4619,7 @@ class _MessageBubbleState extends State<_ScopedMessageBubble>
           borderRadius: BorderRadius.circular(AppRadius.md),
           border: Border(left: BorderSide(color: quoteColor, width: 3)),
         ),
-        padding: const EdgeInsets.fromLTRB(9, 7, 8, 7),
+        padding: const EdgeInsets.fromLTRB(9, 6, 8, 6),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
@@ -4551,11 +4672,17 @@ class _MessageBubbleState extends State<_ScopedMessageBubble>
   ) {
     final c = _colors;
     final language = (pre.language ?? '').trim();
+    final code = text.substring(start, end);
+    // exteraless shrinks a preformatted run with its own length
+    // (chat_msgTextCode{,2,3}Paint) and draws the language label one step under
+    // the body size, so a long shell block stops towering over the message.
+    final codeSize = AppTextSize.messageCode(fontSize, code.length);
+    final languageSize = AppTextSize.messageCodeLanguage(fontSize, code.length);
     final codeBackground = _codeBackgroundColor;
     return GestureDetector(
       key: ValueKey('message-code-block-${message.id}-$start-$end'),
       behavior: HitTestBehavior.opaque,
-      onTap: () => _copyMonospaceText(text.substring(start, end)),
+      onTap: () => _copyMonospaceText(code),
       child: Container(
         width: _bubbleMaxWidth(),
         decoration: BoxDecoration(
@@ -4583,7 +4710,8 @@ class _MessageBubbleState extends State<_ScopedMessageBubble>
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
-                      fontSize: 11,
+                      fontSize: languageSize,
+                      height: 1.2,
                       color: c.textSecondary,
                       fontWeight: FontWeight.w600,
                     ),
@@ -4592,7 +4720,7 @@ class _MessageBubbleState extends State<_ScopedMessageBubble>
               ),
             SingleChildScrollView(
               scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.fromLTRB(10, 8, 10, 9),
+              padding: const EdgeInsets.fromLTRB(10, 6, 10, 8),
               child: _richText(
                 text,
                 base,
@@ -4602,7 +4730,7 @@ class _MessageBubbleState extends State<_ScopedMessageBubble>
                 false,
                 false,
                 entities: entities,
-                fontSize: math.max(13.0, fontSize - 1),
+                fontSize: codeSize,
               ),
             ),
           ],

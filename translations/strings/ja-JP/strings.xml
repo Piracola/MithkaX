@@ -2407,6 +2407,10 @@
     <string name="messageChecklistTaskHint">Task description</string>
     <string name="messageLeaveAComment">コメントを残す</string>
     <string name="messageLinkCopied">リンクをコピーしました</string>
+    <string name="messageLinkCopyEmail">メールをコピー</string>
+    <string name="messageLinkCopyHashtag">ハッシュタグをコピー</string>
+    <string name="messageLinkCopyUsername">ユーザー名をコピー</string>
+    <string name="messageLinkShareQr">QRコードを共有</string>
     <string name="messagePollClosed">Closed</string>
     <string name="messagePollStop">Close poll</string>
     <string name="messagePollStopConfirm">Voting cannot continue after this poll is closed.</string>

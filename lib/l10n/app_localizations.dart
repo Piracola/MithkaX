@@ -3720,6 +3720,10 @@ abstract final class AppStringKeys {
   static const blockingTitle = 'blockingTitle';
   static const messagePollVotes = 'messagePollVotes';
   static const messageLinkCopied = 'messageLinkCopied';
+  static const messageLinkCopyEmail = 'messageLinkCopyEmail';
+  static const messageLinkCopyHashtag = 'messageLinkCopyHashtag';
+  static const messageLinkCopyUsername = 'messageLinkCopyUsername';
+  static const messageLinkShareQr = 'messageLinkShareQr';
   static const messagePollClosed = 'messagePollClosed';
   static const messagePollStop = 'messagePollStop';
   static const messagePollStopConfirm = 'messagePollStopConfirm';

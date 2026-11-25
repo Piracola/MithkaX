@@ -708,7 +708,7 @@ class ImageMediaAlbumBubble extends StatelessWidget {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: TextStyle(
-                fontSize: 12,
+                fontSize: AppTextSize.chatSecondary(AppTextSize.messageBody()),
                 fontWeight: FontWeight.w500,
                 color: colors.linkBlue,
               ),
@@ -736,7 +736,7 @@ class ImageMediaAlbumBubble extends StatelessWidget {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: TextStyle(
-                fontSize: 12,
+                fontSize: AppTextSize.chatSecondary(AppTextSize.messageBody()),
                 fontWeight: FontWeight.w500,
                 color: colors.linkBlue,
               ),

@@ -573,8 +573,8 @@ class MessageActionMenu extends StatelessWidget {
 
   /// Width of the touch dropdown: its widest label plus the glyph column and
   /// the row insets, between [mobileDropdownMinWidth] and
-  /// [mobileDropdownMaxWidth], never wider than [availableWidth].
-  @visibleForTesting
+  /// [mobileDropdownMaxWidth], never wider than [availableWidth]. Shared by
+  /// the link long-press menu so both columns hug their labels identically.
   static double mobileDropdownWidthFor({
     required double longestLabelWidth,
     double availableWidth = double.infinity,

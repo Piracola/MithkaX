@@ -2407,6 +2407,10 @@
     <string name="messageChecklistTaskHint">Task description</string>
     <string name="messageLeaveAComment">댓글 남기기</string>
     <string name="messageLinkCopied">링크 복사됨</string>
+    <string name="messageLinkCopyEmail">이메일 복사</string>
+    <string name="messageLinkCopyHashtag">해시태그 복사</string>
+    <string name="messageLinkCopyUsername">사용자 이름 복사</string>
+    <string name="messageLinkShareQr">QR 코드 공유</string>
     <string name="messagePollClosed">Closed</string>
     <string name="messagePollStop">Close poll</string>
     <string name="messagePollStopConfirm">Voting cannot continue after this poll is closed.</string>

@@ -2407,6 +2407,10 @@
     <string name="messageChecklistTaskHint">Task description</string>
     <string name="messageLeaveAComment">发表评论</string>
     <string name="messageLinkCopied">链接已复制</string>
+    <string name="messageLinkCopyEmail">复制邮箱</string>
+    <string name="messageLinkCopyHashtag">复制标签</string>
+    <string name="messageLinkCopyUsername">复制用户名</string>
+    <string name="messageLinkShareQr">分享二维码</string>
     <string name="messagePollClosed">Closed</string>
     <string name="messagePollStop">Close poll</string>
     <string name="messagePollStopConfirm">Voting cannot continue after this poll is closed.</string>

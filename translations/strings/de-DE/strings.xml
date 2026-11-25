@@ -2414,6 +2414,10 @@
     <string name="messageChecklistTaskHint">Task description</string>
     <string name="messageLeaveAComment">Kommentar hinterlassen</string>
     <string name="messageLinkCopied">Link kopiert</string>
+    <string name="messageLinkCopyEmail">E-Mail kopieren</string>
+    <string name="messageLinkCopyHashtag">Hashtag kopieren</string>
+    <string name="messageLinkCopyUsername">Benutzernamen kopieren</string>
+    <string name="messageLinkShareQr">QR-Code teilen</string>
     <string name="messagePollClosed">Closed</string>
     <string name="messagePollStop">Close poll</string>
     <string name="messagePollStopConfirm">Voting cannot continue after this poll is closed.</string>

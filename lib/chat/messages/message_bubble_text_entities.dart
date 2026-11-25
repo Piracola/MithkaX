@@ -462,15 +462,25 @@ extension _MessageBubbleTextEntities on _MessageBubbleState {
       if (widget.bubble.onHashtagTap == null) {
         return [TextSpan(text: segment, style: style)];
       }
-      final recognizer = TapGestureRecognizer()
-        ..onTap = () =>
-            widget.bubble.onHashtagTap?.call(normalizedHashtag(segment));
+      final recognizer =
+          _MessageLinkRecognizer(
+              kind: MessageLinkKind.hashtag,
+              copyValue: segment,
+              onOpen: () =>
+                  widget.bubble.onHashtagTap?.call(normalizedHashtag(segment)),
+            )
+            ..onTap = () =>
+                widget.bubble.onHashtagTap?.call(normalizedHashtag(segment));
       _linkRecognizers.add(recognizer);
       return [TextSpan(text: segment, style: style, recognizer: recognizer)];
     }
     if (target != null) {
-      final recognizer = TapGestureRecognizer()
-        ..onTap = () => openLink(context, target);
+      final recognizer = _MessageLinkRecognizer(
+        kind: _linkKindFor(target),
+        copyValue: _linkCopyValueFor(target, segment),
+        qrValue: _linkQrValueFor(target),
+        onOpen: () => openLink(context, target),
+      )..onTap = () => openLink(context, target);
       _linkRecognizers.add(recognizer);
       return [TextSpan(text: segment, style: style, recognizer: recognizer)];
     }
@@ -492,7 +502,14 @@ extension _MessageBubbleTextEntities on _MessageBubbleState {
             color: _codeBackgroundColor,
             borderRadius: BorderRadius.circular(AppRadius.sm),
           ),
-          child: Text(segment, style: style.copyWith(fontSize: fontSize)),
+          child: Text(
+            segment,
+            // `CodeHighlighting.Span(smallerSize: true)`: inline code sits
+            // below the body by its own length's decrement.
+            style: style.copyWith(
+              fontSize: AppTextSize.messageInlineCode(fontSize, segment.length),
+            ),
+          ),
         ),
       ),
     );
@@ -666,14 +683,30 @@ extension _MessageBubbleTextEntities on _MessageBubbleState {
         last = m.end;
         continue;
       }
-      final recognizer = TapGestureRecognizer()
-        ..onTap = () {
-          if (isHashtag) {
-            widget.bubble.onHashtagTap?.call(normalizedHashtag(matched));
-          } else {
-            openLink(context, target);
-          }
-        };
+      final recognizer =
+          _MessageLinkRecognizer(
+              kind: isHashtag
+                  ? MessageLinkKind.hashtag
+                  : isMention
+                  ? MessageLinkKind.mention
+                  : MessageLinkKind.url,
+              copyValue: isHashtag || isMention ? matched : target,
+              qrValue: isHashtag ? null : _linkQrValueFor(target),
+              onOpen: () {
+                if (isHashtag) {
+                  widget.bubble.onHashtagTap?.call(normalizedHashtag(matched));
+                } else {
+                  openLink(context, target);
+                }
+              },
+            )
+            ..onTap = () {
+              if (isHashtag) {
+                widget.bubble.onHashtagTap?.call(normalizedHashtag(matched));
+              } else {
+                openLink(context, target);
+              }
+            };
       _linkRecognizers.add(recognizer);
       spans.add(
         TextSpan(
@@ -688,6 +721,34 @@ extension _MessageBubbleTextEntities on _MessageBubbleState {
       spans.add(TextSpan(text: text.substring(last), style: baseStyle));
     }
     return spans;
+  }
+
+  /// A mail or phone target is not a URL; the copy item names what it is.
+  MessageLinkKind _linkKindFor(String target) {
+    final lower = target.toLowerCase();
+    if (lower.startsWith('mailto:')) return MessageLinkKind.email;
+    if (lower.startsWith('tel:')) return MessageLinkKind.phone;
+    return MessageLinkKind.url;
+  }
+
+  /// A URL copies as itself; a mail or phone run copies the readable value,
+  /// the way exteraless's CopyLink/CopyMail items do.
+  String _linkCopyValueFor(String target, String visible) {
+    final lower = target.toLowerCase();
+    if (lower.startsWith('mailto:')) return target.substring(7);
+    if (lower.startsWith('tel:')) return visible;
+    return target;
+  }
+
+  /// Only a real web address can be shared as a QR code.
+  String? _linkQrValueFor(String target) {
+    final lower = target.toLowerCase();
+    if (lower.startsWith('http://') || lower.startsWith('https://')) {
+      return target;
+    }
+    if (lower.startsWith('www.')) return 'https://$target';
+    if (lower.startsWith('t.me/')) return 'https://$target';
+    return null;
   }
 
   TextStyle _autoLinkStyle(TextStyle baseStyle, Color link) {
