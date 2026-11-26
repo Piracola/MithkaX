@@ -108,6 +108,13 @@ class ChatViewModel extends ChangeNotifier {
     // does not shift when the async loads land.
     final inheritedHeader = ChatHeaderStateCache.read(_accountSlot, chatId);
     if (inheritedHeader != null) {
+      // Topic-surface facts decide the tab chrome and the transcript sections
+      // the first frame paints; without them a bot topic switch draws the
+      // top strip once before getUser resolves the bot identity.
+      isForum = inheritedHeader.isForum;
+      hasForumTabs = inheritedHeader.hasForumTabs;
+      supportsBotTopics = inheritedHeader.supportsBotTopics;
+      botTopicsManageable = inheritedHeader.botTopicsManageable;
       peerOnline = inheritedHeader.peerOnline;
       peerStatusText = inheritedHeader.peerStatusText;
       peerIsBot = inheritedHeader.peerIsBot;

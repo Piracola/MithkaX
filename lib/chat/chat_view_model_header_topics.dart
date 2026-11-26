@@ -257,12 +257,18 @@ extension ChatViewModelHeaderTopics on ChatViewModel {
   /// topic transcript of the same chat can paint a full-height header on its
   /// first frame instead of growing one async query later.
   void _storeHeaderSnapshot() {
-    if (!isForum) return;
+    // Forums and bot topic chats both rebuild their transcript on a topic
+    // switch; only ordinary chats have nothing to carry across.
+    if (!supportsTopics) return;
     final existing = ChatHeaderStateCache.read(_accountSlot, chatId);
     ChatHeaderStateCache.write(
       ChatHeaderSnapshot(
         accountSlot: _accountSlot,
         chatId: chatId,
+        isForum: isForum,
+        hasForumTabs: hasForumTabs,
+        supportsBotTopics: supportsBotTopics,
+        botTopicsManageable: botTopicsManageable,
         isGroup: isGroup,
         isChannel: isChannel,
         isBotApiAccount: isBotApiAccount,
