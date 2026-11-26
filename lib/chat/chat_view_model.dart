@@ -420,6 +420,9 @@ class ChatViewModel extends ChangeNotifier {
   // Live header state.
   bool peerOnline = false;
 
+  /// Private-chat peer's avatar-dot presence; groups use each sender's own.
+  AvatarPresence peerPresence = AvatarPresence.none;
+
   String peerStatusText = '';
 
   int lastReadOutboxId = 0;
@@ -4163,6 +4166,7 @@ class ChatViewModel extends ChangeNotifier {
       senderIsDeleted: sender?.isDeleted ?? false,
       senderAccentColorId: sender?.accentColorId ?? -1,
       senderEmojiStatusId: sender?.emojiStatusId ?? 0,
+      senderPresence: sender?.presence ?? AvatarPresence.none,
     )..mirrorEntry = entry;
   }
 
@@ -4627,7 +4631,8 @@ class ChatViewModel extends ChangeNotifier {
             m.senderIsPremium == info.isPremium &&
             m.senderIsDeleted == info.isDeleted &&
             m.senderAccentColorId == info.accentColorId &&
-            m.senderEmojiStatusId == info.emojiStatusId) {
+            m.senderEmojiStatusId == info.emojiStatusId &&
+            m.senderPresence == info.presence) {
           continue;
         }
         m.senderName = info.name;
@@ -4638,6 +4643,7 @@ class ChatViewModel extends ChangeNotifier {
         m.senderIsDeleted = info.isDeleted;
         m.senderAccentColorId = info.accentColorId;
         m.senderEmojiStatusId = info.emojiStatusId;
+        m.senderPresence = info.presence;
         changed = true;
       }
     }
@@ -4658,7 +4664,8 @@ class ChatViewModel extends ChangeNotifier {
             m.senderIsPremium != info.isPremium ||
             m.senderIsDeleted != info.isDeleted ||
             m.senderAccentColorId != info.accentColorId ||
-            m.senderEmojiStatusId != info.emojiStatusId) {
+            m.senderEmojiStatusId != info.emojiStatusId ||
+            m.senderPresence != info.presence) {
           m.senderName = info.name;
           m.senderPhoto = info.photo;
           m.senderRole = info.role;
@@ -4667,6 +4674,7 @@ class ChatViewModel extends ChangeNotifier {
           m.senderIsDeleted = info.isDeleted;
           m.senderAccentColorId = info.accentColorId;
           m.senderEmojiStatusId = info.emojiStatusId;
+          m.senderPresence = info.presence;
           changed = true;
         }
       }
@@ -4834,6 +4842,7 @@ class ChatViewModel extends ChangeNotifier {
       isDeleted: TDParse.isDeletedUser(user),
       accentColorId: user.integer('accent_color_id') ?? -1,
       emojiStatusId: TDParse.emojiStatusCustomEmojiId(user.obj('emoji_status')),
+      presence: TDParse.avatarPresence(user.obj('status')),
     );
   }
 

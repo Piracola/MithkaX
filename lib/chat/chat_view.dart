@@ -157,6 +157,7 @@ import 'messages/message_action_menu_presentation.dart';
 import 'messages/message_arrival.dart';
 import 'messages/message_bubble.dart';
 import 'messages/message_bubble_repository_view.dart';
+import 'messages/message_double_tap_action.dart';
 import 'messages/message_quote_selection_dialog.dart';
 import 'messages/message_reaction_availability.dart';
 import 'messages/message_replies_sheet.dart';
@@ -2106,6 +2107,11 @@ class _ChatViewState extends State<ChatView> {
       channelHasLinkedDiscussion: _vm.hasLinkedDiscussion,
       showChannelPostStats:
           _vm.isChannel && context.read<ThemeController>().showChannelPostStats,
+      showAvatarOnlineStatus: context
+          .read<ThemeController>()
+          .showAvatarOnlineStatus,
+      peerPresence: _vm.peerPresence,
+      onDoubleTap: _doubleTapCallback(message),
       onOpenImage: _openImage,
       onOpenImageGallery: _openImageGallery,
       onApplyMessageBubble: offersMessageBubbleApplyAction(message)
@@ -4068,6 +4074,13 @@ class _ChatViewState extends State<ChatView> {
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTap: () => _openPinnedFromBar(pinned),
+      // exteraless opens the whole pinned list from a long press on the top
+      // bar (`pinnedMessageView` long-click → `openPinnedMessagesList`); the
+      // tap stays "scroll to the pinned message".
+      onLongPress: () {
+        unawaited(AppHaptics.longPress());
+        unawaited(_openPinnedMessages());
+      },
       child: Container(
         key: const ValueKey('chatPinnedBar'),
         height: 48,

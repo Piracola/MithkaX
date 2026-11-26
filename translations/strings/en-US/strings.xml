@@ -445,6 +445,12 @@
     <string name="appearanceAddFont">Add Font</string>
     <string name="appearanceAddTextFont">Add Text Font</string>
     <string name="appearanceAlwaysShowMessageTime">Always show message time</string>
+    <string name="appearanceAvatarOnlineStatus">Online status on avatars</string>
+    <string name="appearanceAvatarOnlineStatusNote">Shows a coloured dot at the bottom-right of a private chat’s avatar: green while online, then yellow, orange and red for a last seen within 15, 30 and 60 minutes.</string>
+    <string name="doubleTapActionNone">None</string>
+    <string name="doubleTapActionSendReaction">Send reaction</string>
+    <string name="doubleTapIncoming">Double-tap incoming messages</string>
+    <string name="doubleTapOutgoing">Double-tap outgoing messages</string>
     <string name="appearanceAnimateAvatars">Play Animated Avatars</string>
     <string name="appearanceAnimateStatusEmoji">Play Animated Status Emoji</string>
     <string name="appearanceArchivedChats">Archived Chats</string>
@@ -1049,6 +1055,10 @@
     <string name="chatInfoPinLimit">Limit</string>
     <string name="chatInfoPinLimitReachedError">Pin failed: pin limit reached</string>
     <string name="chatInfoPinnedHighlights">Pinned Messages</string>
+    <string name="chatPinDialogTitle">Pin Message</string>
+    <string name="chatPinDialogMessage">This message will be pinned in this chat.</string>
+    <string name="chatPinNotifyMembers">Notify all members</string>
+    <string name="chatPinAlsoFor">Also pin for {value1}</string>
     <string name="chatInfoRemove">Remove</string>
     <string name="chatInfoSearchHistory">Search chat history</string>
     <string name="chatInfoStories">Stories</string>

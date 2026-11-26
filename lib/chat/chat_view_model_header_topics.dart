@@ -150,6 +150,7 @@ extension ChatViewModelHeaderTopics on ChatViewModel {
             }
             _applyPeerBotCapabilities(user, notify: false);
             peerOnline = TDParse.isUserOnline(user);
+            peerPresence = TDParse.avatarPresence(user.obj('status'));
             peerStatusText = TDParse.userStatus(user);
             firstContactInfo = firstContactInfo?.withUser(user);
           } catch (error) {
@@ -1678,13 +1679,17 @@ extension ChatViewModelHeaderTopics on ChatViewModel {
     notifyListeners();
   }
 
-  Future<void> pinTodo(ChatMessage message) async {
+  Future<void> pinTodo(
+    ChatMessage message, {
+    bool notify = false,
+    bool onlyForSelf = false,
+  }) async {
     await _topicAccountQuery({
       '@type': 'pinChatMessage',
       'chat_id': chatId,
       'message_id': message.id,
-      'disable_notification': true,
-      'only_for_self': false,
+      'disable_notification': !notify,
+      'only_for_self': onlyForSelf,
     });
     pinnedMessage = message;
     pinnedMessages = [

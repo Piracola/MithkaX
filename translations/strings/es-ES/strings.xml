@@ -445,6 +445,12 @@
     <string name="appearanceAddFont">Añadir fuente</string>
     <string name="appearanceAddTextFont">Añadir fuente de texto</string>
     <string name="appearanceAlwaysShowMessageTime">Mostrar siempre la hora del mensaje</string>
+    <string name="appearanceAvatarOnlineStatus">Estado en línea en los avatares</string>
+    <string name="appearanceAvatarOnlineStatusNote">Muestra un punto de color en la esquina inferior derecha del avatar de un chat privado: verde si está en línea y luego amarillo, naranja y rojo si se conectó por última vez hace 15, 30 o 60 minutos.</string>
+    <string name="doubleTapActionNone">Ninguna</string>
+    <string name="doubleTapActionSendReaction">Enviar reacción</string>
+    <string name="doubleTapIncoming">Doble toque en mensajes recibidos</string>
+    <string name="doubleTapOutgoing">Doble toque en mensajes enviados</string>
     <string name="appearanceAnimateAvatars">Reproducir avatares animados</string>
     <string name="appearanceAnimateStatusEmoji">Reproducir emojis de estado animados</string>
     <string name="appearanceArchivedChats">Chats archivados</string>
@@ -792,7 +798,7 @@
     <string name="callsTitle">Llamadas</string>
     <string name="callsUnavailableOnDesktop">Las llamadas aún no están disponibles en esta versión de escritorio.</string>
     <string name="callsUnknownConversation">Conversación desconocida</string>
-    <string name="channelDirectMessages">Channel Direct Messages</string>
+    <string name="channelDirectMessages">Mensajes directos del canal</string>
     <string name="channelDirectMessagesAllowAndRefund">Allow and Refund</string>
     <string name="channelDirectMessagesAllowFree">Allow free messages</string>
     <string name="channelDirectMessagesAllowOnly">Allow Without Refund</string>
@@ -1049,6 +1055,10 @@
     <string name="chatInfoPinLimit">Límite</string>
     <string name="chatInfoPinLimitReachedError">No se pudo fijar: se alcanzó el límite</string>
     <string name="chatInfoPinnedHighlights">Mensajes destacados</string>
+    <string name="chatPinDialogTitle">Fijar mensaje</string>
+    <string name="chatPinDialogMessage">Este mensaje se fijará en este chat.</string>
+    <string name="chatPinNotifyMembers">Notificar a todos los miembros</string>
+    <string name="chatPinAlsoFor">Fijar también para {value1}</string>
     <string name="chatInfoRemove">Quitar</string>
     <string name="chatInfoSearchHistory">Buscar en el historial</string>
     <string name="chatInfoStories">Historias</string>

@@ -445,6 +445,12 @@
     <string name="appearanceAddFont">글꼴 추가</string>
     <string name="appearanceAddTextFont">텍스트 글꼴 추가</string>
     <string name="appearanceAlwaysShowMessageTime">메시지 시간 항상 표시</string>
+    <string name="appearanceAvatarOnlineStatus">프로필 사진에 온라인 상태 표시</string>
+    <string name="appearanceAvatarOnlineStatusNote">비공개 채팅 프로필 사진의 오른쪽 아래에 색 점을 표시합니다. 온라인은 초록색이며, 마지막 접속이 15·30·60분 이내이면 노랑·주황·빨강입니다.</string>
+    <string name="doubleTapActionNone">없음</string>
+    <string name="doubleTapActionSendReaction">리액션 보내기</string>
+    <string name="doubleTapIncoming">받은 메시지 두 번 탭</string>
+    <string name="doubleTapOutgoing">보낸 메시지 두 번 탭</string>
     <string name="appearanceAnimateAvatars">움직이는 프로필 재생</string>
     <string name="appearanceAnimateStatusEmoji">움직이는 상태 이모지 재생</string>
     <string name="appearanceArchivedChats">보관된 대화</string>
@@ -792,7 +798,7 @@
     <string name="callsTitle">통화</string>
     <string name="callsUnavailableOnDesktop">이 데스크톱 빌드에서는 아직 통화를 사용할 수 없습니다.</string>
     <string name="callsUnknownConversation">알 수 없는 대화</string>
-    <string name="channelDirectMessages">Channel Direct Messages</string>
+    <string name="channelDirectMessages">채널 다이렉트 메시지</string>
     <string name="channelDirectMessagesAllowAndRefund">Allow and Refund</string>
     <string name="channelDirectMessagesAllowFree">Allow free messages</string>
     <string name="channelDirectMessagesAllowOnly">Allow Without Refund</string>
@@ -1049,6 +1055,10 @@
     <string name="chatInfoPinLimit">한도</string>
     <string name="chatInfoPinLimitReachedError">고정 실패: 고정 개수가 한도에 도달했습니다</string>
     <string name="chatInfoPinnedHighlights">하이라이트 메시지</string>
+    <string name="chatPinDialogTitle">메시지 고정</string>
+    <string name="chatPinDialogMessage">이 메시지가 이 채팅에 고정됩니다.</string>
+    <string name="chatPinNotifyMembers">모든 멤버에게 알림</string>
+    <string name="chatPinAlsoFor">{value1}에게도 고정</string>
     <string name="chatInfoRemove">제거</string>
     <string name="chatInfoSearchHistory">채팅 기록 검색</string>
     <string name="chatInfoStories">스토리</string>

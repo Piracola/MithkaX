@@ -3414,6 +3414,33 @@ abstract final class TDParse {
   static bool isUserOnline(Map<String, dynamic> user) =>
       user.obj('status')?.type == 'userStatusOnline';
 
+  /// The avatar-dot presence of a TDLib `User.status`, optionally at a given
+  /// unix time (tests pin [now]).
+  ///
+  /// Mirrors exteraless `AndroidUtil.getOnlineColor`: online now, then a
+  /// yellow / orange / red dot for a last-seen within 15 / 30 / 60 minutes.
+  static AvatarPresence avatarPresence(
+    Map<String, dynamic>? status, {
+    int? now,
+  }) {
+    switch (status?.type) {
+      case 'userStatusOnline':
+        return AvatarPresence.online;
+      case 'userStatusOffline':
+        final wasOnline = status?.integer('was_online') ?? 0;
+        if (wasOnline <= 0) return AvatarPresence.none;
+        final seconds =
+            (now ?? DateTime.now().millisecondsSinceEpoch ~/ 1000) - wasOnline;
+        if (seconds < 0) return AvatarPresence.online;
+        if (seconds < 15 * 60) return AvatarPresence.within15Minutes;
+        if (seconds < 30 * 60) return AvatarPresence.within30Minutes;
+        if (seconds < 60 * 60) return AvatarPresence.within60Minutes;
+        return AvatarPresence.none;
+      default:
+        return AvatarPresence.none;
+    }
+  }
+
   static String _lastOnlineText(int unixSeconds) {
     if (unixSeconds <= 0) {
       return AppStrings.t(AppStringKeys.tdMessageLastSeenUnknown);

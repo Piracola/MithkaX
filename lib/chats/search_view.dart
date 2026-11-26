@@ -1476,7 +1476,13 @@ class _DesktopCompactSearchThumb extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final image = hit.thumbnail ?? hit.photo;
-    if (hit.chat != null || hit.userId != null && hit.message == null) {
+    if (searchHitLeadingImageIsPeerAvatar(
+      isChatHit: hit.chat != null,
+      isUserHit: hit.userId != null,
+      isMessageHit: hit.message != null,
+      hasThumbnail: hit.thumbnail != null,
+      hasPhoto: hit.photo != null,
+    )) {
       return PhotoAvatar(title: hit.title, photo: hit.photo, size: 40);
     }
     if (image != null) {
@@ -2091,7 +2097,13 @@ class _SearchViewState extends State<SearchView> {
 
   Widget _hitThumb(_SearchHit hit) {
     final image = hit.thumbnail ?? hit.photo;
-    if (hit.chat != null || hit.userId != null && hit.message == null) {
+    if (searchHitLeadingImageIsPeerAvatar(
+      isChatHit: hit.chat != null,
+      isUserHit: hit.userId != null,
+      isMessageHit: hit.message != null,
+      hasThumbnail: hit.thumbnail != null,
+      hasPhoto: hit.photo != null,
+    )) {
       return PhotoAvatar(title: hit.title, photo: hit.photo, size: 54);
     }
     if (image != null) {
@@ -2729,6 +2741,26 @@ class _SearchViewModel extends ChangeNotifier {
     _loading.clear();
     super.dispose();
   }
+}
+
+/// Whether a search row's leading image is the PEER's avatar rather than the
+/// message's own media.
+///
+/// A chat/user hit always is; so is a message hit whose preview carries no
+/// media thumbnail — its only image is the chat photo, which the reference
+/// client draws round like every other avatar. A message with an actual
+/// thumbnail keeps the rounded rectangle: that is the photo/video itself, not
+/// an identity.
+bool searchHitLeadingImageIsPeerAvatar({
+  required bool isChatHit,
+  required bool isUserHit,
+  required bool isMessageHit,
+  required bool hasThumbnail,
+  required bool hasPhoto,
+}) {
+  if (isChatHit) return true;
+  if (isUserHit && !isMessageHit) return true;
+  return isMessageHit && hasPhoto && !hasThumbnail;
 }
 
 class _SearchHit {

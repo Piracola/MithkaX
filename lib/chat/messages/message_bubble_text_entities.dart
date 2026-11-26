@@ -208,6 +208,7 @@ extension _MessageBubbleTextEntities on _MessageBubbleState {
     List<MessageTextEntity>? entities,
     double fontSize = 15,
     bool bodyLeading = true,
+    int? maxLines,
   ]) {
     final resolvedFontSize = fontSize == AppTextSize.body
         ? AppTextSize.messageBody()
@@ -234,6 +235,7 @@ extension _MessageBubbleTextEntities on _MessageBubbleState {
           entities: sourceEntities,
           fontSize: resolvedFontSize,
           bodyLeading: bodyLeading,
+          maxLines: maxLines,
         ),
       ];
     }
@@ -267,6 +269,7 @@ extension _MessageBubbleTextEntities on _MessageBubbleState {
               entities: sourceEntities,
               fontSize: resolvedFontSize,
               bodyLeading: bodyLeading,
+              maxLines: maxLines,
             ),
           );
           widgets.add(const SizedBox(height: 5));
@@ -314,6 +317,7 @@ extension _MessageBubbleTextEntities on _MessageBubbleState {
           entities: sourceEntities,
           fontSize: resolvedFontSize,
           bodyLeading: bodyLeading,
+          maxLines: maxLines,
         ),
       );
       metaAdded = appendMeta;

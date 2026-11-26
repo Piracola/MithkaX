@@ -16,6 +16,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:mithka/l10n/app_localizations.dart';
 import 'package:mithka/l10n/preview_texts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../chat/messages/message_double_tap_action.dart';
 import '../chat/messages/quick_reaction_choice.dart';
 import '../components/app_icons.dart';
 import '../platform/adaptive_platform.dart';
@@ -1148,6 +1149,16 @@ class ThemeController extends ChangeNotifier {
       (mode) => mode.name == _prefs.getString(_channelBottomBarModeKey),
       orElse: () => ChannelBottomBarMode.mute,
     );
+    _doubleTapIncoming = MessageDoubleTapAction.values.firstWhere(
+      (action) => action.name == _prefs.getString(_doubleTapIncomingKey),
+      orElse: () => MessageDoubleTapAction.sendReaction,
+    );
+    _doubleTapOutgoing = MessageDoubleTapAction.values.firstWhere(
+      (action) => action.name == _prefs.getString(_doubleTapOutgoingKey),
+      orElse: () => MessageDoubleTapAction.sendReaction,
+    );
+    _showAvatarOnlineStatus =
+        _prefs.getBool(_showAvatarOnlineStatusKey) ?? false;
     _showChannelPostStats = _prefs.getBool(_showChannelPostStatsKey) ?? true;
     _enterToSend = _prefs.getBool(_enterToSendKey) ?? false;
     _openChatsAtLatest = _prefs.getBool(_openChatsAtLatestKey) ?? false;
@@ -1224,6 +1235,9 @@ class ThemeController extends ChangeNotifier {
   static const _modeKey = 'appearanceMode';
   static const _mediaPanelSegmentKey = 'mediaPanelSegment';
   static const _channelBottomBarModeKey = 'channelBottomBarMode.v1';
+  static const _doubleTapIncomingKey = 'doubleTapAction.incoming.v1';
+  static const _doubleTapOutgoingKey = 'doubleTapAction.outgoing.v1';
+  static const _showAvatarOnlineStatusKey = 'avatarOnlineStatus.v1';
   static const _showChannelPostStatsKey = 'showChannelPostStats.v1';
   static const _themingEnabledKey = 'appearanceThemingEnabled';
   static const _brandKey = 'brandColor';
@@ -1333,6 +1347,9 @@ class ThemeController extends ChangeNotifier {
   late bool _usePerAccountTheming;
   late bool _themingEnabled;
   late ChannelBottomBarMode _channelBottomBarMode;
+  late MessageDoubleTapAction _doubleTapIncoming;
+  late MessageDoubleTapAction _doubleTapOutgoing;
+  bool _showAvatarOnlineStatus = false;
   bool _showChannelPostStats = true;
   late AppearanceMode _mode;
   late Color _brandColor;
@@ -1885,6 +1902,34 @@ class ThemeController extends ChangeNotifier {
   MobileMessageActionMenuStyle get mobileMessageActionMenuStyle =>
       _mobileMessageActionMenuStyle;
   ChannelBottomBarMode get channelBottomBarMode => _channelBottomBarMode;
+
+  MessageDoubleTapAction get doubleTapIncoming => _doubleTapIncoming;
+
+  set doubleTapIncoming(MessageDoubleTapAction value) {
+    if (_doubleTapIncoming == value) return;
+    _doubleTapIncoming = value;
+    _prefs.setString(_doubleTapIncomingKey, value.name);
+    notifyListeners();
+  }
+
+  MessageDoubleTapAction get doubleTapOutgoing => _doubleTapOutgoing;
+
+  set doubleTapOutgoing(MessageDoubleTapAction value) {
+    if (_doubleTapOutgoing == value) return;
+    _doubleTapOutgoing = value;
+    _prefs.setString(_doubleTapOutgoingKey, value.name);
+    notifyListeners();
+  }
+
+  /// exteraless `showOnlineStatus`, default off: the avatar corner dot.
+  bool get showAvatarOnlineStatus => _showAvatarOnlineStatus;
+
+  set showAvatarOnlineStatus(bool value) {
+    if (_showAvatarOnlineStatus == value) return;
+    _showAvatarOnlineStatus = value;
+    _prefs.setBool(_showAvatarOnlineStatusKey, value);
+    notifyListeners();
+  }
 
   /// Whether channel posts carry their view and forward counts in the band
   /// under the bubble.

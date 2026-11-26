@@ -651,6 +651,13 @@ abstract final class AppStringKeys {
   static const appearanceAddTextFont = 'appearanceAddTextFont';
   static const appearanceAlwaysShowMessageTime =
       'appearanceAlwaysShowMessageTime';
+  static const appearanceAvatarOnlineStatus = 'appearanceAvatarOnlineStatus';
+  static const appearanceAvatarOnlineStatusNote =
+      'appearanceAvatarOnlineStatusNote';
+  static const doubleTapActionNone = 'doubleTapActionNone';
+  static const doubleTapActionSendReaction = 'doubleTapActionSendReaction';
+  static const doubleTapIncoming = 'doubleTapIncoming';
+  static const doubleTapOutgoing = 'doubleTapOutgoing';
   static const appearanceAnimateAvatars = 'appearanceAnimateAvatars';
   static const appearanceAnimateStatusEmoji = 'appearanceAnimateStatusEmoji';
   static const appearanceAvatarsAndSidebar = 'appearanceAvatarsAndSidebar';
@@ -1180,6 +1187,10 @@ abstract final class AppStringKeys {
   static const chatInfoPinLimit = 'chatInfoPinLimit';
   static const chatInfoPinLimitReachedError = 'chatInfoPinLimitReachedError';
   static const chatInfoPinnedHighlights = 'chatInfoPinnedHighlights';
+  static const chatPinAlsoFor = 'chatPinAlsoFor';
+  static const chatPinDialogMessage = 'chatPinDialogMessage';
+  static const chatPinDialogTitle = 'chatPinDialogTitle';
+  static const chatPinNotifyMembers = 'chatPinNotifyMembers';
   static const chatInfoRemove = 'chatInfoRemove';
   static const chatInfoSearchHistory = 'chatInfoSearchHistory';
   static const chatInfoTitle = 'chatInfoTitle';

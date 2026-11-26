@@ -101,6 +101,15 @@ const EdgeInsets messageTextBubblePadding = EdgeInsets.symmetric(
 /// Corner radius of an ordinary text message bubble.
 const double messageTextBubbleRadius = 6;
 
+/// Line cap for a link preview's description.
+///
+/// exteraless lays the description out with `maxLines = 6` (3 in its compact
+/// layout). Its Twitter escape hatch compares the site name to the literal
+/// "twitter", which a fixupx/fxtwitter mirror card is not — so a mirrored
+/// tweet is capped like everything else. Without the cap a Telegraph article
+/// or a long tweet stretched the preview card over half the transcript.
+const int messageLinkPreviewDescriptionMaxLines = 6;
+
 /// Decoded side, in pixels, of the softened fill around a letterboxed photo.
 const int _letterboxFillPx = 12;
 
@@ -159,6 +168,7 @@ class MessageBubble extends StatelessWidget {
     this.forceShowTimestamp = false,
     this.onRepeat,
     this.onLongPress,
+    this.onDoubleTap,
     this.mobileTextSelectionAreaKey,
     this.onMobileTextSelectionChanged,
     this.onMobileTextSelectionDisposed,
@@ -182,6 +192,8 @@ class MessageBubble extends StatelessWidget {
     this.showCommentAttachment = false,
     this.channelHasLinkedDiscussion = false,
     this.showChannelPostStats = false,
+    this.showAvatarOnlineStatus = false,
+    this.peerPresence = AvatarPresence.none,
     this.onToggleReaction,
     this.onShowReactionUsers,
     this.onRedial,
@@ -227,6 +239,12 @@ class MessageBubble extends StatelessWidget {
   final bool showRepeat;
   final bool forceShowTimestamp;
   final VoidCallback? onRepeat;
+
+  /// Runs the user's configured double-tap action. Null when the action is
+  /// off or this message cannot run it, which also keeps the single tap
+  /// immediate: a double-tap recognizer delays the first tap until the
+  /// double-tap timeout expires.
+  final VoidCallback? onDoubleTap;
   final void Function(
     ChatMessage message,
     Rect? bounds,
@@ -260,6 +278,13 @@ class MessageBubble extends StatelessWidget {
   /// under the bubble. Passed by the transcript: a broadcast channel sets it
   /// for every non-service post, other chats never do.
   final bool showChannelPostStats;
+
+  /// Whether the avatar's bottom-right corner carries the sender's presence
+  /// dot (off by default; 外观 → 聊天视图).
+  final bool showAvatarOnlineStatus;
+
+  /// Private-chat peer's presence; group messages read the sender's own.
+  final AvatarPresence peerPresence;
   final ValueChanged<MessageReaction>? onToggleReaction;
   final void Function(ChatMessage message, MessageReaction reaction)?
   onShowReactionUsers;
@@ -298,8 +323,31 @@ class _ScopedMessageBubble extends StatefulWidget {
   State<_ScopedMessageBubble> createState() => _MessageBubbleState();
 }
 
+/// exteraless `DoubleTap`: a second press within the double-tap window and
+/// close to the first one runs the configured action. Kept pure so the window
+/// and slop can be asserted without a widget.
+@visibleForTesting
+bool isMessageDoubleTap({
+  required Duration firstUp,
+  required Duration secondDown,
+  required double travel,
+}) {
+  final gap = secondDown - firstUp;
+  return !gap.isNegative &&
+      gap <= kDoubleTapTimeout &&
+      travel <= kTouchSlop * 2;
+}
+
 class _MessageBubbleState extends State<_ScopedMessageBubble>
     with TickerProviderStateMixin {
+  /// The previous tap, as seen by the raw [Listener]: the bubble's own tap
+  /// recognizer stays instant, and a second press inside the window runs the
+  /// configured double-tap action.
+  Duration? _lastTapUpStamp;
+  Offset? _lastTapUpPosition;
+  Duration? _tapDownStamp;
+  Offset? _tapDownPosition;
+
   void _updateState(VoidCallback fn) => setState(fn);
 
   final VoicePlayer _voice = VoicePlayer();
@@ -802,6 +850,38 @@ class _MessageBubbleState extends State<_ScopedMessageBubble>
     }
   }
 
+  void _trackDoubleTapDown(PointerDownEvent event) {
+    _tapDownStamp = event.timeStamp;
+    _tapDownPosition = event.position;
+    final action = widget.bubble.onDoubleTap;
+    final firstUp = _lastTapUpStamp;
+    final firstPosition = _lastTapUpPosition;
+    if (action == null || firstUp == null || firstPosition == null) return;
+    if (!isMessageDoubleTap(
+      firstUp: firstUp,
+      secondDown: event.timeStamp,
+      travel: (event.position - firstPosition).distance,
+    )) {
+      return;
+    }
+    _lastTapUpStamp = null;
+    _lastTapUpPosition = null;
+    action();
+  }
+
+  void _trackDoubleTapUp(PointerUpEvent event) {
+    final downStamp = _tapDownStamp;
+    final downPosition = _tapDownPosition;
+    _tapDownStamp = null;
+    _tapDownPosition = null;
+    if (downStamp == null || downPosition == null) return;
+    final isTap =
+        event.timeStamp - downStamp <= kDoubleTapTimeout &&
+        (event.position - downPosition).distance <= kTouchSlop;
+    _lastTapUpStamp = isTap ? event.timeStamp : null;
+    _lastTapUpPosition = isTap ? event.position : null;
+  }
+
   void _handleTap(bool alwaysShowTime) {
     if (!alwaysShowTime) {
       setState(() => _showTappedTimestamp = !_showTappedTimestamp);
@@ -1230,38 +1310,46 @@ class _MessageBubbleState extends State<_ScopedMessageBubble>
     final body = FadeTransition(
       key: ValueKey('messageUpdateFlash-${message.id}'),
       opacity: _contentFlashOpacity,
-      child: GestureDetector(
-        key: _bubbleKey,
-        behavior: HitTestBehavior.opaque,
-        onTap: () => _handleTap(alwaysShowTime),
-        // A long press on a link opens the link's own menu; everywhere else it
-        // is the message's menu (exteraless checks the pressed span first).
-        onLongPressStart:
-            !desktopTouchInteraction &&
-                widget.bubble.mobileTextSelectionAreaKey == null
-            ? _handleLongPressStart
-            : null,
-        onSecondaryTapUp: desktopInteraction ? null : _handleSecondaryTapUp,
-        child: KeyedSubtree(
-          key: ValueKey('messageTapTarget-${message.id}'),
-          child: desktopInteraction
-              ? Listener(
-                  onPointerDown: (event) => _handleDesktopPointerDown(
-                    event,
-                    touchGesturesEnabled: desktopTouchInteraction,
-                  ),
-                  onPointerMove: _handleDesktopPointerMove,
-                  onPointerUp: _handleDesktopPointerUp,
-                  onPointerCancel: _handleDesktopPointerCancel,
-                  child: KeyedSubtree(
-                    key: ValueKey('messageTextSelectionArea-${message.id}'),
-                    child: DesktopMessageTextSelectionArea(
-                      selectionAreaKey: _desktopSelectionAreaKey,
-                      child: contentBody,
+      // The double tap is detected here, outside the gesture arena: a
+      // `GestureDetector.onDoubleTap` holds the arena for the double-tap
+      // window, which starves every tap target nested in the bubble (a link
+      // preview, a document card, a vote button) even after the window.
+      child: Listener(
+        onPointerDown: _trackDoubleTapDown,
+        onPointerUp: _trackDoubleTapUp,
+        child: GestureDetector(
+          key: _bubbleKey,
+          behavior: HitTestBehavior.opaque,
+          onTap: () => _handleTap(alwaysShowTime),
+          // A long press on a link opens the link's own menu; everywhere else it
+          // is the message's menu (exteraless checks the pressed span first).
+          onLongPressStart:
+              !desktopTouchInteraction &&
+                  widget.bubble.mobileTextSelectionAreaKey == null
+              ? _handleLongPressStart
+              : null,
+          onSecondaryTapUp: desktopInteraction ? null : _handleSecondaryTapUp,
+          child: KeyedSubtree(
+            key: ValueKey('messageTapTarget-${message.id}'),
+            child: desktopInteraction
+                ? Listener(
+                    onPointerDown: (event) => _handleDesktopPointerDown(
+                      event,
+                      touchGesturesEnabled: desktopTouchInteraction,
                     ),
-                  ),
-                )
-              : contentBody,
+                    onPointerMove: _handleDesktopPointerMove,
+                    onPointerUp: _handleDesktopPointerUp,
+                    onPointerCancel: _handleDesktopPointerCancel,
+                    child: KeyedSubtree(
+                      key: ValueKey('messageTextSelectionArea-${message.id}'),
+                      child: DesktopMessageTextSelectionArea(
+                        selectionAreaKey: _desktopSelectionAreaKey,
+                        child: contentBody,
+                      ),
+                    ),
+                  )
+                : contentBody,
+          ),
         ),
       ),
     );
@@ -1351,6 +1439,11 @@ class _MessageBubbleState extends State<_ScopedMessageBubble>
                         : widget.bubble.peerPhoto,
                     size: 38 * ContentSizeScope.of(context).appScale,
                     isDeleted: widget.bubble.isGroup && message.senderIsDeleted,
+                    onlinePresence: widget.bubble.showAvatarOnlineStatus
+                        ? widget.bubble.isGroup
+                              ? message.senderPresence
+                              : widget.bubble.peerPresence
+                        : AvatarPresence.none,
                   ),
                   withLongPress: true,
                 ),
@@ -3990,6 +4083,9 @@ class _MessageBubbleState extends State<_ScopedMessageBubble>
           outgoing,
           false,
           preview.descriptionEntities,
+          15,
+          true,
+          messageLinkPreviewDescriptionMaxLines,
         ),
       if (preview.displayUrl.isNotEmpty)
         mobileSelectionDisabled(

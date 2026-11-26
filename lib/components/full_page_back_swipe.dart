@@ -21,6 +21,26 @@ abstract interface class FullPageBackSwipeDriver {
   void commitFullPageBackSwipe(VoidCallback? beforePop);
 }
 
+/// Which pointer the page's back swipe currently owns.
+///
+/// The back swipe is a raw pointer listener, while a message row's reply drag
+/// is an arena gesture. The arena cannot arbitrate between them, so a swipe
+/// that peels the page to the right and is then reversed would ALSO drag the
+/// row left into a reply. While this claim is set, row-level reply drags must
+/// ignore the contact (and cancel any travel they already have).
+///
+/// One process has at most one page gesture in flight, so a static is enough;
+/// it is cleared on every pointer up/cancel and on dispose.
+abstract final class FullPageBackSwipeClaim {
+  static bool _active = false;
+
+  static bool get active => _active;
+
+  static void begin() => _active = true;
+
+  static void clear() => _active = false;
+}
+
 /// Marks a subtree that owns horizontal drags, such as a horizontally
 /// scrollable strip: the full-page back swipe ignores pointers that land
 /// inside it.
@@ -85,6 +105,7 @@ class _FullPageBackSwipeState extends State<FullPageBackSwipe> {
   double _dy = 0;
   VelocityTracker? _velocity;
   bool _horizontalIntent = false;
+  bool _ownsBackSwipeClaim = false;
   FullPageBackSwipeDriver? _driver;
   bool _routeDriverDetected = false;
 
@@ -141,6 +162,10 @@ class _FullPageBackSwipeState extends State<FullPageBackSwipe> {
         _dx > _intentDistance &&
         _dx.abs() > _dy.abs() * 1.45) {
       _horizontalIntent = true;
+      // The page now owns this contact: a nested reply drag must not follow
+      // the same finger when the swipe is reversed (see [FullPageBackSwipeClaim]).
+      _ownsBackSwipeClaim = true;
+      FullPageBackSwipeClaim.begin();
       final route = ModalRoute.of(context);
       final driver = route is FullPageBackSwipeDriver
           ? route as FullPageBackSwipeDriver
@@ -197,11 +222,19 @@ class _FullPageBackSwipeState extends State<FullPageBackSwipe> {
     _horizontalIntent = false;
     _driver = null;
     _routeDriverDetected = false;
+    if (_ownsBackSwipeClaim) {
+      _ownsBackSwipeClaim = false;
+      FullPageBackSwipeClaim.clear();
+    }
   }
 
   @override
   void dispose() {
     _driver?.cancelFullPageBackSwipe();
+    if (_ownsBackSwipeClaim) {
+      _ownsBackSwipeClaim = false;
+      FullPageBackSwipeClaim.clear();
+    }
     super.dispose();
   }
 

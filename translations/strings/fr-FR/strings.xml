@@ -445,6 +445,12 @@
     <string name="appearanceAddFont">Ajouter une police</string>
     <string name="appearanceAddTextFont">Ajouter une police de texte</string>
     <string name="appearanceAlwaysShowMessageTime">Toujours afficher l’heure du message</string>
+    <string name="appearanceAvatarOnlineStatus">Statut en ligne sur les avatars</string>
+    <string name="appearanceAvatarOnlineStatusNote">Affiche un point coloré en bas à droite de l’avatar d’une conversation privée : vert en ligne, puis jaune, orange et rouge pour une dernière connexion il y a 15, 30 et 60 minutes.</string>
+    <string name="doubleTapActionNone">Aucune</string>
+    <string name="doubleTapActionSendReaction">Envoyer une réaction</string>
+    <string name="doubleTapIncoming">Double appui sur les messages reçus</string>
+    <string name="doubleTapOutgoing">Double appui sur les messages envoyés</string>
     <string name="appearanceAnimateAvatars">Lire les avatars animés</string>
     <string name="appearanceAnimateStatusEmoji">Lire les emojis de statut animés</string>
     <string name="appearanceArchivedChats">Discussions archivées</string>
@@ -792,7 +798,7 @@
     <string name="callsTitle">Appels</string>
     <string name="callsUnavailableOnDesktop">Les appels ne sont pas encore disponibles dans cette version pour ordinateur.</string>
     <string name="callsUnknownConversation">Conversation inconnue</string>
-    <string name="channelDirectMessages">Channel Direct Messages</string>
+    <string name="channelDirectMessages">Messages privés de la chaîne</string>
     <string name="channelDirectMessagesAllowAndRefund">Allow and Refund</string>
     <string name="channelDirectMessagesAllowFree">Allow free messages</string>
     <string name="channelDirectMessagesAllowOnly">Allow Without Refund</string>
@@ -1049,6 +1055,10 @@
     <string name="chatInfoPinLimit">Limite</string>
     <string name="chatInfoPinLimitReachedError">Échec de l’épinglage : limite atteinte</string>
     <string name="chatInfoPinnedHighlights">Messages importants</string>
+    <string name="chatPinDialogTitle">Épingler le message</string>
+    <string name="chatPinDialogMessage">Ce message sera épinglé dans cette conversation.</string>
+    <string name="chatPinNotifyMembers">Notifier tous les membres</string>
+    <string name="chatPinAlsoFor">Épingler aussi pour {value1}</string>
     <string name="chatInfoRemove">Retirer</string>
     <string name="chatInfoSearchHistory">Rechercher dans l’historique</string>
     <string name="chatInfoStories">Stories</string>

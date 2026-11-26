@@ -49,6 +49,7 @@ class _SenderInfo {
     this.isDeleted = false,
     this.accentColorId = -1,
     this.emojiStatusId = 0,
+    this.presence = AvatarPresence.none,
   });
   final String name;
   final TdFileRef? photo;
@@ -61,6 +62,19 @@ class _SenderInfo {
   final bool isDeleted;
   final int accentColorId;
   final int emojiStatusId;
+  final AvatarPresence presence;
+
+  _SenderInfo withPresence(AvatarPresence value) => _SenderInfo(
+    name,
+    photo,
+    role,
+    title,
+    isPremium: isPremium,
+    isDeleted: isDeleted,
+    accentColorId: accentColorId,
+    emojiStatusId: emojiStatusId,
+    presence: value,
+  );
 }
 
 @visibleForTesting
