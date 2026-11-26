@@ -433,12 +433,7 @@ class _QrScannerViewState extends State<QrScannerView>
                   Text(
                     widget.hint ?? AppStrings.t(AppStringKeys.qrScannerHint),
                     textAlign: TextAlign.center,
-                    style: const TextStyle(
-                      color: Color(0xCCFFFFFF),
-                      fontSize: 14,
-                      height: 1.35,
-                      decoration: TextDecoration.none,
-                    ),
+                    style: AppTextStyle.callout(const Color(0xCCFFFFFF)),
                   ),
                 ],
               ),
@@ -665,11 +660,7 @@ class _QrDetailCard extends StatelessWidget {
         child: SingleChildScrollView(
           child: Text(
             value,
-            style: TextStyle(
-              color: context.colors.textPrimary,
-              fontSize: 14,
-              height: 1.35,
-            ),
+            style: AppTextStyle.callout(context.colors.textPrimary),
           ),
         ),
       ),

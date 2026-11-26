@@ -245,12 +245,7 @@ class _QrLoginScannerViewState extends State<QrLoginScannerView>
                 Text(
                   AppStrings.t(AppStringKeys.privacyScanLoginQrSubtitle),
                   textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    color: Color(0xCCFFFFFF),
-                    fontSize: 14,
-                    height: 1.35,
-                    decoration: TextDecoration.none,
-                  ),
+                  style: AppTextStyle.callout(const Color(0xCCFFFFFF)),
                 ),
               ],
             ),
@@ -298,12 +293,7 @@ class _QrLoginScannerViewState extends State<QrLoginScannerView>
                 Text(
                   AppStrings.t(AppStringKeys.qrScannerCameraUnavailable),
                   textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    color: Color(0xFFFFFFFF),
-                    fontSize: 16,
-                    height: 1.35,
-                    decoration: TextDecoration.none,
-                  ),
+                  style: AppTextStyle.bodyLarge(const Color(0xFFFFFFFF)),
                 ),
                 const SizedBox(height: 20),
                 GestureDetector(

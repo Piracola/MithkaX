@@ -1099,10 +1099,8 @@ class _LoginViewState extends State<LoginView> {
           Expanded(
             child: Text(
               AppStrings.t(AppStringKeys.linkLogInToOpen),
-              style: TextStyle(
-                fontSize: 13,
-                height: 1.35,
-                color: c.textPrimary.withValues(alpha: 0.85),
+              style: AppTextStyle.footnote(
+                c.textPrimary.withValues(alpha: 0.85),
               ),
             ),
           ),
@@ -1209,11 +1207,7 @@ class _LoginViewState extends State<LoginView> {
                   const SizedBox(height: 3),
                   Text(
                     AppStrings.t(AppStringKeys.accountBackupLoginDescription),
-                    style: TextStyle(
-                      fontSize: 12,
-                      height: 1.3,
-                      color: c.textSecondary,
-                    ),
+                    style: AppTextStyle.caption(c.textSecondary),
                   ),
                 ],
               ),
@@ -1280,10 +1274,8 @@ class _LoginViewState extends State<LoginView> {
           Expanded(
             child: Text(
               message,
-              style: TextStyle(
-                fontSize: 13,
-                height: 1.35,
-                color: c.textPrimary.withValues(alpha: 0.85),
+              style: AppTextStyle.footnote(
+                c.textPrimary.withValues(alpha: 0.85),
               ),
             ),
           ),
@@ -1465,11 +1457,7 @@ class _LoginViewState extends State<LoginView> {
             Text(
               subtitle,
               textAlign: TextAlign.start,
-              style: TextStyle(
-                fontSize: AppTextSize.footnote,
-                height: 1.45,
-                color: c.textSecondary,
-              ),
+              style: AppTextStyle.footnote(c.textSecondary),
             ),
           ],
         ],
@@ -1599,7 +1587,7 @@ class _LoginViewState extends State<LoginView> {
         Text(
           AppStrings.t(AppStringKeys.loginCodeWillBeSentToNumber),
           textAlign: _align,
-          style: TextStyle(fontSize: 13, height: 1.45, color: c.textSecondary),
+          style: AppTextStyle.footnote(c.textSecondary),
         ),
       ],
     );
@@ -1640,7 +1628,7 @@ class _LoginViewState extends State<LoginView> {
           Text(
             AppStrings.t(AppStringKeys.loginBotAccountDescription),
             textAlign: _align,
-            style: TextStyle(fontSize: 14, height: 1.4, color: c.textSecondary),
+            style: AppTextStyle.callout(c.textSecondary),
           ),
           const SizedBox(height: 22),
         ],
@@ -1952,11 +1940,7 @@ class _LoginViewState extends State<LoginView> {
                 ? 'Purchase $days days of Telegram Premium to finish signing in.'
                 : 'Complete the required Telegram Premium purchase to finish signing in.',
             textAlign: _align,
-            style: TextStyle(
-              fontSize: 14,
-              height: 1.35,
-              color: c.textSecondary,
-            ),
+            style: AppTextStyle.callout(c.textSecondary),
           ),
           const SizedBox(height: 22),
         ],
@@ -2333,11 +2317,7 @@ class _LoginViewState extends State<LoginView> {
           Text(
             prompt,
             textAlign: _align,
-            style: TextStyle(
-              fontSize: 13,
-              height: 1.45,
-              color: c.textSecondary,
-            ),
+            style: AppTextStyle.footnote(c.textSecondary),
           ),
           const SizedBox(height: 18),
         ],
@@ -2501,11 +2481,7 @@ class _LoginViewState extends State<LoginView> {
             Text(
               hintText,
               textAlign: _align,
-              style: TextStyle(
-                fontSize: 13,
-                height: 1.45,
-                color: c.textSecondary,
-              ),
+              style: AppTextStyle.footnote(c.textSecondary),
             ),
           const SizedBox(height: 16),
         ],
@@ -2547,11 +2523,7 @@ class _LoginViewState extends State<LoginView> {
           Text(
             AppStrings.t(AppStringKeys.loginNewAccountNicknamePrompt),
             textAlign: _align,
-            style: TextStyle(
-              fontSize: 13,
-              height: 1.45,
-              color: c.textSecondary,
-            ),
+            style: AppTextStyle.footnote(c.textSecondary),
           ),
           const SizedBox(height: 16),
         ],

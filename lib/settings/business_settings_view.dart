@@ -180,11 +180,7 @@ class _BusinessSettingsViewState extends State<BusinessSettingsView> {
                               AppStringKeys
                                   .businessSettingsTelegramBusinessToolsRequireTelegramPremiumYourProfile,
                             ),
-                            style: TextStyle(
-                              fontSize: 13,
-                              height: 1.35,
-                              color: c.textSecondary,
-                            ),
+                            style: AppTextStyle.footnote(c.textSecondary),
                           ),
                         ),
                       ],

@@ -665,11 +665,7 @@ class _SessionImportSheetState extends State<_SessionImportSheet> {
                 const SizedBox(height: 8),
                 Text(
                   AppStrings.t(AppStringKeys.accountBackupLoadSessionMessage),
-                  style: TextStyle(
-                    fontSize: 13,
-                    height: 1.35,
-                    color: c.textSecondary,
-                  ),
+                  style: AppTextStyle.footnote(c.textSecondary),
                 ),
                 const SizedBox(height: 14),
                 Container(
@@ -715,11 +711,7 @@ class _SessionImportSheetState extends State<_SessionImportSheet> {
                         keyboardType: TextInputType.visiblePassword,
                         textInputAction: TextInputAction.done,
                         onSubmitted: (_) => _submit(),
-                        style: TextStyle(
-                          fontSize: 14,
-                          height: 1.3,
-                          color: c.textPrimary,
-                        ),
+                        style: AppTextStyle.callout(c.textPrimary),
                         cursorColor: AppTheme.brand,
                         backgroundCursorColor: c.textTertiary,
                         selectionColor: AppTheme.brand.withValues(alpha: 0.24),

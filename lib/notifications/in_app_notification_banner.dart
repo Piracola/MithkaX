@@ -159,11 +159,7 @@ class _InAppNotificationCardState extends State<_InAppNotificationCard> {
                       banner.body,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        color: c.textSecondary,
-                        fontSize: 13,
-                        height: 1.2,
-                      ),
+                      style: AppTextStyle.footnote(c.textSecondary),
                     ),
                   ],
                 ),

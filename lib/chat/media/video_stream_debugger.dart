@@ -626,13 +626,7 @@ class _NerdStatRow extends StatelessWidget {
           width: 126,
           child: Text(
             label,
-            style: TextStyle(
-              color: Colors.white.withValues(alpha: 0.5),
-              fontSize: 10,
-              fontWeight: FontWeight.w400,
-              letterSpacing: 0,
-              height: 1.3,
-            ),
+            style: AppTextStyle.tiny(Colors.white.withValues(alpha: 0.5)),
           ),
         ),
         const SizedBox(width: 8),
@@ -641,14 +635,9 @@ class _NerdStatRow extends StatelessWidget {
             value,
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 10,
-              fontWeight: FontWeight.w400,
-              letterSpacing: 0,
-              height: 1.3,
-              fontFeatures: [FontFeature.tabularFigures()],
-            ),
+            style: AppTextStyle.tiny(
+              Colors.white,
+            ).copyWith(fontFeatures: const [FontFeature.tabularFigures()]),
           ),
         ),
       ],

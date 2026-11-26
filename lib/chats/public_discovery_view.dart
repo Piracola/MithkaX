@@ -785,11 +785,7 @@ class _PublicDiscoveryViewState extends State<PublicDiscoveryView> {
                     text.isEmpty ? fallback : text.replaceAll('\n', ' '),
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 14,
-                      height: 1.3,
-                      color: c.textSecondary,
-                    ),
+                    style: AppTextStyle.callout(c.textSecondary),
                   ),
                 ],
               ),

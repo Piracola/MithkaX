@@ -4014,11 +4014,7 @@ class _ChatInputBarState extends State<ChatInputBar>
                             Expanded(
                               child: Text(
                                 _aiReplyProgressLabel(phase),
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  height: 1.35,
-                                  color: c.textSecondary,
-                                ),
+                                style: AppTextStyle.caption(c.textSecondary),
                               ),
                             ),
                           ],

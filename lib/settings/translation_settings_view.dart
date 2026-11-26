@@ -84,21 +84,13 @@ class _AiTranslationPromptEditorViewState
                   enableSuggestions: false,
                   keyboardType: TextInputType.multiline,
                   textCapitalization: TextCapitalization.sentences,
-                  style: TextStyle(
-                    color: c.textPrimary,
-                    fontSize: 14,
-                    height: 1.4,
-                  ),
+                  style: AppTextStyle.callout(c.textPrimary),
                   cursorColor: AppTheme.brand,
                   decoration: InputDecoration(
                     border: InputBorder.none,
                     isCollapsed: true,
                     hintText: defaultAiTranslationPrompt.trim(),
-                    hintStyle: TextStyle(
-                      color: c.textTertiary,
-                      fontSize: 14,
-                      height: 1.4,
-                    ),
+                    hintStyle: AppTextStyle.callout(c.textTertiary),
                   ),
                 ),
               ),

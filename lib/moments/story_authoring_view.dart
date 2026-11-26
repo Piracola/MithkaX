@@ -973,10 +973,8 @@ class _StoryAuthoringViewState extends State<StoryAuthoringView> {
                                   context,
                                 ),
                                 textAlign: TextAlign.center,
-                                style: const TextStyle(
-                                  color: Color(0xFFA1A1AA),
-                                  fontSize: 14,
-                                  height: 1.35,
+                                style: AppTextStyle.callout(
+                                  const Color(0xFFA1A1AA),
                                 ),
                               ),
                             ],

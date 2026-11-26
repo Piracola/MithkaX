@@ -38,7 +38,7 @@ const _offLadderBudget = 0;
 /// A role carries its size, weight and leading together. Every hand-written
 /// `height:` is a role the tree has not named yet, so this budget tracks the
 /// same migration as the one above.
-const _heightBudget = 173;
+const _heightBudget = 126;
 
 /// Sites that may still state their own font size.
 ///
@@ -48,7 +48,7 @@ const _heightBudget = 173;
 /// taking a role from `AppTextStyle.<role>()`, and therefore never picks up the
 /// role's leading. It is the number that reaches zero when the tree is on
 /// roles; the other two reach zero earlier.
-const _literalStyleBudget = 1020;
+const _literalStyleBudget = 977;
 
 void main() {
   late List<TextStyleSite> sites;

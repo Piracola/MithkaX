@@ -1465,10 +1465,7 @@ class _PrivacyRuleViewState extends State<PrivacyRuleView> {
     final c = context.colors;
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-      child: Text(
-        text,
-        style: TextStyle(fontSize: 13, height: 1.35, color: c.textTertiary),
-      ),
+      child: Text(text, style: AppTextStyle.footnote(c.textTertiary)),
     );
   }
 

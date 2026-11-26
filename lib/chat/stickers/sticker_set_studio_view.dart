@@ -706,11 +706,7 @@ class _StickerSetCreateViewState extends State<StickerSetCreateView> {
                 const SizedBox(height: 10),
                 Text(
                   AppStringKeys.stickerStudioSourceSpecNote.l10n(context),
-                  style: TextStyle(
-                    fontSize: 12,
-                    height: 1.35,
-                    color: colors.textSecondary,
-                  ),
+                  style: AppTextStyle.caption(colors.textSecondary),
                 ),
               ],
             ),
@@ -2163,11 +2159,7 @@ class _StickerDraftEditorViewState extends State<StickerDraftEditorView> {
                       : AppStringKeys.stickerStudioSourceGenericNote.l10n(
                           context,
                         ),
-                  style: TextStyle(
-                    fontSize: 12,
-                    height: 1.35,
-                    color: colors.textSecondary,
-                  ),
+                  style: AppTextStyle.caption(colors.textSecondary),
                 ),
               ],
             ),

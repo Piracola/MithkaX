@@ -221,7 +221,7 @@ class _AnnouncementSection extends StatelessWidget {
               overflow: TextOverflow.ellipsis,
               style: AppTextStyle.caption(
                 empty ? c.textTertiary : c.textSecondary,
-              ).copyWith(height: 1.35),
+              ),
             ),
           ],
         ),

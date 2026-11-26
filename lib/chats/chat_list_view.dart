@@ -354,12 +354,7 @@ class _FolderNameHintState extends State<_FolderNameHint> {
               ),
               child: Text(
                 widget.message,
-                style: TextStyle(
-                  color: c.textPrimary,
-                  fontSize: 12,
-                  height: 1.2,
-                  decoration: TextDecoration.none,
-                ),
+                style: AppTextStyle.caption(c.textPrimary),
               ),
             ),
           ),
@@ -5003,11 +4998,7 @@ class _ChatListViewState extends State<ChatListView>
             Text(
               AppStringKeys.chatListNoChats.l10n(context),
               textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 15,
-                height: 1.35,
-                color: c.textTertiary,
-              ),
+              style: AppTextStyle.body(c.textTertiary),
             ),
           ],
         ),

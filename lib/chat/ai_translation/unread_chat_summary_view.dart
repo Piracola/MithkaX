@@ -554,7 +554,7 @@ class _UnreadChatSummaryViewState extends State<UnreadChatSummaryView> {
           const SizedBox(height: 10),
           Text(
             '• ${AppStringKeys.aiSummaryTopicTime.l10n(context)} · $timeRange',
-            style: TextStyle(color: c.textSecondary, fontSize: 14, height: 1.4),
+            style: AppTextStyle.callout(c.textSecondary),
           ),
         ],
         const SizedBox(height: 10),

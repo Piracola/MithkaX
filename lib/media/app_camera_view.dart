@@ -453,11 +453,7 @@ class _AppCameraViewState extends State<AppCameraView>
                 textAlign: TextAlign.center,
                 maxLines: 3,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  color: Color(0xFFA1A1AA),
-                  fontSize: 14,
-                  height: 1.35,
-                ),
+                style: AppTextStyle.callout(const Color(0xFFA1A1AA)),
               ),
             ],
             const SizedBox(height: 22),

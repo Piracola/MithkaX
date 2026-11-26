@@ -2946,11 +2946,7 @@ class _SearchResultRow extends StatelessWidget {
                     message.text,
                     maxLines: 3,
                     overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 15,
-                      height: 1.35,
-                      color: c.textPrimary,
-                    ),
+                    style: AppTextStyle.body(c.textPrimary),
                   ),
                 if (message.image != null) ...[
                   const SizedBox(height: 8),

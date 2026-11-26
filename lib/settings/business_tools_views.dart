@@ -2248,11 +2248,7 @@ Widget _emptyState(
           Text(
             detail,
             textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 14,
-              height: 1.35,
-              color: c.textSecondary,
-            ),
+            style: AppTextStyle.callout(c.textSecondary),
           ),
           if (onTap != null && action.isNotEmpty) ...[
             const SizedBox(height: 18),

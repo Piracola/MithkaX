@@ -1336,11 +1336,7 @@ class _StoryManagementViewState extends State<StoryManagementView> {
                     : AppStringKeys.storyManagementEmptyArchiveDescription)
                 .l10n(context),
             textAlign: TextAlign.center,
-            style: TextStyle(
-              color: context.colors.textSecondary,
-              fontSize: 13,
-              height: 1.35,
-            ),
+            style: AppTextStyle.footnote(context.colors.textSecondary),
           ),
           if (active && _canPublish) ...[
             const SizedBox(height: 16),
@@ -1605,11 +1601,7 @@ class _StoryManagementViewState extends State<StoryManagementView> {
                     AppStringKeys.storyManagementNoAlbums.l10n(context),
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: context.colors.textSecondary,
-                      fontSize: 12,
-                      height: 1.25,
-                    ),
+                    style: AppTextStyle.caption(context.colors.textSecondary),
                   ),
                 ],
               ),
@@ -1754,10 +1746,8 @@ class _LiveStorySetupViewState extends State<LiveStorySetupView> {
                           AppStringKeys
                               .storyManagementLiveStoriesUseRTMPInThisBuildStart,
                         ),
-                        style: TextStyle(
-                          color: context.colors.textSecondary,
-                          fontSize: 13,
-                          height: 1.35,
+                        style: AppTextStyle.footnote(
+                          context.colors.textSecondary,
                         ),
                       ),
                     ),

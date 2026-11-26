@@ -454,10 +454,8 @@ class _CallScreenState extends State<CallScreen> {
               child: Text(
                 AppStrings.t(AppStringKeys.callsUnavailableOnDesktop),
                 textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 13,
-                  height: 1.35,
-                  color: Colors.white.withValues(alpha: 0.72),
+                style: AppTextStyle.footnote(
+                  Colors.white.withValues(alpha: 0.72),
                 ),
               ),
             ),

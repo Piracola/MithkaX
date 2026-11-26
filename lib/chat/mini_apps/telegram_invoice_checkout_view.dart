@@ -375,9 +375,7 @@ class _TelegramInvoiceCheckoutViewState
                           .telegramInvoiceCheckoutPaymentDetailsAreSentDirectlyToTheSelected,
                     ),
                     textAlign: TextAlign.center,
-                    style: AppTextStyle.caption(
-                      c.textTertiary,
-                    ).copyWith(height: 1.35),
+                    style: AppTextStyle.caption(c.textTertiary),
                   ),
                 ],
               ),
@@ -1732,10 +1730,7 @@ class _StatusCard extends StatelessWidget {
           ),
           const SizedBox(width: 10),
           Expanded(
-            child: Text(
-              message,
-              style: AppTextStyle.caption(c.textPrimary).copyWith(height: 1.35),
-            ),
+            child: Text(message, style: AppTextStyle.caption(c.textPrimary)),
           ),
         ],
       ),

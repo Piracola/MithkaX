@@ -340,12 +340,7 @@ class _LongMessageRichTextPrompt extends StatelessWidget {
               const SizedBox(height: 10),
               Text(
                 AppStringKeys.composerLongMessageRichTextPrompt.l10n(context),
-                style: TextStyle(
-                  fontSize: 14,
-                  height: 1.4,
-                  color: c.textSecondary,
-                  decoration: TextDecoration.none,
-                ),
+                style: AppTextStyle.callout(c.textSecondary),
               ),
               const SizedBox(height: 20),
               Row(

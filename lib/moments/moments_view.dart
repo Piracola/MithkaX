@@ -4382,7 +4382,7 @@ class _ChannelPostComposerViewState extends State<ChannelPostComposerView> {
                 items: editableTextState.contextMenuButtonItems,
               );
             },
-            style: AppTextStyle.bodyLarge(c.textPrimary).copyWith(height: 1.4),
+            style: AppTextStyle.bodyLarge(c.textPrimary),
             decoration: InputDecoration(
               border: InputBorder.none,
               hintText: AppStringKeys.momentsShareSomethingPlaceholder.l10n(
@@ -4892,11 +4892,7 @@ class ChannelPostRow extends StatelessWidget {
                     text: display.text,
                     entities: display.entities,
                     quoteBackgroundColor: _momentQuoteFill(c),
-                    style: TextStyle(
-                      fontSize: 15,
-                      height: 1.35,
-                      color: c.textPrimary,
-                    ),
+                    style: AppTextStyle.body(c.textPrimary),
                     onMentionTap: (userId, name) {
                       unawaited(
                         openAdaptiveUserProfile(
@@ -5266,11 +5262,7 @@ class _PostReplyQuote extends StatelessWidget {
                 maxLines: 4,
                 overflow: TextOverflow.ellipsis,
                 text: TextSpan(
-                  style: TextStyle(
-                    fontSize: 15,
-                    height: 1.35,
-                    color: c.textPrimary,
-                  ),
+                  style: AppTextStyle.body(c.textPrimary),
                   children: [
                     if (sender != null && sender.isNotEmpty)
                       TextSpan(
@@ -6812,11 +6804,7 @@ class _StoriesViewState extends State<StoriesView> {
           Text(
             AppStringKeys.storiesEmptyDescription.l10n(context),
             textAlign: TextAlign.center,
-            style: TextStyle(
-              color: c.textSecondary,
-              fontSize: 13,
-              height: 1.35,
-            ),
+            style: AppTextStyle.footnote(c.textSecondary),
           ),
           if (_canPublish) ...[
             const SizedBox(height: 18),

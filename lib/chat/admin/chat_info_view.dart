@@ -327,11 +327,7 @@ class GroupAnnouncementView extends StatelessWidget {
                       : TelegramRichText(
                           text: announcement,
                           entities: entities,
-                          style: TextStyle(
-                            fontSize: 15,
-                            height: 1.45,
-                            color: c.textPrimary,
-                          ),
+                          style: AppTextStyle.body(c.textPrimary),
                         ),
                 ),
               ],
