@@ -3,8 +3,8 @@
 //
 //  The long-press pinned browser is the reference client's MODE_PINNED
 //  transcript: bubbles, a "N Pinned Messages" title, a bottom bar that unpins
-//  everything (or hides the bar), and a tap that closes the page with the
-//  message to jump to.
+//  everything (or hides the bar), a tap that closes the page with the message
+//  to jump to, and the long-press message menu.
 //
 
 import 'dart:async';
@@ -17,6 +17,7 @@ import 'package:mithka/chat/pinned_messages_view.dart';
 import 'package:mithka/components/ui_components.dart';
 import 'package:mithka/l10n/app_localizations.dart';
 import 'package:mithka/tdlib/td_client.dart';
+import 'package:mithka/tdlib/td_models.dart';
 import 'package:mithka/theme/theme_controller.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -25,6 +26,23 @@ import '../support/l10n_fixtures.dart';
 
 const _chatId = -1005001;
 const _senderId = 7001;
+const _supergroupId = 5001;
+
+/// How this account sits in the chat under test.
+enum _Seat {
+  /// A plain member of a supergroup whose default permissions allow pinning.
+  memberCanPin,
+
+  /// An administrator: `chat.permissions` says nothing about admins, only
+  /// `rights.can_pin_messages` does.
+  adminCanPin,
+
+  /// A plain member of a group where members may not pin.
+  memberCannotPin,
+
+  /// A private chat, whose answer is `userFullInfo.can_pin_message`.
+  privateCanPin,
+}
 
 Map<String, dynamic> _message(int id, String text) => {
   '@type': 'message',
@@ -39,22 +57,44 @@ Map<String, dynamic> _message(int id, String text) => {
   },
 };
 
-Map<String, dynamic> _chat({bool canPin = true}) => {
-  '@type': 'chat',
-  'id': _chatId,
-  'type': {
-    '@type': 'chatTypeSupergroup',
-    'supergroup_id': 5001,
-    'is_channel': false,
-  },
-  'title': 'Team',
-  'permissions': {'@type': 'chatPermissions', 'can_pin_messages': canPin},
+Map<String, dynamic> _chat(_Seat seat) {
+  final permissions = switch (seat) {
+    _Seat.memberCanPin || _Seat.privateCanPin => true,
+    _Seat.adminCanPin || _Seat.memberCannotPin => false,
+  };
+  return {
+    '@type': 'chat',
+    'id': _chatId,
+    'type': seat == _Seat.privateCanPin
+        ? {'@type': 'chatTypePrivate', 'user_id': _senderId}
+        : {
+            '@type': 'chatTypeSupergroup',
+            'supergroup_id': _supergroupId,
+            'is_channel': false,
+          },
+    'title': 'Team',
+    'permissions': {
+      '@type': 'chatPermissions',
+      'can_pin_messages': permissions,
+    },
+  };
+}
+
+Map<String, dynamic> _supergroup(_Seat seat) => {
+  '@type': 'supergroup',
+  'id': _supergroupId,
+  'status': seat == _Seat.adminCanPin
+      ? {
+          '@type': 'chatMemberStatusAdministrator',
+          'rights': {'can_pin_messages': true},
+        }
+      : {'@type': 'chatMemberStatusMember'},
 };
 
 void main() {
   late StreamController<Map<String, dynamic>> updates;
   final queries = <Map<String, dynamic>>[];
-  var canPinValue = true;
+  var seat = _Seat.memberCanPin;
   var configured = false;
 
   setUpAll(() {
@@ -67,9 +107,9 @@ void main() {
     await updates.close();
   });
 
-  void installTransport({bool canPin = true}) {
+  void installTransport(_Seat value) {
     queries.clear();
-    canPinValue = canPin;
+    seat = value;
     if (configured) return;
     configured = true;
     TdClient.shared.configureProxy(
@@ -88,7 +128,11 @@ void main() {
                 ],
               };
             case 'getChat':
-              return _chat(canPin: canPinValue);
+              return _chat(seat);
+            case 'getSupergroup':
+              return _supergroup(seat);
+            case 'getUserFullInfo':
+              return {'@type': 'userFullInfo', 'can_pin_message': true};
             case 'getMe':
               return {'@type': 'user', 'id': 1, 'first_name': 'Me'};
             case 'getUser':
@@ -110,9 +154,11 @@ void main() {
 
   Future<Object? Function()> pumpPage(
     WidgetTester tester, {
-    bool canPin = true,
+    _Seat as = _Seat.memberCanPin,
+    ValueChanged<ChatMessage>? onReply,
+    ValueChanged<ChatMessage>? onForward,
   }) async {
-    installTransport(canPin: canPin);
+    installTransport(as);
     SharedPreferences.setMockInitialValues(const {});
     final prefs = await SharedPreferences.getInstance();
     final theme = ThemeController(prefs);
@@ -137,9 +183,11 @@ void main() {
                   onTap: () async {
                     result = await Navigator.of(context).push<Object>(
                       MaterialPageRoute<Object>(
-                        builder: (_) => const PinnedMessagesView(
+                        builder: (_) => PinnedMessagesView(
                           chatId: _chatId,
                           title: 'Team',
+                          onReply: onReply,
+                          onForward: onForward,
                         ),
                       ),
                     );
@@ -177,10 +225,26 @@ void main() {
     expect(result(), 12, reason: 'the chat scrolls to the tapped message');
   });
 
+  testWidgets('an administrator may unpin even though members may not', (
+    tester,
+  ) async {
+    await pumpPage(tester, as: _Seat.adminCanPin);
+    expect(
+      find.text('Unpin all Messages'),
+      findsOneWidget,
+      reason: 'chat.permissions is the member default, not the admin right',
+    );
+  });
+
+  testWidgets('a private chat follows can_pin_message', (tester) async {
+    await pumpPage(tester, as: _Seat.privateCanPin);
+    expect(find.text('Unpin all Messages'), findsOneWidget);
+  });
+
   testWidgets('an account that may not pin gets the hide action', (
     tester,
   ) async {
-    final result = await pumpPage(tester, canPin: false);
+    final result = await pumpPage(tester, as: _Seat.memberCannotPin);
     expect(find.text('Hide pinned Messages'), findsOneWidget);
     expect(find.text('Unpin all Messages'), findsNothing);
     await tester.tap(find.byKey(const ValueKey('pinnedMessagesBottomAction')));
@@ -199,5 +263,44 @@ void main() {
       isTrue,
       reason: 'the bottom bar must unpin every message, not just hide the bar',
     );
+  });
+
+  testWidgets('a long press opens the message menu', (tester) async {
+    ChatMessage? replied;
+    await pumpPage(
+      tester,
+      onReply: (message) => replied = message,
+      onForward: (_) {},
+    );
+    await tester.longPress(find.byKey(const ValueKey('pinnedMessage-12')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Copy'), findsOneWidget);
+    expect(find.text('Reply'), findsOneWidget);
+    expect(find.text('Forward'), findsOneWidget);
+    expect(find.text('Unpin'), findsOneWidget);
+    expect(find.text('Delete'), findsOneWidget);
+
+    await tester.tap(find.text('Reply'));
+    await tester.pumpAndSettle();
+    expect(find.byType(PinnedMessagesView), findsNothing);
+    expect(replied?.id, 12, reason: 'the chat arms its composer for the row');
+  });
+
+  testWidgets('unpinning one row drops it from the list', (tester) async {
+    await pumpPage(tester);
+    await tester.longPress(find.byKey(const ValueKey('pinnedMessage-12')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Unpin'));
+    await tester.pumpAndSettle();
+
+    expect(
+      queries.any(
+        (q) => q['@type'] == 'unpinChatMessage' && q['message_id'] == 12,
+      ),
+      isTrue,
+    );
+    expect(find.byKey(const ValueKey('pinnedMessage-12')), findsNothing);
+    expect(find.text('1 Pinned Message'), findsOneWidget);
   });
 }

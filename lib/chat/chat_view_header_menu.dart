@@ -361,8 +361,12 @@ extension _ChatViewHeaderMenu on _ChatViewState {
     // bottom bar's "Hide pinned messages" was used.
     final result = await Navigator.of(context).push<Object>(
       AppPageRoute<Object>(
-        pageBuilder: (_, _, _) =>
-            PinnedMessagesView(chatId: _vm.chatId, title: _chatDisplayTitle),
+        pageBuilder: (_, _, _) => PinnedMessagesView(
+          chatId: _vm.chatId,
+          title: _chatDisplayTitle,
+          onReply: _beginSwipeReply,
+          onForward: (message) => unawaited(_forwardMessage(message)),
+        ),
       ),
     );
     if (!mounted || result == null) return;

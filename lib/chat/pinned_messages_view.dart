@@ -10,12 +10,16 @@
 
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:mithka/l10n/app_localizations.dart';
 import 'package:provider/provider.dart';
 import '../app/ipad_window_chrome.dart';
+import '../components/app_anchored_menu.dart';
 import '../components/app_icons.dart';
+import '../components/confirm_dialog.dart';
 import '../components/toast.dart';
 import '../components/ui_components.dart';
+import '../platform/app_haptics.dart';
 import '../tdlib/json_helpers.dart';
 import '../tdlib/td_client.dart';
 import '../tdlib/td_models.dart';
@@ -25,6 +29,32 @@ import 'messages/message_bubble.dart';
 
 /// What the pinned list asks the chat to do when it closes without a target.
 enum PinnedMessagesExit { hide }
+
+/// Whether this account may pin/unpin in [chat], given its own member
+/// [status] from `getSupergroup`/`getBasicGroup`.
+///
+/// `chat.permissions` is the *non-administrator* default, so it says nothing
+/// about an admin or the creator — reading it alone showed "Hide pinned
+/// messages" in every chat where the user is the one allowed to unpin.
+@visibleForTesting
+bool pinnedMessagesCanPin({
+  required Map<String, dynamic>? status,
+  required Map<String, dynamic> chat,
+}) {
+  final permissions = chat.obj('permissions');
+  switch (status?.type) {
+    case 'chatMemberStatusCreator':
+      return true;
+    case 'chatMemberStatusAdministrator':
+      return status?.obj('rights')?.boolean('can_pin_messages') ?? false;
+    case 'chatMemberStatusRestricted':
+      return (status?.obj('permissions')?.boolean('can_pin_messages') ??
+              false) ||
+          (permissions?.boolean('can_pin_messages') ?? false);
+    default:
+      return permissions?.boolean('can_pin_messages') ?? false;
+  }
+}
 
 /// One row of the pinned transcript: a date chip or a message.
 sealed class _PinnedEntry {
@@ -46,10 +76,17 @@ class PinnedMessagesView extends StatefulWidget {
     super.key,
     required this.chatId,
     required this.title,
+    this.onReply,
+    this.onForward,
   });
 
   final int chatId;
   final String title;
+
+  /// Runs in the open chat: the page closes first, then the chat arms its
+  /// composer for this message (reply) or opens its forward picker.
+  final ValueChanged<ChatMessage>? onReply;
+  final ValueChanged<ChatMessage>? onForward;
 
   @override
   State<PinnedMessagesView> createState() => _PinnedMessagesViewState();
@@ -105,6 +142,7 @@ class _PinnedMessagesViewState extends State<PinnedMessagesView> {
       for (final message in parsed) {
         await _resolveSender(message);
       }
+      final canPin = await _resolveCanPin(chat);
       var meName = AppStrings.t(AppStringKeys.chatMeLabel);
       TdFileRef? mePhoto;
       int? meId;
@@ -119,7 +157,7 @@ class _PinnedMessagesViewState extends State<PinnedMessagesView> {
         _items = parsed;
         _chatPhoto = TDParse.smallPhoto(chat.obj('photo'));
         _isGroup = kind != ChatKind.privateChat && kind != ChatKind.bot;
-        _canPin = chat.obj('permissions')?.boolean('can_pin_messages') ?? false;
+        _canPin = canPin;
         _meName = meName;
         _mePhoto = mePhoto;
         _meId = meId;
@@ -159,6 +197,45 @@ class _PinnedMessagesViewState extends State<PinnedMessagesView> {
     message.senderPhoto = _photos[id];
   }
 
+  /// Resolves this account's own right to pin in [chat].
+  ///
+  /// Private chats answer with `userFullInfo.can_pin_message`; groups and
+  /// channels with the member status that `getSupergroup`/`getBasicGroup`
+  /// carries, falling back to the chat's default permissions for a plain
+  /// member.
+  Future<bool> _resolveCanPin(Map<String, dynamic> chat) async {
+    final type = chat.obj('type');
+    try {
+      switch (type?.type) {
+        case 'chatTypePrivate':
+          final userId = type?.int64('user_id');
+          if (userId == null) return true;
+          final full = await _client.queryForSlot({
+            '@type': 'getUserFullInfo',
+            'user_id': userId,
+          }, _accountSlot);
+          return full.boolean('can_pin_message') ?? true;
+        case 'chatTypeBasicGroup':
+          final groupId = type?.int64('basic_group_id');
+          if (groupId == null) return false;
+          final group = await _client.queryForSlot({
+            '@type': 'getBasicGroup',
+            'basic_group_id': groupId,
+          }, _accountSlot);
+          return pinnedMessagesCanPin(status: group.obj('status'), chat: chat);
+        case 'chatTypeSupergroup':
+          final supergroupId = type?.int64('supergroup_id');
+          if (supergroupId == null) return false;
+          final group = await _client.queryForSlot({
+            '@type': 'getSupergroup',
+            'supergroup_id': supergroupId,
+          }, _accountSlot);
+          return pinnedMessagesCanPin(status: group.obj('status'), chat: chat);
+      }
+    } catch (_) {}
+    return pinnedMessagesCanPin(status: null, chat: chat);
+  }
+
   Future<void> _unpinAll() async {
     if (_unpinning) return;
     setState(() => _unpinning = true);
@@ -184,6 +261,111 @@ class _PinnedMessagesViewState extends State<PinnedMessagesView> {
   void _jumpTo(ChatMessage message) => Navigator.of(context).pop(message.id);
 
   void _hideBar() => Navigator.of(context).pop(PinnedMessagesExit.hide);
+
+  /// Closes the list and lets the chat perform the action that needs its
+  /// composer or picker.
+  void _delegate(ValueChanged<ChatMessage>? callback, ChatMessage message) {
+    if (callback == null) return;
+    Navigator.of(context).pop();
+    callback(message);
+  }
+
+  /// The long-press menu. It is the app's anchored column, like the chat
+  /// header's, carrying the actions this page can honour: copy, reply,
+  /// forward, unpin and delete.
+  Future<void> _showMessageMenu(ChatMessage message, Offset position) async {
+    final text = message.text.trim();
+    await showAppAnchoredMenu(
+      context: context,
+      anchor: Rect.fromLTWH(position.dx, position.dy, 0, 0),
+      actions: [
+        if (text.isNotEmpty)
+          AppMenuAction(
+            key: 'copy',
+            label: AppStrings.t(AppStringKeys.messageActionCopy),
+            icon: HeroAppIcons.file,
+            onSelected: () =>
+                unawaited(Clipboard.setData(ClipboardData(text: text))),
+          ),
+        if (widget.onReply != null)
+          AppMenuAction(
+            key: 'reply',
+            label: AppStrings.t(AppStringKeys.chatInputBarReply),
+            icon: HeroAppIcons.quoteLeft,
+            onSelected: () => _delegate(widget.onReply, message),
+          ),
+        if (widget.onForward != null)
+          AppMenuAction(
+            key: 'forward',
+            label: AppStrings.t(AppStringKeys.messageActionForward),
+            icon: HeroAppIcons.forward,
+            onSelected: () => _delegate(widget.onForward, message),
+          ),
+        if (_canPin)
+          AppMenuAction(
+            key: 'unpin',
+            label: AppStrings.t(AppStringKeys.chatListUnpin),
+            icon: HeroAppIcons.thumbtack,
+            sectionStart: true,
+            onSelected: () => unawaited(_unpinOne(message)),
+          ),
+        AppMenuAction(
+          key: 'delete',
+          label: AppStrings.t(AppStringKeys.chatDelete),
+          icon: HeroAppIcons.trash,
+          destructive: true,
+          onSelected: () => unawaited(_deleteOne(message)),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _unpinOne(ChatMessage message) async {
+    try {
+      await _client.queryForSlot({
+        '@type': 'unpinChatMessage',
+        'chat_id': widget.chatId,
+        'message_id': message.id,
+      }, _accountSlot);
+      if (!mounted) return;
+      setState(() => _items.removeWhere((item) => item.id == message.id));
+    } catch (error) {
+      if (!mounted) return;
+      showToast(
+        context,
+        AppStrings.t(AppStringKeys.chatInfoPinFailedWithReason, {
+          'value1': error,
+        }),
+      );
+    }
+  }
+
+  Future<void> _deleteOne(ChatMessage message) async {
+    final confirmed = await confirmDialog(
+      context,
+      title: AppStringKeys.chatDeleteSingleMessageQuestion,
+      confirmText: AppStringKeys.chatDelete,
+      destructive: true,
+    );
+    if (!confirmed || !mounted) return;
+    try {
+      await _client.queryForSlot({
+        '@type': 'deleteMessages',
+        'chat_id': widget.chatId,
+        'message_ids': [message.id],
+        // Own messages go for everyone; anyone else's can only go for me.
+        'revoke': message.isOutgoing,
+      }, _accountSlot);
+      if (!mounted) return;
+      setState(() => _items.removeWhere((item) => item.id == message.id));
+    } catch (error) {
+      if (!mounted) return;
+      showToast(
+        context,
+        AppStrings.t(AppStringKeys.chatDeleteActionsFailed, {'value1': error}),
+      );
+    }
+  }
 
   /// Oldest first, one date chip above the first message of each day; the list
   /// is painted reversed so the newest message sits at the bottom — the
@@ -322,6 +504,10 @@ class _PinnedMessagesViewState extends State<PinnedMessagesView> {
       key: ValueKey('pinnedMessage-${message.id}'),
       behavior: HitTestBehavior.opaque,
       onTap: () => _jumpTo(message),
+      onLongPressStart: (details) {
+        unawaited(AppHaptics.longPress());
+        unawaited(_showMessageMenu(message, details.globalPosition));
+      },
       child: AbsorbPointer(
         child: Padding(
           padding: const EdgeInsets.symmetric(vertical: 3),
