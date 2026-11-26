@@ -4842,7 +4842,8 @@ class ChatViewModel extends ChangeNotifier {
       isDeleted: TDParse.isDeletedUser(user),
       accentColorId: user.integer('accent_color_id') ?? -1,
       emojiStatusId: TDParse.emojiStatusCustomEmojiId(user.obj('emoji_status')),
-      presence: TDParse.avatarPresence(user.obj('status')),
+      presence: TDParse.userAvatarPresence(user),
+      isBot: TDParse.isBotUser(user),
     );
   }
 

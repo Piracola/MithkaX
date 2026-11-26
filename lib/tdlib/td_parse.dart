@@ -3419,6 +3419,17 @@ abstract final class TDParse {
   ///
   /// Mirrors exteraless `AndroidUtil.getOnlineColor`: online now, then a
   /// yellow / orange / red dot for a last-seen within 15 / 30 / 60 minutes.
+  /// The avatar-dot presence of a TDLib user. Bots never carry one — the
+  /// reference client returns no colour for `user.bot` before it even reads the
+  /// status, so a bot cannot show up as "online" next to the chat list badge.
+  static AvatarPresence userAvatarPresence(
+    Map<String, dynamic>? user, {
+    int? now,
+  }) {
+    if (user == null || isBotUser(user)) return AvatarPresence.none;
+    return avatarPresence(user.obj('status'), now: now);
+  }
+
   static AvatarPresence avatarPresence(
     Map<String, dynamic>? status, {
     int? now,

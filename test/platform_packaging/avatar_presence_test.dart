@@ -27,6 +27,23 @@ void main() {
     );
   });
 
+  test('a bot never carries a presence dot', () {
+    final bot = {
+      '@type': 'user',
+      'id': 42,
+      'type': {'@type': 'userTypeBot'},
+      'status': {'@type': 'userStatusOnline'},
+    };
+    expect(TDParse.userAvatarPresence(bot, now: now), AvatarPresence.none);
+    final human = {
+      '@type': 'user',
+      'id': 43,
+      'type': {'@type': 'userTypeRegular'},
+      'status': {'@type': 'userStatusOnline'},
+    };
+    expect(TDParse.userAvatarPresence(human, now: now), AvatarPresence.online);
+  });
+
   test('the last-seen bands map to the reference colours', () {
     expect(
       TDParse.avatarPresence(offline(5 * 60), now: now),

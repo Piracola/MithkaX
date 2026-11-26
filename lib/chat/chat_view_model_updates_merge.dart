@@ -558,7 +558,7 @@ extension ChatViewModelUpdates on ChatViewModel {
           // A group bubble's avatar carries its sender's presence; refresh
           // the cached identity in place instead of waiting for updateUser.
           final cached = _senderCache[statusUserId];
-          if (cached == null) return;
+          if (cached == null || cached.isBot) return;
           final presence = TDParse.avatarPresence(status);
           if (cached.presence == presence) return;
           final info = cached.withPresence(presence);
@@ -568,7 +568,9 @@ extension ChatViewModelUpdates on ChatViewModel {
         }
         if (statusUserId != peerUserId) return;
         peerOnline = status.type == 'userStatusOnline';
-        peerPresence = TDParse.avatarPresence(status);
+        peerPresence = peerIsBot
+            ? AvatarPresence.none
+            : TDParse.avatarPresence(status);
         peerStatusText = TDParse.userStatus({'status': status});
         _notifyComposerNeutral();
 

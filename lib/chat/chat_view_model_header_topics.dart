@@ -150,7 +150,7 @@ extension ChatViewModelHeaderTopics on ChatViewModel {
             }
             _applyPeerBotCapabilities(user, notify: false);
             peerOnline = TDParse.isUserOnline(user);
-            peerPresence = TDParse.avatarPresence(user.obj('status'));
+            peerPresence = TDParse.userAvatarPresence(user);
             peerStatusText = TDParse.userStatus(user);
             firstContactInfo = firstContactInfo?.withUser(user);
           } catch (error) {

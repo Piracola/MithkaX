@@ -2530,7 +2530,13 @@ class ChatListViewModel extends ChangeNotifier {
         var changed = false;
         for (final chatId in _chatsByPeerUser[userId] ?? const <int>[]) {
           final chat = _map[chatId] ?? _communityDirectoryChats[chatId];
-          if (chat == null || chat.peerPresence == presence) continue;
+          // A bot's status update never lights the dot, even before its
+          // `updateUser` has told the summary it is a bot.
+          if (chat == null ||
+              chat.kind == ChatKind.bot ||
+              chat.peerPresence == presence) {
+            continue;
+          }
           chat.peerPresence = presence;
           changed = true;
         }
@@ -3310,7 +3316,7 @@ class ChatListViewModel extends ChangeNotifier {
     final phoneNumber = user.str('phone_number');
     final accent = user.integer('accent_color_id') ?? -1;
     final status = TDParse.emojiStatusCustomEmojiId(user.obj('emoji_status'));
-    final presence = TDParse.avatarPresence(user.obj('status'));
+    final presence = TDParse.userAvatarPresence(user);
     for (final chatId in _chatsByPeerUser[userId] ?? const <int>[]) {
       final chat = _map[chatId] ?? _communityDirectoryChats[chatId];
       if (chat == null) continue;
