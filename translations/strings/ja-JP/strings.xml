@@ -4195,4 +4195,9 @@
     <string name="mithkaxTopicTabsMoveToBottom">タブバーを下へ移動</string>
     <string name="mithkaxTopicTabsMoveToSide">タブバーを横へ移動</string>
     <string name="mithkaxTopicTabsMoveToTop">タブバーを上へ移動</string>
+    <string name="mithkaxStickerSizeTitle">スタンプとGIFのサイズ</string>
+    <string name="mithkaxStickerSizeNote">チャット内のスタンプとGIFは同じサイズ設定を使います。スライダーで調整できます。</string>
+    <string name="mithkaxStickerSizeSmall">小</string>
+    <string name="mithkaxStickerSizeLarge">大</string>
+    <string name="mithkaxStickerSizeReset">リセット</string>
 </resources>

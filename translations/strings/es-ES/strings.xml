@@ -4213,4 +4213,9 @@
     <string name="mithkaxTopicTabsMoveToBottom">Mover la barra de pestañas abajo</string>
     <string name="mithkaxTopicTabsMoveToSide">Mover la barra de pestañas al lateral</string>
     <string name="mithkaxTopicTabsMoveToTop">Mover la barra de pestañas arriba</string>
+    <string name="mithkaxStickerSizeTitle">Tamaño de stickers y GIF</string>
+    <string name="mithkaxStickerSizeNote">Un solo tamaño para los stickers y GIF de los chats. Ajusta con el control deslizante.</string>
+    <string name="mithkaxStickerSizeSmall">Pequeño</string>
+    <string name="mithkaxStickerSizeLarge">Grande</string>
+    <string name="mithkaxStickerSizeReset">Restablecer</string>
 </resources>

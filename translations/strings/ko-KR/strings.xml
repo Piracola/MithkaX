@@ -4195,4 +4195,9 @@
     <string name="mithkaxTopicTabsMoveToBottom">탭 표시줄을 아래로 이동</string>
     <string name="mithkaxTopicTabsMoveToSide">탭 표시줄을 측면으로 이동</string>
     <string name="mithkaxTopicTabsMoveToTop">탭 표시줄을 위로 이동</string>
+    <string name="mithkaxStickerSizeTitle">스티커 및 GIF 크기</string>
+    <string name="mithkaxStickerSizeNote">채팅의 스티커와 GIF가 같은 크기 설정을 사용합니다. 슬라이더로 조절하세요.</string>
+    <string name="mithkaxStickerSizeSmall">작게</string>
+    <string name="mithkaxStickerSizeLarge">크게</string>
+    <string name="mithkaxStickerSizeReset">초기화</string>
 </resources>

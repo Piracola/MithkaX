@@ -4213,4 +4213,9 @@
     <string name="mithkaxTopicTabsMoveToBottom">Tableiste nach unten</string>
     <string name="mithkaxTopicTabsMoveToSide">Tableiste zur Seite</string>
     <string name="mithkaxTopicTabsMoveToTop">Tableiste nach oben</string>
+    <string name="mithkaxStickerSizeTitle">Sticker- und GIF-Größe</string>
+    <string name="mithkaxStickerSizeNote">Eine Größe für Sticker und GIFs in Chats. Mit dem Regler anpassen.</string>
+    <string name="mithkaxStickerSizeSmall">Klein</string>
+    <string name="mithkaxStickerSizeLarge">Groß</string>
+    <string name="mithkaxStickerSizeReset">Zurücksetzen</string>
 </resources>

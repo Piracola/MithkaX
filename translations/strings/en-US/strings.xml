@@ -4213,4 +4213,9 @@
     <string name="mithkaxTopicTabsMoveToBottom">Move tab bar to the bottom</string>
     <string name="mithkaxTopicTabsMoveToSide">Move tab bar to the side</string>
     <string name="mithkaxTopicTabsMoveToTop">Move tab bar to the top</string>
+    <string name="mithkaxStickerSizeTitle">Sticker and GIF size</string>
+    <string name="mithkaxStickerSizeNote">One size for both stickers and GIFs in chats. Drag the slider; the preview follows.</string>
+    <string name="mithkaxStickerSizeSmall">Small</string>
+    <string name="mithkaxStickerSizeLarge">Large</string>
+    <string name="mithkaxStickerSizeReset">Reset</string>
 </resources>

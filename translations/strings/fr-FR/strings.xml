@@ -4213,4 +4213,9 @@
     <string name="mithkaxTopicTabsMoveToBottom">Déplacer la barre d’onglets en bas</string>
     <string name="mithkaxTopicTabsMoveToSide">Déplacer la barre d’onglets sur le côté</string>
     <string name="mithkaxTopicTabsMoveToTop">Déplacer la barre d’onglets en haut</string>
+    <string name="mithkaxStickerSizeTitle">Taille des stickers et GIF</string>
+    <string name="mithkaxStickerSizeNote">Une seule taille pour les stickers et les GIF dans les chats. Réglez-la avec le curseur.</string>
+    <string name="mithkaxStickerSizeSmall">Petit</string>
+    <string name="mithkaxStickerSizeLarge">Grand</string>
+    <string name="mithkaxStickerSizeReset">Réinitialiser</string>
 </resources>

@@ -4195,4 +4195,9 @@
     <string name="mithkaxTopicTabsMoveToBottom">标签栏移到底部</string>
     <string name="mithkaxTopicTabsMoveToSide">标签栏移到侧边</string>
     <string name="mithkaxTopicTabsMoveToTop">标签栏移到顶部</string>
+    <string name="mithkaxStickerSizeTitle">贴纸与 GIF 大小</string>
+    <string name="mithkaxStickerSizeNote">聊天中的贴纸和 GIF 共用一个大小。拖动滑块即可预览。</string>
+    <string name="mithkaxStickerSizeSmall">小</string>
+    <string name="mithkaxStickerSizeLarge">大</string>
+    <string name="mithkaxStickerSizeReset">重置</string>
 </resources>

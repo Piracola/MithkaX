@@ -9,6 +9,7 @@
 //
 
 import 'dart:async';
+import 'dart:io';
 import 'dart:math' as math;
 import 'dart:ui' as ui;
 import 'package:flutter/foundation.dart' show precisionErrorTolerance;
@@ -161,6 +162,7 @@ class MessageBubble extends StatelessWidget {
     required this.peerTitle,
     this.peerPhoto,
     required this.isGroup,
+    this.isChannel = false,
     this.meName = AppStringKeys.chatMeLabel,
     this.mePhoto,
     this.meId,
@@ -233,6 +235,12 @@ class MessageBubble extends StatelessWidget {
   final String peerTitle;
   final TdFileRef? peerPhoto;
   final bool isGroup;
+
+  /// A broadcast channel's post: the channel is the author of every message,
+  /// so the chat's 38pt side avatar would repeat a column of identical
+  /// photos. Like exteraless's wide channel posts, the post instead carries a
+  /// compact channel header (20pt avatar + title) and uses the full lane.
+  final bool isChannel;
   final String meName;
   final TdFileRef? mePhoto;
   final int? meId;
@@ -1429,30 +1437,34 @@ class _MessageBubbleState extends State<_ScopedMessageBubble>
                 ),
               ]
             : [
-                _avatarTapTarget(
-                  PhotoAvatar(
-                    title: widget.bubble.isGroup
-                        ? (message.senderName ?? widget.bubble.peerTitle)
-                        : widget.bubble.peerTitle,
-                    photo: widget.bubble.isGroup
-                        ? message.senderPhoto
-                        : widget.bubble.peerPhoto,
-                    size: 38 * ContentSizeScope.of(context).appScale,
-                    isDeleted: widget.bubble.isGroup && message.senderIsDeleted,
-                    onlinePresence: widget.bubble.showAvatarOnlineStatus
-                        ? widget.bubble.isGroup
-                              ? message.senderPresence
-                              : widget.bubble.peerPresence
-                        : AvatarPresence.none,
+                if (!widget.bubble.isChannel) ...[
+                  _avatarTapTarget(
+                    PhotoAvatar(
+                      title: widget.bubble.isGroup
+                          ? (message.senderName ?? widget.bubble.peerTitle)
+                          : widget.bubble.peerTitle,
+                      photo: widget.bubble.isGroup
+                          ? message.senderPhoto
+                          : widget.bubble.peerPhoto,
+                      size: 38 * ContentSizeScope.of(context).appScale,
+                      isDeleted:
+                          widget.bubble.isGroup && message.senderIsDeleted,
+                      onlinePresence: widget.bubble.showAvatarOnlineStatus
+                          ? widget.bubble.isGroup
+                                ? message.senderPresence
+                                : widget.bubble.peerPresence
+                          : AvatarPresence.none,
+                    ),
+                    withLongPress: true,
                   ),
-                  withLongPress: true,
-                ),
-                const SizedBox(width: 8),
+                  const SizedBox(width: 8),
+                ],
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      if (widget.bubble.isGroup && message.senderName != null)
+                      if (widget.bubble.isChannel ||
+                          (widget.bubble.isGroup && message.senderName != null))
                         _senderHeader(showDetailTime: showDetailTime),
                       // The badge Row is a no-op wrapper without a badge, and
                       // the Column already left-aligns the bubble.
@@ -1514,16 +1526,24 @@ class _MessageBubbleState extends State<_ScopedMessageBubble>
   }
 
   Widget _detailTimestampOverlay(bool outgoing, Widget child) => Positioned(
-    left: outgoing ? null : 58,
+    left: outgoing ? null : (widget.bubble.isChannel ? 18 : 58),
     right: outgoing ? 58 : null,
     bottom: -5,
     child: child,
   );
 
   /// Only an incoming group message reads any of this — a 1:1 chat used to pay
-  /// for the name-colour resolution and the role switch on every message.
+  /// for the name-colour resolution and the role switch on every message. A
+  /// channel post reads it too: its author is always the channel, drawn as a
+  /// compact 20pt avatar + title instead of the side column.
   Widget _senderHeader({required bool showDetailTime}) {
     final theme = _theme;
+    final channel = widget.bubble.isChannel;
+    final senderName =
+        message.senderName ?? (channel ? widget.bubble.peerTitle : null);
+    if (senderName == null || senderName.isEmpty) {
+      return const SizedBox.shrink();
+    }
     final showMemberTags = theme.showMemberTags;
     final showSenderRole = switch (message.senderRole) {
       null => false,
@@ -1551,12 +1571,20 @@ class _MessageBubbleState extends State<_ScopedMessageBubble>
       padding: const EdgeInsets.only(left: 4, bottom: 3),
       child: Row(
         children: [
+          if (channel) ...[
+            PhotoAvatar(
+              title: senderName,
+              photo: message.senderPhoto ?? widget.bubble.peerPhoto,
+              size: 20 * ContentSizeScope.of(context).appScale,
+            ),
+            const SizedBox(width: 6),
+          ],
           Flexible(
             child: SenderIdentityPills(
               readabilityMode: theme.senderNameReadabilityMode,
               bubbleColor: _incomingBubbleColor,
               textColor: _incomingTextColor,
-              name: message.senderName!,
+              name: senderName,
               nameStyle: TextStyle(
                 fontSize: AppTextSize.chatSecondary(AppTextSize.messageBody()),
                 color: senderNameColor,
@@ -4624,9 +4652,11 @@ class _MessageBubbleState extends State<_ScopedMessageBubble>
   }
 
   /// A background-less message (sticker, round video) that answers another
-  /// message carries its reply quote ABOVE the content, where exteraless
-  /// draws the reply panel over the sticker's empty bubble. The quote gets a
-  /// floor width so a small sticker's quote is still readable, and never
+  /// message carries its reply marker ABOVE the content, where exteraless
+  /// draws the sticker reply over the empty bubble. A sticker is not a card,
+  /// so it does not get the filled quote block: exteraless paints the sticker
+  /// reply as a thin accent line with the author and a one-line preview in the
+  /// wallpaper's reply ink. The marker keeps a readable floor width and never
   /// grows past the bubble lane.
   Widget _withReplyAboveContent(
     Widget content,
@@ -4634,17 +4664,109 @@ class _MessageBubbleState extends State<_ScopedMessageBubble>
     double contentWidth,
   ) {
     if (message.replyPreviewText == null) return content;
-    final width = math.min(_bubbleMaxWidth(), math.max(contentWidth, 168.0));
+    final width = math.min(_bubbleMaxWidth(), math.max(contentWidth, 150.0));
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: outgoing
           ? CrossAxisAlignment.end
           : CrossAxisAlignment.start,
       children: [
-        SizedBox(width: width, child: _replyQuote(outgoing)),
-        const SizedBox(height: 4),
+        SizedBox(width: width, child: _stickerReplyMarker(outgoing)),
+        const SizedBox(height: 6),
         content,
       ],
+    );
+  }
+
+  /// exteraless's sticker reply: no card, no background. A 2.5px accent rule
+  /// sits against the author line, the author is painted in the reply ink and
+  /// the quoted text follows on the next line, both single-line. Tapping still
+  /// opens the original message.
+  Widget _stickerReplyMarker(bool outgoing) {
+    final labelColor = _messageReplyNameColor(outgoing);
+    final faded = _messageReplyTextColor(outgoing);
+    final line = _messageReplyLineColor(outgoing);
+    final sender = message.replyToSender ?? '';
+    final time = DateText.quoteLabel(message.replyToDate ?? 0);
+    final targetId = message.replyToMessageId;
+    final openOriginal = targetId == null || widget.bubble.onOpenReply == null
+        ? null
+        : () => widget.bubble.onOpenReply!.call(targetId);
+    final preview = (message.replyPreviewText ?? '').trim();
+    return GestureDetector(
+      key: const ValueKey('messageReplyOpenOriginal'),
+      behavior: HitTestBehavior.opaque,
+      onTap: openOriginal,
+      child: Container(
+        key: const ValueKey('messageReplyQuote'),
+        decoration: BoxDecoration(
+          border: Border(left: BorderSide(color: line, width: 2.5)),
+        ),
+        padding: const EdgeInsets.fromLTRB(9, 1, 4, 1),
+        child: IgnorePointer(
+          child: Row(
+            children: [
+              if (message.replyToImage != null) ...[
+                SizedBox(
+                  key: const ValueKey('messageReplyStickerThumb'),
+                  width: 26,
+                  height: 26,
+                  child: TDImage(
+                    photo:
+                        message.replyToImage?.thumbnail ?? message.replyToImage,
+                    cornerRadius: 5,
+                    cacheWidth: _cachePx(26),
+                    cacheHeight: _cachePx(26),
+                  ),
+                ),
+                const SizedBox(width: 7),
+              ],
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text.rich(
+                      TextSpan(
+                        children: [
+                          if (sender.isNotEmpty)
+                            TextSpan(
+                              text: sender,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          if (time.isNotEmpty)
+                            TextSpan(text: sender.isEmpty ? time : ' $time'),
+                        ],
+                      ),
+                      key: const ValueKey('messageReplyStickerAuthor'),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 13,
+                        height: 1.3,
+                        color: labelColor,
+                      ),
+                    ),
+                    if (preview.isNotEmpty)
+                      Text(
+                        preview,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 13,
+                          height: 1.3,
+                          color: faded,
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 
@@ -5517,7 +5639,7 @@ class _MessageBubbleState extends State<_ScopedMessageBubble>
   /// Telegram GIFs arrive as silent MP4 animations. Start them inline and
   /// repeat indefinitely; tapping still opens the full media viewer.
   Widget _animationContent(bool outgoing) {
-    final size = _imageDisplaySize();
+    final size = _gifDisplaySize();
     final caption = _caption();
     final grouped = _groupsMediaCaption(caption);
     final mediaRadius = grouped && _showsMessageBubbleSurface ? 0.0 : 10.0;

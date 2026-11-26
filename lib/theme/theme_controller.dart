@@ -1198,6 +1198,10 @@ class ThemeController extends ChangeNotifier {
     _autoRevealRestrictedMedia =
         _prefs.getBool(_autoRevealRestrictedMediaKey) ?? false;
     _liquidGlassBottomBar = _prefs.getBool(_liquidGlassBottomBarKey) ?? false;
+    _stickerMediaSize = (_prefs.getDouble(_stickerMediaSizeKey) ?? 14).clamp(
+      4.0,
+      20.0,
+    );
     _simpleMode = _prefs.getBool(_simpleModeKey) ?? false;
     _showChannelsTab = _prefs.getBool(_showChannelsTabKey) ?? false;
     _showContactsTab = _prefs.getBool(_showContactsTabKey) ?? true;
@@ -1319,6 +1323,7 @@ class ThemeController extends ChangeNotifier {
   static const _hideBlockedUserMessagesKey = 'hideBlockedUserMessages';
   static const _autoRevealRestrictedMediaKey = 'autoRevealRestrictedMedia';
   static const _liquidGlassBottomBarKey = 'liquidGlassBottomBar';
+  static const _stickerMediaSizeKey = 'mithkax.stickerMediaSize.v1';
   static const _simpleModeKey = 'simpleMode';
   static const _showChannelsTabKey = 'showChannelsTab';
   static const _showContactsTabKey = 'showContactsTab';
@@ -1426,6 +1431,11 @@ class ThemeController extends ChangeNotifier {
   bool _hideBlockedUserMessages = false;
   bool _autoRevealRestrictedMedia = false;
   bool _liquidGlassBottomBar = false;
+
+  /// exteraless's sticker-size value (4..20, default 14). One value drives both
+  /// stickers and GIFs in the transcript; [stickerMediaScale] is the relative
+  /// factor it maps to, so the stock look stays 1.0.
+  double _stickerMediaSize = 14;
   bool _simpleMode = false;
   bool _showChannelsTab = false;
   bool _showContactsTab = true;
@@ -1993,6 +2003,13 @@ class ThemeController extends ChangeNotifier {
   /// the server still enforces.
   bool get autoRevealRestrictedMedia => _autoRevealRestrictedMedia;
   bool get liquidGlassBottomBar => _liquidGlassBottomBar;
+
+  double get stickerMediaSize => _stickerMediaSize;
+
+  /// Relative size factor: 1.0 at exteraless's default 14. Its mobile formula
+  /// spans `0.5 + (size - 14) / 30` of the viewport, so the same % swing is
+  /// `1 + (size - 14) / 15` here (about 0.33×..1.4×).
+  double get stickerMediaScale => 1 + (_stickerMediaSize - 14) / 15;
 
   /// Collapses the phone composer to one row and moves its tools into the
   /// More panel. Local presentation pref only; never rewrites other settings.
@@ -3254,6 +3271,14 @@ class ThemeController extends ChangeNotifier {
     if (_liquidGlassBottomBar == value) return;
     _liquidGlassBottomBar = value;
     _prefs.setBool(_liquidGlassBottomBarKey, value);
+    notifyListeners();
+  }
+
+  set stickerMediaSize(double value) {
+    final next = value.clamp(4.0, 20.0).toDouble();
+    if ((_stickerMediaSize - next).abs() < 0.001) return;
+    _stickerMediaSize = next;
+    _prefs.setDouble(_stickerMediaSizeKey, next);
     notifyListeners();
   }
 

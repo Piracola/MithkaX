@@ -49,6 +49,7 @@ import 'appearance/app_icon_controller.dart';
 import 'appearance/content_size_settings_view.dart';
 import 'appearance/interface_scale_control.dart';
 import 'appearance/message_bubble_settings_view.dart';
+import 'appearance/sticker_size_settings_view.dart';
 import 'quick_reaction_settings_view.dart';
 
 class AppearanceView extends StatelessWidget {
@@ -1346,6 +1347,17 @@ class ChatViewAppearanceSettingsView extends StatelessWidget {
       title: AppStrings.t(AppStringKeys.appearanceChatView),
       preview: const _ChatViewSettingsPreview(),
       controls: appearance._card(context, [
+        appearance._navigationRow(
+          context,
+          AppStrings.t(AppStringKeys.mithkaxStickerSizeTitle),
+          '${(theme.stickerMediaScale * 100).round()}%',
+          () => Navigator.of(context).push(
+            AppPageRoute<void>(
+              pageBuilder: (_, _, _) => const StickerSizeSettingsView(),
+            ),
+          ),
+          icon: HeroAppIcons.faceSmile.data,
+        ),
         appearance._toggleRow(
           context,
           HeroAppIcons.images.data,
