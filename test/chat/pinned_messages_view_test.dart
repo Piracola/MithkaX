@@ -54,8 +54,8 @@ Map<String, dynamic> _chat({bool canPin = true}) => {
 void main() {
   late StreamController<Map<String, dynamic>> updates;
   final queries = <Map<String, dynamic>>[];
-  var _canPin = true;
-  var _configured = false;
+  var canPinValue = true;
+  var configured = false;
 
   setUpAll(() {
     L10nFixtures.load().install();
@@ -69,9 +69,9 @@ void main() {
 
   void installTransport({bool canPin = true}) {
     queries.clear();
-    _canPin = canPin;
-    if (_configured) return;
-    _configured = true;
+    canPinValue = canPin;
+    if (configured) return;
+    configured = true;
     TdClient.shared.configureProxy(
       TdClientProxyTransport(
         accountSlot: 0,
@@ -88,7 +88,7 @@ void main() {
                 ],
               };
             case 'getChat':
-              return _chat(canPin: _canPin);
+              return _chat(canPin: canPinValue);
             case 'getMe':
               return {'@type': 'user', 'id': 1, 'first_name': 'Me'};
             case 'getUser':

@@ -41,6 +41,25 @@ abstract final class FullPageBackSwipeClaim {
   static void clear() => _active = false;
 }
 
+/// The mirror of [FullPageBackSwipeClaim]: while a transcript row is following
+/// the finger as a swipe-to-reply drag, the page must not arm its back gesture
+/// on the same contact.
+///
+/// A reply drag starts leftward and is often reversed back to the right to
+/// cancel it. The page listener sees that rightward half as a back swipe and
+/// would peel the chat while the row springs home. The row claims the contact
+/// for the whole gesture instead, so the page ignores it from the first move
+/// to the pointer up.
+abstract final class MessageReplySwipeClaim {
+  static bool _active = false;
+
+  static bool get active => _active;
+
+  static void begin() => _active = true;
+
+  static void clear() => _active = false;
+}
+
 /// Marks a subtree that owns horizontal drags, such as a horizontally
 /// scrollable strip: the full-page back swipe ignores pointers that land
 /// inside it.
@@ -155,6 +174,10 @@ class _FullPageBackSwipeState extends State<FullPageBackSwipe> {
   void _update(PointerMoveEvent event) {
     final tracker = _velocity;
     if (tracker == null || event.pointer != _pointer || !widget.enabled) return;
+    // A row that is already following the finger as a reply drag owns this
+    // contact; dragging back to the right cancels that reply, it does not
+    // start the page gesture on top of it.
+    if (MessageReplySwipeClaim.active) return;
     _dx += event.delta.dx;
     _dy += event.delta.dy;
     tracker.addPosition(event.timeStamp, event.position);
@@ -190,6 +213,9 @@ class _FullPageBackSwipeState extends State<FullPageBackSwipe> {
     final horizontal = _dx.abs() > _dy.abs() * 1.65;
     final shouldPop =
         widget.enabled &&
+        // Without an armed intent the page never took this contact — a reply
+        // drag that was reversed and released must not pop the chat.
+        _horizontalIntent &&
         horizontal &&
         _dx > _commitDistance &&
         (velocity > _fastCommitVelocity || _dx > _longCommitDistance);

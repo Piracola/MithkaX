@@ -82,6 +82,7 @@ class MessageSwipeReplyController {
   final AnimationController _travel;
   bool _tickArmed = true;
   bool _disposed = false;
+  bool _ownsContact = false;
   int _tickCount = 0;
 
   /// Set by the host's build so a reduced-motion setting shortens the spring
@@ -102,6 +103,20 @@ class MessageSwipeReplyController {
   /// swipe is a raw listener outside the gesture arena, so without this a
   /// right-then-left swipe would peel the page AND reply to the message.
   bool get _pageGestureOwnsPointer => FullPageBackSwipeClaim.active;
+
+  /// Holds the contact for the page gesture listener: from now until the
+  /// pointer is released, the back swipe must not arm on the same finger.
+  void _claimContact() {
+    if (_ownsContact) return;
+    _ownsContact = true;
+    MessageReplySwipeClaim.begin();
+  }
+
+  void _releaseContact() {
+    if (!_ownsContact) return;
+    _ownsContact = false;
+    MessageReplySwipeClaim.clear();
+  }
 
   /// Claims a fresh drag: stops a running spring and re-arms the tick.
   void beginDrag() {
@@ -136,6 +151,9 @@ class MessageSwipeReplyController {
     if (_disposed) return;
     final next = messageSwipeReplyOffset(requested);
     if (next == _travel.value) return;
+    // Only a leftward travel is a reply: a rightward drag belongs to the
+    // back gesture and must not be claimed by the row.
+    if (next < 0) _claimContact();
     _travel.value = next;
     if (next <= -messageSwipeReplyTrigger) {
       if (_tickArmed) {
@@ -163,11 +181,13 @@ class MessageSwipeReplyController {
     )) {
       onReply?.call();
     }
+    _releaseContact();
     cancel();
   }
 
   /// Springs the row home without replying.
   void cancel() {
+    _releaseContact();
     _tickArmed = true;
     // A scheduled put-back can outlive the row that scheduled it.
     if (_disposed) return;
@@ -177,6 +197,7 @@ class MessageSwipeReplyController {
 
   void dispose() {
     _disposed = true;
+    _releaseContact();
     _travel.dispose();
   }
 }

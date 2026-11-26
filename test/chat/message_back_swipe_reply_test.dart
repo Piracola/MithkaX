@@ -94,4 +94,56 @@ void main() {
     expect(replies, 1);
     expect(FullPageBackSwipeClaim.active, isFalse);
   });
+
+  testWidgets('a reply drag dragged back does not start the back swipe', (
+    tester,
+  ) async {
+    var replies = 0;
+    var backs = 0;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: FullPageBackSwipe(
+            enabled: true,
+            onBack: () => backs++,
+            child: Align(
+              alignment: Alignment.topCenter,
+              child: MessageSwipeReplyRow(
+                onReply: () => replies++,
+                child: const SizedBox(width: 320, height: 120),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    final gesture = await tester.startGesture(
+      tester.getCenter(find.byType(MessageSwipeReplyRow)),
+    );
+    await tester.pump(const Duration(milliseconds: 16));
+    // Left first: the row takes the contact as a reply drag.
+    for (var i = 0; i < 5; i++) {
+      await gesture.moveBy(const Offset(-20, 0));
+      await tester.pump(const Duration(milliseconds: 16));
+    }
+    expect(MessageReplySwipeClaim.active, isTrue);
+    // Then back to the right, far past the back gesture's commit distance.
+    for (var i = 0; i < 8; i++) {
+      await gesture.moveBy(const Offset(30, 0));
+      await tester.pump(const Duration(milliseconds: 16));
+    }
+    expect(
+      FullPageBackSwipeClaim.active,
+      isFalse,
+      reason: 'the page must not arm while the row owns the contact',
+    );
+    await gesture.up();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(backs, 0, reason: 'the reversed reply drag must not pop the chat');
+    expect(replies, 0, reason: 'dragging back cancels the reply');
+    expect(FullPageBackSwipeClaim.active, isFalse);
+    expect(MessageReplySwipeClaim.active, isFalse);
+  });
 }
