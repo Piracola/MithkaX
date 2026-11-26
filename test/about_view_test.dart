@@ -1,3 +1,5 @@
+import 'dart:io';
+
 //
 //  about_view_test.dart
 //
@@ -10,6 +12,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mithka/components/brand_mark.dart';
+import 'package:mithka/components/ui_components.dart';
 import 'package:mithka/l10n/app_localizations.dart';
 import 'package:mithka/settings/about_view.dart';
 import 'package:mithka/theme/app_theme.dart';
@@ -69,5 +72,40 @@ void main() {
     await pumpAbout(tester, Brightness.light);
     expect(find.byType(Image), findsNothing);
     expect(find.byType(BrandMark), findsOneWidget);
+  });
+
+  testWidgets('rows name their destination without printing the address', (
+    tester,
+  ) async {
+    await pumpAbout(tester, Brightness.light);
+    // The trailing value slot used to repeat the raw URL on every row; the
+    // row title is the destination, the address belongs in the tap.
+    expect(find.textContaining('t.me/'), findsNothing);
+    expect(find.textContaining('github.com/'), findsNothing);
+    expect(find.text('GitHub'), findsOneWidget);
+  });
+
+  testWidgets('the community chat row points at the fork group', (
+    tester,
+  ) async {
+    await pumpAbout(tester, Brightness.light);
+    final source = File('lib/settings/about_view.dart').readAsStringSync();
+    expect(source, contains("'https://t.me/mithka'"));
+    expect(
+      source,
+      contains('AppStringKeys.aboutCommunityChat'),
+      reason: 'the row must be localized, not a literal',
+    );
+  });
+
+  testWidgets('the button card sits one lane gap under the version line', (
+    tester,
+  ) async {
+    await pumpAbout(tester, Brightness.light);
+    final version = find.byKey(const ValueKey('about-version'));
+    final card = find.byType(SettingsCard).first;
+    final gap = tester.getTopLeft(card).dy - tester.getBottomLeft(version).dy;
+    // The version text keeps a 4px touch pad, then the card follows at lg.
+    expect(gap, AppSpacing.xs + AppSpacing.lg);
   });
 }

@@ -18,6 +18,7 @@ import android.media.MediaMuxer
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.os.Process
 import android.provider.OpenableColumns
 import android.provider.Settings
 import android.util.Log
@@ -479,6 +480,14 @@ class MainActivity : FlutterFragmentActivity() {
                                 }
                             }
                         }.start()
+                    }
+                    // Dart asks for this right after an icon switch lands: the
+                    // launcher keeps the old entry until the process that
+                    // changed the alias is gone, so the switch ends here.
+                    "quitApp" -> {
+                        result.success(null)
+                        quitAfterIconChange()
+                        return@setMethodCallHandler
                     }
                     else -> result.notImplemented()
                 }
@@ -1288,6 +1297,26 @@ class MainActivity : FlutterFragmentActivity() {
         // This task is based on an alias that is now disabled; the system
         // would finish it shortly anyway, possibly after the user came back.
         if (closeTask) finishAndRemoveTask()
+    }
+
+    /**
+     * Applies a deferred icon switch and leaves the process entirely.
+     *
+     * A launcher re-reads an alias only once the app that changed it is gone;
+     * a live window kept drawing the old icon until it died on its own. The
+     * pending switch has to land BEFORE the process dies, or the next open
+     * would still start on the old alias.
+     */
+    private fun quitAfterIconChange() {
+        pendingLauncherIcon()?.let { pending ->
+            try {
+                applyLauncherIcon(pending)
+            } catch (e: Exception) {
+                Log.w("MainActivity", "Could not apply the chosen launcher icon", e)
+            }
+        }
+        finishAndRemoveTask()
+        Process.killProcess(Process.myPid())
     }
 
     /** The component that opened this window's task, or null if unknown. */

@@ -7,6 +7,7 @@
     <string name="aboutReportProblem">問題を報告</string>
     <string name="aboutReportProblemDetail">プライバシーに配慮した診断情報を含む</string>
     <string name="aboutTelegramChannel">Telegram チャンネル</string>
+    <string name="aboutCommunityChat">コミュニティチャット</string>
     <string name="aboutTitle">概要</string>
     <string name="aboutUpToDate">最新バージョンです</string>
     <string name="aboutUpdateAvailable">バージョン {value1} が利用できます</string>

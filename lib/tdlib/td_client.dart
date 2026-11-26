@@ -2495,6 +2495,38 @@ class TdClient {
 
   // MARK: - Sending
 
+  /// The active client's last connection state as TDLib reported it
+  /// (`connectionStateReady`, `connectionStateConnecting`, …), or null before
+  /// the first update lands.
+  String? get activeConnectionState =>
+      _latestConnectionStateByClient[_activeClientId]?.obj('state')?.type;
+
+  /// Makes TDLib drop every connection it holds and dial again.
+  ///
+  /// TDLib retries a failed socket on its own, but one orphaned by a network
+  /// change can sit in a long backoff, which reads as "the app never
+  /// reconnects after Wi-Fi or a VPN came back". `setNetworkType` is the
+  /// documented reset: `none` closes the current connections, and the real
+  /// type immediately after brings the client back online with fresh ones.
+  void refreshNetwork() {
+    if (_isShuttingDown || _shutdownComplete) return;
+    final clients = _clientForSlot.values.toSet();
+    for (final clientId in clients) {
+      final slot = _slotForClient[clientId];
+      // A Bot API account talks HTTPS per request and has no TDLib connection
+      // to reset.
+      if (slot == null || isBotApiSlot(slot)) continue;
+      sendTo({
+        '@type': 'setNetworkType',
+        'type': const {'@type': 'networkTypeNone'},
+      }, clientId);
+      sendTo({
+        '@type': 'setNetworkType',
+        'type': const {'@type': 'networkTypeOther'},
+      }, clientId);
+    }
+  }
+
   /// Fire-and-forget request to the active account.
   void send(Map<String, dynamic> request) {
     sendTo(request, _activeClientId);

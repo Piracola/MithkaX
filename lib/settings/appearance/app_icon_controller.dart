@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -911,9 +912,9 @@ class AppIconController extends ChangeNotifier {
   bool get supported => _supported;
   bool get loading => _loading;
 
-  /// True until the user's first explicit icon choice lands. Android applies
-  /// such a switch when the user leaves the app (see MainActivity's
-  /// `applyPendingLauncherIcon`), so nothing here closes or restarts it.
+  /// True until the user's first explicit icon choice lands. A landed switch
+  /// ends the app (see [setVariant]), so the next launch starts on the icon
+  /// the launcher has just re-read.
   bool get firstChangePending => supported && !_everChoseExplicitly;
 
   Future<void> initialize() async {
@@ -960,20 +961,33 @@ class AppIconController extends ChangeNotifier {
       if (_disposed) return false;
       if (isCurrent(next)) return true;
       await _channel.invokeMethod<void>('setIcon', {'name': next.key});
-      // No exit on Android: native defers the alias switch while this window's
-      // task is based on an alias it would disable, applies it when the user
-      // leaves (Home/Recents) and retires the task then, so the next open is a
-      // clean start on the new icon without the app closing in front of anyone.
       _variant = next;
       _retainedUnknownState = null;
       _everChoseExplicitly = true;
-      return await _prefs.setString(_selectedKey, next.key);
+      final saved = await _prefs.setString(_selectedKey, next.key);
+      // A launcher entry only re-reads a changed alias once the process that
+      // changed it is gone; leaving the window alive kept a stale icon on the
+      // home screen until the app died on its own. Native applies any deferred
+      // switch, retires the task, then kills this process.
+      if (saved) unawaited(_quitForLauncherIcon());
+      return saved;
     } catch (_) {
       // A rejected native change does not persist or optimistically select it.
       return false;
     } finally {
       _loading = false;
       if (!_disposed) notifyListeners();
+    }
+  }
+
+  /// Ends the process on Android so the launcher re-reads the chosen alias.
+  /// Other platforms have no launcher alias to refresh and answer
+  /// `notImplemented`, which is ignored.
+  Future<void> _quitForLauncherIcon() async {
+    try {
+      await _channel.invokeMethod<void>('quitApp');
+    } catch (_) {
+      // The process is already going away, or this platform has no bridge.
     }
   }
 

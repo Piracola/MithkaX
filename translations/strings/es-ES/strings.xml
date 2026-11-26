@@ -7,6 +7,7 @@
     <string name="aboutReportProblem">Informar de un problema</string>
     <string name="aboutReportProblemDetail">Incluye diagnósticos sin datos privados</string>
     <string name="aboutTelegramChannel">Canal de Telegram</string>
+    <string name="aboutCommunityChat">Chat comunitario</string>
     <string name="aboutTitle">Acerca de</string>
     <string name="aboutUpToDate">Mithka X está actualizado</string>
     <string name="aboutUpdateAvailable">La versión {value1} está disponible</string>

@@ -32,6 +32,7 @@ class AboutView extends StatefulWidget {
 
 class _AboutViewState extends State<AboutView> {
   static const _channelUrl = 'https://t.me/MithkaX';
+  static const _communityUrl = 'https://t.me/mithka';
   static const _githubUrl = 'https://github.com/TiaraBasori/MithkaX';
   late final Future<AppVersion> _versionFuture = AppVersion.load();
   int _versionTapCount = 0;
@@ -112,14 +113,14 @@ class _AboutViewState extends State<AboutView> {
                     color: c.textPrimary,
                   ),
                 ),
-                const SizedBox(height: AppSpacing.xs),
+                const SizedBox(height: AppSpacing.xxs),
                 GestureDetector(
                   behavior: HitTestBehavior.opaque,
                   onTap: () => unawaited(_handleVersionTap()),
                   child: Padding(
                     padding: const EdgeInsets.symmetric(
                       horizontal: AppSpacing.lg,
-                      vertical: AppSpacing.sm,
+                      vertical: AppSpacing.xs,
                     ),
                     child: FutureBuilder<AppVersion>(
                       future: _versionFuture,
@@ -129,6 +130,7 @@ class _AboutViewState extends State<AboutView> {
                           AppStrings.t(AppStringKeys.aboutVersion, {
                             'value1': version,
                           }),
+                          key: const ValueKey('about-version'),
                           style: TextStyle(
                             fontSize: AppTextSize.footnote,
                             color: c.textSecondary,
@@ -141,7 +143,7 @@ class _AboutViewState extends State<AboutView> {
               ],
             ),
           ),
-          const SizedBox(height: AppSpacing.section),
+          const SizedBox(height: AppSpacing.lg),
           SettingsCard.rows(
             rows: [
               if (UpdateChecker.supportsManualCheck) ...[
@@ -160,7 +162,9 @@ class _AboutViewState extends State<AboutView> {
                     icon: HeroAppIcons.comments,
                   ),
                   title: AppStrings.t(AppStringKeys.aboutReportProblem),
-                  value: AppStrings.t(AppStringKeys.aboutReportProblemDetail),
+                  subtitle: AppStrings.t(
+                    AppStringKeys.aboutReportProblemDetail,
+                  ),
                   onTap: () => Navigator.of(context).push(
                     MaterialPageRoute(
                       settings: const RouteSettings(name: '/settings/feedback'),
@@ -174,13 +178,16 @@ class _AboutViewState extends State<AboutView> {
                   icon: HeroAppIcons.solidPaperPlane,
                 ),
                 title: AppStrings.t(AppStringKeys.aboutTelegramChannel),
-                value: 't.me/MithkaX',
                 onTap: () => openLink(context, _channelUrl),
+              ),
+              SettingsRow(
+                leading: const SettingsLeadingIcon(icon: HeroAppIcons.users),
+                title: AppStrings.t(AppStringKeys.aboutCommunityChat),
+                onTap: () => openLink(context, _communityUrl),
               ),
               SettingsRow(
                 leading: const SettingsLeadingIcon(icon: HeroAppIcons.code),
                 title: 'GitHub',
-                value: 'github.com/TiaraBasori/MithkaX',
                 onTap: () => openLink(context, _githubUrl),
               ),
             ],

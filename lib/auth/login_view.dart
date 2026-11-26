@@ -52,7 +52,7 @@ bool loginHasBackAction({
   required bool showBotLogin,
   required bool forcePhone,
   required AuthStep step,
-  required int configuredAccountCount,
+  required int otherAccountCount,
 }) {
   final beyondPhone =
       step is AuthWaitCode ||
@@ -62,9 +62,7 @@ bool loginHasBackAction({
       step is AuthWaitQrCode ||
       step is AuthWaitPassword ||
       step is AuthWaitRegistration;
-  return showBotLogin ||
-      (beyondPhone && !forcePhone) ||
-      configuredAccountCount > 1;
+  return showBotLogin || (beyondPhone && !forcePhone) || otherAccountCount > 0;
 }
 
 /// Whether the standalone back affordance offers a destination the method
@@ -74,10 +72,10 @@ bool loginHasBackAction({
 bool loginHasDistinctBackDestination({
   required bool showBotLogin,
   required bool backToPhoneOnly,
-  required int configuredAccountCount,
+  required int otherAccountCount,
 }) {
-  if (showBotLogin) return configuredAccountCount > 1;
-  return !backToPhoneOnly || configuredAccountCount > 1;
+  if (showBotLogin) return otherAccountCount > 0;
+  return !backToPhoneOnly || otherAccountCount > 0;
 }
 
 /// Maximum width of the compact login lane.
@@ -317,15 +315,15 @@ class _LoginViewState extends State<LoginView> {
     _syncResendCountdown(auth);
     // A back affordance is useful once past the phone step, or whenever another
     // account exists to switch to.
+    final otherAccountCount = accounts.otherAccountCount;
     final canGoBack = loginHasBackAction(
       showBotLogin: _showBotLogin,
       forcePhone: _forcePhone,
       step: auth.step,
-      configuredAccountCount: TdClient.shared.configuredSlots.length,
+      otherAccountCount: otherAccountCount,
     );
     final backToPhoneOnly =
         _showBotLogin || (!_forcePhone && auth.step is AuthWaitQrCode);
-    final configuredAccounts = TdClient.shared.configuredSlots.length;
     // The system back gesture keeps the wider contract of loginHasBackAction
     // (it can still abort an add-account in flight); the visible button only
     // stays where it goes somewhere the method switch cannot.
@@ -334,7 +332,7 @@ class _LoginViewState extends State<LoginView> {
         loginHasDistinctBackDestination(
           showBotLogin: _showBotLogin,
           backToPhoneOnly: backToPhoneOnly,
-          configuredAccountCount: configuredAccounts,
+          otherAccountCount: otherAccountCount,
         );
     return PopScope(
       // LoginView is the root content, so allowing the platform back action
@@ -1329,8 +1327,9 @@ class _LoginViewState extends State<LoginView> {
             auth.step is AuthWaitRegistration);
     final pendingAdd = accounts.hasPendingAdd;
     final returnName = accounts.returnAccountName;
-    final others = TdClient.shared.configuredSlots
-        .where((s) => s != TdClient.shared.activeSlot)
+    final others = accounts.summaries
+        .map((summary) => summary.slot)
+        .where((slot) => slot != accounts.activeSlot)
         .toList();
     showAppCupertinoModalPopup<void>(
       context: context,

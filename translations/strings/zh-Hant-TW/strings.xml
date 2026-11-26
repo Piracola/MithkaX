@@ -7,6 +7,7 @@
     <string name="aboutReportProblem">回報問題</string>
     <string name="aboutReportProblemDetail">附帶不含聊天內容的診斷資訊</string>
     <string name="aboutTelegramChannel">Telegram 頻道</string>
+    <string name="aboutCommunityChat">交流群</string>
     <string name="aboutTitle">關於</string>
     <string name="aboutUpToDate">已是最新版本</string>
     <string name="aboutUpdateAvailable">{value1} 版本可用</string>

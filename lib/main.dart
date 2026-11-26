@@ -24,6 +24,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
 import 'app/app_navigator.dart';
 import 'app/app_performance_controller.dart';
 import 'app/app_version.dart';
@@ -77,6 +78,7 @@ import 'notifications/push_device_registrar.dart';
 import 'platform/app_haptics.dart';
 import 'platform/application_exit_coordinator.dart';
 import 'platform/firebase_configuration.dart';
+import 'platform/network_change_monitor.dart';
 import 'platform/ohos_support.dart';
 import 'platform/process_engine.dart';
 import 'platform/system_ui.dart';
@@ -330,6 +332,10 @@ Future<void> _bootstrapAndRunApp() async {
   GroupScheduledDeletionController.shared.initialize(prefs);
   // Preload Telegram blocked-user list so chat filters have data right away.
   unawaited(BlockedUserService.shared.loadBlockedUsers());
+  // A dropped Wi-Fi or VPN leaves TDLib holding a dead socket; the monitor
+  // re-asserts its network type on every interface change so the client dials
+  // again instead of sitting "connecting" until the next launch.
+  NetworkChangeMonitor.shared.start();
   // Firebase + analytics + Sentry tags are several platform-channel round
   // trips that nothing in the widget tree depends on. Firebase's own init runs
   // on the calling platform thread, so hold it until the scheduler is idle

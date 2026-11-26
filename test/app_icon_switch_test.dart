@@ -292,7 +292,7 @@ void main() {
         reason: 'Back must still apply the choice without double-finishing',
       );
       final dart = File(
-        'lib/settings/app_icon_controller.dart',
+        'lib/settings/appearance/app_icon_controller.dart',
       ).readAsStringSync();
       expect(
         dart.contains('SystemNavigator.pop'),
@@ -300,6 +300,34 @@ void main() {
         reason:
             'Dart must not close the app after a switch any more: the '
             'native deferral is what keeps it alive',
+      );
+    });
+
+    test('a landed switch ends the process so the launcher re-reads it', () {
+      // A launcher entry keeps the old alias while the process that changed
+      // it is alive; the switch therefore asks native to leave once the alias
+      // is written, and native applies a deferred switch before it dies.
+      final dart = File(
+        'lib/settings/appearance/app_icon_controller.dart',
+      ).readAsStringSync();
+      expect(kt.contains('"quitApp" -> {'), isTrue);
+      final quit = kt.substring(
+        kt.indexOf('private fun quitAfterIconChange()'),
+      );
+      final apply = quit.indexOf('applyLauncherIcon(pending)');
+      final kill = quit.indexOf('Process.killProcess(Process.myPid())');
+      expect(apply, isNonNegative);
+      expect(
+        kill,
+        greaterThan(apply),
+        reason:
+            'the pending alias must land before the process dies, or the '
+            'next open still starts on the old icon',
+      );
+      expect(
+        dart.contains("invokeMethod<void>('quitApp')"),
+        isTrue,
+        reason: 'Dart has to ask for the exit once the choice is persisted',
       );
     });
 
