@@ -44,10 +44,10 @@ import '../theme/message_name_colors.dart';
 import '../theme/platform_font_defaults.dart';
 import '../theme/system_font_catalog.dart';
 import '../theme/theme_controller.dart';
-import 'app_icon_controller.dart';
-import 'content_size_settings_view.dart';
-import 'interface_scale_control.dart';
-import 'message_bubble_settings_view.dart';
+import 'appearance/app_icon_controller.dart';
+import 'appearance/content_size_settings_view.dart';
+import 'appearance/interface_scale_control.dart';
+import 'appearance/message_bubble_settings_view.dart';
 import 'quick_reaction_settings_view.dart';
 
 class AppearanceView extends StatelessWidget {

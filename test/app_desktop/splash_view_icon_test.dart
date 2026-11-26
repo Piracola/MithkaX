@@ -13,7 +13,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mithka/app/content_view.dart' show SplashView;
 import 'package:mithka/components/brand_mark.dart';
-import 'package:mithka/settings/app_icon_controller.dart';
+import 'package:mithka/settings/appearance/app_icon_controller.dart';
 import 'package:mithka/theme/app_theme.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';

@@ -13,7 +13,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mithka/chat/chat_view_model.dart';
 import 'package:mithka/chat/messages/message_bubble.dart';
-import 'package:mithka/settings/keyword_blocker.dart';
+import 'package:mithka/settings/privacy_security/keyword_blocker.dart';
 import 'package:mithka/tdlib/td_client.dart';
 import 'package:mithka/tdlib/td_models.dart';
 import 'package:mithka/theme/theme_controller.dart';
