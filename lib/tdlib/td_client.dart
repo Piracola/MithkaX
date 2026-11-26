@@ -1487,7 +1487,7 @@ class TdClient {
     final cid = _bindings.createClientId();
     _clientForSlot[slot] = cid;
     _slotForClient[cid] = slot;
-    if (kDebugMode) unawaited(_persistDebugLiveClientIds());
+    unawaited(_persistLiveClientIds());
     _bindings.send(cid, _tdActivateRequest);
     await _waitForRestoredSessionReady(slot, cid, userId);
   }
