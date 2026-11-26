@@ -2727,8 +2727,13 @@
     <string name="passkeysTitle">通行密钥</string>
     <string name="passkeysUnknownName">未命名的通行密钥</string>
     <string name="pickerSystemPicker">系统相册</string>
+<plurals name="pinnedMessagesCountTitle">
+        <item quantity="other">{count} 条置顶消息</item>
+    </plurals>
     <string name="pinnedMessagesEmpty">暂无置顶消息</string>
+    <string name="pinnedMessagesHide">隐藏置顶消息</string>
     <string name="pinnedMessagesSentBy">{value1} 发送</string>
+    <string name="pinnedMessagesUnpinAll">取消置顶全部消息</string>
     <string name="pollComposerAddOption">添加选项</string>
     <string name="pollComposerAddPollMedia">添加投票媒体</string>
     <string name="pollComposerAllowAddingOptions">允许他人添加选项</string>

@@ -2737,8 +2737,14 @@
     <string name="passkeysTitle">Clés d’accès</string>
     <string name="passkeysUnknownName">Clé d’accès sans nom</string>
     <string name="pickerSystemPicker">Système</string>
+<plurals name="pinnedMessagesCountTitle">
+        <item quantity="one">{count} message épinglé</item>
+        <item quantity="other">{count} messages épinglés</item>
+    </plurals>
     <string name="pinnedMessagesEmpty">Aucun message épinglé</string>
+    <string name="pinnedMessagesHide">Masquer les messages épinglés</string>
     <string name="pinnedMessagesSentBy">Envoyé par {value1}</string>
+    <string name="pinnedMessagesUnpinAll">Désépingler tous les messages</string>
     <string name="pollComposerAddOption">Ajouter une option</string>
     <string name="pollComposerAddPollMedia">Ajouter un média au sondage</string>
     <string name="pollComposerAllowAddingOptions">Autoriser l'ajout d'options</string>

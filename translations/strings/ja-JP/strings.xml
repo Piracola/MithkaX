@@ -2727,8 +2727,13 @@
     <string name="passkeysTitle">パスキー</string>
     <string name="passkeysUnknownName">名前のないパスキー</string>
     <string name="pickerSystemPicker">システム</string>
+<plurals name="pinnedMessagesCountTitle">
+        <item quantity="other">{count} 件のピン留めメッセージ</item>
+    </plurals>
     <string name="pinnedMessagesEmpty">ピン留めメッセージはありません</string>
+    <string name="pinnedMessagesHide">ピン留めメッセージを非表示</string>
     <string name="pinnedMessagesSentBy">{value1} が送信</string>
+    <string name="pinnedMessagesUnpinAll">すべてのメッセージのピン留めを解除</string>
     <string name="pollComposerAddOption">選択肢を追加</string>
     <string name="pollComposerAddPollMedia">投票メディアを追加</string>
     <string name="pollComposerAllowAddingOptions">他の人が選択肢を追加できるようにする</string>

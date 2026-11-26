@@ -2716,8 +2716,11 @@ abstract final class AppStringKeys {
   static const notificationTopFive = 'notificationTopFive';
   static const notificationTopFiveDescription =
       'notificationTopFiveDescription';
+  static const pinnedMessagesCountTitle = 'pinnedMessagesCountTitle';
   static const pinnedMessagesEmpty = 'pinnedMessagesEmpty';
+  static const pinnedMessagesHide = 'pinnedMessagesHide';
   static const pinnedMessagesSentBy = 'pinnedMessagesSentBy';
+  static const pinnedMessagesUnpinAll = 'pinnedMessagesUnpinAll';
   static const pollComposerAddOption = 'pollComposerAddOption';
   static const pollComposerCreatePollTitle = 'pollComposerCreatePollTitle';
   static const pollComposerOptionLabel = 'pollComposerOptionLabel';

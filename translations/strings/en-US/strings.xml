@@ -2737,8 +2737,14 @@
     <string name="passkeysTitle">Passkeys</string>
     <string name="passkeysUnknownName">Unnamed passkey</string>
     <string name="pickerSystemPicker">System Picker</string>
+<plurals name="pinnedMessagesCountTitle">
+        <item quantity="one">{count} Pinned Message</item>
+        <item quantity="other">{count} Pinned Messages</item>
+    </plurals>
     <string name="pinnedMessagesEmpty">No pinned messages yet</string>
+    <string name="pinnedMessagesHide">Hide pinned Messages</string>
     <string name="pinnedMessagesSentBy">Sent by {value1}</string>
+    <string name="pinnedMessagesUnpinAll">Unpin all Messages</string>
     <string name="pollComposerAddOption">Add option</string>
     <string name="pollComposerAddPollMedia">Add poll media</string>
     <string name="pollComposerAllowAddingOptions">Allow people to add options</string>

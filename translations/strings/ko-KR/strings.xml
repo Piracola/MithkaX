@@ -2727,8 +2727,13 @@
     <string name="passkeysTitle">패스키</string>
     <string name="passkeysUnknownName">이름 없는 패스키</string>
     <string name="pickerSystemPicker">시스템 선택기</string>
+<plurals name="pinnedMessagesCountTitle">
+        <item quantity="other">고정된 메시지 {count}개</item>
+    </plurals>
     <string name="pinnedMessagesEmpty">고정된 메시지가 없습니다</string>
+    <string name="pinnedMessagesHide">고정된 메시지 숨기기</string>
     <string name="pinnedMessagesSentBy">{value1} 보냄</string>
+    <string name="pinnedMessagesUnpinAll">모든 메시지 고정 해제</string>
     <string name="pollComposerAddOption">옵션 추가</string>
     <string name="pollComposerAddPollMedia">투표 미디어 추가</string>
     <string name="pollComposerAllowAddingOptions">다른 사람이 항목을 추가하도록 허용</string>

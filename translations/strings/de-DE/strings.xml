@@ -2737,8 +2737,14 @@
     <string name="passkeysTitle">Passkeys</string>
     <string name="passkeysUnknownName">Unbenannter Passkey</string>
     <string name="pickerSystemPicker">System</string>
+<plurals name="pinnedMessagesCountTitle">
+        <item quantity="one">{count} angeheftete Nachricht</item>
+        <item quantity="other">{count} angeheftete Nachrichten</item>
+    </plurals>
     <string name="pinnedMessagesEmpty">Noch keine hervorgehobenen Nachrichten</string>
+    <string name="pinnedMessagesHide">Angeheftete Nachrichten ausblenden</string>
     <string name="pinnedMessagesSentBy">Gesendet von {value1}</string>
+    <string name="pinnedMessagesUnpinAll">Alle Nachrichten lösen</string>
     <string name="pollComposerAddOption">Option hinzufügen</string>
     <string name="pollComposerAddPollMedia">Medien zur Umfrage hinzufügen</string>
     <string name="pollComposerAllowAddingOptions">Anderen erlauben, Optionen hinzuzufügen</string>
