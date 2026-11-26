@@ -2260,7 +2260,6 @@ class _ChatViewState extends State<ChatView> {
   Widget _chatTranslationPanel() => ChatTranslationPanel(
     active: _automaticTranslationEnabled,
     targetLanguageLabel: _translation.targetLanguageLabel.l10n(context),
-    isTranslating: _autoTranslationRunning,
     onToggle: _toggleAutomaticTranslation,
     onChooseLanguage: () => unawaited(_showChatTranslationLanguagePicker()),
     onDismiss: _dismissAutomaticTranslation,
