@@ -685,10 +685,9 @@ class _DesktopApplicationLanguageHeader extends StatelessWidget {
               const SizedBox(width: AppSpacing.sm),
               Text(
                 label,
-                style: TextStyle(
-                  color: c.textPrimary,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
+                style: AppTextStyle.footnote(
+                  c.textPrimary,
+                  weight: AppTextWeight.semibold,
                 ),
               ),
             ],
@@ -728,10 +727,9 @@ class _DesktopApplicationSubmenuRow extends StatelessWidget {
               Expanded(
                 child: Text(
                   label,
-                  style: TextStyle(
-                    color: c.textPrimary,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w500,
+                  style: AppTextStyle.footnote(
+                    c.textPrimary,
+                    weight: AppTextWeight.medium,
                   ),
                 ),
               ),
@@ -775,12 +773,11 @@ class _DesktopApplicationLanguageOptionRow extends StatelessWidget {
                   option.label,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: option.selected ? c.linkBlue : c.textPrimary,
-                    fontSize: 13,
-                    fontWeight: option.selected
-                        ? FontWeight.w600
-                        : FontWeight.w400,
+                  style: AppTextStyle.footnote(
+                    option.selected ? c.linkBlue : c.textPrimary,
+                    weight: option.selected
+                        ? AppTextWeight.semibold
+                        : AppTextWeight.regular,
                   ),
                 ),
               ),
@@ -820,10 +817,9 @@ class _DesktopApplicationMenuRow extends StatelessWidget {
                   action.label,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: c.textPrimary,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w500,
+                  style: AppTextStyle.footnote(
+                    c.textPrimary,
+                    weight: AppTextWeight.medium,
                   ),
                 ),
               ),
@@ -1010,10 +1006,11 @@ class _DesktopAccountSwitcherRow extends StatelessWidget {
                     account.name,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: c.textPrimary,
-                      fontSize: 13,
-                      fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
+                    style: AppTextStyle.footnote(
+                      c.textPrimary,
+                      weight: selected
+                          ? AppTextWeight.semibold
+                          : AppTextWeight.medium,
                     ),
                   ),
                   if (showPhone && account.phone.isNotEmpty)
@@ -1069,10 +1066,9 @@ class _DesktopAddAccountRow extends StatelessWidget {
             const SizedBox(width: 9),
             Text(
               label,
-              style: TextStyle(
-                color: AppTheme.brand,
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
+              style: AppTextStyle.footnote(
+                AppTheme.brand,
+                weight: AppTextWeight.semibold,
               ),
             ),
           ],

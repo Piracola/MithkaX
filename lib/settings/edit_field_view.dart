@@ -71,10 +71,9 @@ class _EditFieldViewState extends State<EditFieldView> {
           padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xs),
           child: Text(
             AppStrings.t(AppStringKeys.accentColorPickerSave),
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-              color: AppTheme.brand,
+            style: AppTextStyle.bodyLarge(
+              AppTheme.brand,
+              weight: AppTextWeight.semibold,
             ),
           ),
         ),
@@ -94,7 +93,10 @@ class _EditFieldViewState extends State<EditFieldView> {
                     padding: const EdgeInsets.only(top: 1, right: 2),
                     child: Text(
                       widget.prefix,
-                      style: TextStyle(fontSize: 17, color: c.textSecondary),
+                      style: AppTextStyle.title(
+                        c.textSecondary,
+                        weight: AppTextWeight.regular,
+                      ),
                     ),
                   ),
                 Expanded(
@@ -112,7 +114,10 @@ class _EditFieldViewState extends State<EditFieldView> {
                         ? TextInputAction.newline
                         : TextInputAction.done,
                     onSubmitted: widget.multiline ? null : (_) => _save(),
-                    style: TextStyle(fontSize: 17, color: c.textPrimary),
+                    style: AppTextStyle.title(
+                      c.textPrimary,
+                      weight: AppTextWeight.regular,
+                    ),
                     cursorColor: AppTheme.brand,
                     decoration: InputDecoration(
                       isCollapsed: true,
@@ -150,7 +155,7 @@ class _EditFieldViewState extends State<EditFieldView> {
                 valueListenable: _controller,
                 builder: (context, value, _) => Text(
                   '${value.text.characters.length}/${widget.maxLength}',
-                  style: TextStyle(fontSize: 12, color: c.textTertiary),
+                  style: AppTextStyle.caption(c.textTertiary),
                 ),
               ),
             ),

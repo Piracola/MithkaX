@@ -982,12 +982,11 @@ class _ProxyEditViewState extends State<ProxyEditView> {
                 )
               : Text(
                   AppStrings.t(AppStringKeys.accentColorPickerSave),
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: _valid
+                  style: AppTextStyle.bodyLarge(
+                    _valid
                         ? AppTheme.brand
                         : AppTheme.brand.withValues(alpha: 0.4),
+                    weight: AppTextWeight.semibold,
                   ),
                 ),
         ),
@@ -1105,10 +1104,7 @@ class _ProxyEditViewState extends State<ProxyEditView> {
           children: [
             SizedBox(
               width: 72,
-              child: Text(
-                label,
-                style: TextStyle(fontSize: 16, color: c.textPrimary),
-              ),
+              child: Text(label, style: AppTextStyle.bodyLarge(c.textPrimary)),
             ),
             Expanded(
               child: TextField(
@@ -1121,7 +1117,7 @@ class _ProxyEditViewState extends State<ProxyEditView> {
                 autocorrect: false,
                 enableSuggestions: false,
                 textAlign: TextAlign.right,
-                style: TextStyle(fontSize: 16, color: c.textPrimary),
+                style: AppTextStyle.bodyLarge(c.textPrimary),
                 cursorColor: AppTheme.brand,
                 decoration: InputDecoration(
                   isCollapsed: true,

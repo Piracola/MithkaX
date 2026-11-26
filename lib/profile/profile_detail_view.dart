@@ -1083,10 +1083,7 @@ class _ProfileDetailViewState extends State<ProfileDetailView> {
                   ),
                   const SizedBox(width: 6),
                 ],
-                Text(
-                  status,
-                  style: TextStyle(fontSize: 13, color: c.textSecondary),
-                ),
+                Text(status, style: AppTextStyle.footnote(c.textSecondary)),
               ],
             ),
           ],
@@ -1102,7 +1099,7 @@ class _ProfileDetailViewState extends State<ProfileDetailView> {
                       key: const ValueKey('profileBio'),
                       text: _bio,
                       entities: _bioEntities,
-                      style: TextStyle(fontSize: 15, color: c.textPrimary),
+                      style: AppTextStyle.body(c.textPrimary),
                       onMentionTap: (userId, name) {
                         Navigator.of(context).push(
                           MaterialPageRoute(
@@ -1369,10 +1366,9 @@ class _ProfileDetailViewState extends State<ProfileDetailView> {
                           AppStrings.t(AppStringKeys.profileDetailMusic),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w500,
-                            color: c.textPrimary,
+                          style: AppTextStyle.bodyLarge(
+                            c.textPrimary,
+                            weight: AppTextWeight.medium,
                           ),
                         ),
                         if (active || loading) ...[
@@ -1398,7 +1394,7 @@ class _ProfileDetailViewState extends State<ProfileDetailView> {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       textAlign: TextAlign.right,
-                      style: TextStyle(fontSize: 13, color: c.textTertiary),
+                      style: AppTextStyle.footnote(c.textTertiary),
                     ),
                   ),
                   const SizedBox(width: 10),
@@ -1512,10 +1508,9 @@ class _ProfileDetailViewState extends State<ProfileDetailView> {
                   title,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: context.appFontWeight(AppTextWeight.medium),
-                    color: c.textPrimary,
+                  style: AppTextStyle.bodyLarge(
+                    c.textPrimary,
+                    weight: context.appFontWeight(AppTextWeight.medium),
                   ),
                 ),
               ),
@@ -1533,7 +1528,7 @@ class _ProfileDetailViewState extends State<ProfileDetailView> {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     textAlign: TextAlign.right,
-                    style: TextStyle(fontSize: 13, color: c.textTertiary),
+                    style: AppTextStyle.footnote(c.textTertiary),
                   ),
                 ),
               ],
@@ -1630,10 +1625,9 @@ class _ProfileDetailViewState extends State<ProfileDetailView> {
           children: [
             Text(
               label,
-              style: TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.w600,
-                color: primary ? AppTheme.onBrand : AppTheme.brand,
+              style: AppTextStyle.body(
+                primary ? AppTheme.onBrand : AppTheme.brand,
+                weight: AppTextWeight.semibold,
               ),
             ),
           ],
@@ -1662,18 +1656,14 @@ class _ProfileDetailViewState extends State<ProfileDetailView> {
                   AppStrings.t(AppStringKeys.profileDetailFeaturedPhotos),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w500,
-                    color: c.textPrimary,
+                  style: AppTextStyle.body(
+                    c.textPrimary,
+                    weight: AppTextWeight.medium,
                   ),
                 ),
               ),
               const SizedBox(width: 12),
-              Text(
-                '$count',
-                style: TextStyle(fontSize: 13, color: c.textSecondary),
-              ),
+              Text('$count', style: AppTextStyle.footnote(c.textSecondary)),
               const SizedBox(width: 4),
               AppIcon(
                 HeroAppIcons.chevronRight,
@@ -1901,18 +1891,14 @@ class _ProfileDetailViewState extends State<ProfileDetailView> {
                   AppStrings.t(AppStringKeys.profileDetailGifts),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w500,
-                    color: c.textPrimary,
+                  style: AppTextStyle.body(
+                    c.textPrimary,
+                    weight: AppTextWeight.medium,
                   ),
                 ),
               ),
               const SizedBox(width: 12),
-              Text(
-                '$count',
-                style: TextStyle(fontSize: 13, color: c.textSecondary),
-              ),
+              Text('$count', style: AppTextStyle.footnote(c.textSecondary)),
             ],
           ),
           const SizedBox(height: 12),
@@ -1965,14 +1951,14 @@ class _ProfileDetailViewState extends State<ProfileDetailView> {
                   children: [
                     Text(
                       rows[i].$1,
-                      style: TextStyle(fontSize: 16, color: c.textPrimary),
+                      style: AppTextStyle.bodyLarge(c.textPrimary),
                     ),
                     const SizedBox(width: 16),
                     Expanded(
                       child: Text(
                         rows[i].$2,
                         textAlign: TextAlign.right,
-                        style: TextStyle(fontSize: 15, color: c.textSecondary),
+                        style: AppTextStyle.body(c.textSecondary),
                       ),
                     ),
                   ],
@@ -2130,10 +2116,9 @@ class _FeaturedPhotoMenu extends StatelessWidget {
               ],
               Text(
                 label,
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  color: color,
+                style: AppTextStyle.bodyLarge(
+                  color,
+                  weight: AppTextWeight.semibold,
                 ),
               ),
             ],
@@ -2240,10 +2225,9 @@ class _ProfileContextMenu extends StatelessWidget {
               const SizedBox(width: 16),
               Text(
                 label,
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: context.appFontWeight(AppTextWeight.medium),
-                  color: color,
+                style: AppTextStyle.bodyLarge(
+                  color,
+                  weight: context.appFontWeight(AppTextWeight.medium),
                 ),
               ),
             ],

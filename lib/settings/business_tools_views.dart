@@ -42,10 +42,9 @@ Future<T?> _businessChoiceSheet<T>(
                 alignment: Alignment.centerLeft,
                 child: Text(
                   title,
-                  style: TextStyle(
-                    color: c.textPrimary,
-                    fontSize: 17,
-                    fontWeight: FontWeight.w600,
+                  style: AppTextStyle.title(
+                    c.textPrimary,
+                    weight: AppTextWeight.semibold,
                   ),
                 ),
               ),
@@ -351,10 +350,9 @@ class _BusinessQuickRepliesViewState extends State<BusinessQuickRepliesView> {
                                       '/${shortcut.name}',
                                       maxLines: 1,
                                       overflow: TextOverflow.ellipsis,
-                                      style: TextStyle(
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.w600,
-                                        color: c.textPrimary,
+                                      style: AppTextStyle.bodyLarge(
+                                        c.textPrimary,
+                                        weight: AppTextWeight.semibold,
                                       ),
                                     ),
                                     const SizedBox(height: 2),
@@ -368,9 +366,8 @@ class _BusinessQuickRepliesViewState extends State<BusinessQuickRepliesView> {
                                           : shortcut.preview,
                                       maxLines: 1,
                                       overflow: TextOverflow.ellipsis,
-                                      style: TextStyle(
-                                        fontSize: 13,
-                                        color: c.textSecondary,
+                                      style: AppTextStyle.footnote(
+                                        c.textSecondary,
                                       ),
                                     ),
                                   ],
@@ -653,13 +650,13 @@ class _BusinessQuickReplyEditorViewState
                 padding: const EdgeInsets.only(left: 14),
                 child: Text(
                   '/',
-                  style: TextStyle(fontSize: 16, color: c.textSecondary),
+                  style: AppTextStyle.bodyLarge(c.textSecondary),
                 ),
               ),
               maxLength: 32,
               placeholder: AppStrings.t(AppStringKeys.businessToolsShortcut),
               padding: const EdgeInsets.all(14),
-              style: TextStyle(fontSize: 16, color: c.textPrimary),
+              style: AppTextStyle.bodyLarge(c.textPrimary),
               placeholderStyle: TextStyle(color: c.textTertiary),
               decoration: const BoxDecoration(),
             ),
@@ -678,7 +675,7 @@ class _BusinessQuickReplyEditorViewState
                   AppStringKeys.businessToolsReusableResponse,
                 ),
                 padding: const EdgeInsets.all(14),
-                style: TextStyle(fontSize: 16, color: c.textPrimary),
+                style: AppTextStyle.bodyLarge(c.textPrimary),
                 placeholderStyle: TextStyle(color: c.textTertiary),
                 decoration: const BoxDecoration(),
               ),
@@ -697,7 +694,7 @@ class _BusinessQuickReplyEditorViewState
                     padding: const EdgeInsets.fromLTRB(10, 4, 4, 8),
                     child: Text(
                       AppStrings.t(AppStringKeys.businessToolsAddMessage),
-                      style: TextStyle(fontSize: 14, color: AppTheme.brand),
+                      style: AppTextStyle.callout(AppTheme.brand),
                     ),
                   ),
                 ),
@@ -728,7 +725,7 @@ class _BusinessQuickReplyEditorViewState
               child: Center(
                 child: Text(
                   AppStrings.t(AppStringKeys.businessToolsDeleteQuickReply),
-                  style: TextStyle(fontSize: 15, color: AppTheme.tagRed),
+                  style: AppTextStyle.body(AppTheme.tagRed),
                 ),
               ),
             ),
@@ -756,12 +753,12 @@ class _BusinessQuickReplyEditorViewState
                     message.preview,
                     maxLines: 3,
                     overflow: TextOverflow.ellipsis,
-                    style: TextStyle(fontSize: 15, color: c.textPrimary),
+                    style: AppTextStyle.body(c.textPrimary),
                   ),
                   const SizedBox(height: 2),
                   Text(
                     message.contentType.replaceFirst('message', ''),
-                    style: TextStyle(fontSize: 12, color: c.textSecondary),
+                    style: AppTextStyle.caption(c.textSecondary),
                   ),
                 ],
               ),
@@ -912,10 +909,9 @@ class _BusinessQuickReplyPickerViewState
                               children: [
                                 Text(
                                   '/${shortcut.name}',
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w600,
-                                    color: c.textPrimary,
+                                  style: AppTextStyle.bodyLarge(
+                                    c.textPrimary,
+                                    weight: AppTextWeight.semibold,
                                   ),
                                 ),
                                 if (shortcut.preview.isNotEmpty) ...[
@@ -924,9 +920,8 @@ class _BusinessQuickReplyPickerViewState
                                     shortcut.preview,
                                     maxLines: 2,
                                     overflow: TextOverflow.ellipsis,
-                                    style: TextStyle(
-                                      fontSize: 13,
-                                      color: c.textSecondary,
+                                    style: AppTextStyle.footnote(
+                                      c.textSecondary,
                                     ),
                                   ),
                                 ],
@@ -1675,15 +1670,12 @@ class _BusinessConnectedBotViewState extends State<BusinessConnectedBotView> {
                             padding: const EdgeInsets.only(left: 14),
                             child: Text(
                               '@',
-                              style: TextStyle(
-                                fontSize: 16,
-                                color: c.textSecondary,
-                              ),
+                              style: AppTextStyle.bodyLarge(c.textSecondary),
                             ),
                           ),
                           placeholder: 'business_bot',
                           padding: const EdgeInsets.all(14),
-                          style: TextStyle(fontSize: 16, color: c.textPrimary),
+                          style: AppTextStyle.bodyLarge(c.textPrimary),
                           placeholderStyle: TextStyle(color: c.textTertiary),
                           decoration: const BoxDecoration(),
                         ),
@@ -1695,10 +1687,7 @@ class _BusinessConnectedBotViewState extends State<BusinessConnectedBotView> {
                           padding: const EdgeInsets.all(14),
                           child: Text(
                             AppStrings.t(AppStringKeys.businessToolsCheck),
-                            style: TextStyle(
-                              fontSize: 15,
-                              color: AppTheme.brand,
-                            ),
+                            style: AppTextStyle.body(AppTheme.brand),
                           ),
                         ),
                       ),
@@ -1713,7 +1702,7 @@ class _BusinessConnectedBotViewState extends State<BusinessConnectedBotView> {
                             'value1': _botName,
                           })
                         : '$_botName · $_connectionDetail',
-                    style: TextStyle(fontSize: 13, color: c.textSecondary),
+                    style: AppTextStyle.footnote(c.textSecondary),
                   ),
                 ],
                 const SizedBox(height: 18),
@@ -1759,7 +1748,7 @@ class _BusinessConnectedBotViewState extends State<BusinessConnectedBotView> {
                     child: Center(
                       child: Text(
                         AppStrings.t(AppStringKeys.businessToolsDisconnectBot),
-                        style: TextStyle(fontSize: 15, color: AppTheme.tagRed),
+                        style: AppTextStyle.body(AppTheme.tagRed),
                       ),
                     ),
                   ),
@@ -1929,10 +1918,7 @@ class BusinessRecipientsEditor extends StatelessWidget {
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Text(
-                      '$id',
-                      style: TextStyle(fontSize: 12, color: c.textSecondary),
-                    ),
+                    Text('$id', style: AppTextStyle.caption(c.textSecondary)),
                     const SizedBox(width: 5),
                     AppIcon(
                       HeroAppIcons.xmark,
@@ -2026,10 +2012,9 @@ class _BusinessBotChatControlSheetState
           children: [
             Text(
               widget.botName,
-              style: TextStyle(
-                fontSize: 17,
-                fontWeight: FontWeight.w600,
-                color: c.textPrimary,
+              style: AppTextStyle.title(
+                c.textPrimary,
+                weight: AppTextWeight.semibold,
               ),
             ),
             const SizedBox(height: 12),
@@ -2054,7 +2039,7 @@ class _BusinessBotChatControlSheetState
                 ),
                 child: Text(
                   AppStrings.t(AppStringKeys.businessToolsRemoveFromThisChat),
-                  style: TextStyle(fontSize: 15, color: AppTheme.tagRed),
+                  style: AppTextStyle.body(AppTheme.tagRed),
                 ),
               ),
             ),
@@ -2143,7 +2128,7 @@ class _BusinessTextEditorViewState extends State<_BusinessTextEditorView> {
               maxLines: 12,
               autofocus: true,
               padding: const EdgeInsets.all(14),
-              style: TextStyle(fontSize: 16, color: c.textPrimary),
+              style: AppTextStyle.bodyLarge(c.textPrimary),
               decoration: const BoxDecoration(),
             ),
           ),
@@ -2263,10 +2248,7 @@ Widget _emptyState(
                   color: AppTheme.brand,
                   borderRadius: BorderRadius.circular(21),
                 ),
-                child: Text(
-                  action,
-                  style: const TextStyle(fontSize: 15, color: Colors.white),
-                ),
+                child: Text(action, style: AppTextStyle.body(Colors.white)),
               ),
             ),
           ],
@@ -2376,7 +2358,7 @@ Widget _shortcutPicker(
         padding: const EdgeInsets.all(14),
         child: Text(
           AppStrings.t(AppStringKeys.businessToolsNoQuickRepliesAvailable),
-          style: TextStyle(fontSize: 15, color: c.textSecondary),
+          style: AppTextStyle.body(c.textSecondary),
         ),
       ),
     );

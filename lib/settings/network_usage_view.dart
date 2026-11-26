@@ -92,10 +92,9 @@ class _NetworkUsageViewState extends State<NetworkUsageView> {
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
           child: Text(
             AppStrings.t(AppStringKeys.networkUsageReset),
-            style: TextStyle(
-              color: _loading ? c.textTertiary : AppTheme.brand,
-              fontSize: 15,
-              fontWeight: FontWeight.w600,
+            style: AppTextStyle.body(
+              _loading ? c.textTertiary : AppTheme.brand,
+              weight: AppTextWeight.semibold,
             ),
           ),
         ),
@@ -129,7 +128,7 @@ class _NetworkUsageViewState extends State<NetworkUsageView> {
                       'value1': DateText.messageDetailLabel(_sinceDate),
                     }),
                     textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 12, color: c.textTertiary),
+                    style: AppTextStyle.caption(c.textTertiary),
                   ),
                 ],
                 for (final network in totals.entries)

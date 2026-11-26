@@ -167,12 +167,11 @@ class _AccountPickerRow extends StatelessWidget {
                       account.name,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        color: c.textPrimary,
-                        fontSize: 13,
-                        fontWeight: selected
-                            ? FontWeight.w600
-                            : FontWeight.w500,
+                      style: AppTextStyle.footnote(
+                        c.textPrimary,
+                        weight: selected
+                            ? AppTextWeight.semibold
+                            : AppTextWeight.medium,
                       ),
                     ),
                     // The same hide-phone policy the other account

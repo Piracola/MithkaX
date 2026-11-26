@@ -778,11 +778,9 @@ class AppAssetPickerBuilderDelegate
           alignment: Alignment.center,
           child: Text(
             AppStringKeys.pickerSystemPicker.l10n(context),
-            style: TextStyle(
-              fontSize: 15,
-              fontWeight: FontWeight.w500,
-              color: themeColor,
-              decoration: TextDecoration.none,
+            style: AppTextStyle.body(
+              themeColor ?? theme.colorScheme.onSurface,
+              weight: AppTextWeight.medium,
             ),
           ),
         ),
@@ -819,7 +817,10 @@ class AppAssetPickerBuilderDelegate
         semanticsLabel: semanticsText,
         maxLines: 1,
         overflow: TextOverflow.fade,
-        style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w400),
+        style: AppTextStyle.title(
+          theme.appBarTheme.foregroundColor ?? theme.colorScheme.onSurface,
+          weight: AppTextWeight.regular,
+        ),
       ),
     );
 
@@ -1072,11 +1073,7 @@ class AppAssetPickerBuilderDelegate
                     Duration(seconds: asset.duration),
                   ),
                   maxLines: 1,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 15,
-                    decoration: TextDecoration.none,
-                  ),
+                  style: AppTextStyle.body(Colors.white),
                   strutStyle: const StrutStyle(
                     forceStrutHeight: true,
                     height: 1.4,
@@ -1132,10 +1129,9 @@ class AppAssetPickerBuilderDelegate
                     '${semanticsTextDelegate.changeAccessibleLimitedAssets}',
                 child: Text(
                   tip,
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: theme.textTheme.bodySmall?.color,
-                    decoration: TextDecoration.none,
+                  style: AppTextStyle.callout(
+                    theme.textTheme.bodySmall?.color ??
+                        theme.colorScheme.onSurface,
                   ),
                 ),
               ),
@@ -1189,14 +1185,7 @@ class AppAssetPickerBuilderDelegate
                   : null,
             ),
             const SizedBox(width: 6),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 15,
-                color: onSurface,
-                decoration: TextDecoration.none,
-              ),
-            ),
+            Text(label, style: AppTextStyle.body(onSurface)),
           ],
         ),
       ),
@@ -1274,16 +1263,21 @@ class AppAssetPickerViewerDelegate
   /// header installs its own [DefaultTextStyle], and anything the app has not
   /// put a family on lands on whatever the platform picks last — which is how
   /// the counter ended up in a serif face.
-  TextStyle get _titleStyle =>
-      (themeData.appBarTheme.titleTextStyle ??
-              themeData.textTheme.titleMedium ??
-              themeData.textTheme.bodyMedium ??
-              const TextStyle())
-          .copyWith(
-            fontSize: 17,
-            fontWeight: FontWeight.w600,
-            decoration: TextDecoration.none,
-          );
+  TextStyle get _titleStyle {
+    final base =
+        themeData.appBarTheme.titleTextStyle ??
+        themeData.textTheme.titleMedium ??
+        themeData.textTheme.bodyMedium ??
+        const TextStyle();
+    return base.merge(
+      AppTextStyle.title(
+        base.color ??
+            themeData.appBarTheme.foregroundColor ??
+            themeData.colorScheme.onSurface,
+        weight: AppTextWeight.semibold,
+      ),
+    );
+  }
 
   @override
   Widget appBar(BuildContext context) {

@@ -641,11 +641,7 @@ class _DesktopImagePreviewState extends State<_DesktopImagePreview> {
                         ),
                         child: Text(
                           '${_index + 1} / ${_items.length}',
-                          style: const TextStyle(
-                            color: Color(0xFFFFFFFF),
-                            fontSize: 12,
-                            decoration: TextDecoration.none,
-                          ),
+                          style: AppTextStyle.caption(const Color(0xFFFFFFFF)),
                         ),
                       ),
                     ),
@@ -801,11 +797,7 @@ class _PreviewToolbar extends StatelessWidget {
                   child: Text(
                     '${(scale * 100).round()}%',
                     textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: foreground,
-                      fontSize: 13,
-                      decoration: TextDecoration.none,
-                    ),
+                    style: AppTextStyle.footnote(foreground),
                   ),
                 ),
                 _PreviewToolbarButton(
@@ -972,11 +964,9 @@ class _PreviewTextButton extends StatelessWidget {
       child: Center(
         child: Text(
           label,
-          style: TextStyle(
-            color: foreground,
-            fontSize: 12,
-            fontWeight: FontWeight.w600,
-            decoration: TextDecoration.none,
+          style: AppTextStyle.caption(
+            foreground,
+            weight: AppTextWeight.semibold,
           ),
         ),
       ),
@@ -1116,12 +1106,8 @@ class _PreviewMoreAction extends StatelessWidget {
                 label,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  color: dark
-                      ? const Color(0xFFE8E9EB)
-                      : const Color(0xFF24272D),
-                  fontSize: 13,
-                  decoration: TextDecoration.none,
+                style: AppTextStyle.footnote(
+                  dark ? const Color(0xFFE8E9EB) : const Color(0xFF24272D),
                 ),
               ),
             ),
@@ -1148,10 +1134,8 @@ class _PreviewStatus extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
       child: Text(
         message,
-        style: TextStyle(
-          color: dark ? const Color(0xFFFFFFFF) : const Color(0xFF24272D),
-          fontSize: 12,
-          decoration: TextDecoration.none,
+        style: AppTextStyle.caption(
+          dark ? const Color(0xFFFFFFFF) : const Color(0xFF24272D),
         ),
       ),
     ),

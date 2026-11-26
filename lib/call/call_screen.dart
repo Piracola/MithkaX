@@ -431,10 +431,7 @@ class _CallScreenState extends State<CallScreen> {
               AppStrings.t(AppStringKeys.callEndToEndEncrypted),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                fontSize: 12,
-                color: Colors.white.withValues(alpha: 0.6),
-              ),
+              style: AppTextStyle.caption(Colors.white.withValues(alpha: 0.6)),
             ),
           ),
         ],

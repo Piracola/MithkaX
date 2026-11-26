@@ -182,10 +182,9 @@ class _ChatFolderReorderSheetState extends State<ChatFolderReorderSheet> {
                       AppStrings.t(
                         AppStringKeys.chatFolderManagementReorderFolders,
                       ),
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                        color: c.textPrimary,
+                      style: AppTextStyle.bodyLarge(
+                        c.textPrimary,
+                        weight: AppTextWeight.semibold,
                       ),
                     ),
                   ),
@@ -211,7 +210,7 @@ class _ChatFolderReorderSheetState extends State<ChatFolderReorderSheet> {
                 alignment: Alignment.centerLeft,
                 child: Text(
                   AppStrings.t(AppStringKeys.chatFolderManagementReorderHint),
-                  style: TextStyle(fontSize: 13, color: c.textSecondary),
+                  style: AppTextStyle.footnote(c.textSecondary),
                 ),
               ),
             ),
@@ -335,7 +334,7 @@ class _ChatFolderReorderSheetState extends State<ChatFolderReorderSheet> {
                   : folder.title.l10n(context),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: TextStyle(fontSize: 15, color: c.textPrimary),
+              style: AppTextStyle.body(c.textPrimary),
             ),
           ),
         ],

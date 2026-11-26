@@ -430,9 +430,7 @@ class _EditProfileViewState extends State<EditProfileView> {
                     alignment: Alignment.centerLeft,
                     child: Text(
                       AppStrings.t(AppStringKeys.editProfileChooseAvatarType),
-                      style: AppTextStyle.title(
-                        c.textPrimary,
-                      ).copyWith(fontSize: 17),
+                      style: AppTextStyle.title(c.textPrimary),
                     ),
                   ),
                 ),
@@ -1150,10 +1148,9 @@ class _BirthdayPickerSheetState extends State<_BirthdayPickerSheet> {
                 ),
                 Text(
                   AppStrings.t(AppStringKeys.profileDetailBirthday),
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: c.textPrimary,
+                  style: AppTextStyle.bodyLarge(
+                    c.textPrimary,
+                    weight: AppTextWeight.semibold,
                   ),
                 ),
                 CupertinoButton(

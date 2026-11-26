@@ -99,7 +99,7 @@ class _ToastState extends State<_Toast> with SingleTickerProviderStateMixin {
               child: Text(
                 widget.message,
                 textAlign: TextAlign.center,
-                style: const TextStyle(color: Colors.white, fontSize: 14),
+                style: AppTextStyle.callout(Colors.white),
               ),
             ),
           ),

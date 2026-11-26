@@ -116,12 +116,11 @@ class _ApiCredentialsViewState extends State<ApiCredentialsView> {
           padding: const EdgeInsets.symmetric(horizontal: 4),
           child: Text(
             AppStrings.t(AppStringKeys.accentColorPickerSave),
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-              color: _valid && !_saving
+            style: AppTextStyle.bodyLarge(
+              _valid && !_saving
                   ? AppTheme.brand
                   : AppTheme.brand.withValues(alpha: 0.4),
+              weight: AppTextWeight.semibold,
             ),
           ),
         ),
@@ -224,9 +223,8 @@ class _ApiCredentialsViewState extends State<ApiCredentialsView> {
               width: 128,
               child: Text(
                 label,
-                style: TextStyle(
-                  fontSize: 16,
-                  color: enabled ? c.textPrimary : c.textTertiary,
+                style: AppTextStyle.bodyLarge(
+                  enabled ? c.textPrimary : c.textTertiary,
                 ),
               ),
             ),
@@ -242,7 +240,7 @@ class _ApiCredentialsViewState extends State<ApiCredentialsView> {
                 autocorrect: false,
                 enableSuggestions: false,
                 textAlign: TextAlign.right,
-                style: TextStyle(fontSize: 16, color: c.textPrimary),
+                style: AppTextStyle.bodyLarge(c.textPrimary),
                 cursorColor: AppTheme.brand,
                 decoration: InputDecoration(
                   isCollapsed: true,

@@ -399,11 +399,7 @@ class _ProfilePhotoManagementViewState
     ),
     child: Text(
       text,
-      style: const TextStyle(
-        color: Colors.white,
-        fontSize: 10,
-        fontWeight: FontWeight.w600,
-      ),
+      style: AppTextStyle.tiny(Colors.white, weight: AppTextWeight.semibold),
     ),
   );
 }

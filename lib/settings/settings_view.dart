@@ -352,10 +352,9 @@ class _SettingsViewState extends State<SettingsView> {
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: desktopDense
-                ? TextStyle(
-                    color: c.textPrimary,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
+                ? AppTextStyle.bodyLarge(
+                    c.textPrimary,
+                    weight: AppTextWeight.semibold,
                   )
                 : AppTextStyle.title(c.textPrimary),
           ),

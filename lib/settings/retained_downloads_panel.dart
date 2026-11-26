@@ -115,7 +115,7 @@ class _RetainedDownloadsPanelState extends State<RetainedDownloadsPanel> {
               Expanded(
                 child: Text(
                   AppStrings.t(AppStringKeys.downloadsRetainedHint),
-                  style: TextStyle(fontSize: 12, color: c.textSecondary),
+                  style: AppTextStyle.caption(c.textSecondary),
                 ),
               ),
               AppInteractiveSurface(
@@ -191,17 +191,15 @@ class _RetainedDownloadsPanelState extends State<RetainedDownloadsPanel> {
                                           item.title,
                                           maxLines: 2,
                                           overflow: TextOverflow.ellipsis,
-                                          style: TextStyle(
-                                            fontSize: 15,
-                                            color: c.textPrimary,
+                                          style: AppTextStyle.body(
+                                            c.textPrimary,
                                           ),
                                         ),
                                         const SizedBox(height: 4),
                                         Text(
                                           '${AppStrings.t(AppStringKeys.downloadsKeptOnDevice)} · ${formatMediaByteSize(item.size)}',
-                                          style: TextStyle(
-                                            fontSize: 12,
-                                            color: c.textSecondary,
+                                          style: AppTextStyle.caption(
+                                            c.textSecondary,
                                           ),
                                         ),
                                       ],

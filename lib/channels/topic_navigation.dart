@@ -347,12 +347,11 @@ class _TopicNavigation extends StatelessWidget {
                       name,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: selected
-                            ? FontWeight.w600
-                            : FontWeight.w500,
-                        color: selected ? AppTheme.brand : c.textPrimary,
+                      style: AppTextStyle.callout(
+                        selected ? AppTheme.brand : c.textPrimary,
+                        weight: selected
+                            ? AppTextWeight.semibold
+                            : AppTextWeight.medium,
                       ),
                     ),
                   ),
@@ -400,10 +399,9 @@ class _RailHeader extends StatelessWidget {
                 AppStringKeys.groupAdministrationForumTopics.l10n(context),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  color: c.textSecondary,
+                style: AppTextStyle.footnote(
+                  c.textSecondary,
+                  weight: AppTextWeight.semibold,
                 ),
               ),
             ),

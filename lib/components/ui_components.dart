@@ -185,7 +185,13 @@ class SettingsSearchField extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
-    final fontSize = compact ? 13.0 : AppTextSize.callout;
+    final fontSize = compact ? AppTextSize.footnote : AppTextSize.callout;
+    final inputStyle = compact
+        ? AppTextStyle.footnote(c.textPrimary)
+        : AppTextStyle.callout(c.textPrimary);
+    final hintStyle = compact
+        ? AppTextStyle.footnote(c.textTertiary)
+        : AppTextStyle.callout(c.textTertiary);
     final iconSize = compact ? 16.0 : AppMetric.searchIcon;
     final scaledLineHeight =
         MediaQuery.textScalerOf(context).scale(fontSize) * 1.25;
@@ -219,12 +225,12 @@ class SettingsSearchField extends StatelessWidget {
               textInputAction: textInputAction,
               onChanged: onChanged,
               onSubmitted: onSubmitted,
-              style: TextStyle(fontSize: fontSize, color: c.textPrimary),
+              style: inputStyle,
               decoration: InputDecoration(
                 isCollapsed: true,
                 border: InputBorder.none,
                 hintText: hintText.l10n(context),
-                hintStyle: TextStyle(fontSize: fontSize, color: c.textTertiary),
+                hintStyle: hintStyle,
               ),
             ),
           ),
@@ -827,10 +833,7 @@ class SettingsSectionHeader extends StatelessWidget {
         alignment: AlignmentDirectional.centerStart,
         child: Text(
           text ?? AppStrings.t(titleKey!),
-          style: TextStyle(
-            fontSize: AppTextSize.footnote,
-            color: color ?? context.colors.textTertiary,
-          ),
+          style: AppTextStyle.footnote(color ?? context.colors.textTertiary),
         ),
       ),
     );
@@ -1367,15 +1370,14 @@ class SettingsFilterChip extends StatelessWidget {
     // Selected reads as the accent, not a grey wash, and takes it from the
     // palette so an imported theme moves it.
     final foreground = selected ? c.linkBlue : c.textSecondary;
+    final chipWeight = selected ? AppTextWeight.semibold : AppTextWeight.medium;
     final label$ = Text(
       label,
       maxLines: 1,
       overflow: TextOverflow.ellipsis,
-      style: TextStyle(
-        color: foreground,
-        fontSize: dense ? AppTextSize.footnote : AppTextSize.callout,
-        fontWeight: selected ? AppTextWeight.semibold : AppTextWeight.medium,
-      ),
+      style: dense
+          ? AppTextStyle.footnote(foreground, weight: chipWeight)
+          : AppTextStyle.callout(foreground, weight: chipWeight),
     );
     return AppInteractiveSurface(
       onTap: onTap,

@@ -181,11 +181,7 @@ class _QrScannerViewState extends State<QrScannerView>
               Text(
                 AppStrings.t(AppStringKeys.qrScannerCameraUnavailable),
                 textAlign: TextAlign.center,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 15,
-                  decoration: TextDecoration.none,
-                ),
+                style: AppTextStyle.body(Colors.white),
               ),
               const SizedBox(height: 12),
               Text(
@@ -194,11 +190,7 @@ class _QrScannerViewState extends State<QrScannerView>
                       ? AppStringKeys.storyOpenSettings
                       : AppStringKeys.callsRetry,
                 ),
-                style: TextStyle(
-                  color: AppTheme.brand,
-                  fontSize: 15,
-                  decoration: TextDecoration.none,
-                ),
+                style: AppTextStyle.body(AppTheme.brand),
               ),
             ],
           ),
@@ -354,10 +346,8 @@ class _QrScannerViewState extends State<QrScannerView>
                                   AppStringKeys.qrScannerCameraUnavailable,
                                 ),
                                 textAlign: TextAlign.center,
-                                style: const TextStyle(
-                                  color: Color(0xFFFFFFFF),
-                                  fontSize: 15,
-                                  decoration: TextDecoration.none,
+                                style: AppTextStyle.body(
+                                  const Color(0xFFFFFFFF),
                                 ),
                               ),
                             ),
@@ -422,12 +412,7 @@ class _QrScannerViewState extends State<QrScannerView>
                   Text(
                     AppStrings.t(AppStringKeys.qrScannerTitle),
                     textAlign: TextAlign.center,
-                    style: const TextStyle(
-                      color: Color(0xFFFFFFFF),
-                      fontSize: 22,
-                      fontWeight: FontWeight.w600,
-                      decoration: TextDecoration.none,
-                    ),
+                    style: AppTextStyle.display(const Color(0xFFFFFFFF)),
                   ),
                   const SizedBox(height: 8),
                   Text(
@@ -573,10 +558,9 @@ class _QrChoiceCard extends StatelessWidget {
                                 : candidate.isUrl
                                 ? AppStrings.t(AppStringKeys.qrScannerLink)
                                 : AppStrings.t(AppStringKeys.qrScannerText),
-                            style: TextStyle(
-                              color: context.colors.textPrimary,
-                              fontSize: 15,
-                              fontWeight: FontWeight.w600,
+                            style: AppTextStyle.body(
+                              context.colors.textPrimary,
+                              weight: AppTextWeight.semibold,
                             ),
                           ),
                           const SizedBox(height: 3),
@@ -584,9 +568,8 @@ class _QrChoiceCard extends StatelessWidget {
                             candidate.value,
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              color: context.colors.textSecondary,
-                              fontSize: 13,
+                            style: AppTextStyle.footnote(
+                              context.colors.textSecondary,
                             ),
                           ),
                         ],
@@ -718,18 +701,16 @@ class _QrBottomCard extends StatelessWidget {
                   children: [
                     Text(
                       title,
-                      style: TextStyle(
-                        color: context.colors.textPrimary,
-                        fontSize: 17,
-                        fontWeight: FontWeight.w600,
+                      style: AppTextStyle.title(
+                        context.colors.textPrimary,
+                        weight: AppTextWeight.semibold,
                       ),
                     ),
                     const SizedBox(height: 2),
                     Text(
                       subtitle,
-                      style: TextStyle(
-                        color: context.colors.textSecondary,
-                        fontSize: 13,
+                      style: AppTextStyle.footnote(
+                        context.colors.textSecondary,
                       ),
                     ),
                   ],

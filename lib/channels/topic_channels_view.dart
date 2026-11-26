@@ -454,7 +454,7 @@ class _TopicChannelsViewState extends State<TopicChannelsView> {
                     ? AppStrings.t(AppStringKeys.channelsLoading)
                     : AppStrings.t(AppStringKeys.channelsNoTopicChannels))
                 .l10n(context),
-            style: TextStyle(fontSize: 15, color: c.textSecondary),
+            style: AppTextStyle.body(c.textSecondary),
           ),
         ],
       ),
@@ -516,10 +516,9 @@ class _TopicPostRow extends StatelessWidget {
                         post.topicName,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                          color: c.textPrimary,
+                        style: AppTextStyle.bodyLarge(
+                          c.textPrimary,
+                          weight: AppTextWeight.semibold,
                         ),
                       ),
                       const SizedBox(height: 3),
@@ -527,7 +526,7 @@ class _TopicPostRow extends StatelessWidget {
                         '# ${post.chat.title}',
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: TextStyle(fontSize: 13, color: c.textTertiary),
+                        style: AppTextStyle.footnote(c.textTertiary),
                       ),
                     ],
                   ),
@@ -601,21 +600,21 @@ class _TopicStats extends StatelessWidget {
       children: [
         Text(
           DateText.listLabel(message.date),
-          style: TextStyle(fontSize: 14, color: c.textTertiary),
+          style: AppTextStyle.callout(c.textTertiary),
         ),
         const Spacer(),
         AppIcon(HeroAppIcons.thumbsUp, size: 24, color: c.textPrimary),
         const SizedBox(width: 5),
         Text(
           reactionCount == 0 ? '' : '$reactionCount',
-          style: TextStyle(fontSize: 15, color: c.textPrimary),
+          style: AppTextStyle.body(c.textPrimary),
         ),
         const SizedBox(width: 24),
         AppIcon(HeroAppIcons.comment, size: 24, color: c.textPrimary),
         const SizedBox(width: 5),
         Text(
           message.commentCount == 0 ? '' : '${message.commentCount}',
-          style: TextStyle(fontSize: 15, color: c.textPrimary),
+          style: AppTextStyle.body(c.textPrimary),
         ),
         const SizedBox(width: 24),
         AppIcon(HeroAppIcons.forward, size: 27, color: c.textPrimary),

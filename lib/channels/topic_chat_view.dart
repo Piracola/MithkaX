@@ -2062,10 +2062,9 @@ class _TopicChatViewState extends State<TopicChatView> {
                               title,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w500,
-                                color: c.textPrimary,
+                              style: AppTextStyle.bodyLarge(
+                                c.textPrimary,
+                                weight: AppTextWeight.medium,
                               ),
                             ),
                             Text(
@@ -2080,10 +2079,7 @@ class _TopicChatViewState extends State<TopicChatView> {
                                       AppStringKeys.topicChatTopicCount,
                                       {'value1': _topics.length},
                                     ),
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: c.textSecondary,
-                              ),
+                              style: AppTextStyle.caption(c.textSecondary),
                             ),
                           ],
                         ),
@@ -2191,19 +2187,19 @@ class _TopicChatViewState extends State<TopicChatView> {
         children: [
           Text(
             AppStrings.t(AppStringKeys.topicChatPinnedPrefix),
-            style: TextStyle(fontSize: 15, color: c.textSecondary),
+            style: AppTextStyle.body(c.textSecondary),
           ),
           Expanded(
             child: Text(
               widget.chat.lastMessage,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: TextStyle(fontSize: 15, color: c.textPrimary),
+              style: AppTextStyle.body(c.textPrimary),
             ),
           ),
           Text(
             AppStringKeys.topicChatExpand.l10n(context),
-            style: TextStyle(fontSize: 14, color: c.textTertiary),
+            style: AppTextStyle.callout(c.textTertiary),
           ),
         ],
       ),
@@ -2219,7 +2215,7 @@ class _TopicChatViewState extends State<TopicChatView> {
       return Center(
         child: Text(
           AppStringKeys.topicChatNoMoreContent.l10n(context),
-          style: TextStyle(fontSize: 15, color: context.colors.textTertiary),
+          style: AppTextStyle.body(context.colors.textTertiary),
         ),
       );
     }
@@ -2289,9 +2285,8 @@ class _TopicChatViewState extends State<TopicChatView> {
                           : _input.text,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: 15,
-                        color: _input.text.trim().isEmpty
+                      style: AppTextStyle.body(
+                        _input.text.trim().isEmpty
                             ? c.textTertiary
                             : c.textPrimary,
                       ),
@@ -2375,16 +2370,15 @@ class _TopicPostRow extends StatelessWidget {
                       name,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w600,
-                        color: c.textPrimary,
+                      style: AppTextStyle.body(
+                        c.textPrimary,
+                        weight: AppTextWeight.semibold,
                       ),
                     ),
                     const SizedBox(height: 3),
                     Text(
                       DateText.listLabel(post.message.date),
-                      style: TextStyle(fontSize: 14, color: c.textTertiary),
+                      style: AppTextStyle.callout(c.textTertiary),
                     ),
                   ],
                 ),
@@ -2469,10 +2463,9 @@ class _TopicChip extends StatelessWidget {
                 topic.name,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: tint,
+                style: AppTextStyle.callout(
+                  tint,
+                  weight: AppTextWeight.semibold,
                 ),
               ),
             ),
@@ -2559,7 +2552,7 @@ class _PostActionButton extends StatelessWidget {
             AppIcon(icon, size: 24, color: c.textPrimary),
             if (label.isNotEmpty) ...[
               const SizedBox(width: 5),
-              Text(label, style: TextStyle(fontSize: 14, color: c.textPrimary)),
+              Text(label, style: AppTextStyle.callout(c.textPrimary)),
             ],
           ],
         ),
@@ -2597,7 +2590,7 @@ class _ExtraReactions extends StatelessWidget {
               ),
               child: Text(
                 '${reaction.emoji ?? '⭐'} ${reaction.count}',
-                style: TextStyle(fontSize: 13, color: c.textPrimary),
+                style: AppTextStyle.footnote(c.textPrimary),
               ),
             ),
         ],
@@ -2725,7 +2718,7 @@ class _TopicSearchViewState extends State<_TopicSearchView> {
                         controller: _controller,
                         autofocus: true,
                         onChanged: _changed,
-                        style: TextStyle(fontSize: 16, color: c.textPrimary),
+                        style: AppTextStyle.bodyLarge(c.textPrimary),
                         decoration: InputDecoration(
                           border: InputBorder.none,
                           icon: AppIcon(
@@ -2792,7 +2785,7 @@ class _TopicSearchViewState extends State<_TopicSearchView> {
       return Center(
         child: Text(
           AppStringKeys.chatSearchNoMessagesFound.l10n(context),
-          style: TextStyle(fontSize: 14, color: c.textTertiary),
+          style: AppTextStyle.callout(c.textTertiary),
         ),
       );
     }
@@ -2804,10 +2797,9 @@ class _TopicSearchViewState extends State<_TopicSearchView> {
             padding: const EdgeInsets.only(top: 8, bottom: 6),
             child: Text(
               AppStringKeys.topicChatSelectSection.l10n(context),
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: c.textSecondary,
+              style: AppTextStyle.footnote(
+                c.textSecondary,
+                weight: AppTextWeight.semibold,
               ),
             ),
           ),
@@ -2833,7 +2825,7 @@ class _TopicSearchViewState extends State<_TopicSearchView> {
                         topic.name,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: TextStyle(fontSize: 15, color: c.textPrimary),
+                        style: AppTextStyle.body(c.textPrimary),
                       ),
                     ),
                     AppIcon(
@@ -2851,10 +2843,9 @@ class _TopicSearchViewState extends State<_TopicSearchView> {
             padding: const EdgeInsets.only(top: 14, bottom: 2),
             child: Text(
               AppStringKeys.chatSearchMessageResultLabel.l10n(context),
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: c.textSecondary,
+              style: AppTextStyle.footnote(
+                c.textSecondary,
+                weight: AppTextWeight.semibold,
               ),
             ),
           ),
@@ -2893,10 +2884,7 @@ class _TopicSearchViewState extends State<_TopicSearchView> {
       ),
       child: Row(
         children: [
-          Text(
-            text.l10n(context),
-            style: TextStyle(fontSize: 14, color: c.textPrimary),
-          ),
+          Text(text.l10n(context), style: AppTextStyle.callout(c.textPrimary)),
           const SizedBox(width: 6),
           AppIcon(HeroAppIcons.chevronDown, size: 14, color: c.textPrimary),
         ],
@@ -2934,10 +2922,9 @@ class _SearchResultRow extends StatelessWidget {
               children: [
                 Text(
                   name,
-                  style: TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600,
-                    color: c.textPrimary,
+                  style: AppTextStyle.body(
+                    c.textPrimary,
+                    weight: AppTextWeight.semibold,
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -2964,7 +2951,7 @@ class _SearchResultRow extends StatelessWidget {
                   children: [
                     Text(
                       DateText.listLabel(message.date),
-                      style: TextStyle(fontSize: 13, color: c.textTertiary),
+                      style: AppTextStyle.footnote(c.textTertiary),
                     ),
                     const Spacer(),
                     Text(
@@ -2975,7 +2962,7 @@ class _SearchResultRow extends StatelessWidget {
                         ),
                         'value2': message.commentCount,
                       }),
-                      style: TextStyle(fontSize: 13, color: c.textTertiary),
+                      style: AppTextStyle.footnote(c.textTertiary),
                     ),
                   ],
                 ),
@@ -3257,10 +3244,9 @@ class _TopicChannelSettingsViewState extends State<_TopicChannelSettingsView> {
                         AppStringKeys.topicChatChannelSettings,
                       ).l10n(context),
                       textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: 17,
-                        fontWeight: FontWeight.w600,
-                        color: c.textPrimary,
+                      style: AppTextStyle.title(
+                        c.textPrimary,
+                        weight: AppTextWeight.semibold,
                       ),
                     ),
                   ),
@@ -3312,10 +3298,7 @@ class _TopicChannelSettingsViewState extends State<_TopicChannelSettingsView> {
                                 AppStringKeys.topicChatChannelNumber,
                                 {'value1': widget.chat.id.abs()},
                               ).l10n(context),
-                              style: TextStyle(
-                                fontSize: 14,
-                                color: c.textSecondary,
-                              ),
+                              style: AppTextStyle.callout(c.textSecondary),
                             ),
                           ],
                         ),
@@ -3401,9 +3384,8 @@ class _TopicChannelSettingsViewState extends State<_TopicChannelSettingsView> {
                                 AppStrings.t(
                                   AppStringKeys.topicChatLeaveChannel,
                                 ).l10n(context),
-                                style: const TextStyle(
-                                  fontSize: 16,
-                                  color: Color(0xFFFF3B30),
+                                style: AppTextStyle.bodyLarge(
+                                  const Color(0xFFFF3B30),
                                 ),
                               ),
                             ),
@@ -3440,7 +3422,7 @@ class _TopicChannelSettingsViewState extends State<_TopicChannelSettingsView> {
                     person.name,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: TextStyle(fontSize: 12, color: c.textSecondary),
+                    style: AppTextStyle.caption(c.textSecondary),
                   ),
                 ],
               ),
@@ -3462,7 +3444,7 @@ class _TopicChannelSettingsViewState extends State<_TopicChannelSettingsView> {
                 const SizedBox(height: 6),
                 Text(
                   AppStringKeys.topicChatInvite.l10n(context),
-                  style: TextStyle(fontSize: 12, color: c.textSecondary),
+                  style: AppTextStyle.caption(c.textSecondary),
                 ),
               ],
             ),

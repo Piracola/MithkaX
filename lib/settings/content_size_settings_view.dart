@@ -210,7 +210,7 @@ class _ContentSizeSettingsViewState extends State<ContentSizeSettingsView> {
                     AppStrings.t(AppStringKeys.contentSizeExplanation),
                     key: const ValueKey('content-size-explanation'),
                     textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 13, color: colors.textSecondary),
+                    style: AppTextStyle.footnote(colors.textSecondary),
                   ),
                 ],
               ),
@@ -268,10 +268,9 @@ class ContentSizeValueLabel extends StatelessWidget {
         children: [
           TextSpan(
             text: contentSizeLabel(scale),
-            style: TextStyle(
-              fontSize: 17,
-              fontWeight: FontWeight.w600,
-              color: colors.textPrimary,
+            style: AppTextStyle.title(
+              colors.textPrimary,
+              weight: AppTextWeight.semibold,
             ),
           ),
           const WidgetSpan(child: SizedBox(width: 6)),
@@ -279,11 +278,9 @@ class ContentSizeValueLabel extends StatelessWidget {
             text: AppStrings.t(AppStringKeys.contentSizePercent, {
               'value1': contentSizePercent(scale),
             }),
-            style: TextStyle(
-              fontSize: 15,
-              color: colors.textSecondary,
-              fontFeatures: const [FontFeature.tabularFigures()],
-            ),
+            style: AppTextStyle.body(
+              colors.textSecondary,
+            ).copyWith(fontFeatures: const [FontFeature.tabularFigures()]),
           ),
         ],
       ),

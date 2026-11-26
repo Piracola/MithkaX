@@ -375,7 +375,7 @@ class _BusinessSettingsViewState extends State<BusinessSettingsView> {
                       AppStringKeys
                           .businessSettingsBusinessCapabilitiesCouldNotBeLoadedForThis,
                     ),
-                    style: TextStyle(fontSize: 13, color: c.textSecondary),
+                    style: AppTextStyle.footnote(c.textSecondary),
                   ),
                 ],
               ],
@@ -524,7 +524,7 @@ class _BusinessLocationViewState extends State<_BusinessLocationView> {
               ),
               maxLength: 96,
               padding: const EdgeInsets.all(14),
-              style: TextStyle(fontSize: 16, color: c.textPrimary),
+              style: AppTextStyle.bodyLarge(c.textPrimary),
               placeholderStyle: TextStyle(color: c.textTertiary),
               decoration: const BoxDecoration(),
             ),
@@ -551,7 +551,7 @@ class _BusinessLocationViewState extends State<_BusinessLocationView> {
                                 AppStringKeys.businessSettingsSetOnMap,
                               )
                             : '${_latitude!.toStringAsFixed(5)}, ${_longitude!.toStringAsFixed(5)}',
-                        style: TextStyle(fontSize: 16, color: c.textPrimary),
+                        style: AppTextStyle.bodyLarge(c.textPrimary),
                       ),
                     ),
                     AppIcon(
@@ -572,7 +572,7 @@ class _BusinessLocationViewState extends State<_BusinessLocationView> {
               child: Center(
                 child: Text(
                   AppStrings.t(AppStringKeys.businessSettingsRemoveLocation),
-                  style: TextStyle(fontSize: 15, color: AppTheme.tagRed),
+                  style: AppTextStyle.body(AppTheme.tagRed),
                 ),
               ),
             ),
@@ -828,10 +828,7 @@ class _BusinessOpeningHoursViewState extends State<_BusinessOpeningHoursView> {
                       children: [
                         Text(
                           _timeZoneId,
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: c.textSecondary,
-                          ),
+                          style: AppTextStyle.callout(c.textSecondary),
                         ),
                         const SizedBox(width: 4),
                         AppIcon(
@@ -868,7 +865,7 @@ class _BusinessOpeningHoursViewState extends State<_BusinessOpeningHoursView> {
               child: Center(
                 child: Text(
                   AppStrings.t(AppStringKeys.businessSettingsRemoveHours),
-                  style: TextStyle(fontSize: 15, color: AppTheme.tagRed),
+                  style: AppTextStyle.body(AppTheme.tagRed),
                 ),
               ),
             ),
@@ -887,7 +884,7 @@ class _BusinessOpeningHoursViewState extends State<_BusinessOpeningHoursView> {
             title,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: TextStyle(fontSize: 16, color: context.colors.textPrimary),
+            style: AppTextStyle.bodyLarge(context.colors.textPrimary),
           ),
         ),
         const SizedBox(width: 12),
@@ -911,7 +908,7 @@ class _BusinessOpeningHoursViewState extends State<_BusinessOpeningHoursView> {
                   AppStrings.t(_dayKeys[day]),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(fontSize: 15, color: c.textPrimary),
+                  style: AppTextStyle.body(c.textPrimary),
                 ),
               ),
               AppSwitch(
@@ -963,7 +960,7 @@ class _BusinessOpeningHoursViewState extends State<_BusinessOpeningHoursView> {
                   padding: const EdgeInsets.fromLTRB(12, 6, 8, 3),
                   child: Text(
                     AppStrings.t(AppStringKeys.businessSettingsAddInterval),
-                    style: TextStyle(fontSize: 13, color: AppTheme.brand),
+                    style: AppTextStyle.footnote(AppTheme.brand),
                   ),
                 ),
               ),
@@ -978,7 +975,7 @@ class _BusinessOpeningHoursViewState extends State<_BusinessOpeningHoursView> {
     onTap: onTap,
     child: Padding(
       padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
-      child: Text(value, style: TextStyle(fontSize: 15, color: AppTheme.brand)),
+      child: Text(value, style: AppTextStyle.body(AppTheme.brand)),
     ),
   );
 }
@@ -1082,7 +1079,7 @@ class _BusinessStartPageViewState extends State<_BusinessStartPageView> {
               placeholder: AppStrings.t(
                 AppStringKeys.businessSettingsStartPageTitleHint,
               ),
-              style: TextStyle(fontSize: 16, color: c.textPrimary),
+              style: AppTextStyle.bodyLarge(c.textPrimary),
               placeholderStyle: TextStyle(color: c.textTertiary),
               decoration: const BoxDecoration(),
             ),
@@ -1099,7 +1096,7 @@ class _BusinessStartPageViewState extends State<_BusinessStartPageView> {
               placeholder: AppStrings.t(
                 AppStringKeys.businessSettingsStartPageMessageHint,
               ),
-              style: TextStyle(fontSize: 16, color: c.textPrimary),
+              style: AppTextStyle.bodyLarge(c.textPrimary),
               placeholderStyle: TextStyle(color: c.textTertiary),
               decoration: const BoxDecoration(),
             ),
@@ -1131,7 +1128,7 @@ class _BusinessStartPageViewState extends State<_BusinessStartPageView> {
                                 AppStringKeys
                                     .businessSettingsGreetingStickerSelected,
                               ),
-                        style: TextStyle(fontSize: 15, color: c.textPrimary),
+                        style: AppTextStyle.body(c.textPrimary),
                       ),
                     ),
                     if (_stickerFileId != null)
@@ -1166,7 +1163,7 @@ class _BusinessStartPageViewState extends State<_BusinessStartPageView> {
               child: Center(
                 child: Text(
                   AppStrings.t(AppStringKeys.businessSettingsRemoveStartPage),
-                  style: TextStyle(fontSize: 15, color: AppTheme.tagRed),
+                  style: AppTextStyle.body(AppTheme.tagRed),
                 ),
               ),
             ),
@@ -1241,7 +1238,7 @@ class _BusinessChatLinksViewState extends State<_BusinessChatLinksView> {
           ? Center(
               child: Text(
                 AppStrings.t(AppStringKeys.businessSettingsChatLinksEmpty),
-                style: TextStyle(fontSize: 15, color: c.textSecondary),
+                style: AppTextStyle.body(c.textSecondary),
               ),
             )
           : ListView.separated(
@@ -1272,20 +1269,14 @@ class _BusinessChatLinksViewState extends State<_BusinessChatLinksView> {
                                   link.str('title') ?? '',
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    color: c.textPrimary,
-                                  ),
+                                  style: AppTextStyle.bodyLarge(c.textPrimary),
                                 ),
                                 const SizedBox(height: 3),
                                 Text(
                                   link.str('link') ?? '',
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
-                                  style: TextStyle(
-                                    fontSize: 13,
-                                    color: c.textSecondary,
-                                  ),
+                                  style: AppTextStyle.footnote(c.textSecondary),
                                 ),
                                 const SizedBox(height: 2),
                                 Text(
@@ -1293,10 +1284,7 @@ class _BusinessChatLinksViewState extends State<_BusinessChatLinksView> {
                                     AppStringKeys.businessSettingsLinkOpenCount,
                                     {'value1': link.integer('view_count') ?? 0},
                                   ),
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: c.textTertiary,
-                                  ),
+                                  style: AppTextStyle.caption(c.textTertiary),
                                 ),
                               ],
                             ),
@@ -1423,7 +1411,7 @@ class _BusinessChatLinkEditorState extends State<_BusinessChatLinkEditor> {
               placeholder: AppStrings.t(
                 AppStringKeys.businessSettingsLinkTitleHint,
               ),
-              style: TextStyle(fontSize: 16, color: c.textPrimary),
+              style: AppTextStyle.bodyLarge(c.textPrimary),
               placeholderStyle: TextStyle(color: c.textTertiary),
               decoration: const BoxDecoration(),
             ),
@@ -1440,7 +1428,7 @@ class _BusinessChatLinkEditorState extends State<_BusinessChatLinkEditor> {
               placeholder: AppStrings.t(
                 AppStringKeys.businessSettingsLinkDraftHint,
               ),
-              style: TextStyle(fontSize: 16, color: c.textPrimary),
+              style: AppTextStyle.bodyLarge(c.textPrimary),
               placeholderStyle: TextStyle(color: c.textTertiary),
               decoration: const BoxDecoration(),
             ),
@@ -1453,7 +1441,7 @@ class _BusinessChatLinkEditorState extends State<_BusinessChatLinkEditor> {
               child: Center(
                 child: Text(
                   AppStrings.t(AppStringKeys.businessSettingsDeleteLink),
-                  style: TextStyle(fontSize: 15, color: AppTheme.tagRed),
+                  style: AppTextStyle.body(AppTheme.tagRed),
                 ),
               ),
             ),
@@ -1472,7 +1460,7 @@ Widget _fieldLabel(String value) => Builder(
     padding: const EdgeInsets.fromLTRB(4, 0, 4, 8),
     child: Text(
       AppStrings.t(value),
-      style: TextStyle(fontSize: 13, color: context.colors.textSecondary),
+      style: AppTextStyle.footnote(context.colors.textSecondary),
     ),
   ),
 );
@@ -1621,7 +1609,7 @@ class _TimeZoneSheet extends StatelessWidget {
                       Expanded(
                         child: Text(
                           zone.name,
-                          style: TextStyle(fontSize: 16, color: c.textPrimary),
+                          style: AppTextStyle.bodyLarge(c.textPrimary),
                         ),
                       ),
                       if (zone.id == selected)

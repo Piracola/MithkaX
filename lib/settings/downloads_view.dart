@@ -376,10 +376,9 @@ class _DownloadsViewState extends State<DownloadsView> {
                         AppStrings.t(
                           AppStringKeys.downloadsRemoveFromDownloads,
                         ),
-                        style: TextStyle(
-                          color: c.textPrimary,
-                          fontSize: 17,
-                          fontWeight: FontWeight.w600,
+                        style: AppTextStyle.title(
+                          c.textPrimary,
+                          weight: AppTextWeight.semibold,
                         ),
                       ),
                       const SizedBox(height: 4),
@@ -388,7 +387,7 @@ class _DownloadsViewState extends State<DownloadsView> {
                           AppStringKeys
                               .downloadsKeepTheCachedFileOrDeleteItFrom,
                         ),
-                        style: TextStyle(color: c.textSecondary, fontSize: 13),
+                        style: AppTextStyle.footnote(c.textSecondary),
                       ),
                     ],
                   ),
@@ -559,7 +558,7 @@ class _DownloadsViewState extends State<DownloadsView> {
               padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
               child: Text(
                 AppStrings.t(AppStringKeys.downloadsCacheHint),
-                style: TextStyle(fontSize: 12, color: c.textSecondary),
+                style: AppTextStyle.caption(c.textSecondary),
               ),
             ),
             Expanded(
@@ -629,10 +628,9 @@ class _DownloadsViewState extends State<DownloadsView> {
             ? const AppActivityIndicator(size: 20)
             : Text(
                 AppStrings.t(AppStringKeys.publicDiscoveryLoadMore),
-                style: TextStyle(
-                  color: AppTheme.brand,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
+                style: AppTextStyle.callout(
+                  AppTheme.brand,
+                  weight: AppTextWeight.semibold,
                 ),
               ),
       ),
@@ -737,10 +735,9 @@ class _DownloadsViewState extends State<DownloadsView> {
                       item.title,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        color: c.textPrimary,
-                        fontSize: 15,
-                        fontWeight: FontWeight.w500,
+                      style: AppTextStyle.body(
+                        c.textPrimary,
+                        weight: AppTextWeight.medium,
                       ),
                     ),
                     const SizedBox(height: 3),
@@ -762,7 +759,7 @@ class _DownloadsViewState extends State<DownloadsView> {
                                 : AppStringKeys.sharedMediaFilterNotDownloaded)} · ${_bytes(item.downloaded)} / ${_bytes(item.size)}',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: TextStyle(color: c.textSecondary, fontSize: 12),
+                      style: AppTextStyle.caption(c.textSecondary),
                     ),
                     if (!item.completed && progress != null) ...[
                       const SizedBox(height: 5),

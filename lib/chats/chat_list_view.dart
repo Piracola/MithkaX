@@ -3605,7 +3605,9 @@ class _ChatListViewState extends State<ChatListView>
   // grow the visual and its scroll allocation together instead of clipping.
   double _touchSearchVisualHeight() {
     final style = AppTextStyle.forSystemBoldTextMeasurement(
-      DefaultTextStyle.of(context).style.merge(const TextStyle(fontSize: 16)),
+      DefaultTextStyle.of(
+        context,
+      ).style.merge(AppTextStyle.bodyLarge(context.colors.textTertiary)),
       boldText: MediaQuery.boldTextOf(context),
     );
     final painter = TextPainter(
@@ -3666,7 +3668,7 @@ class _ChatListViewState extends State<ChatListView>
                         AppStringKeys.topicChatSearch.l10n(context),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: TextStyle(fontSize: 16, color: c.textTertiary),
+                        style: AppTextStyle.bodyLarge(c.textTertiary),
                       ),
                     ),
                   ],

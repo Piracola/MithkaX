@@ -1233,14 +1233,11 @@ class _ReactionSourceRow extends StatelessWidget {
                   mainAxisAlignment: MainAxisAlignment.center,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      title,
-                      style: TextStyle(color: c.textPrimary, fontSize: 16),
-                    ),
+                    Text(title, style: AppTextStyle.bodyLarge(c.textPrimary)),
                     const SizedBox(height: 2),
                     Text(
                       subtitle,
-                      style: TextStyle(color: c.textSecondary, fontSize: 13),
+                      style: AppTextStyle.footnote(c.textSecondary),
                     ),
                   ],
                 ),
@@ -1281,10 +1278,7 @@ class _NotificationChoiceRow extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      title,
-                      style: TextStyle(color: c.textPrimary, fontSize: 16),
-                    ),
+                    Text(title, style: AppTextStyle.bodyLarge(c.textPrimary)),
                   ],
                 ),
               ),

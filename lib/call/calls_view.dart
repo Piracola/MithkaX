@@ -344,12 +344,9 @@ class _CallRow extends StatelessWidget {
                     entry.title,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      color: _isMissed
-                          ? const Color(0xFFFF3B30)
-                          : c.textPrimary,
+                    style: AppTextStyle.bodyLarge(
+                      _isMissed ? const Color(0xFFFF3B30) : c.textPrimary,
+                      weight: AppTextWeight.semibold,
                     ),
                   ),
                   const SizedBox(height: 4),
@@ -371,7 +368,7 @@ class _CallRow extends StatelessWidget {
                           '${DateText.separatorLabel(entry.message.date)}',
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: TextStyle(fontSize: 12, color: c.textTertiary),
+                          style: AppTextStyle.caption(c.textTertiary),
                         ),
                       ),
                     ],
@@ -454,7 +451,7 @@ class _EmptyCalls extends StatelessWidget {
             Text(
               title.l10n(context),
               textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 15, color: c.textSecondary),
+              style: AppTextStyle.body(c.textSecondary),
             ),
             if (action != null && onAction != null) ...[
               const SizedBox(height: 16),
@@ -471,10 +468,9 @@ class _EmptyCalls extends StatelessWidget {
                   ),
                   child: Text(
                     action!.l10n(context),
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: c.onAccent,
+                    style: AppTextStyle.callout(
+                      c.onAccent,
+                      weight: AppTextWeight.semibold,
                     ),
                   ),
                 ),
@@ -502,7 +498,7 @@ class _LoadMoreFailure extends StatelessWidget {
         child: Text(
           AppStringKeys.callsRetry.l10n(context),
           textAlign: TextAlign.center,
-          style: TextStyle(fontSize: 14, color: AppTheme.brand),
+          style: AppTextStyle.callout(AppTheme.brand),
         ),
       ),
     );

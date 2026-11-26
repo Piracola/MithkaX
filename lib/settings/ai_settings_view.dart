@@ -1533,12 +1533,10 @@ Widget _actionButton(
               )
             : Text(
                 label,
-                style: TextStyle(
-                  color:
-                      foregroundColor ??
+                style: AppTextStyle.bodyLarge(
+                  foregroundColor ??
                       readableForeground(backgroundColor ?? AppTheme.brand),
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
+                  weight: AppTextWeight.semibold,
                 ),
               ),
       ),

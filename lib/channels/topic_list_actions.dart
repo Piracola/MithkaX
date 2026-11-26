@@ -114,7 +114,7 @@ class _TopicDraftDialogState extends State<TopicDraftDialog> {
           if (widget.canChangeColor) ...[
             Text(
               AppStrings.t(AppStringKeys.groupAdministrationIconColor),
-              style: TextStyle(fontSize: 13, color: c.textSecondary),
+              style: AppTextStyle.footnote(c.textSecondary),
             ),
             const SizedBox(height: 8),
             Wrap(
@@ -166,13 +166,13 @@ class _TopicDraftDialogState extends State<TopicDraftDialog> {
                     AppStrings.t(
                       AppStringKeys.groupAdministrationCustomEmojiIcon,
                     ),
-                    style: TextStyle(fontSize: 14, color: c.textPrimary),
+                    style: AppTextStyle.callout(c.textPrimary),
                   ),
                 ),
                 if (_customEmojiId == 0)
                   Text(
                     AppStrings.t(AppStringKeys.groupAppearanceNone),
-                    style: TextStyle(fontSize: 14, color: c.textSecondary),
+                    style: AppTextStyle.callout(c.textSecondary),
                   )
                 else
                   CustomEmojiView(id: _customEmojiId, size: 26),
@@ -471,10 +471,9 @@ Future<void> showTopicRowMenuSheet({
                         topic.name,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w600,
-                          color: c.textPrimary,
+                        style: AppTextStyle.body(
+                          c.textPrimary,
+                          weight: AppTextWeight.semibold,
                         ),
                       ),
                     ),
@@ -525,10 +524,9 @@ class TopicMenuRow extends StatelessWidget {
                   action.label,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w500,
-                    color: foreground,
+                  style: AppTextStyle.body(
+                    foreground,
+                    weight: AppTextWeight.medium,
                   ),
                 ),
               ),

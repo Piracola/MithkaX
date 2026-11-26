@@ -111,7 +111,7 @@ class _CountryMessageFilterViewState extends State<CountryMessageFilterView> {
         children: [
           Text(
             '+${country.dial}',
-            style: TextStyle(fontSize: 14, color: c.textSecondary),
+            style: AppTextStyle.callout(c.textSecondary),
           ),
           const SizedBox(width: AppSpacing.lg),
           AnimatedContainer(

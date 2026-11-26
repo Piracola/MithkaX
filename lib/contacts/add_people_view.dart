@@ -332,10 +332,9 @@ class _AddPeopleViewState extends State<AddPeopleView> {
           ),
           child: Text(
             label,
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
-              color: on ? c.card : c.textSecondary,
+            style: AppTextStyle.callout(
+              on ? c.card : c.textSecondary,
+              weight: AppTextWeight.semibold,
             ),
           ),
         ),
@@ -384,7 +383,7 @@ class _AddPeopleViewState extends State<AddPeopleView> {
                 focusNode: _focus,
                 autocorrect: false,
                 textInputAction: TextInputAction.search,
-                style: TextStyle(fontSize: 15, color: c.textPrimary),
+                style: AppTextStyle.body(c.textPrimary),
                 decoration: InputDecoration(
                   hintText: _mode == 0
                       ? AppStrings.t(
@@ -453,7 +452,7 @@ class _AddPeopleViewState extends State<AddPeopleView> {
                     Text(
                       o.$2,
                       textAlign: TextAlign.center,
-                      style: TextStyle(fontSize: 12, color: c.textPrimary),
+                      style: AppTextStyle.caption(c.textPrimary),
                     ),
                   ],
                 ),
@@ -484,7 +483,7 @@ class _AddPeopleViewState extends State<AddPeopleView> {
           _mode == 0
               ? AppStrings.t(AppStringKeys.addPeopleNoUsersFound)
               : AppStrings.t(AppStringKeys.addPeopleNoGroupsOrChannelsFound),
-          style: TextStyle(fontSize: 14, color: c.textSecondary),
+          style: AppTextStyle.callout(c.textSecondary),
         ),
       );
     }
@@ -543,10 +542,9 @@ class _AddPeopleViewState extends State<AddPeopleView> {
                     title,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w500,
-                      color: c.textPrimary,
+                    style: AppTextStyle.bodyLarge(
+                      c.textPrimary,
+                      weight: AppTextWeight.medium,
                     ),
                   ),
                   if (subtitle.isNotEmpty) ...[
@@ -555,7 +553,7 @@ class _AddPeopleViewState extends State<AddPeopleView> {
                       subtitle,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: TextStyle(fontSize: 13, color: c.textSecondary),
+                      style: AppTextStyle.footnote(c.textSecondary),
                     ),
                   ],
                 ],

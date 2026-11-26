@@ -46,10 +46,7 @@ class _GroupCallScreenState extends State<GroupCallScreen> {
                   ),
                   CallElapsedText(
                     startedAt: session.startedAt,
-                    style: const TextStyle(
-                      color: Color(0xFFFFFFFF),
-                      fontSize: 17,
-                    ),
+                    style: AppTextStyle.title(const Color(0xFFFFFFFF)),
                   ),
                   const SizedBox(height: 14),
                   _controls(),
@@ -126,18 +123,16 @@ class _GroupCallScreenState extends State<GroupCallScreen> {
                   title,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 17,
-                    fontWeight: FontWeight.w600,
+                  style: AppTextStyle.title(
+                    Colors.white,
+                    weight: AppTextWeight.semibold,
                   ),
                 ),
                 if (participantCount > 0)
                   Text(
                     '$participantCount',
-                    style: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.66),
-                      fontSize: 12,
+                    style: AppTextStyle.caption(
+                      Colors.white.withValues(alpha: 0.66),
                     ),
                   ),
               ],
@@ -192,10 +187,7 @@ class _GroupCallScreenState extends State<GroupCallScreen> {
           const SizedBox(height: 16),
           Text(
             AppStrings.t(AppStringKeys.callConnecting),
-            style: TextStyle(
-              color: Colors.white.withValues(alpha: 0.78),
-              fontSize: 15,
-            ),
+            style: AppTextStyle.body(Colors.white.withValues(alpha: 0.78)),
           ),
         ],
       ),
@@ -430,10 +422,9 @@ class _ParticipantTile extends StatelessWidget {
               participant.name,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 15,
-                fontWeight: FontWeight.w600,
+              style: AppTextStyle.body(
+                Colors.white,
+                weight: AppTextWeight.semibold,
               ),
             ),
           ),
@@ -480,10 +471,9 @@ class _ParticipantTile extends StatelessWidget {
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             textAlign: TextAlign.center,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 15,
-              fontWeight: FontWeight.w500,
+            style: AppTextStyle.body(
+              Colors.white,
+              weight: AppTextWeight.medium,
             ),
           ),
         ],

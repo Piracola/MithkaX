@@ -134,7 +134,7 @@ class _ProfileIconPickerViewState extends State<ProfileIconPickerView> {
                 ? Center(
                     child: Text(
                       AppStringKeys.editProfileProfileIconEmpty.l10n(context),
-                      style: TextStyle(fontSize: 15, color: c.textSecondary),
+                      style: AppTextStyle.body(c.textSecondary),
                     ),
                   )
                 : CustomScrollView(
@@ -175,10 +175,9 @@ class _ProfileIconPickerViewState extends State<ProfileIconPickerView> {
         label,
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
-        style: TextStyle(
-          fontSize: 13,
-          fontWeight: FontWeight.w600,
-          color: context.colors.textSecondary,
+        style: AppTextStyle.footnote(
+          context.colors.textSecondary,
+          weight: AppTextWeight.semibold,
         ),
       ),
     ),
@@ -226,7 +225,7 @@ class _ProfileIconPickerViewState extends State<ProfileIconPickerView> {
               AppStringKeys.groupAppearanceNone.l10n(context),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: TextStyle(fontSize: 10, color: c.textTertiary),
+              style: AppTextStyle.tiny(c.textTertiary),
             ),
           ],
         ),

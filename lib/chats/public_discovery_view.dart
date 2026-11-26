@@ -353,14 +353,11 @@ class _PublicDiscoveryViewState extends State<PublicDiscoveryView> {
                       child: Center(
                         child: Text(
                           AppStrings.t(tab.labelKey),
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: _tab == tab
-                                ? FontWeight.w600
-                                : FontWeight.w500,
-                            color: _tab == tab
-                                ? AppTheme.brand
-                                : c.textSecondary,
+                          style: AppTextStyle.callout(
+                            _tab == tab ? AppTheme.brand : c.textSecondary,
+                            weight: _tab == tab
+                                ? AppTextWeight.semibold
+                                : AppTextWeight.medium,
                           ),
                         ),
                       ),
@@ -408,7 +405,7 @@ class _PublicDiscoveryViewState extends State<PublicDiscoveryView> {
                 controller: _searchController,
                 onChanged: _queryChanged,
                 textInputAction: TextInputAction.search,
-                style: TextStyle(fontSize: 15, color: c.textPrimary),
+                style: AppTextStyle.body(c.textPrimary),
                 decoration: InputDecoration(
                   border: InputBorder.none,
                   isDense: true,
@@ -423,7 +420,7 @@ class _PublicDiscoveryViewState extends State<PublicDiscoveryView> {
                       AppStringKeys.publicDiscoverySearchAllChats,
                     ),
                   },
-                  hintStyle: TextStyle(fontSize: 15, color: c.textTertiary),
+                  hintStyle: AppTextStyle.body(c.textTertiary),
                 ),
               ),
             ),
@@ -480,10 +477,11 @@ class _PublicDiscoveryViewState extends State<PublicDiscoveryView> {
               ),
               child: Text(
                 AppStrings.t(filter.labelKey),
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
-                  color: selected ? AppTheme.brand : c.textSecondary,
+                style: AppTextStyle.footnote(
+                  selected ? AppTheme.brand : c.textSecondary,
+                  weight: selected
+                      ? AppTextWeight.semibold
+                      : AppTextWeight.medium,
                 ),
               ),
             ),
@@ -580,10 +578,9 @@ class _PublicDiscoveryViewState extends State<PublicDiscoveryView> {
                     padding: const EdgeInsets.fromLTRB(14, 12, 14, 7),
                     child: Text(
                       title,
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        color: c.textSecondary,
+                      style: AppTextStyle.footnote(
+                        c.textSecondary,
+                        weight: AppTextWeight.semibold,
                       ),
                     ),
                   ),
@@ -640,10 +637,9 @@ class _PublicDiscoveryViewState extends State<PublicDiscoveryView> {
                 peer.title,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w600,
-                  color: c.textPrimary,
+                style: AppTextStyle.body(
+                  c.textPrimary,
+                  weight: AppTextWeight.semibold,
                 ),
               ),
             ),
@@ -678,10 +674,7 @@ class _PublicDiscoveryViewState extends State<PublicDiscoveryView> {
                   {'value1': _requiredStarCount},
                 ),
                 textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 15,
-                  color: context.colors.textSecondary,
-                ),
+                style: AppTextStyle.body(context.colors.textSecondary),
               ),
               const SizedBox(height: 16),
               GestureDetector(
@@ -697,10 +690,9 @@ class _PublicDiscoveryViewState extends State<PublicDiscoveryView> {
                   ),
                   child: Text(
                     AppStrings.t(AppStringKeys.confirmContinue),
-                    style: const TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.white,
+                    style: AppTextStyle.callout(
+                      Colors.white,
+                      weight: AppTextWeight.semibold,
                     ),
                   ),
                 ),
@@ -767,16 +759,15 @@ class _PublicDiscoveryViewState extends State<PublicDiscoveryView> {
                           hit.source.title,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                            color: c.textPrimary,
+                          style: AppTextStyle.callout(
+                            c.textPrimary,
+                            weight: AppTextWeight.semibold,
                           ),
                         ),
                       ),
                       Text(
                         DateText.listLabel(hit.message.date),
-                        style: TextStyle(fontSize: 12, color: c.textTertiary),
+                        style: AppTextStyle.caption(c.textTertiary),
                       ),
                     ],
                   ),
@@ -821,10 +812,9 @@ class _PublicDiscoveryViewState extends State<PublicDiscoveryView> {
             ? const AppActivityIndicator(size: 20)
             : Text(
                 AppStrings.t(AppStringKeys.publicDiscoveryLoadMore),
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: AppTheme.brand,
+                style: AppTextStyle.callout(
+                  AppTheme.brand,
+                  weight: AppTextWeight.semibold,
                 ),
               ),
       ),
@@ -844,7 +834,7 @@ class _PublicDiscoveryViewState extends State<PublicDiscoveryView> {
             Text(
               text,
               textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 15, color: c.textSecondary),
+              style: AppTextStyle.body(c.textSecondary),
             ),
           ],
         ),

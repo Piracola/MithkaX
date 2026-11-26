@@ -76,7 +76,7 @@ class _MiniAppsSearchTabState extends State<MiniAppsSearchTab> {
               widget.query.trim().isEmpty
                   ? AppStrings.t(AppStringKeys.miniAppRecentEmpty)
                   : AppStrings.t(AppStringKeys.miniAppNoMatches),
-              style: TextStyle(fontSize: 14, color: c.textTertiary),
+              style: AppTextStyle.callout(c.textTertiary),
             ),
           );
         }
@@ -90,7 +90,7 @@ class _MiniAppsSearchTabState extends State<MiniAppsSearchTab> {
                   widget.query.trim().isEmpty
                       ? AppStrings.t(AppStringKeys.miniAppRecentSection)
                       : AppStrings.t(AppStringKeys.miniAppName),
-                  style: TextStyle(fontSize: 16, color: c.textSecondary),
+                  style: AppTextStyle.bodyLarge(c.textSecondary),
                 ),
               ),
             ),

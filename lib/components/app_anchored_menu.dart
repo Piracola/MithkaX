@@ -599,10 +599,9 @@ class _AppAnchoredMenuPopupState extends State<AppAnchoredMenuPopup>
                                       widget.header!,
                                       maxLines: 1,
                                       overflow: TextOverflow.ellipsis,
-                                      style: TextStyle(
-                                        fontSize: 13,
-                                        fontWeight: FontWeight.w600,
-                                        color: c.textSecondary,
+                                      style: AppTextStyle.footnote(
+                                        c.textSecondary,
+                                        weight: AppTextWeight.semibold,
                                       ),
                                     ),
                                   ),

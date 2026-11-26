@@ -389,11 +389,7 @@ class _ProfileViewState extends State<ProfileView> {
                                     AppStrings.t(AppStringKeys.contactsLoading),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
-                                style: TextStyle(
-                                  fontSize: 22,
-                                  fontWeight: FontWeight.w600,
-                                  color: foreground,
-                                ),
+                                style: AppTextStyle.display(foreground),
                               ),
                             ),
                             _nameStatusIcon(user),
@@ -574,7 +570,7 @@ class _ProfileViewState extends State<ProfileView> {
                   label,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(fontSize: 15, color: c.textPrimary),
+                  style: AppTextStyle.body(c.textPrimary),
                 ),
               ),
               const SizedBox(width: 12),
@@ -649,7 +645,7 @@ class _ProfileViewState extends State<ProfileView> {
                     Expanded(
                       child: Text(
                         AppStrings.t(AppStringKeys.profileAddAccount),
-                        style: TextStyle(fontSize: 15, color: AppTheme.brand),
+                        style: AppTextStyle.body(AppTheme.brand),
                       ),
                     ),
                   ],
@@ -741,13 +737,10 @@ class _ProfileViewState extends State<ProfileView> {
                     name,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: TextStyle(fontSize: 15, color: c.textPrimary),
+                    style: AppTextStyle.body(c.textPrimary),
                   ),
                   if (phone.isNotEmpty)
-                    Text(
-                      phone,
-                      style: TextStyle(fontSize: 12, color: c.textSecondary),
-                    ),
+                    Text(phone, style: AppTextStyle.caption(c.textSecondary)),
                 ],
               ),
             ),
@@ -1067,10 +1060,9 @@ class _SwipeActionButton extends StatelessWidget {
           label,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
-          style: TextStyle(
-            color: readableForeground(color),
-            fontSize: 13,
-            fontWeight: FontWeight.w600,
+          style: AppTextStyle.footnote(
+            readableForeground(color),
+            weight: AppTextWeight.semibold,
           ),
         ),
       ),

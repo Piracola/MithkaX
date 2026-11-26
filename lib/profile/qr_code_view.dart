@@ -190,7 +190,7 @@ class _QRCodeViewState extends State<QRCodeView> {
                       : AppStringKeys.qrCodeScanToAddFriend)
                   .l10n(context),
               textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 13, color: c.textSecondary),
+              style: AppTextStyle.footnote(c.textSecondary),
             ),
           ),
         ],
@@ -245,9 +245,8 @@ class _QRCodeViewState extends State<QRCodeView> {
                     '@$_username',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: Colors.white.withValues(alpha: 0.85),
+                    style: AppTextStyle.footnote(
+                      Colors.white.withValues(alpha: 0.85),
                     ),
                   ),
                 ],
@@ -271,7 +270,7 @@ class _QRCodeViewState extends State<QRCodeView> {
           child: _loadDone
               ? Text(
                   AppStringKeys.qrCodeNoGroupQrCode.l10n(context),
-                  style: TextStyle(fontSize: 14, color: c.textSecondary),
+                  style: AppTextStyle.callout(c.textSecondary),
                 )
               : const SizedBox(
                   width: 28,

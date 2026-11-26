@@ -330,10 +330,9 @@ class _AppCameraViewState extends State<AppCameraView>
                                 ),
                                 child: Text(
                                   _elapsedLabel,
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w600,
+                                  style: AppTextStyle.callout(
+                                    Colors.white,
+                                    weight: AppTextWeight.semibold,
                                   ),
                                 ),
                               ),
@@ -481,10 +480,9 @@ class _AppCameraViewState extends State<AppCameraView>
                           ? AppStringKeys.storyGallery
                           : AppStringKeys.videoNoteRecorderCloseCamera)
                       .l10n(context),
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600,
+                  style: AppTextStyle.body(
+                    Colors.white,
+                    weight: AppTextWeight.semibold,
                   ),
                 ),
               ),

@@ -539,7 +539,7 @@ class _AccountBackupViewState extends State<AccountBackupView> {
       child: Text(
         message.l10n(context),
         textAlign: TextAlign.center,
-        style: TextStyle(fontSize: 14, color: c.textSecondary),
+        style: AppTextStyle.callout(c.textSecondary),
       ),
     );
   }
@@ -693,10 +693,7 @@ class _SessionImportSheetState extends State<_SessionImportSheet> {
                                     AppStringKeys
                                         .accountBackupLoadSessionPlaceholder,
                                   ),
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    color: c.textTertiary,
-                                  ),
+                                  style: AppTextStyle.callout(c.textTertiary),
                                 ),
                               )
                             : const SizedBox.shrink(),
@@ -784,7 +781,7 @@ class _BackupRow extends StatelessWidget {
                     backup.displayName,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: TextStyle(fontSize: 16, color: c.textPrimary),
+                    style: AppTextStyle.bodyLarge(c.textPrimary),
                   ),
                   const SizedBox(height: 3),
                   if (userIdLabel != null) ...[
@@ -792,7 +789,7 @@ class _BackupRow extends StatelessWidget {
                       userIdLabel!,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: TextStyle(fontSize: 12, color: c.textTertiary),
+                      style: AppTextStyle.caption(c.textTertiary),
                     ),
                     const SizedBox(height: 2),
                   ],
@@ -800,7 +797,7 @@ class _BackupRow extends StatelessWidget {
                     subtitle,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: TextStyle(fontSize: 13, color: c.textSecondary),
+                    style: AppTextStyle.footnote(c.textSecondary),
                   ),
                 ],
               ),
@@ -863,10 +860,9 @@ class _SheetActionButton extends StatelessWidget {
                 label.l10n(context),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  color: foreground,
-                  fontSize: 15,
-                  fontWeight: FontWeight.w600,
+                style: AppTextStyle.body(
+                  foreground,
+                  weight: AppTextWeight.semibold,
                 ),
               ),
             ),

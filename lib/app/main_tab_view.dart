@@ -2133,10 +2133,9 @@ class _SplitEmptyPane extends StatelessWidget {
               const SizedBox(height: 14),
               Text(
                 title.l10n(context),
-                style: TextStyle(
-                  fontSize: 17,
-                  fontWeight: FontWeight.w600,
-                  color: c.textTertiary,
+                style: AppTextStyle.title(
+                  c.textTertiary,
+                  weight: AppTextWeight.semibold,
                 ),
               ),
             ],

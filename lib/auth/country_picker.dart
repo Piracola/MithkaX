@@ -441,7 +441,7 @@ class _CountryPickerViewState extends State<CountryPickerView> {
         backgroundColor: c.navBar,
         title: Text(
           AppStringKeys.countryPickerSelectCountryOrRegion.l10n(context),
-          style: TextStyle(fontSize: 17, color: c.textPrimary),
+          style: AppTextStyle.title(c.textPrimary),
         ),
         centerTitle: true,
         leading: TextButton(
@@ -477,7 +477,7 @@ class _CountryPickerViewState extends State<CountryPickerView> {
                     child: TextField(
                       controller: _controller,
                       onChanged: (v) => setState(() => _query = v),
-                      style: TextStyle(color: c.textPrimary, fontSize: 15),
+                      style: AppTextStyle.body(c.textPrimary),
                       decoration: InputDecoration(
                         hintText: AppStringKeys.countryPickerSearchPlaceholder
                             .l10n(context),
@@ -526,19 +526,13 @@ class _CountryPickerViewState extends State<CountryPickerView> {
                               _displayName(country),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                fontSize: 17,
-                                color: c.textPrimary,
-                              ),
+                              style: AppTextStyle.title(c.textPrimary),
                             ),
                           ),
                           const SizedBox(width: 8),
                           Text(
                             '+${country.dial}',
-                            style: TextStyle(
-                              fontSize: 16,
-                              color: c.textSecondary,
-                            ),
+                            style: AppTextStyle.bodyLarge(c.textSecondary),
                           ),
                         ],
                       ),

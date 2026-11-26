@@ -8,6 +8,7 @@ import '../components/ui_components.dart';
 import '../media/looping_media_playback.dart';
 import '../media/video_view_compatibility.dart';
 import '../platform/animated_avatar_preparer.dart';
+import '../theme/app_theme.dart';
 
 class AnimatedAvatarCropView extends StatefulWidget {
   const AnimatedAvatarCropView({super.key, required this.source});
@@ -177,7 +178,7 @@ class _AnimatedAvatarCropViewState extends State<AnimatedAvatarCropView> {
                 padding: const EdgeInsets.fromLTRB(24, 16, 24, 20),
                 child: Text(
                   AppStrings.t(AppStringKeys.imageEditCropAvatar),
-                  style: const TextStyle(color: Colors.white70, fontSize: 14),
+                  style: AppTextStyle.callout(Colors.white70),
                 ),
               ),
             ],

@@ -265,20 +265,16 @@ class _ForumTopicListPaneState extends State<ForumTopicListPane> {
                           attachment.title,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w500,
-                            color: c.textPrimary,
+                          style: AppTextStyle.bodyLarge(
+                            c.textPrimary,
+                            weight: AppTextWeight.medium,
                           ),
                         ),
                         Text(
                           AppStrings.t(AppStringKeys.topicChatTopicCount, {
                             'value1': attachment.topics.length,
                           }),
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: c.textSecondary,
-                          ),
+                          style: AppTextStyle.caption(c.textSecondary),
                         ),
                       ],
                     ),

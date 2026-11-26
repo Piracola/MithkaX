@@ -61,10 +61,9 @@ class _AccentColorPickerViewState extends State<AccentColorPickerView> {
           padding: const EdgeInsets.symmetric(horizontal: 4),
           child: Text(
             AppStrings.t(AppStringKeys.accentColorPickerSave),
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-              color: AppTheme.brand,
+            style: AppTextStyle.bodyLarge(
+              AppTheme.brand,
+              weight: AppTextWeight.semibold,
             ),
           ),
         ),

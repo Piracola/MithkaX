@@ -95,10 +95,7 @@ class _RetainDownloadButtonState extends State<RetainDownloadButton> {
               Flexible(
                 child: Text(
                   label,
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: context.colors.linkBlue,
-                  ),
+                  style: AppTextStyle.callout(context.colors.linkBlue),
                 ),
               ),
             ],

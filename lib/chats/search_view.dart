@@ -703,16 +703,13 @@ class DesktopInlineSearchField extends StatelessWidget {
                     focusNode: controller.focusNode,
                     autocorrect: false,
                     textInputAction: TextInputAction.search,
-                    style: TextStyle(fontSize: 13, color: c.textPrimary),
+                    style: AppTextStyle.footnote(c.textPrimary),
                     placeholder: AppStrings.t(
                       scope == null
                           ? AppStringKeys.chatsSearchPlaceholder
                           : AppStringKeys.desktopSearchScopePlaceholder,
                     ),
-                    placeholderStyle: TextStyle(
-                      fontSize: 13,
-                      color: c.textTertiary,
-                    ),
+                    placeholderStyle: AppTextStyle.footnote(c.textTertiary),
                     padding: EdgeInsets.zero,
                     decoration: null,
                     onTap: controller.focus,
@@ -783,10 +780,9 @@ class _DesktopInlineSearchTokenChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final labelStyle = TextStyle(
-      fontSize: 12,
-      fontWeight: _searchEmphasisWeight,
-      color: AppTheme.brand,
+    final labelStyle = AppTextStyle.caption(
+      AppTheme.brand,
+      weight: _searchEmphasisWeight,
     );
     return Container(
       height: 20,
@@ -1006,10 +1002,9 @@ class DesktopInlineSearchPanel extends StatelessWidget {
                           '${_footerLabel(context)}  ${controller.query.trim()}',
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: _searchEmphasisWeight,
-                            color: c.textPrimary,
+                          style: AppTextStyle.callout(
+                            c.textPrimary,
+                            weight: _searchEmphasisWeight,
                           ),
                         ),
                       ),
@@ -1044,7 +1039,7 @@ class DesktopInlineSearchPanel extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 22),
           child: Text(
             AppStringKeys.chatsSearchNoResults.l10n(context),
-            style: TextStyle(fontSize: 13, color: c.textTertiary),
+            style: AppTextStyle.footnote(c.textTertiary),
           ),
         ),
       );
@@ -1264,10 +1259,9 @@ class _DesktopInlineSearchSectionHeader extends StatelessWidget {
           Expanded(
             child: Text(
               tab.label,
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: _searchEmphasisWeight,
-                color: c.textSecondary,
+              style: AppTextStyle.caption(
+                c.textSecondary,
+                weight: _searchEmphasisWeight,
               ),
             ),
           ),
@@ -1374,10 +1368,9 @@ class _DesktopInlineMiniAppAction extends StatelessWidget {
                     app.displayTitle,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: _searchEmphasisWeight,
-                      color: context.colors.textPrimary,
+                    style: AppTextStyle.callout(
+                      context.colors.textPrimary,
+                      weight: _searchEmphasisWeight,
                     ),
                   ),
                   const SizedBox(height: 2),
@@ -1385,10 +1378,7 @@ class _DesktopInlineMiniAppAction extends StatelessWidget {
                     AppStringKeys.miniAppName.l10n(context),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: context.colors.textSecondary,
-                    ),
+                    style: AppTextStyle.caption(context.colors.textSecondary),
                   ),
                 ],
               ),
@@ -1409,12 +1399,11 @@ class _DesktopCompactSearchHitRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
-    final titleStyle = TextStyle(
-      fontSize: 14,
-      fontWeight: _searchEmphasisWeight,
-      color: c.textPrimary,
+    final titleStyle = AppTextStyle.callout(
+      c.textPrimary,
+      weight: _searchEmphasisWeight,
     );
-    final subtitleStyle = TextStyle(fontSize: 12, color: c.textSecondary);
+    final subtitleStyle = AppTextStyle.caption(c.textSecondary);
     return SizedBox(
       height: 56,
       child: Padding(
@@ -1981,10 +1970,9 @@ class _SearchViewState extends State<SearchView> {
           Expanded(
             child: Text(
               AppStrings.t(AppStringKeys.searchRecent),
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: _searchEmphasisWeight,
-                color: c.textSecondary,
+              style: AppTextStyle.footnote(
+                c.textSecondary,
+                weight: _searchEmphasisWeight,
               ),
             ),
           ),
@@ -1996,10 +1984,9 @@ class _SearchViewState extends State<SearchView> {
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
               child: Text(
                 AppStrings.t(AppStringKeys.searchHistoryClearAction),
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: _searchEmphasisWeight,
-                  color: AppTheme.brand,
+                style: AppTextStyle.footnote(
+                  AppTheme.brand,
+                  weight: _searchEmphasisWeight,
                 ),
               ),
             ),
@@ -2061,10 +2048,9 @@ class _SearchViewState extends State<SearchView> {
                   hit.title,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: _searchEmphasisWeight,
-                    color: c.textPrimary,
+                  style: AppTextStyle.bodyLarge(
+                    c.textPrimary,
+                    weight: _searchEmphasisWeight,
                   ),
                 ),
                 const SizedBox(height: 4),
@@ -2072,17 +2058,14 @@ class _SearchViewState extends State<SearchView> {
                   hit.subtitle,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(fontSize: 13, color: c.textSecondary),
+                  style: AppTextStyle.footnote(c.textSecondary),
                 ),
               ],
             ),
           ),
           if (hit.timeLabel.isNotEmpty) ...[
             const SizedBox(width: 10),
-            Text(
-              hit.timeLabel,
-              style: TextStyle(fontSize: 13, color: c.textTertiary),
-            ),
+            Text(hit.timeLabel, style: AppTextStyle.footnote(c.textTertiary)),
           ],
         ],
       ),
@@ -2144,7 +2127,7 @@ class _SearchViewState extends State<SearchView> {
       width: double.infinity,
       color: c.groupedBackground,
       alignment: Alignment.center,
-      child: Text(text, style: TextStyle(fontSize: 14, color: c.textTertiary)),
+      child: Text(text, style: AppTextStyle.callout(c.textTertiary)),
     );
   }
 
@@ -2183,12 +2166,11 @@ class _SearchViewState extends State<SearchView> {
             children: [
               AnimatedDefaultTextStyle(
                 duration: const Duration(milliseconds: 160),
-                style: TextStyle(
-                  fontSize: 15,
-                  fontWeight: selected
+                style: AppTextStyle.body(
+                  selected ? AppTheme.brand : c.textSecondary,
+                  weight: selected
                       ? _searchEmphasisWeight
                       : AppTextWeight.regular,
-                  color: selected ? AppTheme.brand : c.textSecondary,
                 ),
                 child: Text(tab.label, maxLines: 1),
               ),

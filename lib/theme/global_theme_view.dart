@@ -270,10 +270,11 @@ class _GlobalThemeViewState extends State<GlobalThemeView> {
                   child: Text(
                     label.l10n(context),
                     maxLines: 1,
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
-                      color: selected ? c.linkBlue : c.textSecondary,
+                    style: AppTextStyle.callout(
+                      selected ? c.linkBlue : c.textSecondary,
+                      weight: selected
+                          ? AppTextWeight.semibold
+                          : AppTextWeight.medium,
                     ),
                   ),
                 ),
@@ -289,10 +290,9 @@ class _GlobalThemeViewState extends State<GlobalThemeView> {
     final c = _pageColors;
     return Text(
       key.l10n(context),
-      style: TextStyle(
-        fontSize: 14,
-        fontWeight: FontWeight.w600,
-        color: c.textSecondary,
+      style: AppTextStyle.callout(
+        c.textSecondary,
+        weight: AppTextWeight.semibold,
       ),
     );
   }
@@ -308,7 +308,7 @@ class _GlobalThemeViewState extends State<GlobalThemeView> {
         child: Center(
           child: Text(
             AppStringKeys.globalThemeLoading.l10n(context),
-            style: TextStyle(fontSize: 13, color: _pageColors.textTertiary),
+            style: AppTextStyle.footnote(_pageColors.textTertiary),
           ),
         ),
       );
@@ -319,7 +319,7 @@ class _GlobalThemeViewState extends State<GlobalThemeView> {
         child: Center(
           child: Text(
             AppStringKeys.globalThemeCommunityEmpty.l10n(context),
-            style: TextStyle(fontSize: 13, color: _pageColors.textTertiary),
+            style: AppTextStyle.footnote(_pageColors.textTertiary),
           ),
         ),
       );
@@ -461,10 +461,11 @@ class _GlobalThemeViewState extends State<GlobalThemeView> {
               theme.displayTitle,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
-                color: selected ? c.linkBlue : c.textSecondary,
+              style: AppTextStyle.caption(
+                selected ? c.linkBlue : c.textSecondary,
+                weight: selected
+                    ? AppTextWeight.semibold
+                    : AppTextWeight.regular,
               ),
             ),
           ],
@@ -497,17 +498,16 @@ class _GlobalThemeViewState extends State<GlobalThemeView> {
                     Text(
                       theme?.displayTitle ??
                           AppStringKeys.globalThemeDefault.l10n(context),
-                      style: TextStyle(
-                        fontSize: 17,
-                        fontWeight: FontWeight.w600,
-                        color: c.textPrimary,
+                      style: AppTextStyle.title(
+                        c.textPrimary,
+                        weight: AppTextWeight.semibold,
                       ),
                     ),
                     if (theme != null) ...[
                       const SizedBox(height: 3),
                       Text(
                         theme.slug,
-                        style: TextStyle(fontSize: 13, color: c.textSecondary),
+                        style: AppTextStyle.footnote(c.textSecondary),
                       ),
                     ],
                   ],
@@ -572,7 +572,7 @@ class _GlobalThemeViewState extends State<GlobalThemeView> {
       children: [
         Text(
           AppStringKeys.chatWallpaperColor.l10n(context),
-          style: TextStyle(fontSize: 12, color: c.textTertiary),
+          style: AppTextStyle.caption(c.textTertiary),
         ),
         const SizedBox(height: 9),
         SizedBox(

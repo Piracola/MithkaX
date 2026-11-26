@@ -112,7 +112,7 @@ class _KeywordBlockerViewState extends State<KeywordBlockerView> {
               controller: _controller,
               textInputAction: TextInputAction.done,
               onSubmitted: (_) => _add(),
-              style: TextStyle(fontSize: 16, color: c.textPrimary),
+              style: AppTextStyle.bodyLarge(c.textPrimary),
               decoration: InputDecoration(
                 border: InputBorder.none,
                 isCollapsed: true,
@@ -137,10 +137,9 @@ class _KeywordBlockerViewState extends State<KeywordBlockerView> {
               ),
               child: Text(
                 AppStrings.t(AppStringKeys.imageEditAdd),
-                style: TextStyle(
-                  fontSize: 14,
-                  color: AppTheme.onBrand,
-                  fontWeight: FontWeight.w600,
+                style: AppTextStyle.callout(
+                  AppTheme.onBrand,
+                  weight: AppTextWeight.semibold,
                 ),
               ),
             ),
@@ -164,7 +163,7 @@ class _KeywordBlockerViewState extends State<KeywordBlockerView> {
               keyboardType: TextInputType.url,
               textInputAction: TextInputAction.done,
               onSubmitted: (_) => _refreshing ? null : _refreshUrl(),
-              style: TextStyle(fontSize: 15, color: c.textPrimary),
+              style: AppTextStyle.body(c.textPrimary),
               decoration: InputDecoration(
                 border: InputBorder.none,
                 isCollapsed: true,
@@ -193,10 +192,9 @@ class _KeywordBlockerViewState extends State<KeywordBlockerView> {
                     )
                   : Text(
                       AppStrings.t(AppStringKeys.keywordBlockerDownload),
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: AppTheme.onBrand,
-                        fontWeight: FontWeight.w600,
+                      style: AppTextStyle.callout(
+                        AppTheme.onBrand,
+                        weight: AppTextWeight.semibold,
                       ),
                     ),
             ),

@@ -1198,10 +1198,9 @@ class _LoginViewState extends State<LoginView> {
                 children: [
                   Text(
                     AppStrings.t(label),
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w500,
-                      color: c.textPrimary,
+                    style: AppTextStyle.footnote(
+                      c.textPrimary,
+                      weight: AppTextWeight.medium,
                     ),
                   ),
                   const SizedBox(height: 3),
@@ -1233,11 +1232,9 @@ class _LoginViewState extends State<LoginView> {
           child: Text(
             AppStrings.t(AppStringKeys.loginTermsButton),
             textAlign: TextAlign.start,
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w500,
-              color: c.textSecondary,
-              decoration: TextDecoration.none,
+            style: AppTextStyle.caption(
+              c.textSecondary,
+              weight: AppTextWeight.medium,
             ),
           ),
         ),
@@ -1618,11 +1615,7 @@ class _LoginViewState extends State<LoginView> {
           Text(
             AppStrings.t(AppStringKeys.loginBotAccountTitle),
             textAlign: _align,
-            style: TextStyle(
-              fontSize: 22,
-              fontWeight: FontWeight.w600,
-              color: c.textPrimary,
-            ),
+            style: AppTextStyle.display(c.textPrimary),
           ),
           const SizedBox(height: 10),
           Text(
@@ -1656,7 +1649,7 @@ class _LoginViewState extends State<LoginView> {
         Text(
           AppStrings.t(AppStringKeys.loginBotApiEndpointHint),
           textAlign: _align,
-          style: TextStyle(fontSize: 12, color: c.textTertiary),
+          style: AppTextStyle.caption(c.textTertiary),
         ),
         if (_botError case final error?) ...[
           const SizedBox(height: 14),
@@ -1737,11 +1730,7 @@ class _LoginViewState extends State<LoginView> {
           Text(
             AppStrings.t(AppStringKeys.loginConfirmYourEmailAddress),
             textAlign: _align,
-            style: TextStyle(
-              fontSize: 22,
-              fontWeight: FontWeight.w600,
-              color: c.textPrimary,
-            ),
+            style: AppTextStyle.display(c.textPrimary),
           ),
           const SizedBox(height: 10),
           Text(
@@ -1749,7 +1738,7 @@ class _LoginViewState extends State<LoginView> {
               AppStringKeys.loginTelegramRequiresAnEmailAddressToFinishSigning,
             ),
             textAlign: _align,
-            style: TextStyle(fontSize: 14, color: c.textSecondary),
+            style: AppTextStyle.callout(c.textSecondary),
           ),
           const SizedBox(height: 22),
         ],
@@ -1766,7 +1755,7 @@ class _LoginViewState extends State<LoginView> {
                   keyboardType: TextInputType.emailAddress,
                   textInputAction: TextInputAction.done,
                   autocorrect: false,
-                  style: TextStyle(fontSize: 16, color: c.textPrimary),
+                  style: AppTextStyle.bodyLarge(c.textPrimary),
                   decoration: InputDecoration(
                     border: InputBorder.none,
                     isCollapsed: _desktop,
@@ -1812,11 +1801,7 @@ class _LoginViewState extends State<LoginView> {
           Text(
             AppStrings.t(AppStringKeys.loginEnterTheEmailCode),
             textAlign: _align,
-            style: TextStyle(
-              fontSize: 22,
-              fontWeight: FontWeight.w600,
-              color: c.textPrimary,
-            ),
+            style: AppTextStyle.display(c.textPrimary),
           ),
           const SizedBox(height: 10),
           Text(
@@ -1824,7 +1809,7 @@ class _LoginViewState extends State<LoginView> {
                 ? 'Telegram sent a code to your email address.'
                 : 'Telegram sent a code to ${step.emailPattern}.',
             textAlign: _align,
-            style: TextStyle(fontSize: 14, color: c.textSecondary),
+            style: AppTextStyle.callout(c.textSecondary),
           ),
           const SizedBox(height: 22),
         ],
@@ -1881,10 +1866,9 @@ class _LoginViewState extends State<LoginView> {
             child: Text(
               AppStrings.t(AppStringKeys.loginResendEmailCode),
               textAlign: _align,
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-                color: AppTheme.brand,
+              style: AppTextStyle.callout(
+                AppTheme.brand,
+                weight: AppTextWeight.semibold,
               ),
             ),
           ),
@@ -1900,7 +1884,7 @@ class _LoginViewState extends State<LoginView> {
                     ? 'Email reset available in ${step.resetWaitSeconds} seconds'
                     : 'Reset email address',
                 textAlign: _align,
-                style: TextStyle(fontSize: 14, color: c.textSecondary),
+                style: AppTextStyle.callout(c.textSecondary),
               ),
             ),
           ),
@@ -1928,11 +1912,7 @@ class _LoginViewState extends State<LoginView> {
           Text(
             AppStrings.t(AppStringKeys.loginTelegramPremiumIsRequired),
             textAlign: _align,
-            style: TextStyle(
-              fontSize: 22,
-              fontWeight: FontWeight.w600,
-              color: c.textPrimary,
-            ),
+            style: AppTextStyle.display(c.textPrimary),
           ),
           const SizedBox(height: 10),
           Text(
@@ -1962,10 +1942,9 @@ class _LoginViewState extends State<LoginView> {
               child: Text(
                 AppStrings.t(AppStringKeys.loginRestoreAppStorePurchase),
                 textAlign: _align,
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: AppTheme.brand,
+                style: AppTextStyle.callout(
+                  AppTheme.brand,
+                  weight: AppTextWeight.semibold,
                 ),
               ),
             ),
@@ -1978,7 +1957,7 @@ class _LoginViewState extends State<LoginView> {
               'value1': step.supportEmail,
             }),
             textAlign: _align,
-            style: TextStyle(fontSize: 12, color: c.textTertiary),
+            style: AppTextStyle.caption(c.textTertiary),
           ),
         ],
       ],
@@ -2039,10 +2018,9 @@ class _LoginViewState extends State<LoginView> {
                   AppStrings.t(AppStringKeys.loginWithPasskey),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600,
-                    color: c.textPrimary,
+                  style: AppTextStyle.body(
+                    c.textPrimary,
+                    weight: AppTextWeight.semibold,
                   ),
                 ),
               ),
@@ -2231,7 +2209,7 @@ class _LoginViewState extends State<LoginView> {
           Text(
             AppStrings.t(AppStringKeys.loginQrCodeSubtitle),
             textAlign: _align,
-            style: TextStyle(fontSize: 13, color: c.textSecondary),
+            style: AppTextStyle.footnote(c.textSecondary),
           ),
           const SizedBox(height: 20),
         ],
@@ -2287,10 +2265,9 @@ class _LoginViewState extends State<LoginView> {
         Text(
           AppStrings.t(AppStringKeys.accountBackupFreshSessionWaiting),
           textAlign: _align,
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
-            color: c.textPrimary,
+          style: AppTextStyle.bodyLarge(
+            c.textPrimary,
+            weight: AppTextWeight.semibold,
           ),
         ),
         const SizedBox(height: 24),
@@ -2452,10 +2429,9 @@ class _LoginViewState extends State<LoginView> {
           ),
           child: Text(
             title,
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w500,
-              color: canResend ? c.textSecondary : c.textTertiary,
+            style: AppTextStyle.callout(
+              canResend ? c.textSecondary : c.textTertiary,
+              weight: AppTextWeight.medium,
             ),
           ),
         ),
@@ -2871,11 +2847,9 @@ class _VerificationCodeInputState extends State<_VerificationCodeInput> {
                   child: Center(
                     child: Text(
                       '${code.length}/${widget.length}',
-                      style: TextStyle(
-                        color: c.textTertiary,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        decoration: TextDecoration.none,
+                      style: AppTextStyle.caption(
+                        c.textTertiary,
+                        weight: AppTextWeight.semibold,
                       ),
                     ),
                   ),

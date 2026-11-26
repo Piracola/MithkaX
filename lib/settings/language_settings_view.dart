@@ -117,7 +117,7 @@ class _LanguageRow extends StatelessWidget {
                       title,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: TextStyle(fontSize: 16, color: c.textPrimary),
+                      style: AppTextStyle.bodyLarge(c.textPrimary),
                     ),
                   ],
                 ),

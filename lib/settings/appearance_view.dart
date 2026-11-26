@@ -392,10 +392,9 @@ class _AppIconSettingsViewState extends State<AppIconSettingsView> {
   Widget _heading(String key, String textKey) => Text(
     AppStrings.t(textKey),
     key: ValueKey(key),
-    style: TextStyle(
-      fontSize: 15,
-      fontWeight: FontWeight.w600,
-      color: context.colors.textPrimary,
+    style: AppTextStyle.body(
+      context.colors.textPrimary,
+      weight: AppTextWeight.semibold,
     ),
   );
 
@@ -614,10 +613,9 @@ class _RetainedAppIconStatus extends StatelessWidget {
                 children: [
                   Text(
                     heading,
-                    style: TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w600,
-                      color: c.textPrimary,
+                    style: AppTextStyle.body(
+                      c.textPrimary,
+                      weight: AppTextWeight.semibold,
                     ),
                   ),
                   if (name != null) ...[
@@ -1212,7 +1210,7 @@ class _SenderNameReadabilityPreview extends StatelessWidget {
                         bubbleColor: bubbleColor,
                         textColor: bubbleTextColor,
                         name: sample,
-                        nameStyle: TextStyle(fontSize: 12, color: color),
+                        nameStyle: AppTextStyle.caption(color),
                         // The background treatment is a tag joined to the name,
                         // so previewing it without a tag would hide half of what
                         // is being chosen.

@@ -139,10 +139,7 @@ class _DownloadLocationViewState extends State<DownloadLocationView> {
                         ? AppStringKeys.storageDownloadMigrationFailed
                         : AppStringKeys.storageDownloadRestart,
                   ),
-                  style: TextStyle(
-                    color: context.colors.textSecondary,
-                    fontSize: 13,
-                  ),
+                  style: AppTextStyle.footnote(context.colors.textSecondary),
                 ),
               ),
               if (DownloadStorage.currentRoot case final path?)
@@ -152,10 +149,7 @@ class _DownloadLocationViewState extends State<DownloadLocationView> {
                     AppStrings.t(AppStringKeys.storageDownloadCurrent, {
                       'value1': path,
                     }),
-                    style: TextStyle(
-                      color: context.colors.textSecondary,
-                      fontSize: 12,
-                    ),
+                    style: AppTextStyle.caption(context.colors.textSecondary),
                   ),
                 ),
               const SizedBox(height: 20),
@@ -182,10 +176,7 @@ class _DownloadLocationViewState extends State<DownloadLocationView> {
                 padding: const EdgeInsets.all(12),
                 child: Text(
                   AppStrings.t(AppStringKeys.storageDownloadSaveHint),
-                  style: TextStyle(
-                    color: context.colors.textSecondary,
-                    fontSize: 13,
-                  ),
+                  style: AppTextStyle.footnote(context.colors.textSecondary),
                 ),
               ),
             ],

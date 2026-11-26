@@ -921,11 +921,11 @@ class _SecurityField extends StatelessWidget {
               controller: controller,
               obscureText: obscureText,
               keyboardType: keyboardType,
-              style: TextStyle(fontSize: 15, color: c.textPrimary),
+              style: AppTextStyle.body(c.textPrimary),
               decoration: InputDecoration(
                 border: InputBorder.none,
                 hintText: label,
-                hintStyle: TextStyle(fontSize: 15, color: c.textTertiary),
+                hintStyle: AppTextStyle.body(c.textTertiary),
               ),
             ),
           ),
@@ -975,14 +975,14 @@ class _SecurityActionRow extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Text(title, style: TextStyle(fontSize: 15, color: color)),
+                    Text(title, style: AppTextStyle.body(color)),
                     if (subtitle.isNotEmpty) ...[
                       const SizedBox(height: 2),
                       Text(
                         subtitle,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: TextStyle(fontSize: 12, color: c.textTertiary),
+                        style: AppTextStyle.caption(c.textTertiary),
                       ),
                     ],
                   ],
@@ -1037,10 +1037,9 @@ class _PrimarySecurityButton extends StatelessWidget {
             )
           : Text(
               label,
-              style: TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.w600,
-                color: context.colors.accentButtonText,
+              style: AppTextStyle.body(
+                context.colors.accentButtonText,
+                weight: AppTextWeight.semibold,
               ),
             ),
     ),

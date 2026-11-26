@@ -156,10 +156,7 @@ class _PasskeysViewState extends State<PasskeysView> {
                         Text(
                           AppStrings.t(AppStringKeys.passkeysEmpty),
                           textAlign: TextAlign.center,
-                          style: TextStyle(
-                            fontSize: 15,
-                            color: c.textSecondary,
-                          ),
+                          style: AppTextStyle.body(c.textSecondary),
                         ),
                       ],
                     ),

@@ -412,10 +412,9 @@ class _ContactsViewState extends State<ContactsView> {
             const SizedBox(width: 12),
             Text(
               AppStringKeys.tabContacts.l10n(context),
-              style: TextStyle(
-                fontSize: 17,
-                fontWeight: FontWeight.w600,
-                color: c.textPrimary,
+              style: AppTextStyle.title(
+                c.textPrimary,
+                weight: AppTextWeight.semibold,
               ),
             ),
             const Spacer(),
@@ -503,12 +502,12 @@ class _ContactsViewState extends State<ContactsView> {
               controller: _searchController,
               textInputAction: TextInputAction.search,
               onChanged: _onSearchChanged,
-              style: TextStyle(fontSize: 14, color: c.textPrimary),
+              style: AppTextStyle.callout(c.textPrimary),
               decoration: InputDecoration(
                 isCollapsed: true,
                 border: InputBorder.none,
                 hintText: AppStringKeys.topicChatSearch.l10n(context),
-                hintStyle: TextStyle(fontSize: 14, color: c.textTertiary),
+                hintStyle: AppTextStyle.callout(c.textTertiary),
               ),
             ),
           ),
@@ -610,12 +609,11 @@ class _ContactsViewState extends State<ContactsView> {
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                           textAlign: TextAlign.center,
-                          style: TextStyle(
-                            fontSize: 15,
-                            fontWeight: selected
-                                ? FontWeight.w600
-                                : FontWeight.w500,
-                            color: c.textPrimary,
+                          style: AppTextStyle.body(
+                            c.textPrimary,
+                            weight: selected
+                                ? AppTextWeight.semibold
+                                : AppTextWeight.medium,
                           ),
                         ),
                       ),
@@ -824,7 +822,7 @@ class _ContactsViewState extends State<ContactsView> {
                 (loading ? AppStringKeys.contactsLoading : emptyText).l10n(
                   context,
                 ),
-                style: TextStyle(fontSize: 14, color: c.textSecondary),
+                style: AppTextStyle.callout(c.textSecondary),
               ),
             ],
           ),

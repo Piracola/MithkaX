@@ -140,10 +140,9 @@ class _CreateGroupViewState extends State<CreateGroupView> {
             ),
             Text(
               AppStrings.t(AppStringKeys.createGroupStartGroupChat),
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-                color: c.textPrimary,
+              style: AppTextStyle.bodyLarge(
+                c.textPrimary,
+                weight: AppTextWeight.semibold,
               ),
             ),
             Align(
@@ -158,10 +157,9 @@ class _CreateGroupViewState extends State<CreateGroupView> {
                         ? AppStrings.t(AppStringKeys.addMembersDone)
                         : '${AppStrings.t(AppStringKeys.addMembersDone)} '
                               '(${_selected.length})',
-                    style: TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w600,
-                      color: canCreate ? AppTheme.brand : c.textTertiary,
+                    style: AppTextStyle.body(
+                      canCreate ? AppTheme.brand : c.textTertiary,
+                      weight: AppTextWeight.semibold,
                     ),
                   ),
                 ),
@@ -185,13 +183,13 @@ class _CreateGroupViewState extends State<CreateGroupView> {
         children: [
           Text(
             AppStrings.t(AppStringKeys.groupManagementGroupName),
-            style: TextStyle(fontSize: 15, color: c.textSecondary),
+            style: AppTextStyle.body(c.textSecondary),
           ),
           const SizedBox(width: 14),
           Expanded(
             child: TextField(
               controller: _titleController,
-              style: TextStyle(fontSize: 15, color: c.textPrimary),
+              style: AppTextStyle.body(c.textPrimary),
               decoration: InputDecoration(
                 hintText: AppStrings.t(AppStringKeys.createGroupOptionalLabel),
                 border: InputBorder.none,
@@ -253,7 +251,7 @@ class _CreateGroupViewState extends State<CreateGroupView> {
                 u.name,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: TextStyle(fontSize: 16, color: c.textPrimary),
+                style: AppTextStyle.bodyLarge(c.textPrimary),
               ),
             ),
           ],

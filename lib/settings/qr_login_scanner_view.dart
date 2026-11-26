@@ -178,10 +178,8 @@ class _QrLoginScannerViewState extends State<QrLoginScannerView>
                                   AppStringKeys.qrScannerCameraUnavailable,
                                 ),
                                 textAlign: TextAlign.center,
-                                style: const TextStyle(
-                                  color: Color(0xFFFFFFFF),
-                                  fontSize: 15,
-                                  decoration: TextDecoration.none,
+                                style: AppTextStyle.body(
+                                  const Color(0xFFFFFFFF),
                                 ),
                               ),
                             ),
@@ -234,12 +232,7 @@ class _QrLoginScannerViewState extends State<QrLoginScannerView>
                 Text(
                   AppStrings.t(AppStringKeys.privacyScanLoginQr),
                   textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    color: Color(0xFFFFFFFF),
-                    fontSize: 22,
-                    fontWeight: FontWeight.w600,
-                    decoration: TextDecoration.none,
-                  ),
+                  style: AppTextStyle.display(const Color(0xFFFFFFFF)),
                 ),
                 const SizedBox(height: 8),
                 Text(
@@ -321,11 +314,9 @@ class _QrLoginScannerViewState extends State<QrLoginScannerView>
                             ? AppStringKeys.storyOpenSettings
                             : AppStringKeys.privacyRetry,
                       ),
-                      style: const TextStyle(
-                        color: Color(0xFFFFFFFF),
-                        fontSize: 15,
-                        fontWeight: FontWeight.w600,
-                        decoration: TextDecoration.none,
+                      style: AppTextStyle.body(
+                        const Color(0xFFFFFFFF),
+                        weight: AppTextWeight.semibold,
                       ),
                     ),
                   ),

@@ -475,14 +475,10 @@ class _DesktopPrimaryWindowFrameState extends State<DesktopPrimaryWindowFrame> {
                                                   maxLines: 1,
                                                   overflow:
                                                       TextOverflow.ellipsis,
-                                                  style: TextStyle(
-                                                    color: context
-                                                        .colors
-                                                        .textPrimary,
-                                                    fontSize: 14,
-                                                    fontWeight: FontWeight.w600,
-                                                    decoration:
-                                                        TextDecoration.none,
+                                                  style: AppTextStyle.callout(
+                                                    context.colors.textPrimary,
+                                                    weight:
+                                                        AppTextWeight.semibold,
                                                   ),
                                                 ),
                                               ),
@@ -821,11 +817,9 @@ class _DesktopTitleBarProfilePopup extends StatelessWidget {
                       key: const ValueKey('desktop-title-bar-profile-name'),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        color: c.textPrimary,
-                        fontSize: 15,
-                        fontWeight: FontWeight.w600,
-                        decoration: TextDecoration.none,
+                      style: AppTextStyle.body(
+                        c.textPrimary,
+                        weight: AppTextWeight.semibold,
                       ),
                     ),
                     if (phone != null && phone.isNotEmpty) ...[
@@ -835,12 +829,7 @@ class _DesktopTitleBarProfilePopup extends StatelessWidget {
                         key: const ValueKey('desktop-title-bar-profile-phone'),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          color: c.textSecondary,
-                          fontSize: 13,
-                          fontWeight: FontWeight.w400,
-                          decoration: TextDecoration.none,
-                        ),
+                        style: AppTextStyle.footnote(c.textSecondary),
                       ),
                     ],
                   ],
@@ -899,11 +888,9 @@ class _DesktopTitleBarProfilePopup extends StatelessWidget {
             const SizedBox(width: 6),
             Text(
               label,
-              style: TextStyle(
-                color: c.linkBlue,
-                fontSize: 13,
-                fontWeight: FontWeight.w500,
-                decoration: TextDecoration.none,
+              style: AppTextStyle.footnote(
+                c.linkBlue,
+                weight: AppTextWeight.medium,
               ),
             ),
           ],

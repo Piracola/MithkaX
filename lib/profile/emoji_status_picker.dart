@@ -39,7 +39,7 @@ Future<void> showEmojiStatusPicker(
           return Center(
             child: Text(
               AppStrings.t(AppStringKeys.emojiStatusNoAvailableStatuses),
-              style: TextStyle(fontSize: 13, color: c.textSecondary),
+              style: AppTextStyle.footnote(c.textSecondary),
             ),
           );
         }
@@ -113,10 +113,9 @@ Future<void> showEmojiStatusPicker(
                                         AppStrings.t(
                                           AppStringKeys.emojiStatusSetTitle,
                                         ),
-                                        style: TextStyle(
-                                          fontSize: 16,
-                                          fontWeight: FontWeight.w600,
-                                          color: c.textPrimary,
+                                        style: AppTextStyle.bodyLarge(
+                                          c.textPrimary,
+                                          weight: AppTextWeight.semibold,
                                         ),
                                       ),
                                       const Spacer(),
@@ -128,9 +127,8 @@ Future<void> showEmojiStatusPicker(
                                             AppStrings.t(
                                               AppStringKeys.emojiStatusClear,
                                             ),
-                                            style: TextStyle(
-                                              fontSize: 14,
-                                              color: AppTheme.tagRed,
+                                            style: AppTextStyle.callout(
+                                              AppTheme.tagRed,
                                             ),
                                           ),
                                         ),
@@ -169,10 +167,10 @@ Future<void> showEmojiStatusPicker(
                                                       AppStringKeys
                                                           .emojiStatusNoAvailableStatusesPremiumRequired,
                                                     ),
-                                                    style: TextStyle(
-                                                      fontSize: 13,
-                                                      color: c.textSecondary,
-                                                    ),
+                                                    style:
+                                                        AppTextStyle.footnote(
+                                                          c.textSecondary,
+                                                        ),
                                                   ),
                                                 );
                                               }

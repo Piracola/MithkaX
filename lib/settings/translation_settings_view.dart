@@ -137,10 +137,9 @@ class _AiTranslationPromptEditorViewState
         ),
         child: Text(
           label,
-          style: TextStyle(
-            color: foregroundColor ?? const Color(0xFFFFFFFF),
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
+          style: AppTextStyle.bodyLarge(
+            foregroundColor ?? const Color(0xFFFFFFFF),
+            weight: AppTextWeight.semibold,
           ),
         ),
       ),
@@ -473,10 +472,9 @@ Widget _googleCloudActionButton(
               )
             : Text(
                 label,
-                style: TextStyle(
-                  color: readableForeground(backgroundColor ?? AppTheme.brand),
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
+                style: AppTextStyle.bodyLarge(
+                  readableForeground(backgroundColor ?? AppTheme.brand),
+                  weight: AppTextWeight.semibold,
                 ),
               ),
       ),

@@ -145,10 +145,9 @@ class _MessageBubbleSettingsViewState extends State<MessageBubbleSettingsView> {
                       Expanded(
                         child: Text(
                           '@msgbubble repository',
-                          style: TextStyle(
-                            color: c.textPrimary,
-                            fontSize: 17,
-                            fontWeight: FontWeight.w600,
+                          style: AppTextStyle.title(
+                            c.textPrimary,
+                            weight: AppTextWeight.semibold,
                           ),
                         ),
                       ),
@@ -168,11 +167,9 @@ class _MessageBubbleSettingsViewState extends State<MessageBubbleSettingsView> {
                       onTap: () => openLink(context, sourceLink),
                       child: Text(
                         sourceLink,
-                        style: TextStyle(
-                          color: AppTheme.brand,
-                          fontSize: 13,
-                          decoration: TextDecoration.underline,
-                        ),
+                        style: AppTextStyle.footnote(
+                          AppTheme.brand,
+                        ).copyWith(decoration: TextDecoration.underline),
                       ),
                     ),
                   ],
@@ -210,10 +207,9 @@ class _MessageBubbleSettingsViewState extends State<MessageBubbleSettingsView> {
                                   AppStrings.t(
                                     AppStringKeys.messageBubbleSettingsOpenRepo,
                                   ),
-                                  style: TextStyle(
-                                    color: AppTheme.onBrand,
-                                    fontSize: 15,
-                                    fontWeight: FontWeight.w600,
+                                  style: AppTextStyle.body(
+                                    AppTheme.onBrand,
+                                    weight: AppTextWeight.semibold,
                                   ),
                                 ),
                               ],
@@ -244,10 +240,7 @@ class _MessageBubbleSettingsViewState extends State<MessageBubbleSettingsView> {
             child: Row(
               children: [
                 Expanded(
-                  child: Text(
-                    label,
-                    style: TextStyle(fontSize: 15, color: c.textPrimary),
-                  ),
+                  child: Text(label, style: AppTextStyle.body(c.textPrimary)),
                 ),
                 AppIcon(
                   selected ? HeroAppIcons.circleCheck : HeroAppIcons.circle,
@@ -270,10 +263,9 @@ class _MessageBubbleSettingsViewState extends State<MessageBubbleSettingsView> {
             padding: const EdgeInsets.fromLTRB(14, 13, 14, 5),
             child: Text(
               AppStrings.t(AppStringKeys.messageBubbleSettingsApplyTo),
-              style: TextStyle(
-                color: c.textSecondary,
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
+              style: AppTextStyle.footnote(
+                c.textSecondary,
+                weight: AppTextWeight.semibold,
               ),
             ),
           ),

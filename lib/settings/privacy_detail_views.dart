@@ -1094,7 +1094,7 @@ class _PrivacyRuleViewState extends State<PrivacyRuleView> {
             Text(
               AppStrings.t(AppStringKeys.privacyLoadFailed),
               textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 15, color: c.textSecondary),
+              style: AppTextStyle.body(c.textSecondary),
             ),
             const SizedBox(height: 14),
             GestureDetector(
@@ -1111,10 +1111,9 @@ class _PrivacyRuleViewState extends State<PrivacyRuleView> {
                 ),
                 child: Text(
                   AppStrings.t(AppStringKeys.privacyRetry),
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600,
+                  style: AppTextStyle.body(
+                    Colors.white,
+                    weight: AppTextWeight.semibold,
                   ),
                 ),
               ),
@@ -1148,7 +1147,7 @@ class _PrivacyRuleViewState extends State<PrivacyRuleView> {
                   AppStrings.t(_labels[index]),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(fontSize: 16, color: c.textPrimary),
+                  style: AppTextStyle.bodyLarge(c.textPrimary),
                 ),
               ),
               const SizedBox(width: 12),
@@ -1202,14 +1201,14 @@ class _PrivacyRuleViewState extends State<PrivacyRuleView> {
                   Expanded(
                     child: Text(
                       AppStrings.t(label),
-                      style: TextStyle(fontSize: 16, color: c.textPrimary),
+                      style: AppTextStyle.bodyLarge(c.textPrimary),
                     ),
                   ),
                   Text(
                     entries.isEmpty
                         ? AppStrings.t(AppStringKeys.privacyAddUsers)
                         : '${entries.length}',
-                    style: TextStyle(fontSize: 16, color: AppTheme.brand),
+                    style: AppTextStyle.bodyLarge(AppTheme.brand),
                   ),
                   const SizedBox(width: 5),
                   AppIcon(
@@ -1242,7 +1241,7 @@ class _PrivacyRuleViewState extends State<PrivacyRuleView> {
                       entry.title,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: TextStyle(fontSize: 15, color: c.textPrimary),
+                      style: AppTextStyle.body(c.textPrimary),
                     ),
                   ),
                   GestureDetector(
@@ -1288,7 +1287,7 @@ class _PrivacyRuleViewState extends State<PrivacyRuleView> {
                   AppStrings.t(label),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(fontSize: 16, color: c.textPrimary),
+                  style: AppTextStyle.bodyLarge(c.textPrimary),
                 ),
               ),
               const SizedBox(width: 12),
@@ -1340,7 +1339,7 @@ class _PrivacyRuleViewState extends State<PrivacyRuleView> {
               Expanded(
                 child: Text(
                   AppStrings.t(label),
-                  style: TextStyle(fontSize: 16, color: c.textPrimary),
+                  style: AppTextStyle.bodyLarge(c.textPrimary),
                 ),
               ),
               const SizedBox(width: 12),
@@ -1351,7 +1350,7 @@ class _PrivacyRuleViewState extends State<PrivacyRuleView> {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   textAlign: TextAlign.right,
-                  style: TextStyle(fontSize: 14, color: c.textSecondary),
+                  style: AppTextStyle.callout(c.textSecondary),
                 ),
               ),
               const SizedBox(width: 5),
@@ -1382,7 +1381,7 @@ class _PrivacyRuleViewState extends State<PrivacyRuleView> {
             Expanded(
               child: Text(
                 AppStrings.t(label),
-                style: TextStyle(fontSize: 16, color: c.textPrimary),
+                style: AppTextStyle.bodyLarge(c.textPrimary),
               ),
             ),
             AppSwitch(value: value, onChanged: onChanged),
@@ -1409,7 +1408,7 @@ class _PrivacyRuleViewState extends State<PrivacyRuleView> {
                   AppStrings.t(AppStringKeys.privacyUpdatePublicPhoto),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(fontSize: 16, color: AppTheme.brand),
+                  style: AppTextStyle.bodyLarge(AppTheme.brand),
                 ),
               ),
             ],
@@ -1437,7 +1436,7 @@ class _PrivacyRuleViewState extends State<PrivacyRuleView> {
               const SizedBox(width: 10),
               Text(
                 AppStrings.t(AppStringKeys.privacyRemovePublicPhoto),
-                style: const TextStyle(fontSize: 16, color: Color(0xffe53935)),
+                style: AppTextStyle.bodyLarge(const Color(0xffe53935)),
               ),
             ],
           ),
@@ -1452,10 +1451,9 @@ class _PrivacyRuleViewState extends State<PrivacyRuleView> {
       alignment: Alignment.centerLeft,
       child: Text(
         text,
-        style: TextStyle(
-          color: AppTheme.brand,
-          fontSize: 14,
-          fontWeight: FontWeight.w600,
+        style: AppTextStyle.callout(
+          AppTheme.brand,
+          weight: AppTextWeight.semibold,
         ),
       ),
     ),
@@ -1623,10 +1621,9 @@ class _ActiveSessionsViewState extends State<ActiveSessionsView> {
                             Expanded(
                               child: Text(
                                 AppStrings.t(AppStringKeys.privacyScanLoginQr),
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  color: c.textPrimary,
-                                  fontWeight: FontWeight.w500,
+                                style: AppTextStyle.bodyLarge(
+                                  c.textPrimary,
+                                  weight: AppTextWeight.medium,
                                 ),
                               ),
                             ),
@@ -1661,10 +1658,7 @@ class _ActiveSessionsViewState extends State<ActiveSessionsView> {
                             AppStrings.t(
                               AppStringKeys.privacyTerminateAllOtherSessions,
                             ),
-                            style: TextStyle(
-                              fontSize: 16,
-                              color: AppTheme.tagRed,
-                            ),
+                            style: AppTextStyle.bodyLarge(AppTheme.tagRed),
                           ),
                         ),
                       ),
@@ -1691,10 +1685,7 @@ class _ActiveSessionsViewState extends State<ActiveSessionsView> {
                       child: Center(
                         child: Text(
                           AppStrings.t(AppStringKeys.privacyNoOtherDevices),
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: c.textSecondary,
-                          ),
+                          style: AppTextStyle.callout(c.textSecondary),
                         ),
                       ),
                     ),
@@ -1731,10 +1722,9 @@ class _ActiveSessionsViewState extends State<ActiveSessionsView> {
                 children: [
                   Text(
                     app,
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w500,
-                      color: c.textPrimary,
+                    style: AppTextStyle.bodyLarge(
+                      c.textPrimary,
+                      weight: AppTextWeight.medium,
                     ),
                   ),
                   if (subtitle.isNotEmpty) ...[
@@ -1743,7 +1733,7 @@ class _ActiveSessionsViewState extends State<ActiveSessionsView> {
                       subtitle,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: TextStyle(fontSize: 13, color: c.textSecondary),
+                      style: AppTextStyle.footnote(c.textSecondary),
                     ),
                   ],
                 ],
@@ -1752,7 +1742,7 @@ class _ActiveSessionsViewState extends State<ActiveSessionsView> {
             if (!current)
               Text(
                 AppStrings.t(AppStringKeys.privacyTerminateSession),
-                style: TextStyle(fontSize: 14, color: AppTheme.tagRed),
+                style: AppTextStyle.callout(AppTheme.tagRed),
               ),
           ],
         ),
@@ -1844,7 +1834,7 @@ class _BlockedUsersViewState extends State<BlockedUsersView> {
           ? Center(
               child: Text(
                 AppStrings.t(AppStringKeys.privacyBlockedUsersEmpty),
-                style: TextStyle(fontSize: 14, color: c.textSecondary),
+                style: AppTextStyle.callout(c.textSecondary),
               ),
             )
           : SettingsListView(
@@ -1874,7 +1864,7 @@ class _BlockedUsersViewState extends State<BlockedUsersView> {
           ),
           child: Text(
             AppStrings.t(AppStringKeys.privacyUnblock),
-            style: TextStyle(fontSize: 13, color: AppTheme.brand),
+            style: AppTextStyle.footnote(AppTheme.brand),
           ),
         ),
       ),

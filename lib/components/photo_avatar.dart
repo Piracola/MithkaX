@@ -1231,10 +1231,9 @@ class _MediaLoadingProgress extends StatelessWidget {
               if (text != null)
                 Text(
                   text,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
+                  style: AppTextStyle.callout(
+                    Colors.white,
+                    weight: AppTextWeight.semibold,
                   ),
                 ),
             ],

@@ -716,10 +716,9 @@ class _StorageUsageViewState extends State<StorageUsageView> {
                     alignment: Alignment.centerLeft,
                     child: Text(
                       title,
-                      style: TextStyle(
-                        color: c.textPrimary,
-                        fontSize: 17,
-                        fontWeight: FontWeight.w600,
+                      style: AppTextStyle.title(
+                        c.textPrimary,
+                        weight: AppTextWeight.semibold,
                       ),
                     ),
                   ),
@@ -1510,7 +1509,7 @@ class _StorageManagerViewState extends State<_StorageManagerView> {
                         AppStringKeys.storageUsageValue1CachedFiles,
                         {'value1': chat.countFor(_filter)},
                       ),
-                      style: TextStyle(color: c.textTertiary, fontSize: 12),
+                      style: AppTextStyle.caption(c.textTertiary),
                     ),
                 ],
               ),
@@ -1580,7 +1579,7 @@ class _StorageErrorState extends StatelessWidget {
             Text(
               AppStrings.t(AppStringKeys.storageLoadFailed),
               textAlign: TextAlign.center,
-              style: TextStyle(color: c.textSecondary, fontSize: 15),
+              style: AppTextStyle.body(c.textSecondary),
             ),
             const SizedBox(height: 14),
             AppInteractiveSurface(

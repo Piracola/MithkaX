@@ -93,11 +93,7 @@ class _TermsSheet extends StatelessWidget {
                       Expanded(
                         child: Text(
                           AppStrings.t(AppStringKeys.loginTermsTitle),
-                          style: TextStyle(
-                            fontSize: 22,
-                            fontWeight: FontWeight.w600,
-                            color: c.textPrimary,
-                          ),
+                          style: AppTextStyle.display(c.textPrimary),
                         ),
                       ),
                       AppIcon(
@@ -142,19 +138,15 @@ class _TermsSheet extends StatelessWidget {
                               AppStrings.t(
                                 AppStringKeys.loginTermsOpenTelegram,
                               ),
-                              style: TextStyle(
-                                fontSize: 15,
-                                fontWeight: FontWeight.w600,
-                                color: c.textPrimary,
+                              style: AppTextStyle.body(
+                                c.textPrimary,
+                                weight: AppTextWeight.semibold,
                               ),
                             ),
                           ),
                           Text(
                             'telegram.org/tos',
-                            style: TextStyle(
-                              fontSize: 13,
-                              color: c.textSecondary,
-                            ),
+                            style: AppTextStyle.footnote(c.textSecondary),
                           ),
                         ],
                       ),
@@ -219,10 +211,9 @@ class _TermsAcceptButtonState extends State<_TermsAcceptButton> {
                     // This app-owned action uses our plain localized label so
                     // those markers are never rendered literally.
                     AppStrings.t(AppStringKeys.loginTermsAccept),
-                    style: const TextStyle(
-                      color: Color(0xFFFFFFFF),
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
+                    style: AppTextStyle.bodyLarge(
+                      const Color(0xFFFFFFFF),
+                      weight: AppTextWeight.semibold,
                     ),
                   ),
           ),

@@ -455,16 +455,15 @@ class _DesktopHotkeyRecorderDialogState
                 children: [
                   Text(
                     AppStringKeys.desktopHotkeysRecordPrompt.l10n(context),
-                    style: TextStyle(
-                      color: c.textPrimary,
-                      fontSize: 17,
-                      fontWeight: FontWeight.w600,
+                    style: AppTextStyle.title(
+                      c.textPrimary,
+                      weight: AppTextWeight.semibold,
                     ),
                   ),
                   const SizedBox(height: 6),
                   Text(
                     widget.titleKey.l10n(context),
-                    style: TextStyle(color: c.textSecondary, fontSize: 14),
+                    style: AppTextStyle.callout(c.textSecondary),
                   ),
                   const SizedBox(height: 16),
                   Container(
@@ -499,10 +498,7 @@ class _DesktopHotkeyRecorderDialogState
                     const SizedBox(height: 8),
                     Text(
                       _errorKey!.l10n(context),
-                      style: const TextStyle(
-                        color: Color(0xFFFF3B30),
-                        fontSize: 13,
-                      ),
+                      style: AppTextStyle.footnote(const Color(0xFFFF3B30)),
                     ),
                   ],
                   const SizedBox(height: 14),
@@ -520,10 +516,9 @@ class _DesktopHotkeyRecorderDialogState
                         ),
                         child: Text(
                           AppStringKeys.confirmCancel.l10n(context),
-                          style: TextStyle(
-                            color: c.linkBlue,
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
+                          style: AppTextStyle.callout(
+                            c.linkBlue,
+                            weight: AppTextWeight.semibold,
                           ),
                         ),
                       ),

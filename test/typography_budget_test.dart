@@ -48,7 +48,7 @@ const _heightBudget = 126;
 /// taking a role from `AppTextStyle.<role>()`, and therefore never picks up the
 /// role's leading. It is the number that reaches zero when the tree is on
 /// roles; the other two reach zero earlier.
-const _literalStyleBudget = 977;
+const _literalStyleBudget = 625;
 
 void main() {
   late List<TextStyleSite> sites;
