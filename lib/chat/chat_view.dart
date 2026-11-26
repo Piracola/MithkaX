@@ -3809,7 +3809,7 @@ class _ChatViewState extends State<ChatView> {
       mainAxisAlignment: MainAxisAlignment.center,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        if (_showsTopicSurfaces)
+        if (_showsTopicSurfaces && !_vm.isBotTopicChat)
           Row(
             children: [
               Expanded(child: title),

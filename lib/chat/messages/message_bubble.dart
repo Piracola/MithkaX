@@ -471,6 +471,24 @@ class _MessageBubbleState extends State<_ScopedMessageBubble>
     _handleLongPress();
   }
 
+  /// The link under the open link menu, painted with a select tint for as long
+  /// as the menu is up (exteraless's `chat_linkSelectBackground` behind a
+  /// pressed link). Null when no link menu is showing.
+  String? _pressedLinkValue;
+
+  void _setPressedLink(String? value) {
+    if (!mounted || _pressedLinkValue == value) return;
+    setState(() => _pressedLinkValue = value);
+  }
+
+  /// The pressed-link tint for a run whose copy target is [copyValue].
+  TextStyle _pressedLinkStyle(TextStyle style, String copyValue, Color link) {
+    if (_pressedLinkValue == null || _pressedLinkValue != copyValue) {
+      return style;
+    }
+    return style.copyWith(backgroundColor: link.withValues(alpha: 0.22));
+  }
+
   /// Resolves the link under [globalPosition], if the press landed on one.
   ///
   /// Every message run is painted by some [RenderParagraph]; the pressed point
@@ -526,10 +544,22 @@ class _MessageBubbleState extends State<_ScopedMessageBubble>
     ({_MessageLinkRecognizer link, Rect rect}) hit,
   ) async {
     final link = hit.link;
-    final action = await showMessageLinkMenu(
-      context,
-      MessageLinkHit(kind: link.kind, anchor: hit.rect, qrValue: link.qrValue),
-    );
+    // The pressed link keeps a select tint while its menu is open, so the
+    // reader can see which run the menu belongs to.
+    _setPressedLink(link.copyValue);
+    final MessageLinkMenuAction? action;
+    try {
+      action = await showMessageLinkMenu(
+        context,
+        MessageLinkHit(
+          kind: link.kind,
+          anchor: hit.rect,
+          qrValue: link.qrValue,
+        ),
+      );
+    } finally {
+      _setPressedLink(null);
+    }
     if (!mounted || action == null) return;
     switch (action) {
       case MessageLinkMenuAction.open:
