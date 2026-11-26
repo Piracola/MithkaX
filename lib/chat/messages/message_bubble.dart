@@ -162,7 +162,6 @@ class MessageBubble extends StatelessWidget {
     required this.peerTitle,
     this.peerPhoto,
     required this.isGroup,
-    this.isChannel = false,
     this.meName = AppStringKeys.chatMeLabel,
     this.mePhoto,
     this.meId,
@@ -235,12 +234,6 @@ class MessageBubble extends StatelessWidget {
   final String peerTitle;
   final TdFileRef? peerPhoto;
   final bool isGroup;
-
-  /// A broadcast channel's post: the channel is the author of every message,
-  /// so the chat's 38pt side avatar would repeat a column of identical
-  /// photos. Like exteraless's wide channel posts, the post instead carries a
-  /// compact channel header (20pt avatar + title) and uses the full lane.
-  final bool isChannel;
   final String meName;
   final TdFileRef? mePhoto;
   final int? meId;
@@ -1437,34 +1430,30 @@ class _MessageBubbleState extends State<_ScopedMessageBubble>
                 ),
               ]
             : [
-                if (!widget.bubble.isChannel) ...[
-                  _avatarTapTarget(
-                    PhotoAvatar(
-                      title: widget.bubble.isGroup
-                          ? (message.senderName ?? widget.bubble.peerTitle)
-                          : widget.bubble.peerTitle,
-                      photo: widget.bubble.isGroup
-                          ? message.senderPhoto
-                          : widget.bubble.peerPhoto,
-                      size: 38 * ContentSizeScope.of(context).appScale,
-                      isDeleted:
-                          widget.bubble.isGroup && message.senderIsDeleted,
-                      onlinePresence: widget.bubble.showAvatarOnlineStatus
-                          ? widget.bubble.isGroup
-                                ? message.senderPresence
-                                : widget.bubble.peerPresence
-                          : AvatarPresence.none,
-                    ),
-                    withLongPress: true,
+                _avatarTapTarget(
+                  PhotoAvatar(
+                    title: widget.bubble.isGroup
+                        ? (message.senderName ?? widget.bubble.peerTitle)
+                        : widget.bubble.peerTitle,
+                    photo: widget.bubble.isGroup
+                        ? message.senderPhoto
+                        : widget.bubble.peerPhoto,
+                    size: 38 * ContentSizeScope.of(context).appScale,
+                    isDeleted: widget.bubble.isGroup && message.senderIsDeleted,
+                    onlinePresence: widget.bubble.showAvatarOnlineStatus
+                        ? widget.bubble.isGroup
+                              ? message.senderPresence
+                              : widget.bubble.peerPresence
+                        : AvatarPresence.none,
                   ),
-                  const SizedBox(width: 8),
-                ],
+                  withLongPress: true,
+                ),
+                const SizedBox(width: 8),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      if (widget.bubble.isChannel ||
-                          (widget.bubble.isGroup && message.senderName != null))
+                      if (widget.bubble.isGroup && message.senderName != null)
                         _senderHeader(showDetailTime: showDetailTime),
                       // The badge Row is a no-op wrapper without a badge, and
                       // the Column already left-aligns the bubble.
@@ -1526,24 +1515,16 @@ class _MessageBubbleState extends State<_ScopedMessageBubble>
   }
 
   Widget _detailTimestampOverlay(bool outgoing, Widget child) => Positioned(
-    left: outgoing ? null : (widget.bubble.isChannel ? 18 : 58),
+    left: outgoing ? null : 58,
     right: outgoing ? 58 : null,
     bottom: -5,
     child: child,
   );
 
   /// Only an incoming group message reads any of this — a 1:1 chat used to pay
-  /// for the name-colour resolution and the role switch on every message. A
-  /// channel post reads it too: its author is always the channel, drawn as a
-  /// compact 20pt avatar + title instead of the side column.
+  /// for the name-colour resolution and the role switch on every message.
   Widget _senderHeader({required bool showDetailTime}) {
     final theme = _theme;
-    final channel = widget.bubble.isChannel;
-    final senderName =
-        message.senderName ?? (channel ? widget.bubble.peerTitle : null);
-    if (senderName == null || senderName.isEmpty) {
-      return const SizedBox.shrink();
-    }
     final showMemberTags = theme.showMemberTags;
     final showSenderRole = switch (message.senderRole) {
       null => false,
@@ -1571,20 +1552,12 @@ class _MessageBubbleState extends State<_ScopedMessageBubble>
       padding: const EdgeInsets.only(left: 4, bottom: 3),
       child: Row(
         children: [
-          if (channel) ...[
-            PhotoAvatar(
-              title: senderName,
-              photo: message.senderPhoto ?? widget.bubble.peerPhoto,
-              size: 20 * ContentSizeScope.of(context).appScale,
-            ),
-            const SizedBox(width: 6),
-          ],
           Flexible(
             child: SenderIdentityPills(
               readabilityMode: theme.senderNameReadabilityMode,
               bubbleColor: _incomingBubbleColor,
               textColor: _incomingTextColor,
-              name: senderName,
+              name: message.senderName!,
               nameStyle: TextStyle(
                 fontSize: AppTextSize.chatSecondary(AppTextSize.messageBody()),
                 color: senderNameColor,
@@ -2890,26 +2863,219 @@ class _MessageBubbleState extends State<_ScopedMessageBubble>
 
   bool _emojiOnlyValue = false;
 
+  /// Rich-message page buttons, drawn the way exteraless lays out
+  /// `RichButtonRowBlock`: pill-shaped buttons on one line, 7pt apart, the
+  /// label's natural width plus 20pt each side, and a missing alignment (the
+  /// page block's FILL default) stretching them across the post. The old Wrap
+  /// of bordered chips wrapped three buttons into ragged rows and read as
+  /// separate cards instead of one Telegram button row.
   Widget _richButtonRowBlock(RichMessageBlock block, bool outgoing) {
-    final alignment = switch (block.horizontalAlignment) {
-      'center' => WrapAlignment.center,
-      'right' => WrapAlignment.end,
-      _ => WrapAlignment.start,
-    };
+    final buttons = block.buttons;
+    if (buttons.isEmpty) return const SizedBox.shrink();
+    final fontSize = _chatFontSize(AppTextSize.messageBody());
+    final height = 18 + fontSize;
+    const gap = 7.0;
+    final alignment = block.horizontalAlignment;
+    final fill =
+        alignment != 'left' && alignment != 'center' && alignment != 'right';
     return SizedBox(
-      key: const ValueKey('rich-message-button-row'),
-      width: _bubbleMaxWidth(),
-      child: Wrap(
-        alignment: alignment,
-        spacing: 6,
-        runSpacing: 6,
-        children: [
-          for (final button in block.buttons)
-            ConstrainedBox(
-              constraints: const BoxConstraints(minWidth: 88, maxWidth: 220),
-              child: _buttonCell(button, outgoing),
+      width: double.infinity,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final maxWidth = constraints.maxWidth.isFinite
+              ? constraints.maxWidth
+              : _bubbleMaxWidth();
+          final metrics = [
+            for (final button in buttons)
+              _richButtonMetrics(
+                button,
+                fontSize: fontSize,
+                height: height,
+                maxWidth: maxWidth,
+              ),
+          ];
+          final widths = _richButtonWidths(
+            metrics,
+            maxWidth: maxWidth,
+            gap: gap,
+            fill: fill,
+          );
+          final row = Row(
+            key: const ValueKey('rich-message-button-row'),
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              for (var i = 0; i < buttons.length; i++) ...[
+                if (i > 0) const SizedBox(width: gap),
+                _richButtonPill(
+                  buttons[i],
+                  outgoing,
+                  width: widths[i],
+                  height: height,
+                  fontSize: fontSize,
+                ),
+              ],
+            ],
+          );
+          if (fill) return SizedBox(width: maxWidth, child: row);
+          return Align(
+            alignment: switch (alignment) {
+              'center' => Alignment.center,
+              'right' => Alignment.centerRight,
+              _ => Alignment.centerLeft,
+            },
+            child: row,
+          );
+        },
+      ),
+    );
+  }
+
+  /// Width a rich button wants (label + exteraless's 20pt side padding) and
+  /// the lower bound it can be squeezed to (the pill's own height, so it never
+  /// loses its rounded ends). The badge sits inside the right padding.
+  ({double preferred, double min}) _richButtonMetrics(
+    MessageButton button, {
+    required double fontSize,
+    required double height,
+    required double maxWidth,
+  }) {
+    final painter = TextPainter(
+      text: TextSpan(
+        text: button.text,
+        // Measure with the same inherited family the pill's Text uses, so a
+        // long label is not given a width that then clips it.
+        style: DefaultTextStyle.of(context).style.merge(
+          TextStyle(fontSize: fontSize, fontWeight: FontWeight.w600),
+        ),
+      ),
+      maxLines: 1,
+      textDirection: Directionality.of(context),
+      textScaler: MediaQuery.textScalerOf(context),
+    )..layout();
+    final textWidth = painter.width;
+    painter.dispose();
+    final iconReserve = button.iconCustomEmojiId != 0 ? fontSize + 5 : 0.0;
+    final badgeReserve = botButtonBadgeIcon(button) != null ? 17.0 : 0.0;
+    final preferred = math.min(
+      maxWidth,
+      textWidth + 40 + iconReserve + badgeReserve,
+    );
+    return (
+      preferred: preferred,
+      min: math.min(preferred, height + badgeReserve),
+    );
+  }
+
+  /// exteraless's row arithmetic: grow the flexible pills to fill the row
+  /// (over-wide pills keep their natural width), or, when the labels do not
+  /// fit, take the overflow from every pill in proportion to what it can give
+  /// up. The last resort scales the whole row so it can never paint past the
+  /// post's edge.
+  List<double> _richButtonWidths(
+    List<({double preferred, double min})> metrics, {
+    required double maxWidth,
+    required double gap,
+    required bool fill,
+  }) {
+    final count = metrics.length;
+    final available = math.max(0.0, maxWidth - gap * (count - 1));
+    final widths = [for (final metric in metrics) metric.preferred];
+    final total = widths.fold(0.0, (sum, width) => sum + width);
+    if (total > available) {
+      final shrinkable = [
+        for (var i = 0; i < count; i++)
+          math.max(0.0, widths[i] - metrics[i].min),
+      ].fold(0.0, (sum, room) => sum + room);
+      if (shrinkable > 0) {
+        final target = math.min(total - available, shrinkable);
+        var taken = 0.0;
+        for (var i = 0; i < count; i++) {
+          final room = widths[i] - metrics[i].min;
+          final cut = i == count - 1
+              ? target - taken
+              : target * room / shrinkable;
+          final applied = math.min(math.max(0.0, cut), room);
+          widths[i] -= applied;
+          taken += applied;
+        }
+      }
+      final squeezed = widths.fold(0.0, (sum, width) => sum + width);
+      if (squeezed > available && squeezed > 0) {
+        final scale = available / squeezed;
+        for (var i = 0; i < count; i++) {
+          widths[i] *= scale;
+        }
+      }
+      return widths;
+    }
+    if (!fill) return widths;
+    final fixed = List<bool>.filled(count, false);
+    var flexible = count;
+    var rest = available;
+    var share = flexible > 0 ? rest / flexible : 0.0;
+    var changed = true;
+    while (changed && flexible > 0) {
+      changed = false;
+      for (var i = 0; i < count; i++) {
+        if (!fixed[i] && widths[i] > share) {
+          fixed[i] = true;
+          rest -= widths[i];
+          flexible--;
+          changed = true;
+        }
+      }
+      share = flexible > 0 ? rest / flexible : 0;
+    }
+    for (var i = 0; i < count; i++) {
+      if (!fixed[i]) widths[i] = share;
+    }
+    return widths;
+  }
+
+  Widget _richButtonPill(
+    MessageButton button,
+    bool outgoing, {
+    required double width,
+    required double height,
+    required double fontSize,
+  }) {
+    final textColor = outgoing ? _outgoingTextColor : _incomingTextColor;
+    final palette = botButtonPalette(
+      button.style,
+      primary: AppTheme.brand,
+      standard: (
+        background: textColor.withValues(alpha: 0.08),
+        foreground: textColor,
+        border: Colors.transparent,
+      ),
+    );
+    return SizedBox(
+      key: ValueKey('rich-message-button-${button.text}'),
+      width: width,
+      height: height,
+      child: Material(
+        color: palette.background,
+        shape: const StadiumBorder(),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          customBorder: const StadiumBorder(),
+          onTap: () => widget.bubble.onButtonTap?.call(message, button),
+          child: Padding(
+            padding: EdgeInsets.symmetric(
+              horizontal: button.iconCustomEmojiId != 0 ? 10 : 8,
             ),
-        ],
+            child: Center(
+              child: BotButtonLabel(
+                button: button,
+                color: palette.foreground,
+                fontSize: fontSize,
+                fontWeight: FontWeight.w600,
+                iconSize: fontSize + 2,
+                badgeIcon: botButtonBadgeIcon(button),
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }

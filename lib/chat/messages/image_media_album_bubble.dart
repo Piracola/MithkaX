@@ -46,7 +46,6 @@ class ImageMediaAlbumBubble extends StatelessWidget {
     required this.messages,
     required this.peerTitle,
     required this.isGroup,
-    this.isChannel = false,
     this.peerPhoto,
     this.meName = AppStringKeys.chatMeLabel,
     this.mePhoto,
@@ -92,10 +91,6 @@ class ImageMediaAlbumBubble extends StatelessWidget {
   final String peerTitle;
   final TdFileRef? peerPhoto;
   final bool isGroup;
-
-  /// A broadcast channel album: no repeated 38pt author column; the channel
-  /// header above the gallery carries a compact avatar instead.
-  final bool isChannel;
   final String meName;
   final TdFileRef? mePhoto;
   final int? meId;
@@ -224,7 +219,7 @@ class ImageMediaAlbumBubble extends StatelessWidget {
             : Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  if (isChannel || (isGroup && first.senderName != null))
+                  if (isGroup && first.senderName != null)
                     _senderHeader(context),
                   media,
                 ],
@@ -248,10 +243,7 @@ class ImageMediaAlbumBubble extends StatelessWidget {
                     const SizedBox(width: 8),
                     avatar(),
                   ]
-                : [
-                    if (!isChannel) ...[avatar(), const SizedBox(width: 8)],
-                    Flexible(child: body),
-                  ],
+                : [avatar(), const SizedBox(width: 8), Flexible(child: body)],
           ),
         );
       },
@@ -260,10 +252,6 @@ class ImageMediaAlbumBubble extends StatelessWidget {
 
   Widget _senderHeader(BuildContext context) {
     final first = _first;
-    final senderName = first.senderName ?? (isChannel ? peerTitle : null);
-    if (senderName == null || senderName.isEmpty) {
-      return const SizedBox.shrink();
-    }
     final colors = context.colors;
     final theme = context.watch<ThemeController>();
     final showMemberTags = theme.showMemberTags;
@@ -303,20 +291,12 @@ class ImageMediaAlbumBubble extends StatelessWidget {
       padding: const EdgeInsets.only(left: 2, bottom: 4),
       child: Row(
         children: [
-          if (isChannel) ...[
-            PhotoAvatar(
-              title: senderName,
-              photo: first.senderPhoto ?? peerPhoto,
-              size: 20 * ContentSizeScope.of(context).appScale,
-            ),
-            const SizedBox(width: 6),
-          ],
           Flexible(
             child: SenderIdentityPills(
               readabilityMode: theme.senderNameReadabilityMode,
               bubbleColor: incomingColor,
               textColor: incomingTextColor,
-              name: senderName,
+              name: first.senderName!,
               nameStyle: TextStyle(
                 fontSize: 12,
                 color: nameColor,

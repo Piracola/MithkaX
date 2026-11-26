@@ -385,7 +385,7 @@ class RichMessageBlock {
 
   const RichMessageBlock.buttonRow(
     List<MessageButton> buttons, {
-    String horizontalAlignment = 'left',
+    String horizontalAlignment = 'fill',
   }) : this._(
          kind: RichMessageBlockKind.buttonRow,
          buttons: buttons,

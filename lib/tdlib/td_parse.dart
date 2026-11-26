@@ -925,8 +925,13 @@ abstract final class TDParse {
     };
   }
 
+  /// A missing `align` is Telegram's FILL: the row stretches its buttons
+  /// across the message width (pageBlockButtonRow's flagless default). Only
+  /// an explicit left/center/right keeps content-sized buttons.
   static String _richHorizontalAlignment(Object? value) {
+    if (value == null) return 'fill';
     final type = value is Map<String, dynamic> ? value.type : value;
+    if (type == null || '$type'.isEmpty) return 'fill';
     if (type == 'center' || '$type'.toLowerCase().contains('center')) {
       return 'center';
     }
