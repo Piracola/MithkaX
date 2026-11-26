@@ -1146,7 +1146,8 @@ ChatListSwipeDecision chatListSwipeDecision({
   final centroidDelta =
       pointerDeltas.reduce((a, b) => a + b) / pointerDeltas.length.toDouble();
   if (centroidDelta.dx.abs() < distanceThreshold ||
-      centroidDelta.dx.abs() < centroidDelta.dy.abs() * 1.25) {
+      centroidDelta.dx.abs() <
+          centroidDelta.dy.abs() * chatListFolderDiagonalBias) {
     return ChatListSwipeDecision.none;
   }
   return ChatListSwipeDecision(action, centroidDelta.dx);
@@ -1161,6 +1162,15 @@ bool chatListRowSwipeActionsEnabled({
 /// means the list only starts following once a tap has already been ruled out,
 /// and it is the same distance at which a vertical drag would claim the scroll.
 const double chatListFolderDragActivation = kTouchSlop;
+
+/// How much vertical drift a folder swipe tolerates: the horizontal travel only
+/// has to reach three quarters of the vertical one, so a diagonal (45°, or a
+/// thumb drifting up to ~53°) still switches folders instead of scrolling.
+///
+/// exteraless compares `|dx| > dy` at the touch slop, which a diagonal release
+/// passes only by chance; a phone thumb almost always drifts, and the pager is
+/// the gesture users mean when they swipe sideways at all.
+const double chatListFolderDiagonalBias = 0.75;
 
 /// exteraless's flick gate for the folder pager.
 ///
@@ -1187,10 +1197,15 @@ bool chatListFolderFlick({
   double minimumTravel = 6,
 }) {
   if (travel.dx.abs() < minimumTravel) return false;
+  // The contact itself must be a folder swipe: a mostly-vertical drag that
+  // happens to end with a sideways velocity spike still belongs to the list.
+  if (travel.dy.abs() > travel.dx.abs() / chatListFolderDiagonalBias) {
+    return false;
+  }
   final vx = velocity.dx;
   return travel.dx.sign == vx.sign &&
       vx.abs() >= velocityThreshold &&
-      vx.abs() > velocity.dy.abs();
+      vx.abs() >= velocity.dy.abs() * chatListFolderDiagonalBias;
 }
 
 /// Where the list sits for a given finger travel. Inside the folder list the
@@ -1424,7 +1439,10 @@ class ChatListSwipeSession {
       return;
     }
     _axisResolved = true;
-    _scrolling = travel.dy.abs() > travel.dx.abs();
+    // Vertical only owns the gesture once it dominates the horizontal travel
+    // by the same bias the release gate uses, so a diagonal stays a folder
+    // swipe from the first move to the last.
+    _scrolling = travel.dy.abs() > travel.dx.abs() / chatListFolderDiagonalBias;
   }
 
   ChatListSwipeDecision? pointerEnd({

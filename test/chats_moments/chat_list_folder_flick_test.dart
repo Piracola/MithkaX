@@ -70,6 +70,36 @@ void main() {
     );
   });
 
+  test('a diagonal flick still switches folders', () {
+    expect(
+      chatListFolderFlick(
+        travel: const Offset(-12, 8),
+        velocity: const Offset(-520, 560),
+        velocityThreshold: 340,
+      ),
+      isTrue,
+      reason: 'a thumb swiping sideways always drifts vertically',
+    );
+  });
+
+  test('a diagonal release still switches folders', () {
+    final decision = chatListSwipeDecision(
+      mode: ChatListSwipeMode.switchFolders,
+      peakPointerCount: 1,
+      pointerDeltas: const [Offset(-90, 80)],
+    );
+    expect(decision.action, ChatListSwipeAction.switchFolders);
+  });
+
+  test('a steep swipe stays with the list', () {
+    final decision = chatListSwipeDecision(
+      mode: ChatListSwipeMode.switchFolders,
+      peakPointerCount: 1,
+      pointerDeltas: const [Offset(-70, 132)],
+    );
+    expect(decision.action, ChatListSwipeAction.none);
+  });
+
   test('a stationary press cannot start the pager', () {
     expect(
       chatListFolderFlick(
