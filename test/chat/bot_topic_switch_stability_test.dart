@@ -112,56 +112,99 @@ void main() {
     await tester.pump(const Duration(seconds: 2));
   }
 
-  Finder titleChevron() => find.descendant(
-    of: find.byKey(const ValueKey('chatHeaderTitle')),
-    matching: find.byWidgetPredicate(
+  Finder chatFor(int? topicId) => find.byWidgetPredicate(
+    (widget) => widget is ChatView && widget.forumTopicId == topicId,
+  );
+
+  Finder inChat(int? topicId, Finder matching) =>
+      find.descendant(of: chatFor(topicId), matching: matching);
+
+  Finder titleChevron(int? topicId) => inChat(
+    topicId,
+    find.byWidgetPredicate(
       (widget) =>
           widget is AppIcon && identical(widget.icon, HeroAppIcons.chevronDown),
     ),
   );
+
+  Finder sideBarOf(int? topicId) =>
+      inChat(topicId, find.byType(TopicTabsSideBar));
 
   testWidgets('a bot topic switch keeps the side dock on the first frame', (
     tester,
   ) async {
     await openBotChat(tester, TopicTabsPlacement.side);
 
-    final sideBar = find.byType(TopicTabsSideBar);
-    expect(sideBar, findsOneWidget);
-    final before = tester.getRect(sideBar);
-    expect(titleChevron(), findsNothing);
+    expect(sideBarOf(null), findsOneWidget);
+    final before = tester.getRect(sideBarOf(null));
+    expect(titleChevron(null), findsNothing);
+
+    final previousPage = tester.getRect(chatFor(null));
 
     await tester.tap(find.byKey(const ValueKey('topic-tab-$_topicB')));
-    // The first frame of the replacement transcript.
+    // The first frame of the replacement transcript: both pages are mounted
+    // while the swap fades. Two zero-duration pumps let the navigator's route
+    // build land while the transition clock is still at zero.
+    await tester.pump();
     await tester.pump();
 
+    expect(
+      chatFor(null),
+      findsOneWidget,
+      reason: 'the swapped-from page stays under the fade',
+    );
+    expect(
+      tester.getRect(chatFor(null)),
+      previousPage,
+      reason: 'a content swap must not shove the page underneath',
+    );
     expect(
       find.byType(TopicTabStrip),
       findsNothing,
       reason: 'the side dock must not flash back to the top strip',
     );
-    expect(sideBar, findsOneWidget);
+    expect(sideBarOf(_topicB), findsOneWidget);
+    final after = tester.getRect(sideBarOf(_topicB));
+    // The composer's height legitimately differs between the All view and a
+    // topic transcript; the dock's top, left and width are what must stay put.
+    expect(after.topLeft, before.topLeft);
+    expect(after.width, before.width);
     expect(
-      tester.getRect(sideBar),
-      before,
-      reason: 'the topic chrome must not move during the swap',
-    );
-    expect(
-      find.byKey(const ValueKey('topic-tabs-placement-toggle')),
+      inChat(
+        _topicB,
+        find.byKey(const ValueKey('topic-tabs-placement-toggle')),
+      ),
       findsOneWidget,
       reason: 'the move control belongs to the new bot transcript too',
     );
     expect(
-      titleChevron(),
+      titleChevron(_topicB),
       findsNothing,
       reason: 'a bot topic chat never grows the topic chevron',
     );
     expect(
-      find.byKey(const ValueKey('chatHeaderNewTopic')),
+      inChat(_topicB, find.byKey(const ValueKey('chatHeaderNewTopic'))),
       findsOneWidget,
       reason: 'the new-topic button must survive the swap',
     );
 
+    // The swap is a fade, not an instant cut: the new page starts transparent
+    // and reaches full opacity by the end of the route's 150 ms.
+    final fade = find.ancestor(
+      of: chatFor(_topicB),
+      matching: find.byType(FadeTransition),
+    );
+    expect(fade, findsWidgets);
+    expect(tester.widget<FadeTransition>(fade.first).opacity.value, 0);
+    await tester.pump(const Duration(milliseconds: 75));
+    final mid = tester.widget<FadeTransition>(fade.first).opacity.value;
+    expect(mid, greaterThan(0));
+    expect(mid, lessThan(1));
+
     await tester.pumpAndSettle();
+    expect(tester.widget<FadeTransition>(fade.first).opacity.value, 1);
+    expect(chatFor(null), findsNothing);
+    expect(sideBarOf(_topicB), findsOneWidget);
     expect(find.byType(TopicTabStrip), findsNothing);
 
     await tester.pumpWidget(const SizedBox.shrink());
@@ -175,19 +218,23 @@ void main() {
     await openBotChat(tester, TopicTabsPlacement.top);
 
     expect(
-      find.byKey(const ValueKey('topic-tabs-placement-toggle')),
+      inChat(null, find.byKey(const ValueKey('topic-tabs-placement-toggle'))),
       findsOneWidget,
     );
 
     await tester.tap(find.byKey(const ValueKey('topic-tab-$_topicB')));
     await tester.pump();
+    await tester.pump();
 
     expect(
-      find.byKey(const ValueKey('topic-tabs-placement-toggle')),
+      inChat(
+        _topicB,
+        find.byKey(const ValueKey('topic-tabs-placement-toggle')),
+      ),
       findsOneWidget,
       reason: 'the first frame must not draw a toggle-less strip',
     );
-    expect(titleChevron(), findsNothing);
+    expect(titleChevron(_topicB), findsNothing);
 
     await tester.pumpAndSettle();
     await tester.pumpWidget(const SizedBox.shrink());

@@ -2746,10 +2746,20 @@ class _ChatViewState extends State<ChatView> {
             ),
           ),
         ),
-        if (shouldShowTranscriptSkeleton(
-          initialTranscriptReady: transcriptReady,
-        ))
-          Positioned.fill(child: _transcriptSkeleton()),
+        // The skeleton fades out when the first page lands instead of
+        // vanishing under the transcript, so a topic swap that outlasts the
+        // route fade still resolves into the conversation smoothly.
+        Positioned.fill(
+          child: AnimatedSwitcher(
+            duration: AppMotion.quick,
+            child:
+                shouldShowTranscriptSkeleton(
+                  initialTranscriptReady: transcriptReady,
+                )
+                ? _transcriptSkeleton()
+                : const SizedBox.shrink(),
+          ),
+        ),
         if (showPinnedTodo)
           Positioned(
             top: 12,
