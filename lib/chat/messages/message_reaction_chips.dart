@@ -71,7 +71,7 @@ class MessageReactionChips extends StatelessWidget {
   Widget _countTarget(MessageReaction r, Color color) {
     final count = Padding(
       padding: const EdgeInsets.only(left: 4),
-      child: Text('${r.count}', style: TextStyle(fontSize: 12, color: color)),
+      child: Text('${r.count}', style: AppTextStyle.caption(color)),
     );
     final onShow = onShowUsers;
     // Without a list callback the count stays plain text, so the whole chip

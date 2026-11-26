@@ -169,10 +169,9 @@ class _PollResultsViewState extends State<PollResultsView> {
                     children: [
                       Text(
                         _poll.question,
-                        style: TextStyle(
-                          color: colors.textPrimary,
-                          fontSize: 17,
-                          fontWeight: FontWeight.w600,
+                        style: AppTextStyle.title(
+                          colors.textPrimary,
+                          weight: AppTextWeight.semibold,
                         ),
                       ),
                       const SizedBox(height: 4),
@@ -187,10 +186,7 @@ class _PollResultsViewState extends State<PollResultsView> {
                                     .pollResultsVotesWithDetailedStatistics,
                                 {'value1': _poll.totalVoterCount},
                               ),
-                        style: TextStyle(
-                          color: colors.textSecondary,
-                          fontSize: 13,
-                        ),
+                        style: AppTextStyle.footnote(colors.textSecondary),
                       ),
                     ],
                   ),
@@ -227,12 +223,9 @@ class _PollResultsViewState extends State<PollResultsView> {
                             '${option.text} · ${option.voterCount}',
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              color: selected
-                                  ? Colors.white
-                                  : colors.textPrimary,
-                              fontSize: 13,
-                              fontWeight: FontWeight.w500,
+                            style: AppTextStyle.footnote(
+                              selected ? Colors.white : colors.textPrimary,
+                              weight: AppTextWeight.medium,
                             ),
                           ),
                         ),
@@ -271,10 +264,7 @@ class _PollResultsViewState extends State<PollResultsView> {
                                   AppStringKeys.pollResultsFilterVoters,
                                 ),
                               ),
-                              style: TextStyle(
-                                color: colors.textPrimary,
-                                fontSize: 14,
-                              ),
+                              style: AppTextStyle.callout(colors.textPrimary),
                             ),
                           ),
                         ],
@@ -336,10 +326,9 @@ class _PollResultsViewState extends State<PollResultsView> {
               voter.title,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                color: context.colors.textPrimary,
-                fontSize: 15,
-                fontWeight: FontWeight.w500,
+              style: AppTextStyle.body(
+                context.colors.textPrimary,
+                weight: AppTextWeight.medium,
               ),
             ),
           ),
@@ -354,7 +343,7 @@ class _PollResultsViewState extends State<PollResultsView> {
       child: Text(
         text,
         textAlign: TextAlign.center,
-        style: TextStyle(color: context.colors.textSecondary, fontSize: 14),
+        style: AppTextStyle.callout(context.colors.textSecondary),
       ),
     ),
   );

@@ -143,7 +143,7 @@ class _ChatStickerSetPickerViewState extends State<ChatStickerSetPickerView> {
                 title,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: TextStyle(fontSize: 16, color: c.textPrimary),
+                style: AppTextStyle.bodyLarge(c.textPrimary),
               ),
             ),
             if (widget.selectedId == id)

@@ -266,12 +266,11 @@ class _PollComposerViewState extends State<PollComposerView> {
                 padding: const EdgeInsets.symmetric(horizontal: 4),
                 child: Text(
                   AppStrings.t(AppStringKeys.composerSend),
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: _canSend
+                  style: AppTextStyle.bodyLarge(
+                    _canSend
                         ? AppTheme.brand
                         : AppTheme.brand.withValues(alpha: 0.4),
+                    weight: AppTextWeight.semibold,
                   ),
                 ),
               ),
@@ -330,7 +329,7 @@ class _PollComposerViewState extends State<PollComposerView> {
                       ),
                       'value2': _maxOptions,
                     }),
-                    style: TextStyle(fontSize: 13, color: c.textSecondary),
+                    style: AppTextStyle.footnote(c.textSecondary),
                   ),
                 ),
                 const SizedBox(height: 14),
@@ -428,7 +427,7 @@ class _PollComposerViewState extends State<PollComposerView> {
         autofocus: autofocus,
         maxLines: multiline ? 3 : 1,
         minLines: 1,
-        style: TextStyle(fontSize: 16, color: c.textPrimary),
+        style: AppTextStyle.bodyLarge(c.textPrimary),
         cursorColor: AppTheme.brand,
         decoration: InputDecoration(
           isCollapsed: true,
@@ -500,7 +499,7 @@ class _PollComposerViewState extends State<PollComposerView> {
                     required isFocused,
                     maxLength,
                   }) => null,
-              style: TextStyle(fontSize: 16, color: c.textPrimary),
+              style: AppTextStyle.bodyLarge(c.textPrimary),
               cursorColor: AppTheme.brand,
               decoration: InputDecoration(
                 isCollapsed: true,
@@ -567,9 +566,8 @@ class _PollComposerViewState extends State<PollComposerView> {
               const SizedBox(width: 8),
               Text(
                 AppStrings.t(AppStringKeys.pollComposerAddOption),
-                style: TextStyle(
-                  fontSize: 16,
-                  color: disabled
+                style: AppTextStyle.bodyLarge(
+                  disabled
                       ? AppTheme.brand.withValues(alpha: 0.4)
                       : AppTheme.brand,
                 ),
@@ -592,9 +590,8 @@ class _PollComposerViewState extends State<PollComposerView> {
             Expanded(
               child: Text(
                 title,
-                style: TextStyle(
-                  fontSize: 15,
-                  color: onChanged == null ? c.textTertiary : c.textPrimary,
+                style: AppTextStyle.body(
+                  onChanged == null ? c.textTertiary : c.textPrimary,
                 ),
               ),
             ),
@@ -629,7 +626,7 @@ class _PollComposerViewState extends State<PollComposerView> {
           Expanded(
             child: Text(
               AppStrings.t(AppStringKeys.pollComposerClosePollAutomatically),
-              style: TextStyle(fontSize: 15, color: c.textPrimary),
+              style: AppTextStyle.body(c.textPrimary),
             ),
           ),
           GestureDetector(
@@ -653,7 +650,7 @@ class _PollComposerViewState extends State<PollComposerView> {
                 children: [
                   Text(
                     AppStrings.t(selected.$2),
-                    style: TextStyle(fontSize: 14, color: c.textPrimary),
+                    style: AppTextStyle.callout(c.textPrimary),
                   ),
                   const SizedBox(width: 7),
                   AppIcon(
@@ -701,10 +698,9 @@ class _PollComposerViewState extends State<PollComposerView> {
                   AppStrings.t(
                     AppStringKeys.pollComposerClosePollAutomatically,
                   ),
-                  style: TextStyle(
-                    fontSize: 17,
-                    fontWeight: FontWeight.w600,
-                    color: c.textPrimary,
+                  style: AppTextStyle.title(
+                    c.textPrimary,
+                    weight: AppTextWeight.semibold,
                   ),
                 ),
               ),
@@ -720,10 +716,7 @@ class _PollComposerViewState extends State<PollComposerView> {
                         Expanded(
                           child: Text(
                             value.$2,
-                            style: TextStyle(
-                              fontSize: 16,
-                              color: c.textPrimary,
-                            ),
+                            style: AppTextStyle.bodyLarge(c.textPrimary),
                           ),
                         ),
                         if (value.$1 == _openPeriod)
@@ -775,10 +768,7 @@ class _PollComposerViewState extends State<PollComposerView> {
               const SizedBox(width: 10),
             ],
             Expanded(
-              child: Text(
-                title,
-                style: TextStyle(fontSize: 15, color: c.textPrimary),
-              ),
+              child: Text(title, style: AppTextStyle.body(c.textPrimary)),
             ),
             if (onRemove != null)
               GestureDetector(

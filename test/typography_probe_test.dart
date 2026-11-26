@@ -13,6 +13,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mithka/components/ui_components.dart';
 import 'package:mithka/l10n/app_localizations.dart';
 import 'package:mithka/moments/story_ui_components.dart';
 import 'package:mithka/settings/about_view.dart';
@@ -25,6 +26,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'helpers/typography_metrics.dart';
 import 'support/l10n_fixtures.dart';
+
+void _noop(bool _) {}
 
 void main() {
   setUpAll(() => L10nFixtures.load().install());
@@ -119,6 +122,34 @@ void main() {
     await expectTypographyBaseline(
       tester,
       'story_actions',
+      collectTextRuns(tester),
+    );
+  });
+
+  testWidgets('shared rows: typography geometry', (tester) async {
+    // Every settings and list row in the app is built from these, so a literal
+    // here is every screen's typography at once. Pinning them is what makes a
+    // regression in the shared layer visible without rendering fifty screens.
+    await pump(
+      tester,
+      const Scaffold(
+        body: Column(
+          children: [
+            SettingsRow(title: 'Privacy and Security', value: 'Everyone'),
+            SettingsRow(title: 'Data and Storage', showChevron: false),
+            SettingsSwitchRow(
+              title: 'Save to gallery',
+              value: true,
+              onChanged: _noop,
+            ),
+            SettingsNote(text: 'Changes apply to new messages only.'),
+          ],
+        ),
+      ),
+    );
+    await expectTypographyBaseline(
+      tester,
+      'shared_rows',
       collectTextRuns(tester),
     );
   });

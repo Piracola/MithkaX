@@ -1519,10 +1519,9 @@ class _MessageBubbleState extends State<_ScopedMessageBubble>
       ),
       child: Text(
         '+1',
-        style: TextStyle(
-          fontSize: 12,
-          fontWeight: FontWeight.w500,
-          color: AppTheme.brand,
+        style: AppTextStyle.caption(
+          AppTheme.brand,
+          weight: AppTextWeight.medium,
         ),
       ),
     ),
@@ -2382,12 +2381,7 @@ class _MessageBubbleState extends State<_ScopedMessageBubble>
                 label,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: fg,
-                  decoration: TextDecoration.none,
-                ),
+                style: AppTextStyle.callout(fg, weight: AppTextWeight.semibold),
               ),
             ),
             AppIcon(HeroAppIcons.chevronRight, size: 17, color: sub),
@@ -2528,10 +2522,9 @@ class _MessageBubbleState extends State<_ScopedMessageBubble>
               ),
               child: Text(
                 '$value',
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  color: outgoing ? _outgoingTextColor : c.textSecondary,
+                style: AppTextStyle.footnote(
+                  outgoing ? _outgoingTextColor : c.textSecondary,
+                  weight: AppTextWeight.semibold,
                 ),
               ),
             ),
@@ -2704,10 +2697,9 @@ class _MessageBubbleState extends State<_ScopedMessageBubble>
                 const SizedBox(width: 6),
                 Text(
                   AppStrings.t(AppStringKeys.messageBubbleSummarize),
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: AppTheme.brand,
+                  style: AppTextStyle.footnote(
+                    AppTheme.brand,
+                    weight: AppTextWeight.semibold,
                   ),
                 ),
               ],
@@ -2974,10 +2966,9 @@ class _MessageBubbleState extends State<_ScopedMessageBubble>
                       ? AppStringKeys.messageBubbleCollapse
                       : AppStringKeys.messageBubbleExpandQuote,
                 ),
-                style: TextStyle(
-                  fontSize: 12,
-                  color: quote,
-                  fontWeight: FontWeight.w600,
+                style: AppTextStyle.caption(
+                  quote,
+                  weight: AppTextWeight.semibold,
                 ),
               ),
             ),
@@ -3230,10 +3221,7 @@ class _MessageBubbleState extends State<_ScopedMessageBubble>
                         music.performer!,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: _colors.textSecondary,
-                        ),
+                        style: AppTextStyle.caption(_colors.textSecondary),
                       ),
                   ],
                 ),
@@ -3294,10 +3282,7 @@ class _MessageBubbleState extends State<_ScopedMessageBubble>
                   const SizedBox(width: 10),
                   Text(
                     formatMediaDuration(voice.duration),
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: _colors.textSecondary,
-                    ),
+                    style: AppTextStyle.caption(_colors.textSecondary),
                   ),
                 ],
               ),
@@ -3753,7 +3738,7 @@ class _MessageBubbleState extends State<_ScopedMessageBubble>
                   AppStrings.t(
                     AppStringKeys.messageBubbleSummarizingPrivatelyWithTelegram,
                   ),
-                  style: TextStyle(fontSize: 13, color: secondary),
+                  style: AppTextStyle.footnote(secondary),
                 ),
               ],
             )
@@ -3772,10 +3757,9 @@ class _MessageBubbleState extends State<_ScopedMessageBubble>
                     const SizedBox(width: 5),
                     Text(
                       AppStrings.t(AppStringKeys.messageBubbleAISummary),
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: secondary,
+                      style: AppTextStyle.caption(
+                        secondary,
+                        weight: AppTextWeight.semibold,
                       ),
                     ),
                   ],
@@ -3833,7 +3817,7 @@ class _MessageBubbleState extends State<_ScopedMessageBubble>
               const SizedBox(width: 8),
               Text(
                 AppStringKeys.messageBubbleTranslating.l10n(context),
-                style: TextStyle(fontSize: 13, color: secondary),
+                style: AppTextStyle.footnote(secondary),
               ),
             ],
           ),
@@ -3883,10 +3867,9 @@ class _MessageBubbleState extends State<_ScopedMessageBubble>
           SelectionContainer.disabled(
             child: Text(
               AppStringKeys.messageActionTranslate.l10n(context),
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                color: secondary,
+              style: AppTextStyle.caption(
+                secondary,
+                weight: AppTextWeight.semibold,
               ),
             ),
           ),
@@ -3932,10 +3915,9 @@ class _MessageBubbleState extends State<_ScopedMessageBubble>
             preview.siteName,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              color: _messageSiteNameColor(outgoing),
+            style: AppTextStyle.caption(
+              _messageSiteNameColor(outgoing),
+              weight: AppTextWeight.semibold,
             ),
           ),
         ),
@@ -3966,7 +3948,7 @@ class _MessageBubbleState extends State<_ScopedMessageBubble>
             preview.displayUrl,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: TextStyle(fontSize: 12, color: secondary),
+            style: AppTextStyle.caption(secondary),
           ),
         ),
     ];
@@ -4216,7 +4198,7 @@ class _MessageBubbleState extends State<_ScopedMessageBubble>
           const SizedBox(width: 7),
           Text(
             AppStringKeys.netemoMusicLabel.l10n(context),
-            style: TextStyle(fontSize: 14, color: c.textSecondary),
+            style: AppTextStyle.callout(c.textSecondary),
           ),
         ],
       ),
@@ -4403,7 +4385,7 @@ class _MessageBubbleState extends State<_ScopedMessageBubble>
               color: accent,
             ),
             const SizedBox(width: 8),
-            Text(label, style: TextStyle(fontSize: 15, color: accent)),
+            Text(label, style: AppTextStyle.body(accent)),
           ],
         ),
       ),
@@ -4586,7 +4568,7 @@ class _MessageBubbleState extends State<_ScopedMessageBubble>
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: TextStyle(fontSize: 14, color: labelColor),
+                      style: AppTextStyle.callout(labelColor),
                     ),
                     if ((message.replyPreviewText ?? '').isNotEmpty) ...[
                       const SizedBox(height: 4),
@@ -4792,10 +4774,9 @@ class _MessageBubbleState extends State<_ScopedMessageBubble>
                         ? AppStringKeys.messageBubbleCollapse
                         : AppStringKeys.messageBubbleExpandQuote,
                   ),
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: quoteColor,
-                    fontWeight: FontWeight.w600,
+                  style: AppTextStyle.caption(
+                    quoteColor,
+                    weight: AppTextWeight.semibold,
                   ),
                 ),
               ),
@@ -4978,10 +4959,9 @@ class _MessageBubbleState extends State<_ScopedMessageBubble>
                         const SizedBox(width: 7),
                         Text(
                           AppStrings.t(AppStringKeys.messageBubbleApply),
-                          style: TextStyle(
-                            color: AppTheme.onBrand,
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
+                          style: AppTextStyle.footnote(
+                            AppTheme.onBrand,
+                            weight: AppTextWeight.semibold,
                           ),
                         ),
                       ],
@@ -5548,16 +5528,15 @@ class _MessageBubbleState extends State<_ScopedMessageBubble>
                       _voice.speed == 1
                           ? timeText
                           : '${_voice.speed.toStringAsFixed(_voice.speed == 1.5 ? 1 : 0)}×',
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: _voice.speed == 1
-                            ? FontWeight.w400
-                            : FontWeight.w600,
-                        color: outgoing
+                      style: AppTextStyle.caption(
+                        outgoing
                             ? _outgoingTextColor.withValues(alpha: 0.9)
                             : decorative
                             ? _incomingTextColor.withValues(alpha: 0.9)
                             : c.textSecondary,
+                        weight: _voice.speed == 1
+                            ? AppTextWeight.regular
+                            : AppTextWeight.semibold,
                       ),
                     ),
                   ),
@@ -5641,10 +5620,9 @@ class _MessageBubbleState extends State<_ScopedMessageBubble>
                         : AppStrings.t(AppStringKeys.composerLocation),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w500,
-                      color: _incomingTextColor,
+                    style: AppTextStyle.body(
+                      _incomingTextColor,
+                      weight: AppTextWeight.medium,
                     ),
                   ),
                   if (location.address?.isNotEmpty ?? false) ...[
@@ -5653,7 +5631,7 @@ class _MessageBubbleState extends State<_ScopedMessageBubble>
                       location.address!,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
-                      style: TextStyle(fontSize: 12, color: c.textSecondary),
+                      style: AppTextStyle.caption(c.textSecondary),
                     ),
                   ],
                 ],
@@ -5870,12 +5848,12 @@ class _MessageBubbleState extends State<_ScopedMessageBubble>
                           doc.fileName,
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
-                          style: TextStyle(fontSize: 15, color: primaryColor),
+                          style: AppTextStyle.body(primaryColor),
                         ),
                         const SizedBox(height: 6),
                         Text(
                           _byteString(doc.size),
-                          style: TextStyle(fontSize: 12, color: secondaryColor),
+                          style: AppTextStyle.caption(secondaryColor),
                         ),
                       ],
                     ),

@@ -413,10 +413,9 @@ class _FullImageViewerState extends State<FullImageViewer> {
                               widget.primaryActionLabel!,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                color: AppTheme.onBrand,
-                                fontSize: 16,
-                                fontWeight: FontWeight.w600,
+                              style: AppTextStyle.bodyLarge(
+                                AppTheme.onBrand,
+                                weight: AppTextWeight.semibold,
                               ),
                             ),
                     ),
@@ -910,11 +909,7 @@ class _ViewerActionsMenuItem extends StatelessWidget {
                   label,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: Color(0xFFE8E9EB),
-                    fontSize: 13,
-                    fontWeight: FontWeight.w400,
-                  ),
+                  style: AppTextStyle.footnote(const Color(0xFFE8E9EB)),
                 ),
               ),
             ],

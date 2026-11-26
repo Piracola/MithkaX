@@ -122,10 +122,9 @@ class _AddMembersViewState extends State<AddMembersView> {
             ),
             Text(
               AppStrings.t(AppStringKeys.addMembersInviteMembersTitle),
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-                color: c.textPrimary,
+              style: AppTextStyle.bodyLarge(
+                c.textPrimary,
+                weight: AppTextWeight.semibold,
               ),
             ),
             Align(
@@ -140,10 +139,9 @@ class _AddMembersViewState extends State<AddMembersView> {
                       AppStrings.t(AppStringKeys.addMembersDone),
                       _selected.length,
                     ),
-                    style: TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w600,
-                      color: canAdd ? AppTheme.brand : c.textTertiary,
+                    style: AppTextStyle.body(
+                      canAdd ? AppTheme.brand : c.textTertiary,
+                      weight: AppTextWeight.semibold,
                     ),
                   ),
                 ),
@@ -204,7 +202,7 @@ class _AddMembersViewState extends State<AddMembersView> {
                 u.name,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: TextStyle(fontSize: 16, color: c.textPrimary),
+                style: AppTextStyle.bodyLarge(c.textPrimary),
               ),
             ),
           ],

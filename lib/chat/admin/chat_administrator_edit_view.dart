@@ -270,10 +270,9 @@ class _ChatAdministratorEditViewState extends State<ChatAdministratorEditView> {
                       padding: const EdgeInsets.symmetric(horizontal: 8),
                       child: Text(
                         AppStrings.t(AppStringKeys.chatMembersAdminSave),
-                        style: TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w600,
-                          color: _saving ? c.textTertiary : AppTheme.brand,
+                        style: AppTextStyle.body(
+                          _saving ? c.textTertiary : AppTheme.brand,
+                          weight: AppTextWeight.semibold,
                         ),
                       ),
                     ),
@@ -299,7 +298,7 @@ class _ChatAdministratorEditViewState extends State<ChatAdministratorEditView> {
                   padding: const EdgeInsets.fromLTRB(14, 0, 14, 8),
                   child: Text(
                     AppStrings.t(AppStringKeys.chatMembersAdminPermissions),
-                    style: TextStyle(fontSize: 13, color: c.textTertiary),
+                    style: AppTextStyle.footnote(c.textTertiary),
                   ),
                 ),
                 _section([

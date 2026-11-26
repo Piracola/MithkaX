@@ -989,12 +989,11 @@ class _StoryManagementViewState extends State<StoryManagementView> {
       ),
       child: Text(
         title.l10n(context),
-        style: TextStyle(
-          color: _tab == value
+        style: AppTextStyle.callout(
+          _tab == value
               ? context.colors.textPrimary
               : context.colors.textSecondary,
-          fontSize: 14,
-          fontWeight: FontWeight.w600,
+          weight: AppTextWeight.semibold,
         ),
       ),
     ),
@@ -1008,10 +1007,9 @@ class _StoryManagementViewState extends State<StoryManagementView> {
       padding: const EdgeInsets.symmetric(horizontal: 2),
       child: Text(
         context.l10n.t(key, {'value1': _stories.length}),
-        style: TextStyle(
-          color: context.colors.textSecondary,
-          fontSize: 13,
-          fontWeight: FontWeight.w600,
+        style: AppTextStyle.footnote(
+          context.colors.textSecondary,
+          weight: AppTextWeight.semibold,
         ),
       ),
     );
@@ -1108,6 +1106,9 @@ class _StoryManagementViewState extends State<StoryManagementView> {
                         caption,
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
+                        // Kept literal: caption pinned to the bottom of a 9/16
+                        // grid card. Callout's 1.40 lead would cost this
+                        // two-line caption a third of its height.
                         style: const TextStyle(
                           color: Colors.white,
                           fontSize: 13,
@@ -1140,10 +1141,9 @@ class _StoryManagementViewState extends State<StoryManagementView> {
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             textAlign: TextAlign.right,
-                            style: const TextStyle(
-                              color: Color(0xE6FFFFFF),
-                              fontSize: 10,
-                              fontWeight: FontWeight.w600,
+                            style: AppTextStyle.tiny(
+                              const Color(0xE6FFFFFF),
+                              weight: AppTextWeight.semibold,
                             ),
                           ),
                         ),
@@ -1248,10 +1248,9 @@ class _StoryManagementViewState extends State<StoryManagementView> {
             label,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 10,
-              fontWeight: FontWeight.w600,
+            style: AppTextStyle.tiny(
+              Colors.white,
+              weight: AppTextWeight.semibold,
             ),
           ),
         ),
@@ -1323,10 +1322,9 @@ class _StoryManagementViewState extends State<StoryManagementView> {
                     : AppStringKeys.storyManagementEmptyArchiveTitle)
                 .l10n(context),
             textAlign: TextAlign.center,
-            style: TextStyle(
-              color: context.colors.textPrimary,
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
+            style: AppTextStyle.bodyLarge(
+              context.colors.textPrimary,
+              weight: AppTextWeight.semibold,
             ),
           ),
           const SizedBox(height: 5),
@@ -1362,10 +1360,9 @@ class _StoryManagementViewState extends State<StoryManagementView> {
                       const SizedBox(width: 7),
                       Text(
                         AppStringKeys.storiesCreate.l10n(context),
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
+                        style: AppTextStyle.callout(
+                          Colors.white,
+                          weight: AppTextWeight.semibold,
                         ),
                       ),
                     ],
@@ -1406,10 +1403,9 @@ class _StoryManagementViewState extends State<StoryManagementView> {
                   const SizedBox(width: 4),
                   Text(
                     AppStringKeys.storyManagementNewAlbum.l10n(context),
-                    style: TextStyle(
-                      color: AppTheme.brand,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
+                    style: AppTextStyle.callout(
+                      AppTheme.brand,
+                      weight: AppTextWeight.semibold,
                     ),
                   ),
                 ],
@@ -1503,10 +1499,9 @@ class _StoryManagementViewState extends State<StoryManagementView> {
                           : AppStringKeys.storyManagementAlbums.l10n(context),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
+                      style: AppTextStyle.callout(
+                        Colors.white,
+                        weight: AppTextWeight.semibold,
                       ),
                     ),
                     const SizedBox(height: 2),
@@ -1590,10 +1585,9 @@ class _StoryManagementViewState extends State<StoryManagementView> {
                 children: [
                   Text(
                     AppStringKeys.storyManagementNewAlbum.l10n(context),
-                    style: TextStyle(
-                      color: context.colors.textPrimary,
-                      fontSize: 15,
-                      fontWeight: FontWeight.w600,
+                    style: AppTextStyle.body(
+                      context.colors.textPrimary,
+                      weight: AppTextWeight.semibold,
                     ),
                   ),
                   const SizedBox(height: 3),

@@ -634,10 +634,9 @@ class _MessageSendOptionsSheetState extends State<_MessageSendOptionsSheet> {
                             AppStrings.t(
                               AppStringKeys.messageSendOptionsScheduledMessages,
                             ),
-                            style: TextStyle(
-                              color: AppTheme.brand,
-                              fontSize: 15,
-                              fontWeight: FontWeight.w600,
+                            style: AppTextStyle.body(
+                              AppTheme.brand,
+                              weight: AppTextWeight.semibold,
                             ),
                           ),
                         ),
@@ -672,10 +671,9 @@ class _MessageSendOptionsSheetState extends State<_MessageSendOptionsSheet> {
                               ? AppStringKeys.messageSendOptionsSchedule
                               : AppStringKeys.composerSend)
                           .l10n(context),
-                      style: const TextStyle(
-                        color: Color(0xFFFFFFFF),
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
+                      style: AppTextStyle.bodyLarge(
+                        const Color(0xFFFFFFFF),
+                        weight: AppTextWeight.semibold,
                       ),
                     ),
                   ),
@@ -740,10 +738,9 @@ class _MessageSendOptionsSheetState extends State<_MessageSendOptionsSheet> {
     padding: const EdgeInsets.fromLTRB(4, 14, 4, 7),
     child: Text(
       text,
-      style: TextStyle(
-        color: context.colors.textSecondary,
-        fontSize: 12,
-        fontWeight: FontWeight.w600,
+      style: AppTextStyle.caption(
+        context.colors.textSecondary,
+        weight: AppTextWeight.semibold,
       ),
     ),
   );
@@ -770,7 +767,7 @@ class _MessageSendOptionsSheetState extends State<_MessageSendOptionsSheet> {
           Expanded(
             child: Text(
               title,
-              style: TextStyle(color: context.colors.textPrimary, fontSize: 15),
+              style: AppTextStyle.body(context.colors.textPrimary),
             ),
           ),
           AppSwitch(value: value, onChanged: onChanged),
@@ -796,12 +793,9 @@ class _MessageSendOptionsSheetState extends State<_MessageSendOptionsSheet> {
           ),
           child: Text(
             label,
-            style: TextStyle(
-              color: selected
-                  ? const Color(0xFFFFFFFF)
-                  : context.colors.textPrimary,
-              fontSize: 13,
-              fontWeight: FontWeight.w500,
+            style: AppTextStyle.footnote(
+              selected ? const Color(0xFFFFFFFF) : context.colors.textPrimary,
+              weight: AppTextWeight.medium,
             ),
           ),
         ),

@@ -62,10 +62,9 @@ class ChatTranslationPanel extends StatelessWidget {
                         label,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          color: AppTheme.brand,
-                          fontSize: 15,
-                          fontWeight: FontWeight.w500,
+                        style: AppTextStyle.body(
+                          AppTheme.brand,
+                          weight: AppTextWeight.medium,
                         ),
                       ),
                     ),

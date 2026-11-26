@@ -149,7 +149,7 @@ class _ContactSharePickerViewState extends State<ContactSharePickerView> {
                           context,
                         ),
                       ),
-                      style: TextStyle(fontSize: 15, color: c.textPrimary),
+                      style: AppTextStyle.body(c.textPrimary),
                     ),
                   ),
                 ],
@@ -163,7 +163,7 @@ class _ContactSharePickerViewState extends State<ContactSharePickerView> {
                 ? Center(
                     child: Text(
                       AppStringKeys.contactShareEmpty.l10n(context),
-                      style: TextStyle(fontSize: 14, color: c.textSecondary),
+                      style: AppTextStyle.callout(c.textSecondary),
                     ),
                   )
                 : ListView.separated(
@@ -198,10 +198,9 @@ class _ContactSharePickerViewState extends State<ContactSharePickerView> {
                                       contact.card.displayName,
                                       maxLines: 1,
                                       overflow: TextOverflow.ellipsis,
-                                      style: TextStyle(
-                                        fontSize: 15,
-                                        fontWeight: FontWeight.w500,
-                                        color: c.textPrimary,
+                                      style: AppTextStyle.body(
+                                        c.textPrimary,
+                                        weight: AppTextWeight.medium,
                                       ),
                                     ),
                                     const SizedBox(height: 3),
@@ -209,9 +208,8 @@ class _ContactSharePickerViewState extends State<ContactSharePickerView> {
                                       contact.card.phoneNumber,
                                       maxLines: 1,
                                       overflow: TextOverflow.ellipsis,
-                                      style: TextStyle(
-                                        fontSize: 13,
-                                        color: c.textSecondary,
+                                      style: AppTextStyle.footnote(
+                                        c.textSecondary,
                                       ),
                                     ),
                                   ],

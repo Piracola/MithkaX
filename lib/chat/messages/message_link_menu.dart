@@ -316,7 +316,7 @@ class _LinkQrDialog extends StatelessWidget {
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
               textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 13, color: Colors.black54),
+              style: AppTextStyle.footnote(Colors.black54),
             ),
           ],
         ),

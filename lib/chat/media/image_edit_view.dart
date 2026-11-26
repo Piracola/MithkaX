@@ -568,7 +568,7 @@ class _ImageEditViewState extends State<ImageEditView> {
         minLines: 1,
         maxLines: 3,
         textInputAction: TextInputAction.newline,
-        style: const TextStyle(color: Colors.white, fontSize: 15),
+        style: AppTextStyle.body(Colors.white),
         decoration: InputDecoration(
           hintText: AppStrings.t(AppStringKeys.imageEditDescriptionPlaceholder),
           hintStyle: const TextStyle(color: Colors.white54),
@@ -601,10 +601,9 @@ class _ImageEditViewState extends State<ImageEditView> {
             widget.avatar
                 ? AppStrings.t(AppStringKeys.imageEditCropAvatar)
                 : AppStrings.t(AppStringKeys.imageEditTitle),
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 17,
-              fontWeight: FontWeight.w600,
+            style: AppTextStyle.title(
+              Colors.white,
+              weight: AppTextWeight.semibold,
             ),
           ),
           const Spacer(),
@@ -743,9 +742,8 @@ class _ImageEditViewState extends State<ImageEditView> {
             const SizedBox(height: 5),
             Text(
               label,
-              style: TextStyle(
-                color: active ? AppTheme.brand : Colors.white70,
-                fontSize: 12,
+              style: AppTextStyle.caption(
+                active ? AppTheme.brand : Colors.white70,
               ),
             ),
           ],

@@ -59,12 +59,17 @@ Typography is enforced, not just documented:
 - `test/typography_budget_test.dart` holds three budgets: off-ladder sizes,
   declared line heights, and hand-picked font sizes. Each fails when it rises
   above the number in that file. Lower a budget in the PR that migrates sites;
-  never raise it. All three sit at their measured value, so adding a new
-  literal fails the gate immediately — that is the intent.
-- The off-ladder budget is at zero, so that gate is absolute. The exceptions
-  above are not counted against it: they carry a `typography-exception` comment
-  with the reason, and a fourth one fails a test until it is added to this list.
-  The marker only excuses the one style it sits above.
+  never raise it.
+- Only the off-ladder budget is absolute, and it is at zero. The hand-picked
+  and declared-height budgets are still slack: a migration lowers the tree but
+  the number only moves when someone measures it again. That slack is a real
+  gap — a converted area can regress back toward its old budget without the gate
+  noticing — so re-measure and lower both in the same commit that migrates,
+  rather than at the end.
+- The off-ladder exceptions above are not counted: they carry a
+  `typography-exception` comment with the reason, and a fourth one fails a test
+  until it is added to this list. The marker only excuses the one style it sits
+  above.
 - `test/typography_probe_test.dart` renders real screens and pins each text
   run's layout geometry in `test/typography/<scene>.json`. A batch that swaps a
   literal for a role leaves those numbers unchanged; a batch that changes the

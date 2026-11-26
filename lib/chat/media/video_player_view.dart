@@ -1237,10 +1237,9 @@ class _VideoPlayerViewState extends State<VideoPlayerView>
                                     title,
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 17,
-                                      fontWeight: FontWeight.w400,
+                                    style: AppTextStyle.title(
+                                      Colors.white,
+                                      weight: AppTextWeight.regular,
                                     ),
                                   ),
                                   const SizedBox(height: 4),
@@ -1248,12 +1247,8 @@ class _VideoPlayerViewState extends State<VideoPlayerView>
                                     subtitle,
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
-                                    style: TextStyle(
-                                      color: Colors.white.withValues(
-                                        alpha: 0.76,
-                                      ),
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.w400,
+                                    style: AppTextStyle.footnote(
+                                      Colors.white.withValues(alpha: 0.76),
                                     ),
                                   ),
                                 ],
@@ -1535,10 +1530,9 @@ class _VideoPlayerViewState extends State<VideoPlayerView>
                               title,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 17,
-                                fontWeight: FontWeight.w400,
+                              style: AppTextStyle.title(
+                                Colors.white,
+                                weight: AppTextWeight.regular,
                               ),
                             ),
                             const SizedBox(height: 4),
@@ -1546,10 +1540,8 @@ class _VideoPlayerViewState extends State<VideoPlayerView>
                               subtitle,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                color: Colors.white.withValues(alpha: 0.74),
-                                fontSize: 13,
-                                fontWeight: FontWeight.w400,
+                              style: AppTextStyle.footnote(
+                                Colors.white.withValues(alpha: 0.74),
                               ),
                             ),
                           ],
@@ -2407,10 +2399,8 @@ class _VideoPlayerViewState extends State<VideoPlayerView>
                 const SizedBox(width: 8),
                 Text(
                   formatVideoPlayerSpeed(_heldSpeedRate),
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 16,
-                    fontFeatures: [FontFeature.tabularFigures()],
+                  style: AppTextStyle.bodyLarge(Colors.white).copyWith(
+                    fontFeatures: const [FontFeature.tabularFigures()],
                   ),
                 ),
                 const SizedBox(width: 4),
@@ -2420,9 +2410,8 @@ class _VideoPlayerViewState extends State<VideoPlayerView>
                     maxLines: 1,
                     overflow: TextOverflow.fade,
                     softWrap: false,
-                    style: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.72),
-                      fontSize: 13,
+                    style: AppTextStyle.footnote(
+                      Colors.white.withValues(alpha: 0.72),
                     ),
                   ),
                 ),
@@ -2846,12 +2835,9 @@ class _VideoPlayerViewState extends State<VideoPlayerView>
             ),
             child: Text(
               '${_videoZoomScale.toStringAsFixed(1)}×',
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 15,
-                fontWeight: FontWeight.w400,
-                fontFeatures: [FontFeature.tabularFigures()],
-              ),
+              style: AppTextStyle.body(
+                Colors.white,
+              ).copyWith(fontFeatures: const [FontFeature.tabularFigures()]),
             ),
           ),
         ),
@@ -2905,10 +2891,9 @@ class _VideoPlayerViewState extends State<VideoPlayerView>
               const SizedBox(width: 12),
               Text(
                 label,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 17,
-                  fontWeight: FontWeight.w400,
+                style: AppTextStyle.title(
+                  Colors.white,
+                  weight: AppTextWeight.regular,
                 ),
               ),
             ],
@@ -3083,12 +3068,12 @@ class _VideoPlayerViewState extends State<VideoPlayerView>
                                         : next.title,
                                     maxLines: 2,
                                     overflow: TextOverflow.ellipsis,
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.w400,
-                                      shadows: [Shadow(blurRadius: 8)],
-                                    ),
+                                    style: AppTextStyle.bodyLarge(Colors.white)
+                                        .copyWith(
+                                          shadows: const [
+                                            Shadow(blurRadius: 8),
+                                          ],
+                                        ),
                                   ),
                                 ),
                               ],

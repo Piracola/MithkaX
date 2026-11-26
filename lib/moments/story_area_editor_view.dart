@@ -90,10 +90,9 @@ class _StoryAreaEditorViewState extends State<StoryAreaEditorView> {
                 padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
                 child: Text(
                   AppStrings.t(AppStringKeys.addMembersDone),
-                  style: TextStyle(
-                    color: AppTheme.brand,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
+                  style: AppTextStyle.bodyLarge(
+                    AppTheme.brand,
+                    weight: AppTextWeight.semibold,
                   ),
                 ),
               ),
@@ -150,7 +149,7 @@ class _StoryAreaEditorViewState extends State<StoryAreaEditorView> {
                   AppStrings.t(
                     AppStringKeys.storyAreaEditorDragToMovePinchToResizeTwistTo,
                   ),
-                  style: TextStyle(color: c.textSecondary, fontSize: 13),
+                  style: AppTextStyle.footnote(c.textSecondary),
                 ),
                 const SizedBox(height: 9),
                 if (_areas.isNotEmpty)
@@ -182,12 +181,11 @@ class _StoryAreaEditorViewState extends State<StoryAreaEditorView> {
                                 ),
                                 child: Text(
                                   storyAreaDraftLabel(_areas[index]),
-                                  style: TextStyle(
-                                    color: index == _selected
+                                  style: AppTextStyle.caption(
+                                    index == _selected
                                         ? Colors.white
                                         : c.textPrimary,
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w600,
+                                    weight: AppTextWeight.semibold,
                                   ),
                                 ),
                               ),

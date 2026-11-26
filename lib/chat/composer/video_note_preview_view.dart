@@ -169,12 +169,11 @@ class _VideoNotePreviewViewState extends State<VideoNotePreviewView> {
               onTap: _ready && !_exporting ? _send : null,
               child: Text(
                 _exporting ? 'Preparing…' : 'Send',
-                style: TextStyle(
-                  color: _ready
+                style: AppTextStyle.bodyLarge(
+                  _ready
                       ? AppTheme.brand
                       : AppTheme.brand.withValues(alpha: 0.35),
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
+                  weight: AppTextWeight.semibold,
                 ),
               ),
             ),
@@ -240,10 +239,7 @@ class _VideoNotePreviewViewState extends State<VideoNotePreviewView> {
                       children: [
                         Text(
                           formatMediaDuration(value.position.inSeconds),
-                          style: TextStyle(
-                            color: colors.textSecondary,
-                            fontSize: 12,
-                          ),
+                          style: AppTextStyle.caption(colors.textSecondary),
                         ),
                         Expanded(
                           child: AppValueScrubber(
@@ -266,10 +262,7 @@ class _VideoNotePreviewViewState extends State<VideoNotePreviewView> {
                         ),
                         Text(
                           formatMediaDuration(value.duration.inSeconds),
-                          style: TextStyle(
-                            color: colors.textSecondary,
-                            fontSize: 12,
-                          ),
+                          style: AppTextStyle.caption(colors.textSecondary),
                         ),
                       ],
                     ),
@@ -279,10 +272,9 @@ class _VideoNotePreviewViewState extends State<VideoNotePreviewView> {
                       children: [
                         Text(
                           AppStrings.t(AppStringKeys.videoNotePreviewTrim),
-                          style: TextStyle(
-                            color: colors.textPrimary,
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
+                          style: AppTextStyle.footnote(
+                            colors.textPrimary,
+                            weight: AppTextWeight.semibold,
                           ),
                         ),
                         Expanded(
@@ -384,12 +376,10 @@ class _VideoNotePreviewViewState extends State<VideoNotePreviewView> {
             child: Text(
               '${(_volume * 100).round()}',
               textAlign: TextAlign.end,
-              style: TextStyle(
-                color: colors.textSecondary,
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                fontFeatures: const [FontFeature.tabularFigures()],
-              ),
+              style: AppTextStyle.caption(
+                colors.textSecondary,
+                weight: AppTextWeight.semibold,
+              ).copyWith(fontFeatures: const [FontFeature.tabularFigures()]),
             ),
           ),
         ],

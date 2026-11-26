@@ -553,12 +553,10 @@ class _ComposerVoiceDraftCardState extends State<ComposerVoiceDraftCard> {
                 textAlign: TextAlign.end,
                 maxLines: 1,
                 softWrap: false,
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w500,
-                  color: c.textPrimary,
-                  fontFeatures: const [FontFeature.tabularFigures()],
-                ),
+                style: AppTextStyle.footnote(
+                  c.textPrimary,
+                  weight: AppTextWeight.medium,
+                ).copyWith(fontFeatures: const [FontFeature.tabularFigures()]),
               ),
             ),
             const SizedBox(width: 4),
@@ -831,10 +829,9 @@ class _ComposerVoiceDraftCardState extends State<ComposerVoiceDraftCard> {
             ),
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w500,
-              color: c.textPrimary,
+            style: AppTextStyle.footnote(
+              c.textPrimary,
+              weight: AppTextWeight.medium,
             ),
           ),
         ),

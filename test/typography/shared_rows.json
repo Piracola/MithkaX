@@ -1,0 +1,112 @@
+[
+  {
+    "k": "Changes apply to new messages only.|13.0",
+    "text": "Changes apply to new messages only.",
+    "size": 13.0,
+    "weight": 400,
+    "height": 1.35,
+    "boxW": 35.673,
+    "boxH": 1.385,
+    "clipped": false
+  },
+  {
+    "k": "Changes apply to new messages only.|13.0#1",
+    "text": "Changes apply to new messages only.",
+    "size": 13.0,
+    "weight": 400,
+    "height": 1.35,
+    "boxW": 35.673,
+    "boxH": 1.385,
+    "clipped": false
+  },
+  {
+    "k": "Data and Storage|15.0",
+    "text": "Data and Storage",
+    "size": 15.0,
+    "weight": 400,
+    "height": 1.45,
+    "boxW": 16.267,
+    "boxH": 1.467,
+    "clipped": false
+  },
+  {
+    "k": "Data and Storage|15.0#1",
+    "text": "Data and Storage",
+    "size": 15.0,
+    "weight": 400,
+    "height": 1.45,
+    "boxW": 16.267,
+    "boxH": 1.467,
+    "clipped": false
+  },
+  {
+    "k": "Everyone|13.0",
+    "text": "Everyone",
+    "size": 13.0,
+    "weight": 400,
+    "height": 1.38,
+    "boxW": 8.154,
+    "boxH": 1.385,
+    "clipped": false
+  },
+  {
+    "k": "Everyone|13.0#1",
+    "text": "Everyone",
+    "size": 13.0,
+    "weight": 400,
+    "height": 1.38,
+    "boxW": 8.154,
+    "boxH": 1.385,
+    "clipped": false
+  },
+  {
+    "k": "Privacy and Security|15.0",
+    "text": "Privacy and Security",
+    "size": 15.0,
+    "weight": 400,
+    "height": 1.45,
+    "boxW": 20.333,
+    "boxH": 1.467,
+    "clipped": false
+  },
+  {
+    "k": "Privacy and Security|15.0#1",
+    "text": "Privacy and Security",
+    "size": 15.0,
+    "weight": 400,
+    "height": 1.45,
+    "boxW": 20.333,
+    "boxH": 1.467,
+    "clipped": false
+  },
+  {
+    "k": "Save to gallery|15.0",
+    "text": "Save to gallery",
+    "size": 15.0,
+    "weight": 400,
+    "height": 1.45,
+    "boxW": 15.25,
+    "boxH": 1.467,
+    "clipped": false
+  },
+  {
+    "k": "Save to gallery|15.0#1",
+    "text": "Save to gallery",
+    "size": 15.0,
+    "weight": 400,
+    "height": 1.45,
+    "boxW": 15.25,
+    "boxH": 1.467,
+    "clipped": false
+  },
+  {
+    "k": "|17.0",
+    "text": "",
+    "size": 17.0,
+    "weight": 400,
+    "height": 1.0,
+    "boxW": 1.0,
+    "boxH": 1.0,
+    "clipped": false
+  }
+]

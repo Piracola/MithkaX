@@ -990,7 +990,7 @@ class _SharedMediaViewState extends State<SharedMediaView> {
           Text(
             message,
             textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 14, color: c.textSecondary),
+            style: AppTextStyle.callout(c.textSecondary),
           ),
           if (showCreate) ...[
             const SizedBox(height: 18),
@@ -1072,10 +1072,9 @@ class _SharedMediaViewState extends State<SharedMediaView> {
                       title,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w600,
-                        color: c.textPrimary,
+                      style: AppTextStyle.body(
+                        c.textPrimary,
+                        weight: AppTextWeight.semibold,
                       ),
                     ),
                     const SizedBox(height: 3),
@@ -1083,7 +1082,7 @@ class _SharedMediaViewState extends State<SharedMediaView> {
                       subtitle,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: TextStyle(fontSize: 12, color: c.textTertiary),
+                      style: AppTextStyle.caption(c.textTertiary),
                     ),
                   ],
                 ),
@@ -1204,10 +1203,9 @@ class _SharedMediaViewState extends State<SharedMediaView> {
               ),
             Text(
               AppStrings.t(widget.displayTitle),
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-                color: c.textPrimary,
+              style: AppTextStyle.bodyLarge(
+                c.textPrimary,
+                weight: AppTextWeight.semibold,
               ),
             ),
           ],
@@ -1243,10 +1241,11 @@ class _SharedMediaViewState extends State<SharedMediaView> {
                   child: Text(
                     AppStrings.t(_tabs[i].label),
                     textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: _tab == i ? FontWeight.w600 : FontWeight.w400,
-                      color: _tab == i ? AppTheme.brand : c.textSecondary,
+                    style: AppTextStyle.callout(
+                      _tab == i ? AppTheme.brand : c.textSecondary,
+                      weight: _tab == i
+                          ? AppTextWeight.semibold
+                          : AppTextWeight.regular,
                     ),
                   ),
                 ),
@@ -1282,7 +1281,7 @@ class _SharedMediaViewState extends State<SharedMediaView> {
                 controller: _search,
                 autocorrect: false,
                 textInputAction: TextInputAction.search,
-                style: TextStyle(fontSize: 15, color: c.textPrimary),
+                style: AppTextStyle.body(c.textPrimary),
                 decoration: InputDecoration(
                   hintText: _tabs[_tab].videoOnly
                       ? AppStrings.t(AppStringKeys.sharedMediaSearchVideosHint)
@@ -1557,7 +1556,7 @@ class _SharedMediaViewState extends State<SharedMediaView> {
                       ? AppStringKeys.sharedMediaEmpty
                       : AppStringKeys.sharedMediaNoMatches,
                 ),
-                style: TextStyle(fontSize: 14, color: c.textSecondary),
+                style: AppTextStyle.callout(c.textSecondary),
               ),
             ),
           ),
@@ -2002,10 +2001,7 @@ class _SharedMediaViewState extends State<SharedMediaView> {
                               status,
                               maxLines: 2,
                               overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: c.textTertiary,
-                              ),
+                              style: AppTextStyle.caption(c.textTertiary),
                             ),
                           ),
                           _downloadControl(message),
@@ -2017,7 +2013,7 @@ class _SharedMediaViewState extends State<SharedMediaView> {
                         source,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: TextStyle(fontSize: 12, color: c.textSecondary),
+                        style: AppTextStyle.caption(c.textSecondary),
                       ),
                     ],
                   ),
@@ -2087,14 +2083,14 @@ class _SharedMediaViewState extends State<SharedMediaView> {
                     title.replaceAll('\n', ' '),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: TextStyle(fontSize: 15, color: c.textPrimary),
+                    style: AppTextStyle.body(c.textPrimary),
                   ),
                   const SizedBox(height: 2),
                   Text(
                     subtitle,
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
-                    style: TextStyle(fontSize: 12, color: c.textTertiary),
+                    style: AppTextStyle.caption(c.textTertiary),
                   ),
                   if (meta.isNotEmpty) ...[
                     const SizedBox(height: 2),
@@ -2102,7 +2098,7 @@ class _SharedMediaViewState extends State<SharedMediaView> {
                       meta,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: TextStyle(fontSize: 12, color: c.textTertiary),
+                      style: AppTextStyle.caption(c.textTertiary),
                     ),
                   ],
                   if (m.document != null) _downloadProgress(_stateFor(m)),
@@ -2189,10 +2185,9 @@ class _SharedMediaViewState extends State<SharedMediaView> {
                         sender,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w600,
-                          color: c.textPrimary,
+                        style: AppTextStyle.body(
+                          c.textPrimary,
+                          weight: AppTextWeight.semibold,
                         ),
                       ),
                       const SizedBox(height: 5),
@@ -2212,7 +2207,7 @@ class _SharedMediaViewState extends State<SharedMediaView> {
                         subtitle,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: TextStyle(fontSize: 12, color: c.textTertiary),
+                        style: AppTextStyle.caption(c.textTertiary),
                       ),
                     ],
                   ),
@@ -2281,12 +2276,11 @@ class _SharedMediaViewState extends State<SharedMediaView> {
                         _musicName(music),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: 15,
-                          fontWeight: active
-                              ? FontWeight.w600
-                              : FontWeight.w500,
-                          color: c.textPrimary,
+                        style: AppTextStyle.body(
+                          c.textPrimary,
+                          weight: active
+                              ? AppTextWeight.semibold
+                              : AppTextWeight.medium,
                         ),
                       ),
                       const SizedBox(height: 3),
@@ -2294,7 +2288,7 @@ class _SharedMediaViewState extends State<SharedMediaView> {
                         subtitle,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: TextStyle(fontSize: 12, color: c.textTertiary),
+                        style: AppTextStyle.caption(c.textTertiary),
                       ),
                     ],
                   ),
@@ -2303,9 +2297,8 @@ class _SharedMediaViewState extends State<SharedMediaView> {
                 _musicPlaylistButton(message),
                 Text(
                   formatMediaDuration(music.duration),
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: active ? musicPlayerAccent : c.textTertiary,
+                  style: AppTextStyle.caption(
+                    active ? musicPlayerAccent : c.textTertiary,
                   ),
                 ),
                 _rowMenu(message),
@@ -2438,10 +2431,9 @@ class _SharedMediaViewState extends State<SharedMediaView> {
                             title,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              fontSize: 15,
-                              fontWeight: FontWeight.w600,
-                              color: c.textPrimary,
+                            style: AppTextStyle.body(
+                              c.textPrimary,
+                              weight: AppTextWeight.semibold,
                             ),
                           ),
                         ),
@@ -2453,14 +2445,14 @@ class _SharedMediaViewState extends State<SharedMediaView> {
                       subtitle,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: TextStyle(fontSize: 12, color: c.textTertiary),
+                      style: AppTextStyle.caption(c.textTertiary),
                     ),
                     const SizedBox(height: 3),
                     Text(
                       downloadLabel,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
-                      style: TextStyle(fontSize: 12, color: c.textSecondary),
+                      style: AppTextStyle.caption(c.textSecondary),
                     ),
                     _downloadProgress(state),
                     if (caption.isNotEmpty &&
@@ -2470,7 +2462,7 @@ class _SharedMediaViewState extends State<SharedMediaView> {
                         caption,
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
-                        style: TextStyle(fontSize: 13, color: c.textSecondary),
+                        style: AppTextStyle.footnote(c.textSecondary),
                       ),
                     ],
                     const SizedBox(height: 3),
@@ -2478,7 +2470,7 @@ class _SharedMediaViewState extends State<SharedMediaView> {
                       source,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: TextStyle(fontSize: 12, color: c.textTertiary),
+                      style: AppTextStyle.caption(c.textTertiary),
                     ),
                   ],
                 ),
@@ -2597,10 +2589,7 @@ class _SharedMediaViewState extends State<SharedMediaView> {
         color: Colors.black.withValues(alpha: 0.62),
         borderRadius: BorderRadius.circular(AppRadius.sm),
       ),
-      child: Text(
-        text,
-        style: const TextStyle(fontSize: 10, color: Colors.white),
-      ),
+      child: Text(text, style: AppTextStyle.tiny(Colors.white)),
     );
   }
 
@@ -2746,9 +2735,8 @@ class _SharedMediaViewState extends State<SharedMediaView> {
             alignment: Alignment.centerLeft,
             child: Text(
               label,
-              style: TextStyle(
-                fontSize: 16,
-                color: !enabled
+              style: AppTextStyle.bodyLarge(
+                !enabled
                     ? c.textTertiary
                     : destructive
                     ? Colors.redAccent

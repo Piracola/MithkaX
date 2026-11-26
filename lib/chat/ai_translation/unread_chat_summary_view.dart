@@ -174,10 +174,9 @@ class _UnreadChatSummaryViewState extends State<UnreadChatSummaryView> {
             Expanded(
               child: Text(
                 _progressLabel(context),
-                style: TextStyle(
-                  color: c.textSecondary,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w500,
+                style: AppTextStyle.bodyLarge(
+                  c.textSecondary,
+                  weight: AppTextWeight.medium,
                 ),
               ),
             ),
@@ -805,11 +804,7 @@ class _UnreadChatSummaryViewState extends State<UnreadChatSummaryView> {
           label,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
-          style: TextStyle(
-            color: color,
-            fontSize: 14,
-            fontWeight: FontWeight.w600,
-          ),
+          style: AppTextStyle.callout(color, weight: AppTextWeight.semibold),
         ),
       ),
     );

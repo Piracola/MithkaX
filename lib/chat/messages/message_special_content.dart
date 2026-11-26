@@ -74,10 +74,9 @@ class MessageContactCardContent extends StatelessWidget {
                     contact.displayName,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w600,
-                      color: foreground,
+                    style: AppTextStyle.body(
+                      foreground,
+                      weight: AppTextWeight.semibold,
                     ),
                   ),
                   if (contact.phoneNumber.isNotEmpty) ...[
@@ -86,7 +85,7 @@ class MessageContactCardContent extends StatelessWidget {
                       contact.phoneNumber,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: TextStyle(fontSize: 13, color: secondary),
+                      style: AppTextStyle.footnote(secondary),
                     ),
                   ],
                 ],
@@ -157,17 +156,16 @@ class MessagePollContent extends StatelessWidget {
                   poll.question.isEmpty
                       ? AppStringKeys.tdMessagePoll.l10n(context)
                       : poll.question,
-                  style: TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600,
-                    color: foreground,
+                  style: AppTextStyle.body(
+                    foreground,
+                    weight: AppTextWeight.semibold,
                   ),
                 ),
                 if (poll.description.isNotEmpty) ...[
                   const SizedBox(height: 4),
                   Text(
                     poll.description,
-                    style: TextStyle(fontSize: 13, color: secondary),
+                    style: AppTextStyle.footnote(secondary),
                   ),
                 ],
                 const SizedBox(height: 10),
@@ -187,7 +185,7 @@ class MessagePollContent extends StatelessWidget {
                   const SizedBox(height: 9),
                   Text(
                     poll.explanation,
-                    style: TextStyle(fontSize: 12, color: secondary),
+                    style: AppTextStyle.caption(secondary),
                   ),
                 ],
                 const SizedBox(height: 10),
@@ -199,13 +197,13 @@ class MessagePollContent extends StatelessWidget {
                           AppStringKeys.messagePollVotes,
                           poll.totalVoterCount,
                         ),
-                        style: TextStyle(fontSize: 12, color: secondary),
+                        style: AppTextStyle.caption(secondary),
                       ),
                     ),
                     if (poll.isClosed)
                       Text(
                         AppStringKeys.messagePollClosed.l10n(context),
-                        style: TextStyle(fontSize: 12, color: secondary),
+                        style: AppTextStyle.caption(secondary),
                       )
                     else if (onStop != null)
                       GestureDetector(
@@ -219,10 +217,9 @@ class MessagePollContent extends StatelessWidget {
                           ),
                           child: Text(
                             AppStringKeys.messagePollStop.l10n(context),
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                              color: AppTheme.brand,
+                            style: AppTextStyle.caption(
+                              AppTheme.brand,
+                              weight: AppTextWeight.semibold,
                             ),
                           ),
                         ),
@@ -277,10 +274,9 @@ class _PollTextAction extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
       child: Text(
         label,
-        style: TextStyle(
-          fontSize: 12,
-          fontWeight: FontWeight.w600,
-          color: AppTheme.brand,
+        style: AppTextStyle.caption(
+          AppTheme.brand,
+          weight: AppTextWeight.semibold,
         ),
       ),
     ),
@@ -355,17 +351,16 @@ class _PollOptionRow extends StatelessWidget {
                 Expanded(
                   child: Text(
                     option.text,
-                    style: TextStyle(fontSize: 14, color: foreground),
+                    style: AppTextStyle.callout(foreground),
                   ),
                 ),
                 if (showResults) ...[
                   const SizedBox(width: 7),
                   Text(
                     '$percentage%',
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: option.isChosen ? AppTheme.brand : secondary,
+                    style: AppTextStyle.caption(
+                      option.isChosen ? AppTheme.brand : secondary,
+                      weight: AppTextWeight.semibold,
                     ),
                   ),
                 ],
@@ -416,10 +411,9 @@ class MessageChecklistContent extends StatelessWidget {
             checklist.title.isEmpty
                 ? AppStringKeys.tdMessageChecklist.l10n(context)
                 : checklist.title,
-            style: TextStyle(
-              fontSize: 15,
-              fontWeight: FontWeight.w600,
-              color: foreground,
+            style: AppTextStyle.body(
+              foreground,
+              weight: AppTextWeight.semibold,
             ),
           ),
           const SizedBox(height: 9),
@@ -446,13 +440,14 @@ class MessageChecklistContent extends StatelessWidget {
                     Expanded(
                       child: Text(
                         task.text,
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: task.isCompleted ? secondary : foreground,
-                          decoration: task.isCompleted
-                              ? TextDecoration.lineThrough
-                              : TextDecoration.none,
-                        ),
+                        style:
+                            AppTextStyle.callout(
+                              task.isCompleted ? secondary : foreground,
+                            ).copyWith(
+                              decoration: task.isCompleted
+                                  ? TextDecoration.lineThrough
+                                  : TextDecoration.none,
+                            ),
                       ),
                     ),
                   ],
@@ -469,7 +464,7 @@ class MessageChecklistContent extends StatelessWidget {
                     'value1': complete,
                     'value2': checklist.tasks.length,
                   }),
-                  style: TextStyle(fontSize: 12, color: secondary),
+                  style: AppTextStyle.caption(secondary),
                 ),
               ),
               if (checklist.canAddTasks && onAddTask != null)
@@ -488,10 +483,9 @@ class MessageChecklistContent extends StatelessWidget {
                       const SizedBox(width: 3),
                       Text(
                         AppStringKeys.messageChecklistAdd.l10n(context),
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          color: AppTheme.brand,
+                        style: AppTextStyle.caption(
+                          AppTheme.brand,
+                          weight: AppTextWeight.semibold,
                         ),
                       ),
                     ],
@@ -562,10 +556,9 @@ class MessageStoryContent extends StatelessWidget {
               children: [
                 Text(
                   AppStringKeys.messageStoryShared.l10n(context),
-                  style: TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600,
-                    color: foreground,
+                  style: AppTextStyle.body(
+                    foreground,
+                    weight: AppTextWeight.semibold,
                   ),
                 ),
                 const SizedBox(height: 3),
@@ -573,7 +566,7 @@ class MessageStoryContent extends StatelessWidget {
                   story.viaMention
                       ? AppStringKeys.messageStoryMention.l10n(context)
                       : AppStringKeys.messageStoryOpen.l10n(context),
-                  style: TextStyle(fontSize: 12, color: secondary),
+                  style: AppTextStyle.caption(secondary),
                 ),
               ],
             ),
@@ -664,10 +657,9 @@ class MessageSummaryCardContent extends StatelessWidget {
                       card.title,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w600,
-                        color: foreground,
+                      style: AppTextStyle.body(
+                        foreground,
+                        weight: AppTextWeight.semibold,
                       ),
                     ),
                     if (card.subtitle.isNotEmpty) ...[
@@ -676,7 +668,7 @@ class MessageSummaryCardContent extends StatelessWidget {
                         card.subtitle,
                         maxLines: 3,
                         overflow: TextOverflow.ellipsis,
-                        style: TextStyle(fontSize: 13, color: secondary),
+                        style: AppTextStyle.footnote(secondary),
                       ),
                     ],
                     if (card.detail.isNotEmpty) ...[
@@ -685,10 +677,9 @@ class MessageSummaryCardContent extends StatelessWidget {
                         card.detail,
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          color: AppTheme.brand,
+                        style: AppTextStyle.caption(
+                          AppTheme.brand,
+                          weight: AppTextWeight.semibold,
                         ),
                       ),
                     ],
@@ -749,10 +740,9 @@ class MessageSuggestedPostStatusContent extends StatelessWidget {
               children: [
                 Text(
                   AppStrings.t(label),
-                  style: TextStyle(
-                    color: foreground,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
+                  style: AppTextStyle.caption(
+                    foreground,
+                    weight: AppTextWeight.semibold,
                   ),
                 ),
                 if (detail.isNotEmpty) ...[

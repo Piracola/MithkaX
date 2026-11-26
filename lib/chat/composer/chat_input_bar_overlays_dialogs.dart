@@ -236,11 +236,9 @@ class _RelaySendingOverlayState extends State<_RelaySendingOverlay>
                   Text(
                     label,
                     textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w500,
-                      color: c.textPrimary,
-                      decoration: TextDecoration.none,
+                    style: AppTextStyle.callout(
+                      c.textPrimary,
+                      weight: AppTextWeight.medium,
                     ),
                   ),
                   const SizedBox(height: 9),
@@ -264,11 +262,7 @@ class _RelaySendingOverlayState extends State<_RelaySendingOverlay>
                   const SizedBox(height: 7),
                   Text(
                     '${progress.step}/${progress.totalSteps} · $percent%',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: c.textSecondary,
-                      decoration: TextDecoration.none,
-                    ),
+                    style: AppTextStyle.caption(c.textSecondary),
                   ),
                 ],
               ),
@@ -397,11 +391,9 @@ class _LongMessagePromptAction extends StatelessWidget {
           label,
           maxLines: 2,
           textAlign: TextAlign.center,
-          style: TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w600,
-            color: primary ? Colors.white : c.textPrimary,
-            decoration: TextDecoration.none,
+          style: AppTextStyle.callout(
+            primary ? Colors.white : c.textPrimary,
+            weight: AppTextWeight.semibold,
           ),
         ),
       ),
@@ -519,11 +511,7 @@ class _ComposerFormatMenu extends StatelessWidget {
                               ),
                               child: Text(
                                 action.labelKey.l10n(context),
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  color: c.textPrimary,
-                                  decoration: TextDecoration.none,
-                                ),
+                                style: AppTextStyle.bodyLarge(c.textPrimary),
                               ),
                             ),
                           ),
@@ -594,7 +582,7 @@ class _ComposerLinkDialogState extends State<_ComposerLinkDialog> {
                 autocorrect: false,
                 enableSuggestions: false,
                 onSubmitted: _submit,
-                style: TextStyle(fontSize: 16, color: c.textPrimary),
+                style: AppTextStyle.bodyLarge(c.textPrimary),
                 decoration: InputDecoration(
                   hintText: AppStringKeys.composerFormatLinkPlaceholder.l10n(
                     context,
@@ -641,11 +629,9 @@ class _ComposerLinkDialogState extends State<_ComposerLinkDialog> {
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
         child: Text(
           label.l10n(context),
-          style: TextStyle(
-            fontSize: 15,
-            fontWeight: primary ? FontWeight.w600 : FontWeight.w400,
-            color: primary ? AppTheme.brand : context.colors.textSecondary,
-            decoration: TextDecoration.none,
+          style: AppTextStyle.body(
+            primary ? AppTheme.brand : context.colors.textSecondary,
+            weight: primary ? AppTextWeight.semibold : AppTextWeight.regular,
           ),
         ),
       ),

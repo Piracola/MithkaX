@@ -155,10 +155,9 @@ class _PinnedMessagesViewState extends State<PinnedMessagesView> {
             ),
             Text(
               AppStrings.t(AppStringKeys.chatInfoPinnedHighlights),
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-                color: c.textPrimary,
+              style: AppTextStyle.bodyLarge(
+                c.textPrimary,
+                weight: AppTextWeight.semibold,
               ),
             ),
           ],
@@ -182,7 +181,7 @@ class _PinnedMessagesViewState extends State<PinnedMessagesView> {
       return Center(
         child: Text(
           AppStrings.t(AppStringKeys.pinnedMessagesEmpty),
-          style: TextStyle(fontSize: 14, color: c.textSecondary),
+          style: AppTextStyle.callout(c.textSecondary),
         ),
       );
     }
@@ -236,10 +235,9 @@ class _PinnedMessagesViewState extends State<PinnedMessagesView> {
                         name,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w500,
-                          color: c.textPrimary,
+                        style: AppTextStyle.body(
+                          c.textPrimary,
+                          weight: AppTextWeight.medium,
                         ),
                       ),
                       const SizedBox(height: 2),
@@ -247,7 +245,7 @@ class _PinnedMessagesViewState extends State<PinnedMessagesView> {
                         AppStrings.t(AppStringKeys.pinnedMessagesSentBy, {
                           'value1': DateText.listLabel(message.date),
                         }),
-                        style: TextStyle(fontSize: 13, color: c.textTertiary),
+                        style: AppTextStyle.footnote(c.textTertiary),
                       ),
                     ],
                   ),

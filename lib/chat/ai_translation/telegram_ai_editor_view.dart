@@ -32,11 +32,7 @@ Widget _aiTapLabel(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
         child: Text(
           label,
-          style: TextStyle(
-            color: color,
-            fontSize: 15,
-            fontWeight: FontWeight.w600,
-          ),
+          style: AppTextStyle.body(color, weight: AppTextWeight.semibold),
         ),
       ),
     ),
@@ -74,10 +70,9 @@ Widget _aiPrimaryButton(
               children: [
                 Text(
                   label,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600,
+                  style: AppTextStyle.body(
+                    Colors.white,
+                    weight: AppTextWeight.semibold,
                   ),
                 ),
                 if (badge != null) ...[
@@ -140,10 +135,9 @@ Widget _aiRow(
                 children: [
                   Text(
                     title,
-                    style: TextStyle(
-                      color: c.textPrimary,
-                      fontSize: 15,
-                      fontWeight: FontWeight.w500,
+                    style: AppTextStyle.body(
+                      c.textPrimary,
+                      weight: AppTextWeight.medium,
                     ),
                   ),
                   if (subtitle != null && subtitle.isNotEmpty) ...[
@@ -245,10 +239,9 @@ Future<T?> _aiChoiceSheet<T>(
                 alignment: Alignment.centerLeft,
                 child: Text(
                   title,
-                  style: TextStyle(
-                    color: c.textPrimary,
-                    fontSize: 17,
-                    fontWeight: FontWeight.w600,
+                  style: AppTextStyle.title(
+                    c.textPrimary,
+                    weight: AppTextWeight.semibold,
                   ),
                 ),
               ),
@@ -526,10 +519,9 @@ class _TelegramAiEditorViewState extends State<TelegramAiEditorView> {
               Expanded(
                 child: Text(
                   label,
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: c.textSecondary,
+                  style: AppTextStyle.caption(
+                    c.textSecondary,
+                    weight: AppTextWeight.semibold,
                   ),
                 ),
               ),
@@ -583,10 +575,9 @@ class _TelegramAiEditorViewState extends State<TelegramAiEditorView> {
               const SizedBox(width: 5),
               Text(
                 AppStrings.t(AppStringKeys.telegramAiEditorAddEmoji),
-                style: TextStyle(
-                  color: _addEmojis ? AppTheme.brand : c.textSecondary,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
+                style: AppTextStyle.caption(
+                  _addEmojis ? AppTheme.brand : c.textSecondary,
+                  weight: AppTextWeight.semibold,
                 ),
               ),
             ],
@@ -663,10 +654,9 @@ class _TelegramAiEditorViewState extends State<TelegramAiEditorView> {
                   label,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: selected ? AppTheme.brand : c.textSecondary,
-                    fontSize: 13,
-                    fontWeight: selected ? FontWeight.w600 : FontWeight.w600,
+                  style: AppTextStyle.footnote(
+                    selected ? AppTheme.brand : c.textSecondary,
+                    weight: AppTextWeight.semibold,
                   ),
                 ),
               ],
@@ -741,10 +731,9 @@ class _TelegramAiEditorViewState extends State<TelegramAiEditorView> {
         children: [
           Text(
             AppStrings.t(AppStringKeys.telegramAiEditorWritingStyle),
-            style: TextStyle(
-              color: c.textPrimary,
-              fontSize: 15,
-              fontWeight: FontWeight.w600,
+            style: AppTextStyle.body(
+              c.textPrimary,
+              weight: AppTextWeight.semibold,
             ),
           ),
           const SizedBox(height: 11),
@@ -836,10 +825,9 @@ class _TelegramAiEditorViewState extends State<TelegramAiEditorView> {
               ],
               Text(
                 label,
-                style: TextStyle(
-                  color: selected ? AppTheme.brand : c.textPrimary,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
+                style: AppTextStyle.footnote(
+                  selected ? AppTheme.brand : c.textPrimary,
+                  weight: AppTextWeight.semibold,
                 ),
               ),
             ],
@@ -871,10 +859,9 @@ class _TelegramAiEditorViewState extends State<TelegramAiEditorView> {
                   Expanded(
                     child: Text(
                       AppStrings.t(AppStringKeys.telegramAiEditorStylePrompt),
-                      style: TextStyle(
-                        color: c.textSecondary,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
+                      style: AppTextStyle.footnote(
+                        c.textSecondary,
+                        weight: AppTextWeight.semibold,
                       ),
                     ),
                   ),

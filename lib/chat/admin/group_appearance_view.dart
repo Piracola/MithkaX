@@ -421,7 +421,7 @@ class _GroupAppearanceViewState extends State<GroupAppearanceView> {
               context.l10n.t(AppStringKeys.groupAppearanceBoostLevel, {
                 'value1': _boostLevel,
               }),
-              style: TextStyle(fontSize: 15, color: c.textPrimary),
+              style: AppTextStyle.body(c.textPrimary),
             ),
           ),
         ],
@@ -442,10 +442,9 @@ class _GroupAppearanceViewState extends State<GroupAppearanceView> {
         children: [
           Text(
             AppStringKeys.editProfileProfileColor.l10n(context),
-            style: TextStyle(
-              fontSize: 15,
-              fontWeight: FontWeight.w600,
-              color: c.textPrimary,
+            style: AppTextStyle.body(
+              c.textPrimary,
+              weight: AppTextWeight.semibold,
             ),
           ),
           const SizedBox(height: 14),
@@ -574,9 +573,8 @@ class _GroupAppearanceViewState extends State<GroupAppearanceView> {
               Expanded(
                 child: Text(
                   key.l10n(context),
-                  style: TextStyle(
-                    fontSize: 15,
-                    color: locked ? c.textTertiary : c.textPrimary,
+                  style: AppTextStyle.body(
+                    locked ? c.textTertiary : c.textPrimary,
                   ),
                 ),
               ),
@@ -607,10 +605,9 @@ class _GroupAppearanceViewState extends State<GroupAppearanceView> {
                         context.l10n.t(AppStringKeys.chatWallpaperBoostLevel, {
                           'value1': requiredLevel,
                         }),
-                        style: const TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w600,
-                          color: Color(0xFFFFFFFF),
+                        style: AppTextStyle.tiny(
+                          const Color(0xFFFFFFFF),
+                          weight: AppTextWeight.semibold,
                         ),
                       ),
                     ],
@@ -650,9 +647,8 @@ class _GroupAppearanceViewState extends State<GroupAppearanceView> {
               Expanded(
                 child: Text(
                   title,
-                  style: TextStyle(
-                    fontSize: 15,
-                    color: locked ? c.textTertiary : c.textPrimary,
+                  style: AppTextStyle.body(
+                    locked ? c.textTertiary : c.textPrimary,
                   ),
                 ),
               ),
@@ -661,7 +657,7 @@ class _GroupAppearanceViewState extends State<GroupAppearanceView> {
                   AppStrings.t(AppStringKeys.chatWallpaperBoostLevel, {
                     'value1': requiredLevel,
                   }),
-                  style: TextStyle(fontSize: 12, color: c.textTertiary),
+                  style: AppTextStyle.caption(c.textTertiary),
                 ),
                 const SizedBox(width: 8),
               ],

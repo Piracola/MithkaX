@@ -299,7 +299,7 @@ class _AudioSearchViewState extends State<AudioSearchView> {
               focusNode: _focus,
               autocorrect: false,
               textInputAction: TextInputAction.search,
-              style: TextStyle(fontSize: 15, color: c.textPrimary),
+              style: AppTextStyle.body(c.textPrimary),
               decoration: InputDecoration(
                 hintText: AppStrings.t(
                   AppStringKeys.audioSearchTelegramAudioTitle,
@@ -343,7 +343,7 @@ class _AudioSearchViewState extends State<AudioSearchView> {
       return Center(
         child: Text(
           AppStrings.t(AppStringKeys.audioSearchPlaceholder),
-          style: TextStyle(fontSize: 14, color: c.textSecondary),
+          style: AppTextStyle.callout(c.textSecondary),
         ),
       );
     }
@@ -351,7 +351,7 @@ class _AudioSearchViewState extends State<AudioSearchView> {
       return Center(
         child: Text(
           AppStrings.t(AppStringKeys.audioSearchNoResults),
-          style: TextStyle(fontSize: 14, color: c.textSecondary),
+          style: AppTextStyle.callout(c.textSecondary),
         ),
       );
     }
@@ -388,10 +388,9 @@ class _AudioSearchViewState extends State<AudioSearchView> {
                     music.title,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w600,
-                      color: c.textPrimary,
+                    style: AppTextStyle.body(
+                      c.textPrimary,
+                      weight: AppTextWeight.semibold,
                     ),
                   ),
                   const SizedBox(height: 3),
@@ -401,7 +400,7 @@ class _AudioSearchViewState extends State<AudioSearchView> {
                         : music.performer!.trim(),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: TextStyle(fontSize: 13, color: c.textSecondary),
+                    style: AppTextStyle.footnote(c.textSecondary),
                   ),
                   const SizedBox(height: 5),
                   Row(
@@ -422,7 +421,7 @@ class _AudioSearchViewState extends State<AudioSearchView> {
                               ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: TextStyle(fontSize: 12, color: c.textTertiary),
+                          style: AppTextStyle.caption(c.textTertiary),
                         ),
                       ),
                     ],

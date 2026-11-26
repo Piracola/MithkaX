@@ -1845,7 +1845,7 @@ class _ChatInputBarState extends State<ChatInputBar>
         child: Center(
           child: Text(
             AppStrings.t(AppStringKeys.chatInputBarNoInlineResults),
-            style: TextStyle(color: c.textSecondary, fontSize: 14),
+            style: AppTextStyle.callout(c.textSecondary),
           ),
         ),
       );
@@ -1922,10 +1922,9 @@ class _ChatInputBarState extends State<ChatInputBar>
                           headerButton.text,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            color: AppTheme.brand,
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
+                          style: AppTextStyle.callout(
+                            AppTheme.brand,
+                            weight: AppTextWeight.semibold,
                           ),
                         ),
                       ),
@@ -1954,7 +1953,7 @@ class _ChatInputBarState extends State<ChatInputBar>
                   '@${_inlineBot!.username} · $headerText',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(color: c.textSecondary, fontSize: 12),
+                  style: AppTextStyle.caption(c.textSecondary),
                 ),
               ),
             Flexible(child: body),
@@ -1994,10 +1993,9 @@ class _ChatInputBarState extends State<ChatInputBar>
                       result.title,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        color: c.textPrimary,
-                        fontSize: 15,
-                        fontWeight: FontWeight.w500,
+                      style: AppTextStyle.body(
+                        c.textPrimary,
+                        weight: AppTextWeight.medium,
                       ),
                     ),
                     if (result.description.isNotEmpty)
@@ -2005,7 +2003,7 @@ class _ChatInputBarState extends State<ChatInputBar>
                         result.description,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: TextStyle(color: c.textSecondary, fontSize: 12),
+                        style: AppTextStyle.caption(c.textSecondary),
                       ),
                   ],
                 ),
@@ -2136,20 +2134,15 @@ class _ChatInputBarState extends State<ChatInputBar>
                           children: [
                             TextSpan(
                               text: command.displayCommand,
-                              style: TextStyle(
-                                color: c.textPrimary,
-                                fontSize: 15,
-                                fontWeight: FontWeight.w600,
+                              style: AppTextStyle.body(
+                                c.textPrimary,
+                                weight: AppTextWeight.semibold,
                               ),
                             ),
                             if (command.description.trim().isNotEmpty)
                               TextSpan(
                                 text: '  ${command.description.trim()}',
-                                style: TextStyle(
-                                  color: c.textSecondary,
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w400,
-                                ),
+                                style: AppTextStyle.callout(c.textSecondary),
                               ),
                           ],
                         ),
@@ -2229,10 +2222,9 @@ class _ChatInputBarState extends State<ChatInputBar>
                                 candidate.name,
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
-                                style: TextStyle(
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.w500,
-                                  color: c.textPrimary,
+                                style: AppTextStyle.body(
+                                  c.textPrimary,
+                                  weight: AppTextWeight.medium,
                                 ),
                               ),
                               if (candidate.username.isNotEmpty)
@@ -2240,10 +2232,7 @@ class _ChatInputBarState extends State<ChatInputBar>
                                   '@${candidate.username}',
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: c.textSecondary,
-                                  ),
+                                  style: AppTextStyle.caption(c.textSecondary),
                                 ),
                             ],
                           ),
@@ -2426,10 +2415,9 @@ class _ChatInputBarState extends State<ChatInputBar>
                     AppStringKeys.chatEditMessageTitle.l10n(context),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: AppTheme.cloverGreen,
+                    style: AppTextStyle.caption(
+                      AppTheme.cloverGreen,
+                      weight: AppTextWeight.semibold,
                     ),
                   ),
                   if (preview.isNotEmpty)
@@ -2437,7 +2425,7 @@ class _ChatInputBarState extends State<ChatInputBar>
                       preview,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: TextStyle(fontSize: 12, color: c.textSecondary),
+                      style: AppTextStyle.caption(c.textSecondary),
                     ),
                 ],
               ),
@@ -2847,14 +2835,14 @@ class _ChatInputBarState extends State<ChatInputBar>
                       title,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: TextStyle(fontSize: 16, color: c.textPrimary),
+                      style: AppTextStyle.bodyLarge(c.textPrimary),
                     ),
                     if (subtitle.trim().isNotEmpty)
                       Text(
                         subtitle,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: TextStyle(fontSize: 12, color: c.textSecondary),
+                        style: AppTextStyle.caption(c.textSecondary),
                       ),
                   ],
                 ),
@@ -2966,10 +2954,9 @@ class _ChatInputBarState extends State<ChatInputBar>
                   Expanded(
                     child: Text(
                       AppStrings.t(AppStringKeys.businessToolsQuickReplies),
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: c.textPrimary,
+                      style: AppTextStyle.callout(
+                        c.textPrimary,
+                        weight: AppTextWeight.semibold,
                       ),
                     ),
                   ),
@@ -3028,10 +3015,9 @@ class _ChatInputBarState extends State<ChatInputBar>
                                 '/${shortcut.name}',
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
-                                style: TextStyle(
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.w600,
-                                  color: c.textPrimary,
+                                style: AppTextStyle.body(
+                                  c.textPrimary,
+                                  weight: AppTextWeight.semibold,
                                 ),
                               ),
                               if (shortcut.preview.isNotEmpty) ...[
@@ -3040,10 +3026,7 @@ class _ChatInputBarState extends State<ChatInputBar>
                                   shortcut.preview,
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: c.textSecondary,
-                                  ),
+                                  style: AppTextStyle.caption(c.textSecondary),
                                 ),
                               ],
                             ],
@@ -3692,10 +3675,9 @@ class _ChatInputBarState extends State<ChatInputBar>
                             const SizedBox(width: 3),
                             Text(
                               'x${vm.paidMessageStarCount}',
-                              style: const TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
-                                color: Colors.white,
+                              style: AppTextStyle.caption(
+                                Colors.white,
+                                weight: AppTextWeight.semibold,
                               ),
                             ),
                           ],
@@ -3779,10 +3761,9 @@ class _ChatInputBarState extends State<ChatInputBar>
                       const SizedBox(width: 3),
                       Text(
                         'x${vm.paidMessageStarCount}',
-                        style: const TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.white,
+                        style: AppTextStyle.caption(
+                          Colors.white,
+                          weight: AppTextWeight.semibold,
                         ),
                       ),
                     ],
@@ -3802,20 +3783,18 @@ class _ChatInputBarState extends State<ChatInputBar>
                       Text(
                         sendLabel,
                         maxLines: 1,
-                        style: const TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.white,
+                        style: AppTextStyle.footnote(
+                          Colors.white,
+                          weight: AppTextWeight.semibold,
                         ),
                       ),
                       const SizedBox(width: 8),
                       Text(
                         shortcut,
                         key: const ValueKey('desktopComposerShortcutHint'),
-                        style: TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w500,
-                          color: Colors.white.withValues(alpha: 0.78),
+                        style: AppTextStyle.tiny(
+                          Colors.white.withValues(alpha: 0.78),
+                          weight: AppTextWeight.medium,
                         ),
                       ),
                     ],
@@ -5325,7 +5304,7 @@ class _ChatInputBarState extends State<ChatInputBar>
           store.loading
               ? AppStrings.t(AppStringKeys.composerLoadingGifs)
               : AppStrings.t(AppStringKeys.composerNoGifs),
-          style: TextStyle(fontSize: 13, color: context.colors.textSecondary),
+          style: AppTextStyle.footnote(context.colors.textSecondary),
         ),
       );
     }
@@ -5359,7 +5338,7 @@ class _ChatInputBarState extends State<ChatInputBar>
           store.loading
               ? AppStrings.t(AppStringKeys.composerLoadingEmoji)
               : AppStrings.t(AppStringKeys.composerNoEmoji),
-          style: TextStyle(fontSize: 13, color: context.colors.textSecondary),
+          style: AppTextStyle.footnote(context.colors.textSecondary),
         ),
       );
     }
@@ -5846,14 +5825,13 @@ class _ChatInputBarState extends State<ChatInputBar>
             maxLines: 1,
             overflow: TextOverflow.fade,
             softWrap: false,
-            style: TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-              color: !enabled
+            style: AppTextStyle.footnote(
+              !enabled
                   ? c.textTertiary
                   : selected
                   ? c.textPrimary
                   : c.textSecondary,
+              weight: AppTextWeight.semibold,
             ),
           ),
         ],
@@ -5964,7 +5942,7 @@ class _ChatInputBarState extends State<ChatInputBar>
               decoration: InputDecoration.collapsed(
                 hintText: AppStringKeys.composerMediaSearch.l10n(context),
               ),
-              style: TextStyle(fontSize: 14, color: c.textPrimary),
+              style: AppTextStyle.callout(c.textPrimary),
             ),
           ),
           if (_panelSearch.text.isNotEmpty)
@@ -6049,7 +6027,7 @@ class _ChatInputBarState extends State<ChatInputBar>
         ? const AppActivityIndicator(size: 23)
         : Text(
             AppStringKeys.composerMediaSearchEmpty.l10n(context),
-            style: TextStyle(fontSize: 13, color: context.colors.textSecondary),
+            style: AppTextStyle.footnote(context.colors.textSecondary),
           ),
   );
 
@@ -6096,10 +6074,9 @@ class _ChatInputBarState extends State<ChatInputBar>
                     AppStrings.t(AppStringKeys.voiceNotePreviewVoiceMessage),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: c.textPrimary,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
+                    style: AppTextStyle.callout(
+                      c.textPrimary,
+                      weight: AppTextWeight.semibold,
                     ),
                   ),
                 ),
@@ -6178,13 +6155,12 @@ class _ChatInputBarState extends State<ChatInputBar>
                                 valueListenable: _recTick,
                                 builder: (context, tick, _) => Text(
                                   formatMediaDuration(tick.elapsed.floor()),
-                                  style: TextStyle(
-                                    color: c.textSecondary,
-                                    fontSize: 14,
-                                    fontFeatures: const [
-                                      FontFeature.tabularFigures(),
-                                    ],
-                                  ),
+                                  style: AppTextStyle.callout(c.textSecondary)
+                                      .copyWith(
+                                        fontFeatures: const [
+                                          FontFeature.tabularFigures(),
+                                        ],
+                                      ),
                                 ),
                               ),
                             ],
@@ -6216,11 +6192,10 @@ class _ChatInputBarState extends State<ChatInputBar>
             const SizedBox(height: 8),
             Text(
               label,
-              style: TextStyle(
-                color: draft != null && !_sendingVoice
+              style: AppTextStyle.caption(
+                draft != null && !_sendingVoice
                     ? AppTheme.tagRed
                     : c.textSecondary,
-                fontSize: 12,
               ),
             ),
           ],
@@ -6346,11 +6321,7 @@ class _ChatInputBarState extends State<ChatInputBar>
       textAlign: TextAlign.center,
       maxLines: 2,
       overflow: TextOverflow.ellipsis,
-      style: TextStyle(
-        fontSize: 15,
-        fontWeight: FontWeight.w500,
-        color: c.textSecondary,
-      ),
+      style: AppTextStyle.body(c.textSecondary, weight: AppTextWeight.medium),
     );
     // The icon leads the first line inside the text, so a message that wraps
     // stays one centred block. Red stays on the icon: tagRed text on the
@@ -6737,10 +6708,9 @@ class _ChatInputBarState extends State<ChatInputBar>
                   AppStrings.t(AppStringKeys.storyOpenSettings),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600,
-                    color: AppTheme.brand,
+                  style: AppTextStyle.body(
+                    AppTheme.brand,
+                    weight: AppTextWeight.semibold,
                   ),
                 ),
               ),
@@ -6766,10 +6736,9 @@ class _ChatInputBarState extends State<ChatInputBar>
         textAlign: TextAlign.center,
         maxLines: 2,
         overflow: TextOverflow.ellipsis,
-        style: TextStyle(
-          fontSize: 13,
-          fontWeight: cancelZone ? FontWeight.w600 : FontWeight.w400,
-          color: cancelZone ? c.textPrimary : c.textSecondary,
+        style: AppTextStyle.footnote(
+          cancelZone ? c.textPrimary : c.textSecondary,
+          weight: cancelZone ? AppTextWeight.semibold : AppTextWeight.regular,
         ),
       ),
     );
@@ -6838,10 +6807,7 @@ class _ChatInputBarState extends State<ChatInputBar>
                   const SizedBox(height: 4),
                   Text(
                     AppStrings.t(AppStringKeys.momentsMore),
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: context.colors.textSecondary,
-                    ),
+                    style: AppTextStyle.caption(context.colors.textSecondary),
                   ),
                 ],
               ),

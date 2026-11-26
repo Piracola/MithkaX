@@ -2407,10 +2407,9 @@ class _MiniAppToolbar extends StatelessWidget {
                       title,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        color: c.textPrimary,
-                        fontSize: AppTextSize.bodyLarge,
-                        fontWeight: context.appFontWeight(FontWeight.w500),
+                      style: AppTextStyle.bodyLarge(
+                        c.textPrimary,
+                        weight: context.appFontWeight(AppTextWeight.medium),
                       ),
                     )
                   : const SizedBox.shrink(),
@@ -2576,12 +2575,11 @@ class _MiniAppBottomButton extends StatelessWidget {
                     Flexible(
                       child: Text(
                         state.text,
-                        style: TextStyle(
-                          color: onPressed == null
+                        style: AppTextStyle.bodyLarge(
+                          onPressed == null
                               ? foreground.withValues(alpha: 0.72)
                               : foreground,
-                          fontSize: 16,
-                          fontWeight: context.appFontWeight(FontWeight.w600),
+                          weight: context.appFontWeight(AppTextWeight.semibold),
                         ),
                       ),
                     ),

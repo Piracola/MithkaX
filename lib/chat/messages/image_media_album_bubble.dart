@@ -297,10 +297,9 @@ class ImageMediaAlbumBubble extends StatelessWidget {
               bubbleColor: incomingColor,
               textColor: incomingTextColor,
               name: first.senderName!,
-              nameStyle: TextStyle(
-                fontSize: 12,
-                color: nameColor,
-                fontWeight: FontWeight.w500,
+              nameStyle: AppTextStyle.caption(
+                nameColor,
+                weight: AppTextWeight.medium,
               ),
               role: showSenderRole ? first.senderRole : null,
               roleTitle: showSenderRole && showMemberTags ? senderTitle : null,
@@ -784,7 +783,7 @@ class ImageMediaAlbumBubble extends StatelessWidget {
               const SizedBox(width: 8),
               Text(
                 AppStringKeys.messageBubbleTranslating.l10n(context),
-                style: TextStyle(fontSize: 13, color: secondary),
+                style: AppTextStyle.footnote(secondary),
               ),
             ],
           ),
@@ -833,10 +832,9 @@ class ImageMediaAlbumBubble extends StatelessWidget {
           SelectionContainer.disabled(
             child: Text(
               AppStringKeys.messageActionTranslate.l10n(context),
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                color: secondary,
+              style: AppTextStyle.caption(
+                secondary,
+                weight: AppTextWeight.semibold,
               ),
             ),
           ),
@@ -944,11 +942,7 @@ class ImageMediaAlbumBubble extends StatelessWidget {
                             ),
                             child: Text(
                               '+$extraCount',
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 22,
-                                fontWeight: FontWeight.w600,
-                              ),
+                              style: AppTextStyle.display(Colors.white),
                             ),
                           ),
                       ],
@@ -1037,10 +1031,9 @@ class ImageMediaAlbumBubble extends StatelessWidget {
                 label,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: foreground,
+                style: AppTextStyle.callout(
+                  foreground,
+                  weight: AppTextWeight.semibold,
                 ),
               ),
             ),

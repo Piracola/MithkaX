@@ -71,15 +71,12 @@ const List<String> _inspectorFontFamilyFallback = <String>[
   'PingFang SC',
   'Noto Sans CJK SC',
 ];
-const TextStyle _inspectorDefaultTextStyle = TextStyle(
-  color: Colors.white,
-  fontFamily: _inspectorFontFamily,
-  fontFamilyFallback: _inspectorFontFamilyFallback,
-  fontSize: 12,
-  fontWeight: FontWeight.w400,
-  letterSpacing: 0,
-  decoration: TextDecoration.none,
-);
+final TextStyle _inspectorDefaultTextStyle = AppTextStyle.caption(Colors.white)
+    .copyWith(
+      fontFamily: _inspectorFontFamily,
+      fontFamilyFallback: _inspectorFontFamilyFallback,
+      letterSpacing: 0,
+    );
 
 int _ceilDivide(int value, int divisor) {
   if (value <= 0) return 0;
@@ -446,11 +443,7 @@ class _InspectorHeader extends StatelessWidget {
                     AppStrings.t(AppStringKeys.videoPlayerStreamInspector),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 15,
-                      fontWeight: FontWeight.w400,
-                    ),
+                    style: AppTextStyle.body(Colors.white),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -785,11 +778,7 @@ class _LegendDot extends StatelessWidget {
               label,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                color: Colors.white.withValues(alpha: 0.68),
-                fontSize: 10,
-                fontWeight: FontWeight.w400,
-              ),
+              style: AppTextStyle.tiny(Colors.white.withValues(alpha: 0.68)),
             ),
           ),
         ],
@@ -829,11 +818,7 @@ class _InspectorPanel extends StatelessWidget {
                         title!,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w400,
-                        ),
+                        style: AppTextStyle.caption(Colors.white),
                       ),
                     ),
                   if (trailing != null)
@@ -845,12 +830,12 @@ class _InspectorPanel extends StatelessWidget {
                       textAlign: TextAlign.end,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.66),
-                        fontSize: 10,
-                        fontWeight: FontWeight.w400,
-                        fontFeatures: const [FontFeature.tabularFigures()],
-                      ),
+                      style:
+                          AppTextStyle.tiny(
+                            Colors.white.withValues(alpha: 0.66),
+                          ).copyWith(
+                            fontFeatures: const [FontFeature.tabularFigures()],
+                          ),
                     ),
                 ],
               ),

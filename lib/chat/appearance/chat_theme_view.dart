@@ -112,10 +112,9 @@ class _ChatThemeViewState extends State<ChatThemeView> {
                 const SizedBox(height: AppSpacing.xxl),
                 Text(
                   AppStringKeys.chatThemeChoose.l10n(context),
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: c.textSecondary,
+                  style: AppTextStyle.callout(
+                    c.textSecondary,
+                    weight: AppTextWeight.semibold,
                   ),
                 ),
                 const SizedBox(height: AppSpacing.xs),
@@ -124,7 +123,7 @@ class _ChatThemeViewState extends State<ChatThemeView> {
                           ? AppStringKeys.chatWallpaperThemesSharedWithChat
                           : AppStringKeys.chatWallpaperThemesShared)
                       .l10n(context),
-                  style: TextStyle(fontSize: 12, color: c.textTertiary),
+                  style: AppTextStyle.caption(c.textTertiary),
                 ),
                 const SizedBox(height: AppSpacing.md),
                 _choices(),
@@ -165,12 +164,15 @@ class _ChatThemeViewState extends State<ChatThemeView> {
                   widget.chatTitle,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: Color(0xEFFFFFFF),
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    shadows: [Shadow(color: Color(0x66000000), blurRadius: 6)],
-                  ),
+                  style:
+                      AppTextStyle.caption(
+                        const Color(0xEFFFFFFF),
+                        weight: AppTextWeight.semibold,
+                      ).copyWith(
+                        shadows: const [
+                          Shadow(color: Color(0x66000000), blurRadius: 6),
+                        ],
+                      ),
                 ),
               ],
             ),
@@ -214,7 +216,7 @@ class _ChatThemeViewState extends State<ChatThemeView> {
             ),
           ],
         ),
-        child: Text(text, style: TextStyle(fontSize: 14, color: foreground)),
+        child: Text(text, style: AppTextStyle.callout(foreground)),
       ),
     );
   }
@@ -337,10 +339,9 @@ class _ChatThemeViewState extends State<ChatThemeView> {
                               AppStringKeys.chatWallpaperBoostLevel,
                               {'value1': access.requiredLevel},
                             ),
-                            style: const TextStyle(
-                              fontSize: 10,
-                              fontWeight: FontWeight.w600,
-                              color: Color(0xFFFFFFFF),
+                            style: AppTextStyle.tiny(
+                              const Color(0xFFFFFFFF),
+                              weight: AppTextWeight.semibold,
                             ),
                           ),
                         ],
@@ -381,10 +382,9 @@ class _ChatThemeViewState extends State<ChatThemeView> {
                   : context.l10n.t(AppStringKeys.chatWallpaperBoostRequired, {
                       'value1': access.requiredLevel,
                     }),
-              style: const TextStyle(
-                color: Color(0xFFFFFFFF),
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
+              style: AppTextStyle.bodyLarge(
+                const Color(0xFFFFFFFF),
+                weight: AppTextWeight.semibold,
               ),
             ),
           ),

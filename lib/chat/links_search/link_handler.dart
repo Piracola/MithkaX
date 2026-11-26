@@ -1536,10 +1536,9 @@ Future<void> _openChatBoost(
                 ),
                 child: Text(
                   AppStrings.t(AppStringKeys.linkHandlerOpenChat),
-                  style: const TextStyle(
-                    color: Color(0xFFFFFFFF),
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600,
+                  style: AppTextStyle.body(
+                    const Color(0xFFFFFFFF),
+                    weight: AppTextWeight.semibold,
                   ),
                 ),
               ),
@@ -2502,10 +2501,9 @@ Future<void> _openUnboundGroupCall(
                   ),
                   child: Text(
                     AppStrings.t(AppStringKeys.linkHandlerJoinCall),
-                    style: const TextStyle(
-                      color: Color(0xFFFFFFFF),
-                      fontSize: 15,
-                      fontWeight: FontWeight.w600,
+                    style: AppTextStyle.body(
+                      const Color(0xFFFFFFFF),
+                      weight: AppTextWeight.semibold,
                     ),
                   ),
                 ),

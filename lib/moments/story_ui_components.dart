@@ -74,7 +74,7 @@ Future<String?> showStoryTextEntry(
                           controller: controller,
                           autofocus: true,
                           keyboardType: keyboardType,
-                          style: TextStyle(color: c.textPrimary, fontSize: 16),
+                          style: AppTextStyle.bodyLarge(c.textPrimary),
                           decoration: InputDecoration(
                             hintText: hint,
                             hintStyle: TextStyle(color: c.textTertiary),

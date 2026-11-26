@@ -230,10 +230,7 @@ class _MediaSendPreviewViewState extends State<MediaSendPreviewView> {
                               coverPath == null
                                   ? 'Choose video cover'
                                   : 'Change video cover',
-                              style: TextStyle(
-                                color: c.textPrimary,
-                                fontSize: 15,
-                              ),
+                              style: AppTextStyle.body(c.textPrimary),
                             ),
                           ),
                           if (coverPath != null)
@@ -273,19 +270,15 @@ class _MediaSendPreviewViewState extends State<MediaSendPreviewView> {
                       children: [
                         Text(
                           AppStrings.t(AppStringKeys.mediaSendPreviewTrimVideo),
-                          style: TextStyle(
-                            color: c.textPrimary,
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
+                          style: AppTextStyle.callout(
+                            c.textPrimary,
+                            weight: AppTextWeight.semibold,
                           ),
                         ),
                         const Spacer(),
                         Text(
                           '${formatMediaDuration((trim.start / 1000).floor())} – ${formatMediaDuration((trim.end / 1000).ceil())}',
-                          style: TextStyle(
-                            color: c.textSecondary,
-                            fontSize: 12,
-                          ),
+                          style: AppTextStyle.caption(c.textSecondary),
                         ),
                       ],
                     ),
@@ -316,10 +309,9 @@ class _MediaSendPreviewViewState extends State<MediaSendPreviewView> {
                       ),
                       child: Text(
                         AppStrings.t(AppStringKeys.composerFormatApply),
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
+                        style: AppTextStyle.bodyLarge(
+                          Colors.white,
+                          weight: AppTextWeight.semibold,
                         ),
                       ),
                     ),
@@ -553,12 +545,7 @@ class _MediaSendPreviewViewState extends State<MediaSendPreviewView> {
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         child: Text(
           label,
-          style: TextStyle(
-            color: color,
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
-            decoration: TextDecoration.none,
-          ),
+          style: AppTextStyle.bodyLarge(color, weight: AppTextWeight.semibold),
         ),
       ),
     );
@@ -684,10 +671,9 @@ class _MediaSendPreviewViewState extends State<MediaSendPreviewView> {
                 children: [
                   Text(
                     AppStringKeys.composerSendAsFile.l10n(context),
-                    style: TextStyle(
-                      color: c.textPrimary,
-                      fontSize: 15,
-                      fontWeight: FontWeight.w600,
+                    style: AppTextStyle.body(
+                      c.textPrimary,
+                      weight: AppTextWeight.semibold,
                     ),
                   ),
                   const SizedBox(height: 2),

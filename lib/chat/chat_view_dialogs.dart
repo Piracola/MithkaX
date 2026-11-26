@@ -277,11 +277,7 @@ class _ChecklistDialogButton extends StatelessWidget {
       ),
       child: Text(
         label.l10n(context),
-        style: TextStyle(
-          fontSize: 14,
-          fontWeight: FontWeight.w600,
-          color: foreground,
-        ),
+        style: AppTextStyle.callout(foreground, weight: AppTextWeight.semibold),
       ),
     ),
   );
@@ -474,12 +470,7 @@ class _MessageDeleteOptionsDialogState
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         child: Text(
           label,
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
-            color: color,
-            decoration: TextDecoration.none,
-          ),
+          style: AppTextStyle.bodyLarge(color, weight: AppTextWeight.semibold),
         ),
       ),
     );
@@ -562,11 +553,9 @@ class _ChatEditChoiceDialog<T> extends StatelessWidget {
                 title.l10n(context),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  color: c.textPrimary,
-                  fontSize: 17,
-                  fontWeight: FontWeight.w600,
-                  decoration: TextDecoration.none,
+                style: AppTextStyle.title(
+                  c.textPrimary,
+                  weight: AppTextWeight.semibold,
                 ),
               ),
             ),
@@ -592,12 +581,10 @@ class _ChatEditChoiceDialog<T> extends StatelessWidget {
                       Expanded(
                         child: Text(
                           choice.label.l10n(context),
-                          style: TextStyle(
-                            color: choice.destructive
+                          style: AppTextStyle.bodyLarge(
+                            choice.destructive
                                 ? const Color(0xFFFF6961)
                                 : c.textPrimary,
-                            fontSize: 16,
-                            decoration: TextDecoration.none,
                           ),
                         ),
                       ),
@@ -777,10 +764,9 @@ class _ReactionUsersSheetState extends State<_ReactionUsersSheet> {
             const SizedBox(width: 7),
             Text(
               '${reaction.count}',
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-                color: foreground,
+              style: AppTextStyle.callout(
+                foreground,
+                weight: AppTextWeight.semibold,
               ),
             ),
           ],
@@ -797,7 +783,7 @@ class _ReactionUsersSheetState extends State<_ReactionUsersSheet> {
           return Center(
             child: Text(
               AppStrings.t(AppStringKeys.contactsLoading),
-              style: TextStyle(fontSize: 14, color: c.textSecondary),
+              style: AppTextStyle.callout(c.textSecondary),
             ),
           );
         }
@@ -811,7 +797,7 @@ class _ReactionUsersSheetState extends State<_ReactionUsersSheet> {
                   Text(
                     AppStrings.t(AppStringKeys.chatReactionUsersLoadFailed),
                     textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 14, color: c.textSecondary),
+                    style: AppTextStyle.callout(c.textSecondary),
                   ),
                   const SizedBox(height: 12),
                   GestureDetector(
@@ -829,7 +815,7 @@ class _ReactionUsersSheetState extends State<_ReactionUsersSheet> {
                       ),
                       child: Text(
                         AppStrings.t(AppStringKeys.chatReactionUsersRetry),
-                        style: TextStyle(fontSize: 14, color: c.textPrimary),
+                        style: AppTextStyle.callout(c.textPrimary),
                       ),
                     ),
                   ),
@@ -843,7 +829,7 @@ class _ReactionUsersSheetState extends State<_ReactionUsersSheet> {
           return Center(
             child: Text(
               AppStrings.t(AppStringKeys.sharedMediaEmpty),
-              style: TextStyle(fontSize: 14, color: c.textSecondary),
+              style: AppTextStyle.callout(c.textSecondary),
             ),
           );
         }
@@ -870,12 +856,12 @@ class _ReactionUsersSheetState extends State<_ReactionUsersSheet> {
               user.title,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: TextStyle(fontSize: 17, color: c.textPrimary),
+              style: AppTextStyle.title(c.textPrimary),
             ),
           ),
           if (time.isNotEmpty) ...[
             const SizedBox(width: 10),
-            Text(time, style: TextStyle(fontSize: 12, color: c.textTertiary)),
+            Text(time, style: AppTextStyle.caption(c.textTertiary)),
           ],
           if (reportable)
             GestureDetector(
@@ -1047,11 +1033,9 @@ class _MessageTextSelectionDialogState
                               AppStringKeys.messageActionSelectText.l10n(
                                 context,
                               ),
-                              style: TextStyle(
-                                color: c.textPrimary,
-                                fontSize: 17,
-                                fontWeight: FontWeight.w600,
-                                decoration: TextDecoration.none,
+                              style: AppTextStyle.title(
+                                c.textPrimary,
+                                weight: AppTextWeight.semibold,
                               ),
                             ),
                           ),
@@ -1187,11 +1171,7 @@ class _TextSelectionAction extends StatelessWidget {
             label.l10n(context),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              color: color,
-              fontSize: 12,
-              decoration: TextDecoration.none,
-            ),
+            style: AppTextStyle.caption(color),
           ),
         ],
       ),

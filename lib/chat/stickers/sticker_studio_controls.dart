@@ -83,14 +83,11 @@ class StickerStudioChoiceRow extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    label,
-                    style: TextStyle(fontSize: 15, color: colors.textPrimary),
-                  ),
+                  Text(label, style: AppTextStyle.body(colors.textPrimary)),
                   const SizedBox(height: 2),
                   Text(
                     detail,
-                    style: TextStyle(fontSize: 12, color: colors.textSecondary),
+                    style: AppTextStyle.caption(colors.textSecondary),
                   ),
                 ],
               ),
@@ -333,7 +330,7 @@ class StickerStudioDialog extends StatelessWidget {
             ],
           ),
           child: DefaultTextStyle(
-            style: TextStyle(color: context.colors.textPrimary, fontSize: 15),
+            style: AppTextStyle.body(context.colors.textPrimary),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -343,11 +340,9 @@ class StickerStudioDialog extends StatelessWidget {
                   child: Text(
                     title,
                     textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: context.colors.textPrimary,
-                      fontSize: 17,
-                      fontWeight: FontWeight.w600,
-                      decoration: TextDecoration.none,
+                    style: AppTextStyle.title(
+                      context.colors.textPrimary,
+                      weight: AppTextWeight.semibold,
                     ),
                   ),
                 ),
@@ -386,11 +381,9 @@ class StickerStudioDialogAction extends StatelessWidget {
       child: Center(
         child: Text(
           label,
-          style: TextStyle(
-            color: color ?? context.colors.textSecondary,
-            fontSize: 15,
-            fontWeight: FontWeight.w600,
-            decoration: TextDecoration.none,
+          style: AppTextStyle.body(
+            color ?? context.colors.textSecondary,
+            weight: AppTextWeight.semibold,
           ),
         ),
       ),

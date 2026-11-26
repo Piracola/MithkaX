@@ -291,10 +291,9 @@ class _LocationPickerViewState extends State<LocationPickerView> {
                   ),
                   child: Text(
                     AppStrings.t(AppStringKeys.composerSend),
-                    style: const TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.white,
+                    style: AppTextStyle.callout(
+                      Colors.white,
+                      weight: AppTextWeight.semibold,
                     ),
                   ),
                 ),
@@ -432,7 +431,7 @@ class _LocationPickerViewState extends State<LocationPickerView> {
                         : _address),
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
-              style: TextStyle(fontSize: 14, color: c.textPrimary),
+              style: AppTextStyle.callout(c.textPrimary),
             ),
           ),
         ],

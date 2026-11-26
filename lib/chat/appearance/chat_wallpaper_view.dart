@@ -298,10 +298,11 @@ class _ChatWallpaperViewState extends State<ChatWallpaperView> {
                 label.l10n(context),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  color: selected ? c.linkBlue : c.textSecondary,
-                  fontSize: 14,
-                  fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
+                style: AppTextStyle.callout(
+                  selected ? c.linkBlue : c.textSecondary,
+                  weight: selected
+                      ? AppTextWeight.semibold
+                      : AppTextWeight.medium,
                 ),
               ),
             ),
@@ -331,10 +332,9 @@ class _ChatWallpaperViewState extends State<ChatWallpaperView> {
                 const SizedBox(height: AppSpacing.xxl),
                 Text(
                   AppStringKeys.chatWallpaperChoose.l10n(context),
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: c.textSecondary,
+                  style: AppTextStyle.callout(
+                    c.textSecondary,
+                    weight: AppTextWeight.semibold,
                   ),
                 ),
                 const SizedBox(height: AppSpacing.md),
@@ -385,12 +385,15 @@ class _ChatWallpaperViewState extends State<ChatWallpaperView> {
                   widget.chatTitle,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: Color(0xEFFFFFFF),
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    shadows: [Shadow(color: Color(0x66000000), blurRadius: 6)],
-                  ),
+                  style:
+                      AppTextStyle.caption(
+                        const Color(0xEFFFFFFF),
+                        weight: AppTextWeight.semibold,
+                      ).copyWith(
+                        shadows: const [
+                          Shadow(color: Color(0x66000000), blurRadius: 6),
+                        ],
+                      ),
                 ),
               ],
             ),
@@ -500,10 +503,9 @@ class _ChatWallpaperViewState extends State<ChatWallpaperView> {
       children: [
         Text(
           AppStringKeys.chatWallpaperSectionCustomize.l10n(context),
-          style: TextStyle(
-            fontSize: 13,
-            fontWeight: FontWeight.w600,
-            color: c.textTertiary,
+          style: AppTextStyle.footnote(
+            c.textTertiary,
+            weight: AppTextWeight.semibold,
           ),
         ),
         if (hasColorCustomization) ...[
@@ -525,7 +527,7 @@ class _ChatWallpaperViewState extends State<ChatWallpaperView> {
                   Expanded(
                     child: Text(
                       AppStringKeys.chatWallpaperColor.l10n(context),
-                      style: TextStyle(fontSize: 14, color: c.textPrimary),
+                      style: AppTextStyle.callout(c.textPrimary),
                     ),
                   ),
                   for (final color in _activePalette.take(4)) ...[
@@ -800,10 +802,9 @@ class _ChatWallpaperViewState extends State<ChatWallpaperView> {
       children: [
         Text(
           title.l10n(context),
-          style: TextStyle(
-            fontSize: 13,
-            fontWeight: FontWeight.w600,
-            color: c.textTertiary,
+          style: AppTextStyle.footnote(
+            c.textTertiary,
+            weight: AppTextWeight.semibold,
           ),
         ),
         const SizedBox(height: 9),
@@ -847,7 +848,7 @@ class _ChatWallpaperViewState extends State<ChatWallpaperView> {
               const SizedBox(height: 6),
               Text(
                 AppStringKeys.chatWallpaperDefault.l10n(context),
-                style: TextStyle(fontSize: 12, color: c.textSecondary),
+                style: AppTextStyle.caption(c.textSecondary),
               ),
             ],
           ),
@@ -959,10 +960,9 @@ class _ChatWallpaperViewState extends State<ChatWallpaperView> {
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w600,
-                    color: Color(0xFFFFFFFF),
+                  style: AppTextStyle.tiny(
+                    const Color(0xFFFFFFFF),
+                    weight: AppTextWeight.semibold,
                   ),
                 ),
               ),
@@ -1007,7 +1007,7 @@ class _ChatWallpaperViewState extends State<ChatWallpaperView> {
                     const SizedBox(height: 6),
                     Text(
                       AppStringKeys.chatWallpaperPhoto.l10n(context),
-                      style: TextStyle(fontSize: 12, color: c.textSecondary),
+                      style: AppTextStyle.caption(c.textSecondary),
                     ),
                   ],
                 ),
@@ -1043,7 +1043,7 @@ class _ChatWallpaperViewState extends State<ChatWallpaperView> {
               const SizedBox(height: 6),
               Text(
                 AppStringKeys.chatWallpaperColor.l10n(context),
-                style: const TextStyle(fontSize: 12, color: Color(0xFFFFFFFF)),
+                style: AppTextStyle.caption(const Color(0xFFFFFFFF)),
               ),
             ],
           ),
@@ -1218,10 +1218,9 @@ class _ChatWallpaperViewState extends State<ChatWallpaperView> {
                               AppStringKeys.chatWallpaperBoostLevel,
                               {'value1': access.requiredLevel},
                             ),
-                            style: const TextStyle(
-                              fontSize: 10,
-                              fontWeight: FontWeight.w600,
-                              color: Color(0xFFFFFFFF),
+                            style: AppTextStyle.tiny(
+                              const Color(0xFFFFFFFF),
+                              weight: AppTextWeight.semibold,
                             ),
                           ),
                         ],
@@ -1292,7 +1291,7 @@ class _ChatWallpaperViewState extends State<ChatWallpaperView> {
               children: [
                 Text(
                   AppStringKeys.chatWallpaperIntensity.l10n(context),
-                  style: TextStyle(fontSize: 13, color: c.textSecondary),
+                  style: AppTextStyle.footnote(c.textSecondary),
                 ),
                 const SizedBox(width: 12),
                 Expanded(child: _intensitySlider(value)),
@@ -1302,7 +1301,7 @@ class _ChatWallpaperViewState extends State<ChatWallpaperView> {
                   child: Text(
                     '${value.intensity}%',
                     textAlign: TextAlign.right,
-                    style: TextStyle(fontSize: 12, color: c.textTertiary),
+                    style: AppTextStyle.caption(c.textTertiary),
                   ),
                 ),
               ],
@@ -1343,10 +1342,9 @@ class _ChatWallpaperViewState extends State<ChatWallpaperView> {
             const SizedBox(width: 6),
             Text(
               key.l10n(context),
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: active ? c.linkBlue : c.textSecondary,
+              style: AppTextStyle.footnote(
+                active ? c.linkBlue : c.textSecondary,
+                weight: AppTextWeight.semibold,
               ),
             ),
           ],
@@ -1487,10 +1485,9 @@ class _ChatWallpaperViewState extends State<ChatWallpaperView> {
         ),
         child: Text(
           AppStrings.t(label),
-          style: TextStyle(
-            color: foreground,
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
+          style: AppTextStyle.bodyLarge(
+            foreground,
+            weight: AppTextWeight.semibold,
           ),
         ),
       ),

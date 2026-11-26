@@ -835,10 +835,9 @@ class _MomentsViewState extends State<MomentsView> {
                 title,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w500,
-                  color: c.textPrimary,
+                style: AppTextStyle.body(
+                  c.textPrimary,
+                  weight: AppTextWeight.medium,
                 ),
               ),
             ),
@@ -878,7 +877,7 @@ class _MomentsViewState extends State<MomentsView> {
               title.l10n(context),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: TextStyle(fontSize: 16, color: c.textPrimary),
+              style: AppTextStyle.bodyLarge(c.textPrimary),
             ),
             const Spacer(),
             if (trailing != null) ...[
@@ -911,7 +910,7 @@ class _MomentsViewState extends State<MomentsView> {
           ).format(AppStringKeys.momentsNewPostsCount, '$_newPostCount'),
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
-          style: TextStyle(fontSize: 14, color: c.textSecondary),
+          style: AppTextStyle.callout(c.textSecondary),
         ),
         const SizedBox(width: AppSpacing.sm),
         SizedBox(
@@ -2712,7 +2711,7 @@ class _ChannelMomentsViewState extends State<ChannelMomentsView> {
                         maxLines: 3,
                         textInputAction: TextInputAction.send,
                         onSubmitted: (_) => _sendQuickReply(),
-                        style: TextStyle(fontSize: 16, color: c.textPrimary),
+                        style: AppTextStyle.bodyLarge(c.textPrimary),
                         decoration: InputDecoration(
                           border: InputBorder.none,
                           isCollapsed: true,
@@ -2766,7 +2765,7 @@ class _ChannelMomentsViewState extends State<ChannelMomentsView> {
                     ? AppStrings.t(AppStringKeys.channelsLoading)
                     : AppStringKeys.momentsNoChannelContent)
                 .l10n(context),
-            style: TextStyle(fontSize: 15, color: c.textSecondary),
+            style: AppTextStyle.body(c.textSecondary),
           ),
         ],
       ),
@@ -2916,7 +2915,7 @@ class _MomentsComposerHeader extends StatelessWidget {
                         AppStringKeys.momentsShareSomethingPlaceholder.l10n(
                           context,
                         ),
-                        style: TextStyle(fontSize: 14, color: c.textTertiary),
+                        style: AppTextStyle.callout(c.textTertiary),
                       ),
                     ),
                   ),
@@ -3163,7 +3162,7 @@ class _ChannelMomentsSearchViewState extends State<ChannelMomentsSearchView> {
                           focusNode: _focus,
                           autocorrect: false,
                           textInputAction: TextInputAction.search,
-                          style: TextStyle(fontSize: 15, color: c.textPrimary),
+                          style: AppTextStyle.body(c.textPrimary),
                           decoration: InputDecoration(
                             hintText: AppStrings.t(
                               AppStringKeys.momentsSearchChannelPosts,
@@ -3206,7 +3205,7 @@ class _ChannelMomentsSearchViewState extends State<ChannelMomentsSearchView> {
       return Center(
         child: Text(
           AppStringKeys.momentsNoSearchableChannels.l10n(context),
-          style: TextStyle(fontSize: 14, color: c.textSecondary),
+          style: AppTextStyle.callout(c.textSecondary),
         ),
       );
     }
@@ -3223,7 +3222,7 @@ class _ChannelMomentsSearchViewState extends State<ChannelMomentsSearchView> {
       return Center(
         child: Text(
           AppStringKeys.momentsSearchJoinedChannelPosts.l10n(context),
-          style: TextStyle(fontSize: 14, color: c.textSecondary),
+          style: AppTextStyle.callout(c.textSecondary),
         ),
       );
     }
@@ -3234,7 +3233,7 @@ class _ChannelMomentsSearchViewState extends State<ChannelMomentsSearchView> {
                   ? AppStringKeys.momentsSearching
                   : AppStringKeys.momentsNoPostsFound)
               .l10n(context),
-          style: TextStyle(fontSize: 14, color: c.textSecondary),
+          style: AppTextStyle.callout(c.textSecondary),
         ),
       );
     }
@@ -3827,7 +3826,7 @@ class _ChannelPostDetailViewState extends State<ChannelPostDetailView> {
                         }),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: TextStyle(fontSize: 13, color: c.linkBlue),
+                        style: AppTextStyle.footnote(c.linkBlue),
                       ),
                     ),
                     GestureDetector(
@@ -3862,7 +3861,7 @@ class _ChannelPostDetailViewState extends State<ChannelPostDetailView> {
                       textInputAction: TextInputAction.send,
                       onTap: () => _beginReply(_replyTo),
                       onSubmitted: (_) => _sendReply(),
-                      style: TextStyle(fontSize: 15, color: c.textPrimary),
+                      style: AppTextStyle.body(c.textPrimary),
                       decoration: InputDecoration(
                         border: InputBorder.none,
                         isCollapsed: true,
@@ -3949,10 +3948,7 @@ class _CommentThreadList extends StatelessWidget {
           child: Center(
             child: Text(
               AppStringKeys.momentsNoComments.l10n(context),
-              style: TextStyle(
-                fontSize: 14,
-                color: context.colors.textTertiary,
-              ),
+              style: AppTextStyle.callout(context.colors.textTertiary),
             ),
           ),
         ),
@@ -4138,17 +4134,16 @@ class _DetailCommentTile extends StatelessWidget {
                           comment.senderName,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                            color: c.linkBlue,
+                          style: AppTextStyle.callout(
+                            c.linkBlue,
+                            weight: AppTextWeight.semibold,
                           ),
                         ),
                       ),
                       const SizedBox(width: 8),
                       Text(
                         DateText.listLabel(comment.date),
-                        style: TextStyle(fontSize: 13, color: c.textTertiary),
+                        style: AppTextStyle.footnote(c.textTertiary),
                       ),
                     ],
                   ),
@@ -4219,7 +4214,7 @@ class _DetailCommentTile extends StatelessWidget {
               key: ValueKey(
                 'moments-comment-reaction-count-${comment.messageId}',
               ),
-              style: TextStyle(fontSize: 12, color: c.textTertiary),
+              style: AppTextStyle.caption(c.textTertiary),
             ),
           ],
         ],
@@ -4669,7 +4664,7 @@ class _ChannelPostComposerViewState extends State<ChannelPostComposerView> {
                 channel.title,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: TextStyle(fontSize: 16, color: c.textPrimary),
+                style: AppTextStyle.bodyLarge(c.textPrimary),
               ),
               trailing: selected
                   ? AppIcon(HeroAppIcons.circleCheck, color: AppTheme.brand)
@@ -4821,10 +4816,9 @@ class ChannelPostRow extends StatelessWidget {
                               channel.title,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                fontSize: 15,
-                                fontWeight: FontWeight.w600,
-                                color: c.linkBlue,
+                              style: AppTextStyle.body(
+                                c.linkBlue,
+                                weight: AppTextWeight.semibold,
                               ),
                             ),
                           ),
@@ -4846,20 +4840,14 @@ class ChannelPostRow extends StatelessWidget {
                                 post.authorName!,
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: c.textSecondary,
-                                ),
+                                style: AppTextStyle.caption(c.textSecondary),
                               ),
                             ),
                             const SizedBox(width: 8),
                           ],
                           Text(
                             DateText.listLabel(message.date),
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: c.textTertiary,
-                            ),
+                            style: AppTextStyle.caption(c.textTertiary),
                           ),
                         ],
                       ),
@@ -4875,7 +4863,7 @@ class ChannelPostRow extends StatelessWidget {
                 AppStrings.t(AppStringKeys.messageBubbleForwardedFrom, {
                   'value1': message.forwardDisplayName,
                 }),
-                style: TextStyle(fontSize: 13, color: c.linkBlue),
+                style: AppTextStyle.footnote(c.linkBlue),
               ),
             ],
             if (text.isNotEmpty) ...[
@@ -5117,10 +5105,9 @@ class _PostMusicCard extends StatelessWidget {
                     music.title,
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w600,
-                      color: colors.textPrimary,
+                    style: AppTextStyle.body(
+                      colors.textPrimary,
+                      weight: AppTextWeight.semibold,
                     ),
                   ),
                   if ((music.performer ?? '').trim().isNotEmpty)
@@ -5128,14 +5115,11 @@ class _PostMusicCard extends StatelessWidget {
                       music.performer!.trim(),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: colors.textSecondary,
-                      ),
+                      style: AppTextStyle.footnote(colors.textSecondary),
                     ),
                   Text(
                     '${duration ~/ 60}:${(duration % 60).toString().padLeft(2, '0')}',
-                    style: TextStyle(fontSize: 12, color: colors.textTertiary),
+                    style: AppTextStyle.caption(colors.textTertiary),
                   ),
                 ],
               ),
@@ -5322,7 +5306,7 @@ class _InlineQuickReply extends StatelessWidget {
             const SizedBox(width: 9),
             Text(
               AppStringKeys.momentsCommentPlaceholder.l10n(context),
-              style: TextStyle(fontSize: 14, color: c.textTertiary),
+              style: AppTextStyle.callout(c.textTertiary),
             ),
           ],
         ),
@@ -5346,7 +5330,7 @@ class _InlineComments extends StatelessWidget {
           AppStringKeys.momentsCommentCount,
           post.message.commentCount,
         ),
-        style: TextStyle(fontSize: 13, color: c.linkBlue),
+        style: AppTextStyle.footnote(c.linkBlue),
       );
     }
     return Column(
@@ -5371,6 +5355,8 @@ class _InlineComments extends StatelessWidget {
                 children: [
                   Text(
                     '${comment.senderName}: ',
+                    // Kept literal: the inline comment prefix and body are one
+                    // sentence at a 1.25 lead, tighter than callout's 1.40.
                     style: TextStyle(
                       fontSize: 14,
                       height: 1.25,
@@ -5384,6 +5370,7 @@ class _InlineComments extends StatelessWidget {
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                     quoteBackgroundColor: _momentQuoteFill(c),
+                    // Kept literal: pairs with the sender prefix above at 1.25.
                     style: TextStyle(
                       fontSize: 14,
                       height: 1.25,
@@ -5408,7 +5395,7 @@ class _InlineComments extends StatelessWidget {
             padding: const EdgeInsets.only(top: 3),
             child: Text(
               AppStringKeys.momentsMore.l10n(context),
-              style: TextStyle(fontSize: 13, color: c.linkBlue),
+              style: AppTextStyle.footnote(c.linkBlue),
             ),
           ),
       ],
@@ -5654,7 +5641,7 @@ class _PostActions extends StatelessWidget {
     final likeText = _likeText(reactionCount);
     return Row(
       children: [
-        Text(likeText, style: TextStyle(fontSize: 13, color: c.linkBlue)),
+        Text(likeText, style: AppTextStyle.footnote(c.linkBlue)),
         const Spacer(),
         _MomentsReactionControl(
           accountSlot: post.accountSlot,
@@ -6184,10 +6171,9 @@ class StoryShelf extends StatelessWidget {
               children: [
                 Text(
                   AppStringKeys.momentsStories.l10n(context),
-                  style: TextStyle(
-                    color: c.textPrimary,
-                    fontSize: 17,
-                    fontWeight: FontWeight.w600,
+                  style: AppTextStyle.title(
+                    c.textPrimary,
+                    weight: AppTextWeight.semibold,
                   ),
                 ),
               ],
@@ -6364,7 +6350,7 @@ class _StoryActionTile extends StatelessWidget {
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 textAlign: TextAlign.center,
-                style: TextStyle(color: c.textSecondary, fontSize: 12),
+                style: AppTextStyle.caption(c.textSecondary),
               ),
             ],
           ),
@@ -6425,12 +6411,11 @@ class _StoryGroupTile extends StatelessWidget {
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: group.hasUnread ? c.textPrimary : c.textSecondary,
-                  fontSize: 12,
-                  fontWeight: group.hasUnread
-                      ? FontWeight.w600
-                      : FontWeight.w400,
+                style: AppTextStyle.caption(
+                  group.hasUnread ? c.textPrimary : c.textSecondary,
+                  weight: group.hasUnread
+                      ? AppTextWeight.semibold
+                      : AppTextWeight.regular,
                 ),
               ),
             ],
@@ -6604,10 +6589,9 @@ class _StoriesViewState extends State<StoriesView> {
           children: [
             Text(
               AppStringKeys.storiesRecent.l10n(context),
-              style: TextStyle(
-                color: c.textPrimary,
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
+              style: AppTextStyle.bodyLarge(
+                c.textPrimary,
+                weight: AppTextWeight.semibold,
               ),
             ),
             const Spacer(),
@@ -6679,10 +6663,9 @@ class _StoriesViewState extends State<StoriesView> {
                       title,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        color: prominent ? Colors.white : c.textPrimary,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
+                      style: AppTextStyle.callout(
+                        prominent ? Colors.white : c.textPrimary,
+                        weight: AppTextWeight.semibold,
                       ),
                     ),
                     const SizedBox(height: 3),
@@ -6734,10 +6717,9 @@ class _StoriesViewState extends State<StoriesView> {
                 children: [
                   Text(
                     AppStringKeys.storiesYourActive.l10n(context),
-                    style: TextStyle(
-                      color: c.textPrimary,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
+                    style: AppTextStyle.callout(
+                      c.textPrimary,
+                      weight: AppTextWeight.semibold,
                     ),
                   ),
                   const SizedBox(height: 2),
@@ -6745,7 +6727,7 @@ class _StoriesViewState extends State<StoriesView> {
                     context.l10n.t(AppStringKeys.storiesActiveCount, {
                       'value1': group.storyIds.length,
                     }),
-                    style: TextStyle(color: c.textSecondary, fontSize: 12),
+                    style: AppTextStyle.caption(c.textSecondary),
                   ),
                 ],
               ),
@@ -6794,10 +6776,9 @@ class _StoriesViewState extends State<StoriesView> {
           const SizedBox(height: 14),
           Text(
             AppStringKeys.storiesEmptyTitle.l10n(context),
-            style: TextStyle(
-              color: c.textPrimary,
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
+            style: AppTextStyle.bodyLarge(
+              c.textPrimary,
+              weight: AppTextWeight.semibold,
             ),
           ),
           const SizedBox(height: 6),
@@ -6821,10 +6802,9 @@ class _StoriesViewState extends State<StoriesView> {
                 ),
                 child: Text(
                   AppStringKeys.storiesCreate.l10n(context),
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
+                  style: AppTextStyle.callout(
+                    Colors.white,
+                    weight: AppTextWeight.semibold,
                   ),
                 ),
               ),
@@ -6885,10 +6865,9 @@ class _StoriesViewState extends State<StoriesView> {
                     group.name,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w500,
-                      color: c.textPrimary,
+                    style: AppTextStyle.bodyLarge(
+                      c.textPrimary,
+                      weight: AppTextWeight.medium,
                     ),
                   ),
                   const SizedBox(height: 4),
@@ -6900,12 +6879,11 @@ class _StoriesViewState extends State<StoriesView> {
                         : context.l10n.t(AppStringKeys.storiesCountViewed, {
                             'value1': group.storyIds.length,
                           }),
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: group.hasUnread ? AppTheme.brand : c.textSecondary,
-                      fontWeight: group.hasUnread
-                          ? FontWeight.w600
-                          : FontWeight.w400,
+                    style: AppTextStyle.caption(
+                      group.hasUnread ? AppTheme.brand : c.textSecondary,
+                      weight: group.hasUnread
+                          ? AppTextWeight.semibold
+                          : AppTextWeight.regular,
                     ),
                   ),
                 ],

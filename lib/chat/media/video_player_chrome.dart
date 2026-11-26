@@ -808,11 +808,7 @@ class _MithkaVideoOnDemandPanelState extends State<_MithkaVideoOnDemandPanel> {
                   children: [
                     Text(
                       AppStrings.t(AppStringKeys.videoPlayerAutoplay),
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w400,
-                      ),
+                      style: AppTextStyle.footnote(Colors.white),
                     ),
                     const Spacer(),
                     _autoplayToggle(),
@@ -916,23 +912,21 @@ class _MithkaVideoOnDemandPanelState extends State<_MithkaVideoOnDemandPanel> {
                       const SizedBox(height: 4),
                       Text(
                         duration,
-                        style: TextStyle(
-                          color: Colors.white.withValues(alpha: 0.62),
-                          fontSize: 12,
-                          fontWeight: FontWeight.w400,
-                          fontFeatures: const [FontFeature.tabularFigures()],
-                        ),
+                        style:
+                            AppTextStyle.caption(
+                              Colors.white.withValues(alpha: 0.62),
+                            ).copyWith(
+                              fontFeatures: const [
+                                FontFeature.tabularFigures(),
+                              ],
+                            ),
                       ),
                     ],
                     if (current) ...[
                       const SizedBox(height: 3),
                       Text(
                         AppStrings.t(AppStringKeys.videoPlayerPlaying),
-                        style: const TextStyle(
-                          color: Color(0xFF24DDD9),
-                          fontSize: 12,
-                          fontWeight: FontWeight.w400,
-                        ),
+                        style: AppTextStyle.caption(const Color(0xFF24DDD9)),
                       ),
                     ],
                   ],
@@ -1510,12 +1504,9 @@ class _MithkaVideoTextButton extends StatelessWidget {
       ),
       child: Text(
         text,
-        style: const TextStyle(
-          color: Colors.white,
-          fontSize: 13,
-          fontWeight: FontWeight.w400,
-          fontFeatures: [FontFeature.tabularFigures()],
-        ),
+        style: AppTextStyle.footnote(
+          Colors.white,
+        ).copyWith(fontFeatures: const [FontFeature.tabularFigures()]),
       ),
     ),
   );
@@ -2243,14 +2234,7 @@ class _FocusableVideoActionButtonState
               children: [
                 AppIcon(widget.icon, size: 18, color: foreground),
                 const SizedBox(width: 8),
-                Text(
-                  widget.label,
-                  style: TextStyle(
-                    color: foreground,
-                    fontSize: 15,
-                    fontWeight: FontWeight.w400,
-                  ),
-                ),
+                Text(widget.label, style: AppTextStyle.body(foreground)),
               ],
             ),
           ),

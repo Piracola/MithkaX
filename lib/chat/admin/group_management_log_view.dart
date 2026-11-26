@@ -154,10 +154,9 @@ class _GroupManagementLogViewState extends State<GroupManagementLogView> {
                     ? AppStringKeys.groupManagementLogTitleChannel
                     : AppStringKeys.groupManagementLogTitle,
               ),
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-                color: c.textPrimary,
+              style: AppTextStyle.bodyLarge(
+                c.textPrimary,
+                weight: AppTextWeight.semibold,
               ),
             ),
           ],
@@ -185,7 +184,7 @@ class _GroupManagementLogViewState extends State<GroupManagementLogView> {
                 ? AppStringKeys.groupManagementLogNoPermissionChannel
                 : AppStringKeys.groupManagementLogNoPermission,
           ),
-          style: TextStyle(fontSize: 14, color: c.textSecondary),
+          style: AppTextStyle.callout(c.textSecondary),
         ),
       );
     }
@@ -193,7 +192,7 @@ class _GroupManagementLogViewState extends State<GroupManagementLogView> {
       return Center(
         child: Text(
           AppStrings.t(AppStringKeys.groupManagementLogEmpty),
-          style: TextStyle(fontSize: 14, color: c.textSecondary),
+          style: AppTextStyle.callout(c.textSecondary),
         ),
       );
     }
@@ -244,23 +243,22 @@ class _GroupManagementLogViewState extends State<GroupManagementLogView> {
                             ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w500,
-                          color: c.textPrimary,
+                        style: AppTextStyle.body(
+                          c.textPrimary,
+                          weight: AppTextWeight.medium,
                         ),
                       ),
                     ),
                     Text(
                       DateText.listLabel(event.integer('date') ?? 0),
-                      style: TextStyle(fontSize: 12, color: c.textTertiary),
+                      style: AppTextStyle.caption(c.textTertiary),
                     ),
                   ],
                 ),
                 const SizedBox(height: 4),
                 Text(
                   _actionLabel(action),
-                  style: TextStyle(fontSize: 14, color: c.textSecondary),
+                  style: AppTextStyle.callout(c.textSecondary),
                 ),
               ],
             ),

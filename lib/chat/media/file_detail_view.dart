@@ -182,7 +182,7 @@ class _FileDetailViewState extends State<FileDetailView> {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       textAlign: TextAlign.center,
-                      style: TextStyle(fontSize: 17, color: c.textPrimary),
+                      style: AppTextStyle.title(c.textPrimary),
                     ),
                   ),
                   Align(
@@ -220,10 +220,7 @@ class _FileDetailViewState extends State<FileDetailView> {
               ),
             ),
             const SizedBox(height: 8),
-            Text(
-              _bytes(_total),
-              style: TextStyle(fontSize: 13, color: c.textSecondary),
-            ),
+            Text(_bytes(_total), style: AppTextStyle.footnote(c.textSecondary)),
             const Spacer(),
             Padding(
               padding: const EdgeInsets.fromLTRB(28, 0, 28, 52),
@@ -261,7 +258,7 @@ class _FileDetailViewState extends State<FileDetailView> {
             'value1': _bytes(_downloaded),
             'value2': _bytes(_total),
           }),
-          style: TextStyle(fontSize: 13, color: c.textSecondary),
+          style: AppTextStyle.footnote(c.textSecondary),
         ),
         const SizedBox(height: 14),
         Row(
@@ -314,10 +311,9 @@ class _FileDetailViewState extends State<FileDetailView> {
         ),
         child: Text(
           AppStrings.t(AppStringKeys.fileDetailOpen),
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
-            color: AppTheme.onBrand,
+          style: AppTextStyle.bodyLarge(
+            AppTheme.onBrand,
+            weight: AppTextWeight.semibold,
           ),
         ),
       ),

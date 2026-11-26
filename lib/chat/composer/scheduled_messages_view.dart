@@ -258,7 +258,7 @@ class _ScheduledMessagesViewState extends State<ScheduledMessagesView> {
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
                 textAlign: TextAlign.center,
-                style: TextStyle(color: colors.textSecondary, fontSize: 12),
+                style: AppTextStyle.caption(colors.textSecondary),
               ),
             ),
         ],
@@ -307,10 +307,9 @@ class _ScheduledMessagesViewState extends State<ScheduledMessagesView> {
               Expanded(
                 child: Text(
                   _scheduleLabel(entry),
-                  style: TextStyle(
-                    color: AppTheme.brand,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
+                  style: AppTextStyle.footnote(
+                    AppTheme.brand,
+                    weight: AppTextWeight.semibold,
                   ),
                 ),
               ),
@@ -385,11 +384,8 @@ class _ScheduledMessagesViewState extends State<ScheduledMessagesView> {
               label,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                color: destructive
-                    ? AppTheme.tagRed
-                    : context.colors.textSecondary,
-                fontSize: 10,
+              style: AppTextStyle.tiny(
+                destructive ? AppTheme.tagRed : context.colors.textSecondary,
               ),
             ),
           ],
@@ -412,10 +408,9 @@ class _ScheduledMessagesViewState extends State<ScheduledMessagesView> {
           const SizedBox(height: 12),
           Text(
             AppStrings.t(AppStringKeys.scheduledMessagesNoScheduledMessages),
-            style: TextStyle(
-              color: context.colors.textPrimary,
-              fontSize: 17,
-              fontWeight: FontWeight.w600,
+            style: AppTextStyle.title(
+              context.colors.textPrimary,
+              weight: AppTextWeight.semibold,
             ),
           ),
           const SizedBox(height: 5),
@@ -424,7 +419,7 @@ class _ScheduledMessagesViewState extends State<ScheduledMessagesView> {
               AppStringKeys.scheduledMessagesLongPressTheSendButtonToScheduleA,
             ),
             textAlign: TextAlign.center,
-            style: TextStyle(color: context.colors.textSecondary, fontSize: 13),
+            style: AppTextStyle.footnote(context.colors.textSecondary),
           ),
         ],
       ),

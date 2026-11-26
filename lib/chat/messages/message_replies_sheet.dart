@@ -777,11 +777,9 @@ class _MessageRepliesSheetState extends State<_MessageRepliesSheet> {
                         }),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                          color: c.textPrimary,
-                          decoration: TextDecoration.none,
+                        style: AppTextStyle.bodyLarge(
+                          c.textPrimary,
+                          weight: AppTextWeight.semibold,
                         ),
                       ),
                     ),
@@ -798,10 +796,9 @@ class _MessageRepliesSheetState extends State<_MessageRepliesSheet> {
                           padding: const EdgeInsets.fromLTRB(12, 6, 0, 6),
                           child: Text(
                             AppStringKeys.messageViewInChat.l10n(context),
-                            style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600,
-                              color: c.linkBlue,
+                            style: AppTextStyle.callout(
+                              c.linkBlue,
+                              weight: AppTextWeight.semibold,
                             ),
                           ),
                         ),
@@ -882,7 +879,7 @@ class _MessageRepliesSheetState extends State<_MessageRepliesSheet> {
                         }),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: TextStyle(fontSize: 13, color: c.linkBlue),
+                        style: AppTextStyle.footnote(c.linkBlue),
                       ),
                     ),
                     GestureDetector(
@@ -909,7 +906,7 @@ class _MessageRepliesSheetState extends State<_MessageRepliesSheet> {
                     textInputAction: TextInputAction.send,
                     onSubmitted: (_) => _sendPlainReply(),
                     onChanged: (_) => setState(() {}),
-                    style: TextStyle(fontSize: 15, color: c.textPrimary),
+                    style: AppTextStyle.body(c.textPrimary),
                     decoration: InputDecoration(
                       isDense: true,
                       filled: true,
@@ -928,7 +925,7 @@ class _MessageRepliesSheetState extends State<_MessageRepliesSheet> {
                               AppStringKeys.momentsReplyToUserPlaceholder,
                               {'value1': _replySenderName(replyTo)},
                             ),
-                      hintStyle: TextStyle(fontSize: 15, color: c.textTertiary),
+                      hintStyle: AppTextStyle.body(c.textTertiary),
                     ),
                   ),
                 ),
@@ -1130,9 +1127,8 @@ class _MessageRepliesSheetState extends State<_MessageRepliesSheet> {
                           ),
                           child: Text(
                             candidate.title,
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: candidate.id == pack.id
+                            style: AppTextStyle.caption(
+                              candidate.id == pack.id
                                   ? AppTheme.brand
                                   : context.colors.textSecondary,
                             ),
@@ -1227,7 +1223,7 @@ class _MessageRepliesSheetState extends State<_MessageRepliesSheet> {
             children: [
               AppIcon(icon, size: 22, color: c.textPrimary),
               const SizedBox(width: 14),
-              Text(label, style: TextStyle(fontSize: 16, color: c.textPrimary)),
+              Text(label, style: AppTextStyle.bodyLarge(c.textPrimary)),
             ],
           ),
         ),

@@ -133,10 +133,7 @@ class _StickerSetStudioViewState extends State<StickerSetStudioView> {
                           child: Text(
                             AppStringKeys.stickerStudioEmpty.l10n(context),
                             textAlign: TextAlign.center,
-                            style: TextStyle(
-                              fontSize: 14,
-                              color: colors.textSecondary,
-                            ),
+                            style: AppTextStyle.callout(colors.textSecondary),
                           ),
                         ),
                       for (final set in _sets) _setRow(set, colors),
@@ -183,16 +180,15 @@ class _StickerSetStudioViewState extends State<StickerSetStudioView> {
               children: [
                 Text(
                   AppStringKeys.stickerStudioCreate.l10n(context),
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: colors.textPrimary,
+                  style: AppTextStyle.bodyLarge(
+                    colors.textPrimary,
+                    weight: AppTextWeight.semibold,
                   ),
                 ),
                 const SizedBox(height: 2),
                 Text(
                   AppStringKeys.stickerStudioCreateSubtitle.l10n(context),
-                  style: TextStyle(fontSize: 12, color: colors.textSecondary),
+                  style: AppTextStyle.caption(colors.textSecondary),
                 ),
               ],
             ),
@@ -254,10 +250,9 @@ class _StickerSetStudioViewState extends State<StickerSetStudioView> {
                           AppStringKeys.stickerStudioUntitled.l10n(context),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                        color: colors.textPrimary,
+                      style: AppTextStyle.bodyLarge(
+                        colors.textPrimary,
+                        weight: AppTextWeight.semibold,
                       ),
                     ),
                     const SizedBox(height: 4),
@@ -266,10 +261,7 @@ class _StickerSetStudioViewState extends State<StickerSetStudioView> {
                         'value1': _typeLabel(context, type),
                         'value2': set.int64('size') ?? 0,
                       }),
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: colors.textSecondary,
-                      ),
+                      style: AppTextStyle.footnote(colors.textSecondary),
                     ),
                   ],
                 ),
@@ -308,10 +300,9 @@ class _StudioRefreshRow extends StatelessWidget {
             const SizedBox(width: 7),
             Text(
               AppStringKeys.stickerStudioRefresh.l10n(context),
-              style: TextStyle(
-                color: AppTheme.brand,
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
+              style: AppTextStyle.callout(
+                AppTheme.brand,
+                weight: AppTextWeight.semibold,
               ),
             ),
             const SizedBox(width: 4),
@@ -519,10 +510,9 @@ class _StickerSetCreateViewState extends State<StickerSetCreateView> {
                     ? const AppActivityIndicator(size: 19)
                     : Text(
                         AppStringKeys.stickerStudioDone.l10n(context),
-                        style: TextStyle(
-                          color: AppTheme.brand,
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
+                        style: AppTextStyle.bodyLarge(
+                          AppTheme.brand,
+                          weight: AppTextWeight.semibold,
                         ),
                       ),
               ),
@@ -579,10 +569,7 @@ class _StickerSetCreateViewState extends State<StickerSetCreateView> {
                                 AppStringKeys.stickerStudioRepaint.l10n(
                                   context,
                                 ),
-                                style: TextStyle(
-                                  color: colors.textPrimary,
-                                  fontSize: 15,
-                                ),
+                                style: AppTextStyle.body(colors.textPrimary),
                               ),
                             ),
                             StickerStudioToggle(
@@ -637,10 +624,9 @@ class _StickerSetCreateViewState extends State<StickerSetCreateView> {
                               AppStringKeys.stickerStudioAddSource.l10n(
                                 context,
                               ),
-                              style: TextStyle(
-                                fontSize: 15,
-                                fontWeight: FontWeight.w600,
-                                color: colors.linkBlue,
+                              style: AppTextStyle.body(
+                                colors.linkBlue,
+                                weight: AppTextWeight.semibold,
                               ),
                             ),
                           ],
@@ -654,7 +640,7 @@ class _StickerSetCreateViewState extends State<StickerSetCreateView> {
                   Text(
                     AppStringKeys.stickerStudioReorderHint.l10n(context),
                     textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 12, color: colors.textSecondary),
+                    style: AppTextStyle.caption(colors.textSecondary),
                   ),
                 ],
                 const SizedBox(height: 14),
@@ -686,10 +672,9 @@ class _StickerSetCreateViewState extends State<StickerSetCreateView> {
                               AppStringKeys.stickerStudioShortNameSuggest.l10n(
                                 context,
                               ),
-                              style: TextStyle(
-                                color: colors.linkBlue,
-                                fontSize: 14,
-                                fontWeight: FontWeight.w600,
+                              style: AppTextStyle.callout(
+                                colors.linkBlue,
+                                weight: AppTextWeight.semibold,
                               ),
                             ),
                           ),
@@ -720,7 +705,7 @@ class _StickerSetCreateViewState extends State<StickerSetCreateView> {
     if (_nameState == _NameCheckState.checking) {
       return Text(
         AppStringKeys.stickerStudioNameChecking.l10n(context),
-        style: TextStyle(fontSize: 12, color: colors.textSecondary),
+        style: AppTextStyle.caption(colors.textSecondary),
       );
     }
     final available = _nameState == _NameCheckState.available;
@@ -738,9 +723,8 @@ class _StickerSetCreateViewState extends State<StickerSetCreateView> {
             available
                 ? AppStringKeys.stickerStudioNameAvailable.l10n(context)
                 : AppStringKeys.stickerStudioNameUnavailable.l10n(context),
-            style: TextStyle(
-              fontSize: 12,
-              color: available ? AppTheme.cloverGreen : AppTheme.tagRed,
+            style: AppTextStyle.caption(
+              available ? AppTheme.cloverGreen : AppTheme.tagRed,
             ),
           ),
         ),
@@ -793,10 +777,7 @@ class _StickerSetCreateViewState extends State<StickerSetCreateView> {
                       }),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: colors.textSecondary,
-                      ),
+                      style: AppTextStyle.caption(colors.textSecondary),
                     ),
                   ],
                 ),
@@ -1365,9 +1346,8 @@ class _StickerSetManageViewState extends State<StickerSetManageView> {
             Expanded(
               child: Text(
                 label,
-                style: TextStyle(
-                  fontSize: 15,
-                  color: destructive
+                style: AppTextStyle.body(
+                  destructive
                       ? AppTheme.tagRed
                       : sheetContext.colors.textPrimary,
                 ),
@@ -1447,10 +1427,9 @@ class _StickerSetManageViewState extends State<StickerSetManageView> {
                             _editMode
                                 ? AppStringKeys.stickerStudioDone.l10n(context)
                                 : AppStringKeys.messageActionEdit.l10n(context),
-                            style: TextStyle(
-                              color: AppTheme.brand,
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
+                            style: AppTextStyle.bodyLarge(
+                              AppTheme.brand,
+                              weight: AppTextWeight.semibold,
                             ),
                           ),
                         ),
@@ -1510,9 +1489,8 @@ class _StickerSetManageViewState extends State<StickerSetManageView> {
                                   context,
                                 ),
                                 textAlign: TextAlign.center,
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: colors.textSecondary,
+                                style: AppTextStyle.caption(
+                                  colors.textSecondary,
                                 ),
                               ),
                             ),
@@ -1667,7 +1645,7 @@ class _StickerSetManageViewState extends State<StickerSetManageView> {
                   : context.l10n.t(AppStringKeys.stickerStudioSelectedCount, {
                       'value1': count,
                     }),
-              style: TextStyle(fontSize: 13, color: colors.textSecondary),
+              style: AppTextStyle.footnote(colors.textSecondary),
             ),
           ),
           if (count > 0)
@@ -1686,10 +1664,9 @@ class _StickerSetManageViewState extends State<StickerSetManageView> {
                 ),
                 child: Text(
                   AppStringKeys.stickerStudioRemove.l10n(context),
-                  style: const TextStyle(
-                    color: Color(0xFFFFFFFF),
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
+                  style: AppTextStyle.callout(
+                    const Color(0xFFFFFFFF),
+                    weight: AppTextWeight.semibold,
                   ),
                 ),
               ),
@@ -1790,7 +1767,7 @@ class _StickerSetManageViewState extends State<StickerSetManageView> {
                   link.replaceFirst('https://', ''),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(fontSize: 15, color: colors.linkBlue),
+                  style: AppTextStyle.body(colors.linkBlue),
                 ),
               ),
               const SizedBox(width: 8),
@@ -1837,9 +1814,8 @@ class _StickerSetManageViewState extends State<StickerSetManageView> {
             Expanded(
               child: Text(
                 label,
-                style: TextStyle(
-                  fontSize: 15,
-                  color: destructive ? AppTheme.tagRed : colors.textPrimary,
+                style: AppTextStyle.body(
+                  destructive ? AppTheme.tagRed : colors.textPrimary,
                 ),
               ),
             ),
@@ -2030,10 +2006,7 @@ class _StickerDraftEditorViewState extends State<StickerDraftEditorView> {
                                   : _path!.split(Platform.pathSeparator).last,
                               maxLines: 2,
                               overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                fontSize: 14,
-                                color: colors.textPrimary,
-                              ),
+                              style: AppTextStyle.callout(colors.textPrimary),
                             ),
                           ),
                           GestureDetector(
@@ -2134,10 +2107,7 @@ class _StickerDraftEditorViewState extends State<StickerDraftEditorView> {
                                               .name,
                                     },
                                   ),
-                                  style: TextStyle(
-                                    fontSize: 15,
-                                    color: colors.textPrimary,
-                                  ),
+                                  style: AppTextStyle.body(colors.textPrimary),
                                 ),
                               ),
                               AppIcon(

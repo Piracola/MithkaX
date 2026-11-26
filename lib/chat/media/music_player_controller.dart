@@ -1229,10 +1229,9 @@ class _MusicPlayerBarContents extends StatelessWidget {
                   _musicName(music),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: c.textPrimary,
+                  style: AppTextStyle.callout(
+                    c.textPrimary,
+                    weight: AppTextWeight.semibold,
                   ),
                 ),
                 if (subtitle.isNotEmpty) ...[
@@ -1241,7 +1240,7 @@ class _MusicPlayerBarContents extends StatelessWidget {
                     subtitle,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: TextStyle(fontSize: 12, color: c.textTertiary),
+                    style: AppTextStyle.caption(c.textTertiary),
                   ),
                 ],
               ],
@@ -1610,10 +1609,9 @@ class _MusicMiniPlayerCardState extends State<MusicMiniPlayerCard> {
                     _musicName(music),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: c.textPrimary,
+                    style: AppTextStyle.footnote(
+                      c.textPrimary,
+                      weight: AppTextWeight.semibold,
                     ),
                   ),
                   if (subtitle.isNotEmpty) ...[
@@ -1651,10 +1649,9 @@ class _MusicMiniPlayerCardState extends State<MusicMiniPlayerCard> {
                 _musicName(music),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  color: c.textPrimary,
+                style: AppTextStyle.footnote(
+                  c.textPrimary,
+                  weight: AppTextWeight.semibold,
                 ),
               ),
             ),
@@ -2345,10 +2342,9 @@ class _MusicQueueSheetState extends State<_MusicQueueSheet> {
                         controller.playbackSourceTitle,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                          color: c.textPrimary,
+                        style: AppTextStyle.bodyLarge(
+                          c.textPrimary,
+                          weight: AppTextWeight.semibold,
                         ),
                       ),
                       const SizedBox(height: 3),
@@ -2357,7 +2353,7 @@ class _MusicQueueSheetState extends State<_MusicQueueSheet> {
                           AppStringKeys.musicPlayerTrackCount,
                           queue.length,
                         ),
-                        style: TextStyle(fontSize: 12, color: c.textTertiary),
+                        style: AppTextStyle.caption(c.textTertiary),
                       ),
                       const SizedBox(height: 12),
                       Row(
@@ -2380,9 +2376,8 @@ class _MusicQueueSheetState extends State<_MusicQueueSheet> {
                                     const SizedBox(width: 8),
                                     Text(
                                       _modeLabel(controller.mode),
-                                      style: TextStyle(
-                                        fontSize: 13,
-                                        color: c.textSecondary,
+                                      style: AppTextStyle.footnote(
+                                        c.textSecondary,
                                       ),
                                     ),
                                   ],
@@ -2415,10 +2410,7 @@ class _MusicQueueSheetState extends State<_MusicQueueSheet> {
                             AppStrings.t(
                               AppStringKeys.musicPlayerEmptyPlaylist,
                             ),
-                            style: TextStyle(
-                              fontSize: 14,
-                              color: c.textTertiary,
-                            ),
+                            style: AppTextStyle.callout(c.textTertiary),
                           ),
                         )
                       : ListView.builder(
@@ -2662,7 +2654,7 @@ class _MusicPlaylistsSheet extends StatelessWidget {
                       Text(
                         AppStrings.t(AppStringKeys.musicPlayerNoPlaylists),
                         textAlign: TextAlign.center,
-                        style: TextStyle(fontSize: 14, color: c.textSecondary),
+                        style: AppTextStyle.callout(c.textSecondary),
                       ),
                       const SizedBox(height: 18),
                       GestureDetector(
@@ -2736,10 +2728,9 @@ class _MusicPlaylistsSheet extends StatelessWidget {
                                       playlist.title,
                                       maxLines: 1,
                                       overflow: TextOverflow.ellipsis,
-                                      style: TextStyle(
-                                        fontSize: 15,
-                                        fontWeight: FontWeight.w600,
-                                        color: c.textPrimary,
+                                      style: AppTextStyle.body(
+                                        c.textPrimary,
+                                        weight: AppTextWeight.semibold,
                                       ),
                                     ),
                                     const SizedBox(height: 3),
@@ -2748,9 +2739,8 @@ class _MusicPlaylistsSheet extends StatelessWidget {
                                         AppStringKeys.musicPlayerTrackCount,
                                         playlist.tracks.length,
                                       ),
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        color: c.textTertiary,
+                                      style: AppTextStyle.caption(
+                                        c.textTertiary,
                                       ),
                                     ),
                                   ],
@@ -2860,7 +2850,7 @@ class _CreatePlaylistDialogState extends State<_CreatePlaylistDialog> {
                           AppStrings.t(AppStringKeys.musicPlayerPlaylistName),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: TextStyle(color: c.textTertiary, fontSize: 15),
+                          style: AppTextStyle.body(c.textTertiary),
                         ),
                       ),
                     EditableText(
@@ -2869,7 +2859,7 @@ class _CreatePlaylistDialogState extends State<_CreatePlaylistDialog> {
                       autofocus: true,
                       textInputAction: TextInputAction.done,
                       onSubmitted: (_) => _submit(),
-                      style: TextStyle(color: c.textPrimary, fontSize: 15),
+                      style: AppTextStyle.body(c.textPrimary),
                       cursorColor: musicPlayerAccent,
                       backgroundCursorColor: c.textTertiary,
                       selectionColor: musicPlayerAccent.withValues(alpha: 0.2),
@@ -2942,10 +2932,9 @@ class _DialogActionButton extends StatelessWidget {
             ),
             child: Text(
               label,
-              style: TextStyle(
-                color: color,
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
+              style: AppTextStyle.callout(
+                color,
+                weight: AppTextWeight.semibold,
               ),
             ),
           ),
@@ -3043,10 +3032,7 @@ class _PlaylistTracksSheet extends StatelessWidget {
                                 AppStringKeys.musicPlayerTrackCount,
                                 playlist.tracks.length,
                               ),
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: c.textTertiary,
-                              ),
+                              style: AppTextStyle.caption(c.textTertiary),
                             ),
                           ],
                         ),
@@ -3151,7 +3137,7 @@ class _PlayedChatTracksSheet extends StatelessWidget {
                             AppStringKeys.musicPlayerTrackCount,
                             tracks.length,
                           ),
-                          style: TextStyle(fontSize: 12, color: c.textTertiary),
+                          style: AppTextStyle.caption(c.textTertiary),
                         ),
                       ],
                     ),
@@ -3283,10 +3269,11 @@ class _QueueRow extends StatelessWidget {
                     _musicName(music),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: active ? FontWeight.w600 : FontWeight.w500,
-                      color: active ? musicPlayerAccent : c.textPrimary,
+                    style: AppTextStyle.footnote(
+                      active ? musicPlayerAccent : c.textPrimary,
+                      weight: active
+                          ? AppTextWeight.semibold
+                          : AppTextWeight.medium,
                     ),
                   ),
                   const SizedBox(height: 3),

@@ -151,12 +151,11 @@ class _ChecklistComposerViewState extends State<ChecklistComposerView> {
                 padding: const EdgeInsets.symmetric(horizontal: 4),
                 child: Text(
                   AppStrings.t(AppStringKeys.composerSend),
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: _canSend
+                  style: AppTextStyle.bodyLarge(
+                    _canSend
                         ? AppTheme.brand
                         : AppTheme.brand.withValues(alpha: 0.4),
+                    weight: AppTextWeight.semibold,
                   ),
                 ),
               ),
@@ -188,7 +187,7 @@ class _ChecklistComposerViewState extends State<ChecklistComposerView> {
                     AppStrings.t(
                       AppStringKeys.checklistComposerPremiumLimitHint,
                     ),
-                    style: TextStyle(fontSize: 13, color: c.textSecondary),
+                    style: AppTextStyle.footnote(c.textSecondary),
                   ),
                 ),
                 const SizedBox(height: 14),
@@ -246,7 +245,7 @@ class _ChecklistComposerViewState extends State<ChecklistComposerView> {
       child: TextField(
         controller: controller,
         autofocus: autofocus,
-        style: TextStyle(fontSize: 16, color: c.textPrimary),
+        style: AppTextStyle.bodyLarge(c.textPrimary),
         cursorColor: AppTheme.brand,
         decoration: InputDecoration(
           isCollapsed: true,
@@ -271,7 +270,7 @@ class _ChecklistComposerViewState extends State<ChecklistComposerView> {
             Expanded(
               child: TextField(
                 controller: _tasks[i],
-                style: TextStyle(fontSize: 16, color: c.textPrimary),
+                style: AppTextStyle.bodyLarge(c.textPrimary),
                 cursorColor: AppTheme.brand,
                 decoration: InputDecoration(
                   isCollapsed: true,
@@ -324,9 +323,8 @@ class _ChecklistComposerViewState extends State<ChecklistComposerView> {
               const SizedBox(width: 8),
               Text(
                 AppStrings.t(AppStringKeys.checklistComposerAddTask),
-                style: TextStyle(
-                  fontSize: 16,
-                  color: disabled
+                style: AppTextStyle.bodyLarge(
+                  disabled
                       ? AppTheme.brand.withValues(alpha: 0.4)
                       : AppTheme.brand,
                 ),
@@ -356,15 +354,9 @@ class _ChecklistComposerViewState extends State<ChecklistComposerView> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    title,
-                    style: TextStyle(fontSize: 16, color: c.textPrimary),
-                  ),
+                  Text(title, style: AppTextStyle.bodyLarge(c.textPrimary)),
                   const SizedBox(height: 3),
-                  Text(
-                    subtitle,
-                    style: TextStyle(fontSize: 12, color: c.textSecondary),
-                  ),
+                  Text(subtitle, style: AppTextStyle.caption(c.textSecondary)),
                 ],
               ),
             ),

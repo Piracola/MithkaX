@@ -756,7 +756,7 @@ extension _ChatInputBarBots on _ChatInputBarState {
                             .chatInputBarNoAdditionalToolsAreAvailableForThisBot,
                       ),
                       textAlign: TextAlign.center,
-                      style: TextStyle(color: c.textSecondary, fontSize: 14),
+                      style: AppTextStyle.callout(c.textSecondary),
                     ),
                   )
                 : ListView.separated(

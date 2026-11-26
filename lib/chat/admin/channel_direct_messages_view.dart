@@ -157,10 +157,9 @@ class _ChannelDirectMessagesViewState extends State<ChannelDirectMessagesView> {
             Text(
               AppStrings.t(AppStringKeys.channelDirectMessagesEmpty),
               textAlign: TextAlign.center,
-              style: TextStyle(
-                color: colors.textPrimary,
-                fontSize: 17,
-                fontWeight: FontWeight.w600,
+              style: AppTextStyle.title(
+                colors.textPrimary,
+                weight: AppTextWeight.semibold,
               ),
             ),
             if (_service.error != null) ...[
@@ -168,7 +167,7 @@ class _ChannelDirectMessagesViewState extends State<ChannelDirectMessagesView> {
               Text(
                 _service.error!,
                 textAlign: TextAlign.center,
-                style: TextStyle(color: colors.textSecondary, fontSize: 13),
+                style: AppTextStyle.footnote(colors.textSecondary),
               ),
             ],
             const SizedBox(height: 16),
@@ -252,12 +251,9 @@ class _DirectMessagesTopicRow extends StatelessWidget {
                           title,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            color: colors.textPrimary,
-                            fontSize: 15,
-                            fontWeight: unread
-                                ? FontWeight.w600
-                                : FontWeight.w600,
+                          style: AppTextStyle.body(
+                            colors.textPrimary,
+                            weight: AppTextWeight.semibold,
                           ),
                         ),
                       ),
@@ -290,10 +286,7 @@ class _DirectMessagesTopicRow extends StatelessWidget {
                               : preview,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            color: colors.textSecondary,
-                            fontSize: 13,
-                          ),
+                          style: AppTextStyle.footnote(colors.textSecondary),
                         ),
                       ),
                       if (topic.unreadReactionCount > 0) ...[
@@ -317,10 +310,9 @@ class _DirectMessagesTopicRow extends StatelessWidget {
                           ),
                           child: Text(
                             topic.unreadCount > 0 ? '${topic.unreadCount}' : '',
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 10,
-                              fontWeight: FontWeight.w600,
+                            style: AppTextStyle.tiny(
+                              Colors.white,
+                              weight: AppTextWeight.semibold,
                             ),
                           ),
                         ),
@@ -354,7 +346,7 @@ class _LoadMoreTopicsRow extends StatelessWidget {
             ? const AppActivityIndicator(size: 20)
             : Text(
                 AppStrings.t(AppStringKeys.channelDirectMessagesLoadMore),
-                style: TextStyle(color: AppTheme.brand, fontSize: 14),
+                style: AppTextStyle.callout(AppTheme.brand),
               ),
       ),
     ),
@@ -479,7 +471,7 @@ class _ChannelDirectMessageTopicViewState
       return Center(
         child: Text(
           AppStrings.t(AppStringKeys.channelDirectMessagesStartConversation),
-          style: TextStyle(color: context.colors.textSecondary, fontSize: 14),
+          style: AppTextStyle.callout(context.colors.textSecondary),
         ),
       );
     }
@@ -561,20 +553,16 @@ class _ChannelDirectMessageTopicViewState
                           AppStrings.t(
                             AppStringKeys.channelDirectMessagesReplying,
                           ),
-                          style: TextStyle(
-                            color: AppTheme.brand,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
+                          style: AppTextStyle.caption(
+                            AppTheme.brand,
+                            weight: AppTextWeight.semibold,
                           ),
                         ),
                         Text(
                           _replyTo!.text,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            color: colors.textSecondary,
-                            fontSize: 12,
-                          ),
+                          style: AppTextStyle.caption(colors.textSecondary),
                         ),
                       ],
                     ),
@@ -626,7 +614,7 @@ class _ChannelDirectMessageTopicViewState
                       controller: _text,
                       minLines: 1,
                       maxLines: 5,
-                      style: TextStyle(color: colors.textPrimary, fontSize: 15),
+                      style: AppTextStyle.body(colors.textPrimary),
                       decoration: InputDecoration(
                         border: InputBorder.none,
                         hintText: AppStrings.t(
@@ -838,7 +826,7 @@ class _LoadOlderMessagesRow extends StatelessWidget {
                 padding: const EdgeInsets.all(8),
                 child: Text(
                   AppStrings.t(AppStringKeys.channelDirectMessagesOlder),
-                  style: TextStyle(color: AppTheme.brand, fontSize: 13),
+                  style: AppTextStyle.footnote(AppTheme.brand),
                 ),
               ),
             ),
@@ -906,10 +894,9 @@ class _SuggestedPostActions extends StatelessWidget {
               Expanded(
                 child: Text(
                   AppStrings.t(status),
-                  style: TextStyle(
-                    color: colors.textPrimary,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
+                  style: AppTextStyle.footnote(
+                    colors.textPrimary,
+                    weight: AppTextWeight.semibold,
                   ),
                 ),
               ),
@@ -999,10 +986,9 @@ class _CompactAction extends StatelessWidget {
             const SizedBox(width: 5),
             Text(
               AppStrings.t(label),
-              style: TextStyle(
-                color: color,
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
+              style: AppTextStyle.caption(
+                color,
+                weight: AppTextWeight.semibold,
               ),
             ),
           ],
@@ -1126,7 +1112,7 @@ class _SuggestedPostComposerSheetState
                   minLines: 3,
                   maxLines: 8,
                   autofocus: true,
-                  style: TextStyle(color: colors.textPrimary, fontSize: 15),
+                  style: AppTextStyle.body(colors.textPrimary),
                   decoration: InputDecoration(
                     hintText: AppStrings.t(AppStringKeys.suggestedPostTextHint),
                     filled: true,
@@ -1141,10 +1127,9 @@ class _SuggestedPostComposerSheetState
               const SizedBox(height: 14),
               Text(
                 AppStrings.t(AppStringKeys.suggestedPostPrice),
-                style: TextStyle(
-                  color: colors.textSecondary,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
+                style: AppTextStyle.footnote(
+                  colors.textSecondary,
+                  weight: AppTextWeight.semibold,
                 ),
               ),
               const SizedBox(height: 7),
@@ -1169,7 +1154,7 @@ class _SuggestedPostComposerSheetState
                   keyboardType: const TextInputType.numberWithOptions(
                     decimal: true,
                   ),
-                  style: TextStyle(color: colors.textPrimary, fontSize: 15),
+                  style: AppTextStyle.body(colors.textPrimary),
                   decoration: InputDecoration(
                     labelText: AppStrings.t(
                       _priceKind == SuggestedPostPriceKind.stars
@@ -1211,10 +1196,7 @@ class _SuggestedPostComposerSheetState
                           _sendDate == 0
                               ? AppStrings.t(AppStringKeys.suggestedPostAnyTime)
                               : DateText.messageDetailLabel(_sendDate),
-                          style: TextStyle(
-                            color: colors.textPrimary,
-                            fontSize: 14,
-                          ),
+                          style: AppTextStyle.callout(colors.textPrimary),
                         ),
                       ),
                       if (_sendDate != 0)
@@ -1238,10 +1220,7 @@ class _SuggestedPostComposerSheetState
               ),
               if (_error != null) ...[
                 const SizedBox(height: 9),
-                Text(
-                  _error!,
-                  style: TextStyle(color: AppTheme.tagRed, fontSize: 12),
-                ),
+                Text(_error!, style: AppTextStyle.caption(AppTheme.tagRed)),
               ],
               const SizedBox(height: 16),
               GestureDetector(
@@ -1260,10 +1239,9 @@ class _SuggestedPostComposerSheetState
                           ? AppStringKeys.suggestedPostSubmitOffer
                           : AppStringKeys.suggestedPostSubmit,
                     ),
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 15,
-                      fontWeight: FontWeight.w600,
+                    style: AppTextStyle.body(
+                      Colors.white,
+                      weight: AppTextWeight.semibold,
                     ),
                   ),
                 ),
@@ -1296,10 +1274,9 @@ class _SuggestedPostComposerSheetState
         ),
         child: Text(
           AppStrings.t(label),
-          style: TextStyle(
-            color: selected ? AppTheme.brand : context.colors.textSecondary,
-            fontSize: 13,
-            fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+          style: AppTextStyle.footnote(
+            selected ? AppTheme.brand : context.colors.textSecondary,
+            weight: selected ? AppTextWeight.semibold : AppTextWeight.regular,
           ),
         ),
       ),
@@ -1328,7 +1305,7 @@ class _SuggestedPostComposerSheetState
                   Expanded(
                     child: Text(
                       AppStrings.t(AppStringKeys.suggestedPostAddMedia),
-                      style: TextStyle(color: colors.textPrimary, fontSize: 14),
+                      style: AppTextStyle.callout(colors.textPrimary),
                     ),
                   ),
                   AppIcon(
@@ -1574,10 +1551,9 @@ class _DirectMessagesTopicSettingsSheetState
                     children: [
                       Text(
                         widget.topic.senderTitle,
-                        style: TextStyle(
-                          color: colors.textPrimary,
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
+                        style: AppTextStyle.bodyLarge(
+                          colors.textPrimary,
+                          weight: AppTextWeight.semibold,
                         ),
                       ),
                       const SizedBox(height: 3),
@@ -1591,10 +1567,7 @@ class _DirectMessagesTopicSettingsSheetState
                                 AppStringKeys.channelDirectMessagesRevenue,
                                 {'value1': _revenue},
                               ),
-                        style: TextStyle(
-                          color: colors.textSecondary,
-                          fontSize: 12,
-                        ),
+                        style: AppTextStyle.caption(colors.textSecondary),
                       ),
                     ],
                   ),
@@ -1666,10 +1639,7 @@ class _DirectMessagesTopicSettingsSheetState
           children: [
             AppIcon(icon, size: 20, color: color),
             const SizedBox(width: 11),
-            Text(
-              AppStrings.t(label),
-              style: TextStyle(color: color, fontSize: 15),
-            ),
+            Text(AppStrings.t(label), style: AppTextStyle.body(color)),
           ],
         ),
       ),
@@ -1860,10 +1830,9 @@ class _TextAction extends StatelessWidget {
           const SizedBox(width: 6),
           Text(
             AppStrings.t(label),
-            style: TextStyle(
-              color: AppTheme.brand,
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
+            style: AppTextStyle.footnote(
+              AppTheme.brand,
+              weight: AppTextWeight.semibold,
             ),
           ),
         ],

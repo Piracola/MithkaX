@@ -114,20 +114,16 @@ class _SharedContactSheet extends StatelessWidget {
                     children: [
                       Text(
                         contact.displayName,
-                        style: TextStyle(
-                          fontSize: 17,
-                          fontWeight: FontWeight.w600,
-                          color: c.textPrimary,
+                        style: AppTextStyle.title(
+                          c.textPrimary,
+                          weight: AppTextWeight.semibold,
                         ),
                       ),
                       if (contact.phoneNumber.isNotEmpty) ...[
                         const SizedBox(height: 3),
                         Text(
                           contact.phoneNumber,
-                          style: TextStyle(
-                            fontSize: 13,
-                            color: c.textSecondary,
-                          ),
+                          style: AppTextStyle.footnote(c.textSecondary),
                         ),
                       ],
                     ],
@@ -154,7 +150,7 @@ class _SharedContactSheet extends StatelessWidget {
                       Expanded(
                         child: Text(
                           action.$3.l10n(context),
-                          style: TextStyle(fontSize: 15, color: c.textPrimary),
+                          style: AppTextStyle.body(c.textPrimary),
                         ),
                       ),
                     ],

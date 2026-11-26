@@ -215,10 +215,9 @@ class _ChatWallpaperColorViewState extends State<ChatWallpaperColorView> {
           ),
           child: Text(
             AppStringKeys.accentColorPickerSave.l10n(context),
-            style: TextStyle(
-              color: colors.onAccent,
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
+            style: AppTextStyle.bodyLarge(
+              colors.onAccent,
+              weight: AppTextWeight.semibold,
             ),
           ),
         ),
@@ -228,10 +227,9 @@ class _ChatWallpaperColorViewState extends State<ChatWallpaperColorView> {
 
   Widget _label(String key) => Text(
     key.l10n(context),
-    style: TextStyle(
-      fontSize: 14,
-      fontWeight: FontWeight.w600,
-      color: context.colors.textSecondary,
+    style: AppTextStyle.callout(
+      context.colors.textSecondary,
+      weight: AppTextWeight.semibold,
     ),
   );
 
@@ -412,7 +410,7 @@ class _ChatWallpaperColorViewState extends State<ChatWallpaperColorView> {
             Expanded(
               child: Text(
                 key.l10n(context),
-                style: TextStyle(fontSize: 15, color: c.textPrimary),
+                style: AppTextStyle.body(c.textPrimary),
               ),
             ),
             AppIcon(

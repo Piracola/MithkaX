@@ -648,10 +648,7 @@ class _GroupManagementViewState extends State<GroupManagementView> {
       children: [
         Padding(
           padding: const EdgeInsets.fromLTRB(14, 0, 14, 8),
-          child: Text(
-            title,
-            style: TextStyle(fontSize: 13, color: c.textTertiary),
-          ),
+          child: Text(title, style: AppTextStyle.footnote(c.textTertiary)),
         ),
         Container(
           decoration: BoxDecoration(
@@ -684,9 +681,8 @@ class _GroupManagementViewState extends State<GroupManagementView> {
           child: Center(
             child: Text(
               _deleteChatLabel,
-              style: TextStyle(
-                fontSize: 15,
-                color: _deleting ? c.textTertiary : AppTheme.tagRed,
+              style: AppTextStyle.body(
+                _deleting ? c.textTertiary : AppTheme.tagRed,
               ),
             ),
           ),
@@ -754,7 +750,7 @@ class _GroupManagementViewState extends State<GroupManagementView> {
           padding: const EdgeInsets.symmetric(horizontal: 14),
           child: Row(
             children: [
-              Text(title, style: TextStyle(fontSize: 15, color: c.textPrimary)),
+              Text(title, style: AppTextStyle.body(c.textPrimary)),
               const SizedBox(width: 12),
               if (value != null)
                 Expanded(
@@ -763,7 +759,7 @@ class _GroupManagementViewState extends State<GroupManagementView> {
                     textAlign: TextAlign.right,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: TextStyle(fontSize: 14, color: c.textTertiary),
+                    style: AppTextStyle.callout(c.textTertiary),
                   ),
                 )
               else
@@ -801,9 +797,8 @@ class _GroupManagementViewState extends State<GroupManagementView> {
                 title,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontSize: 15,
-                  color: enabled ? c.textPrimary : c.textTertiary,
+                style: AppTextStyle.body(
+                  enabled ? c.textPrimary : c.textTertiary,
                 ),
               ),
             ),
@@ -1093,7 +1088,7 @@ class _GroupManagementLoadError extends StatelessWidget {
                       ? AppStringKeys.groupManagementLoadFailedChannel
                       : AppStringKeys.groupManagementLoadFailed,
                 ),
-                style: TextStyle(fontSize: 15, color: c.textSecondary),
+                style: AppTextStyle.body(c.textSecondary),
               ),
               const SizedBox(height: 16),
               GestureDetector(
@@ -1107,7 +1102,7 @@ class _GroupManagementLoadError extends StatelessWidget {
                   ),
                   child: Text(
                     AppStrings.t(AppStringKeys.groupManagementRetry),
-                    style: TextStyle(fontSize: 15, color: AppTheme.brand),
+                    style: AppTextStyle.body(AppTheme.brand),
                   ),
                 ),
               ),

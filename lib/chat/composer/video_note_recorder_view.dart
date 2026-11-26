@@ -846,7 +846,7 @@ class _VideoNoteRecorderViewState extends State<VideoNoteRecorderView>
                         if (_error != null) _error,
                       ].join('\n'),
                       textAlign: TextAlign.center,
-                      style: const TextStyle(color: Colors.white, fontSize: 15),
+                      style: AppTextStyle.body(Colors.white),
                     ),
                   ),
                 ),
@@ -884,10 +884,9 @@ class _VideoNoteRecorderViewState extends State<VideoNoteRecorderView>
                       ),
                       child: Text(
                         _paused ? 'Paused · $_elapsedLabel' : _elapsedLabel,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
+                        style: AppTextStyle.callout(
+                          Colors.white,
+                          weight: AppTextWeight.semibold,
                         ),
                       ),
                     ),
@@ -929,10 +928,7 @@ class _VideoNoteRecorderViewState extends State<VideoNoteRecorderView>
                                 heightFactor: 1,
                                 child: Text(
                                   '${level == level.truncateToDouble() ? level.toStringAsFixed(0) : level.toString()}×',
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 15,
-                                  ),
+                                  style: AppTextStyle.body(Colors.white),
                                 ),
                               ),
                             ),

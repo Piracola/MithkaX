@@ -113,10 +113,9 @@ class ChatFirstContactCard extends StatelessWidget {
                                 title,
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
-                                style: TextStyle(
-                                  color: c.textPrimary,
-                                  fontSize: 17,
-                                  fontWeight: FontWeight.w600,
+                                style: AppTextStyle.title(
+                                  c.textPrimary,
+                                  weight: AppTextWeight.semibold,
                                 ),
                               ),
                               if (!info.isContact) ...[
@@ -138,10 +137,9 @@ class ChatFirstContactCard extends StatelessWidget {
                                     child: Text(
                                       AppStringKeys.chatFirstContactNotContact
                                           .l10n(context),
-                                      style: TextStyle(
-                                        color: AppTheme.brand,
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.w600,
+                                      style: AppTextStyle.caption(
+                                        AppTheme.brand,
+                                        weight: AppTextWeight.semibold,
                                       ),
                                     ),
                                   ),
@@ -207,10 +205,9 @@ class ChatFirstContactCard extends StatelessWidget {
                                       : AppStringKeys
                                             .chatFirstContactNotOfficial)
                                   .l10n(context),
-                              style: TextStyle(
-                                color: c.textSecondary,
-                                fontSize: 13,
-                                fontWeight: FontWeight.w500,
+                              style: AppTextStyle.footnote(
+                                c.textSecondary,
+                                weight: AppTextWeight.medium,
                               ),
                             ),
                           ),

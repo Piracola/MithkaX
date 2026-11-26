@@ -671,10 +671,9 @@ class _StoryViewerViewState extends State<StoryViewerView>
                             _senderName,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              fontSize: 15,
-                              fontWeight: FontWeight.w500,
-                              color: Colors.white,
+                            style: AppTextStyle.body(
+                              Colors.white,
+                              weight: AppTextWeight.medium,
                             ),
                           ),
                           if (_stealthActiveUntil >
@@ -735,7 +734,7 @@ class _StoryViewerViewState extends State<StoryViewerView>
                     alignment: Alignment.centerLeft,
                     child: Text(
                       _current!.caption,
-                      style: const TextStyle(fontSize: 15, color: Colors.white),
+                      style: AppTextStyle.body(Colors.white),
                     ),
                   ),
                 ),
@@ -1012,12 +1011,13 @@ class _StoryViewerViewState extends State<StoryViewerView>
                     child: Text(
                       '${(_videoVolume * 100).round()}',
                       textAlign: TextAlign.end,
-                      style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.82),
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        fontFeatures: const [FontFeature.tabularFigures()],
-                      ),
+                      style:
+                          AppTextStyle.caption(
+                            Colors.white.withValues(alpha: 0.82),
+                            weight: AppTextWeight.semibold,
+                          ).copyWith(
+                            fontFeatures: const [FontFeature.tabularFigures()],
+                          ),
                     ),
                   ),
                 ],
@@ -1073,6 +1073,9 @@ class _StoryViewerViewState extends State<StoryViewerView>
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
               textAlign: TextAlign.center,
+              // Kept literal: pinned inside a Positioned box whose height is
+              // height_percentage of the canvas, clamped to 38. A caption role's
+              // 1.35 leading would outgrow the shortest box.
               style: const TextStyle(
                 color: Colors.white,
                 fontSize: 12,
@@ -1170,7 +1173,7 @@ class _StoryViewerViewState extends State<StoryViewerView>
                       controller: _replyController,
                       focusNode: _replyFocus,
                       onSubmitted: (_) => unawaited(_sendReply()),
-                      style: const TextStyle(fontSize: 14, color: Colors.white),
+                      style: AppTextStyle.callout(Colors.white),
                       decoration: InputDecoration.collapsed(
                         hintText: AppStringKeys.storyReplyHint.l10n(context),
                         hintStyle: const TextStyle(color: Colors.white70),
@@ -1631,10 +1634,9 @@ class _StoryViewerViewState extends State<StoryViewerView>
                         'value3': story.forwardCount,
                       },
                     ),
-                    style: TextStyle(
-                      color: colors.textPrimary,
-                      fontSize: 15,
-                      fontWeight: FontWeight.w600,
+                    style: AppTextStyle.body(
+                      colors.textPrimary,
+                      weight: AppTextWeight.semibold,
                     ),
                   ),
                 ),
@@ -1673,9 +1675,8 @@ class _StoryViewerViewState extends State<StoryViewerView>
                                     Expanded(
                                       child: Text(
                                         viewer.$1,
-                                        style: TextStyle(
-                                          color: colors.textPrimary,
-                                          fontSize: 15,
+                                        style: AppTextStyle.body(
+                                          colors.textPrimary,
                                         ),
                                       ),
                                     ),
@@ -1683,9 +1684,8 @@ class _StoryViewerViewState extends State<StoryViewerView>
                                       AppStrings.t(
                                         AppStringKeys.storyViewerViewed,
                                       ),
-                                      style: TextStyle(
-                                        color: colors.textSecondary,
-                                        fontSize: 12,
+                                      style: AppTextStyle.caption(
+                                        colors.textSecondary,
                                       ),
                                     ),
                                   ],
@@ -1726,9 +1726,8 @@ class _StoryViewerViewState extends State<StoryViewerView>
             const SizedBox(width: 13),
             Text(
               label.l10n(context),
-              style: TextStyle(
-                fontSize: 15,
-                color: destructive ? const Color(0xFFFF6961) : Colors.white,
+              style: AppTextStyle.body(
+                destructive ? const Color(0xFFFF6961) : Colors.white,
               ),
             ),
           ],
@@ -1778,10 +1777,7 @@ class _StoryViewerViewState extends State<StoryViewerView>
                               alignment: Alignment.centerLeft,
                               child: Text(
                                 option.str('text') ?? '',
-                                style: const TextStyle(
-                                  fontSize: 15,
-                                  color: Colors.white,
-                                ),
+                                style: AppTextStyle.body(Colors.white),
                               ),
                             ),
                           ),
@@ -1823,7 +1819,7 @@ class _StoryViewerViewState extends State<StoryViewerView>
       return Center(
         child: Text(
           AppStringKeys.storyLoadFailed.l10n(context),
-          style: const TextStyle(fontSize: 15, color: Colors.white70),
+          style: AppTextStyle.body(Colors.white70),
         ),
       );
     }
@@ -1842,7 +1838,7 @@ class _StoryViewerViewState extends State<StoryViewerView>
       return Center(
         child: Text(
           AppStringKeys.storyUnsupported.l10n(context),
-          style: const TextStyle(fontSize: 15, color: Colors.white70),
+          style: AppTextStyle.body(Colors.white70),
         ),
       );
     }

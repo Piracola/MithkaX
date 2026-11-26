@@ -938,10 +938,9 @@ extension _ChatInputBarPanels on _ChatInputBarState {
             label,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              color: c.textTertiary,
+            style: AppTextStyle.caption(
+              c.textTertiary,
+              weight: AppTextWeight.semibold,
             ),
           ),
         ),

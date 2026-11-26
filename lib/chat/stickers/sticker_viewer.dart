@@ -202,22 +202,15 @@ class _StickerViewerState extends State<StickerViewer> {
                   label,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: c.textPrimary,
-                    fontSize: 15,
-                    decoration: TextDecoration.none,
-                    fontWeight: FontWeight.w400,
-                  ),
+                  style: AppTextStyle.body(c.textPrimary),
                 ),
               ),
               const SizedBox(width: 10),
               Text(
                 formatLabel,
-                style: TextStyle(
-                  color: c.textSecondary,
-                  fontSize: 13,
-                  decoration: TextDecoration.none,
-                  fontWeight: FontWeight.w500,
+                style: AppTextStyle.footnote(
+                  c.textSecondary,
+                  weight: AppTextWeight.medium,
                 ),
               ),
             ],
@@ -398,7 +391,7 @@ class _StickerViewerState extends State<StickerViewer> {
                   _installed
                       ? AppStrings.t(AppStringKeys.stickerViewerInCollection)
                       : AppStrings.t(AppStringKeys.stickerViewerView),
-                  style: TextStyle(fontSize: 16, color: c.textSecondary),
+                  style: AppTextStyle.bodyLarge(c.textSecondary),
                 ),
                 const SizedBox(width: 8),
                 AppIcon(

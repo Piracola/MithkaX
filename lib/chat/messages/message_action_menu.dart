@@ -1218,9 +1218,8 @@ class _ActionRow extends StatelessWidget {
                     semanticsLabel: AppStrings.t(action.label),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: action.isDestructive
+                    style: AppTextStyle.caption(
+                      action.isDestructive
                           ? palette.destructive
                           : palette.foreground,
                     ),

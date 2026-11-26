@@ -233,7 +233,7 @@ class _ShortVideoViewState extends State<ShortVideoView> {
                 const SizedBox(height: 8),
                 Text(
                   _durationLabel(draft.round()),
-                  style: const TextStyle(color: Colors.white70, fontSize: 15),
+                  style: AppTextStyle.body(Colors.white70),
                 ),
                 Slider(
                   value: draft,
@@ -506,12 +506,10 @@ class _ShortVideoViewState extends State<ShortVideoView> {
                 message.senderName ?? widget.chat.title,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 15,
-                  fontWeight: FontWeight.w600,
-                  shadows: [Shadow(blurRadius: 8)],
-                ),
+                style: AppTextStyle.body(
+                  Colors.white,
+                  weight: AppTextWeight.semibold,
+                ).copyWith(shadows: const [Shadow(blurRadius: 8)]),
               ),
             ),
           ],
@@ -551,12 +549,10 @@ class _ShortVideoViewState extends State<ShortVideoView> {
               widget.chat.title,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 17,
-                fontWeight: FontWeight.w600,
-                shadows: [Shadow(blurRadius: 8)],
-              ),
+              style: AppTextStyle.title(
+                Colors.white,
+                weight: AppTextWeight.semibold,
+              ).copyWith(shadows: const [Shadow(blurRadius: 8)]),
             ),
           ),
           _roundButton(icon: HeroAppIcons.gear, onTap: _configureDuration),
@@ -609,7 +605,7 @@ class _ShortVideoViewState extends State<ShortVideoView> {
                 'value1': _durationLabel(_maxSeconds),
               }),
               textAlign: TextAlign.center,
-              style: const TextStyle(color: Colors.white60, fontSize: 14),
+              style: AppTextStyle.callout(Colors.white60),
             ),
             const SizedBox(height: 18),
             OutlinedButton(

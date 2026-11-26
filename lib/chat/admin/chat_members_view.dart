@@ -837,7 +837,7 @@ class _ChatMembersViewState extends State<ChatMembersView> {
                 ? Center(
                     child: Text(
                       AppStrings.t(AppStringKeys.chatMembersNoResults),
-                      style: TextStyle(fontSize: 14, color: c.textTertiary),
+                      style: AppTextStyle.callout(c.textTertiary),
                     ),
                   )
                 : NotificationListener<ScrollNotification>(
@@ -993,7 +993,7 @@ class _ChatMembersViewState extends State<ChatMembersView> {
                           m.name,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: TextStyle(fontSize: 16, color: c.textPrimary),
+                          style: AppTextStyle.bodyLarge(c.textPrimary),
                         ),
                       ),
                       if (showRole) ...[
@@ -1011,7 +1011,7 @@ class _ChatMembersViewState extends State<ChatMembersView> {
                       m.status,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: TextStyle(fontSize: 13, color: c.textSecondary),
+                      style: AppTextStyle.footnote(c.textSecondary),
                     ),
                   ],
                 ],
@@ -1132,7 +1132,7 @@ class _MemberActionRowState extends State<MemberActionRow> {
               AppStrings.t(action.title),
               textAlign: TextAlign.center,
               maxLines: 2,
-              style: const TextStyle(fontSize: 13, color: Colors.white),
+              style: AppTextStyle.footnote(Colors.white),
             ),
           ),
         ),
@@ -1352,10 +1352,9 @@ class _MemberRestrictSheetState extends State<_MemberRestrictSheet> {
             padding: const EdgeInsets.only(left: 6, bottom: 10),
             child: Text(
               AppStrings.t(AppStringKeys.chatMembersRestrictTitle),
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-                color: c.textPrimary,
+              style: AppTextStyle.bodyLarge(
+                c.textPrimary,
+                weight: AppTextWeight.semibold,
               ),
             ),
           ),
@@ -1363,12 +1362,12 @@ class _MemberRestrictSheetState extends State<_MemberRestrictSheet> {
             padding: const EdgeInsets.only(left: 6, bottom: 12),
             child: Text(
               widget.name,
-              style: TextStyle(fontSize: 13, color: c.textSecondary),
+              style: AppTextStyle.footnote(c.textSecondary),
             ),
           ),
           Text(
             AppStringKeys.chatMembersRestrictDuration.l10n(context),
-            style: TextStyle(fontSize: 13, color: c.textTertiary),
+            style: AppTextStyle.footnote(c.textTertiary),
           ),
           const SizedBox(height: 6),
           for (final seconds in _restrictDurations)
@@ -1380,7 +1379,7 @@ class _MemberRestrictSheetState extends State<_MemberRestrictSheet> {
           const SizedBox(height: 12),
           Text(
             AppStringKeys.chatMembersAdminPermissions.l10n(context),
-            style: TextStyle(fontSize: 13, color: c.textTertiary),
+            style: AppTextStyle.footnote(c.textTertiary),
           ),
           const SizedBox(height: 6),
           for (final entry in chatPermissionLabelKeys.entries)
@@ -1406,7 +1405,7 @@ class _MemberRestrictSheetState extends State<_MemberRestrictSheet> {
                     ),
                     child: Text(
                       AppStrings.t(AppStringKeys.confirmCancel),
-                      style: TextStyle(fontSize: 15, color: c.textSecondary),
+                      style: AppTextStyle.body(c.textSecondary),
                     ),
                   ),
                 ),
@@ -1421,10 +1420,9 @@ class _MemberRestrictSheetState extends State<_MemberRestrictSheet> {
                     ),
                     child: Text(
                       AppStringKeys.chatMembersRestrictApply.l10n(context),
-                      style: TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w600,
-                        color: AppTheme.brand,
+                      style: AppTextStyle.body(
+                        AppTheme.brand,
+                        weight: AppTextWeight.semibold,
                       ),
                     ),
                   ),

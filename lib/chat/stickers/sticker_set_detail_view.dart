@@ -141,15 +141,7 @@ class _StickerSetDetailViewState extends State<StickerSetDetailView> {
             children: [
               AppIcon(HeroAppIcons.folder, size: 20, color: c.textPrimary),
               const SizedBox(width: 11),
-              Text(
-                label,
-                style: TextStyle(
-                  color: c.textPrimary,
-                  fontSize: 15,
-                  decoration: TextDecoration.none,
-                  fontWeight: FontWeight.w400,
-                ),
-              ),
+              Text(label, style: AppTextStyle.body(c.textPrimary)),
             ],
           ),
         ),
@@ -352,10 +344,9 @@ class _StickerSetDetailViewState extends State<StickerSetDetailView> {
                     'value1': formatLabel,
                   }),
                   textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: c.textPrimary,
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600,
+                  style: AppTextStyle.body(
+                    c.textPrimary,
+                    weight: AppTextWeight.semibold,
                   ),
                 ),
                 const SizedBox(height: 15),
@@ -372,7 +363,7 @@ class _StickerSetDetailViewState extends State<StickerSetDetailView> {
                 const SizedBox(height: 9),
                 Text(
                   '$completed / $total',
-                  style: TextStyle(color: c.textSecondary, fontSize: 13),
+                  style: AppTextStyle.footnote(c.textSecondary),
                 ),
               ],
             ),
@@ -390,7 +381,7 @@ class _StickerSetDetailViewState extends State<StickerSetDetailView> {
         children: [
           Text(
             AppStrings.t(AppStringKeys.stickerSetDetailTitle),
-            style: TextStyle(fontSize: 17, color: c.textPrimary),
+            style: AppTextStyle.title(c.textPrimary),
           ),
           Align(
             alignment: Alignment.centerLeft,
@@ -485,10 +476,9 @@ class _StickerSetDetailViewState extends State<StickerSetDetailView> {
                   _title,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: c.textPrimary,
+                  style: AppTextStyle.bodyLarge(
+                    c.textPrimary,
+                    weight: AppTextWeight.semibold,
                   ),
                 ),
                 const SizedBox(height: 4),
@@ -497,7 +487,7 @@ class _StickerSetDetailViewState extends State<StickerSetDetailView> {
                     AppStringKeys.stickerSetDetailStickerCount,
                     _stickers.length,
                   ),
-                  style: TextStyle(fontSize: 13, color: c.textSecondary),
+                  style: AppTextStyle.footnote(c.textSecondary),
                 ),
               ],
             ),
@@ -534,10 +524,9 @@ class _StickerSetDetailViewState extends State<StickerSetDetailView> {
                 _installed
                     ? AppStrings.t(AppStringKeys.chatInfoRemove)
                     : AppStrings.t(AppStringKeys.imageEditAdd),
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: _installed ? c.textSecondary : AppTheme.onBrand,
+                style: AppTextStyle.callout(
+                  _installed ? c.textSecondary : AppTheme.onBrand,
+                  weight: AppTextWeight.semibold,
                 ),
               ),
       ),

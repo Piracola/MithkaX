@@ -1844,7 +1844,7 @@ class _ChatViewState extends State<ChatView> {
             padding: const EdgeInsets.symmetric(horizontal: 10),
             child: Text(
               AppStringKeys.chatNewMessagesDivider.l10n(context),
-              style: TextStyle(fontSize: 12, color: c.linkBlue),
+              style: AppTextStyle.caption(c.linkBlue),
             ),
           ),
           Expanded(child: Divider(color: c.linkBlue, height: 1, thickness: 1)),
@@ -2994,10 +2994,9 @@ class _ChatViewState extends State<ChatView> {
                     : AppStringKeys.chatNewMessagesCount,
                 {'value1': count},
               ),
-              style: TextStyle(
-                fontSize: 13,
-                color: c.textPrimary,
-                fontWeight: FontWeight.w500,
+              style: AppTextStyle.footnote(
+                c.textPrimary,
+                weight: AppTextWeight.medium,
               ),
             ),
           ],
@@ -3057,12 +3056,10 @@ class _ChatViewState extends State<ChatView> {
             ),
             child: Text(
               'AI',
-              style: TextStyle(
-                color: c.textPrimary,
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                letterSpacing: 0.2,
-              ),
+              style: AppTextStyle.footnote(
+                c.textPrimary,
+                weight: AppTextWeight.semibold,
+              ).copyWith(letterSpacing: 0.2),
             ),
           ),
         ),
@@ -3158,10 +3155,9 @@ class _ChatViewState extends State<ChatView> {
                   const SizedBox(width: AppSpacing.xs),
                   Text(
                     countLabel,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: AppTextSize.caption,
-                      fontWeight: AppTextWeight.semibold,
+                    style: AppTextStyle.caption(
+                      Colors.white,
+                      weight: AppTextWeight.semibold,
                     ),
                   ),
                 ],
@@ -3328,7 +3324,7 @@ class _ChatViewState extends State<ChatView> {
                 ),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: TextStyle(fontSize: 13, color: c.textSecondary),
+                style: AppTextStyle.footnote(c.textSecondary),
               ),
             ),
           ),
@@ -3341,7 +3337,7 @@ class _ChatViewState extends State<ChatView> {
                 padding: const EdgeInsets.symmetric(vertical: 8),
                 child: Text(
                   AppStrings.t(AppStringKeys.appearanceManage),
-                  style: TextStyle(fontSize: 14, color: AppTheme.brand),
+                  style: AppTextStyle.callout(AppTheme.brand),
                 ),
               ),
             ),
@@ -3376,10 +3372,9 @@ class _ChatViewState extends State<ChatView> {
           ),
           child: Text(
             AppStringKeys.startButton.l10n(context),
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-              color: AppTheme.onBrand,
+            style: AppTextStyle.bodyLarge(
+              AppTheme.onBrand,
+              weight: AppTextWeight.semibold,
             ),
           ),
         ),
@@ -3422,10 +3417,9 @@ class _ChatViewState extends State<ChatView> {
           ),
           child: Text(
             AppStrings.t(label),
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-              color: requested ? c.textSecondary : AppTheme.onBrand,
+            style: AppTextStyle.bodyLarge(
+              requested ? c.textSecondary : AppTheme.onBrand,
+              weight: AppTextWeight.semibold,
             ),
           ),
         ),
@@ -3454,7 +3448,7 @@ class _ChatViewState extends State<ChatView> {
         (reason.isEmpty ? AppStringKeys.chatCannotSendMessages : reason).l10n(
           context,
         ),
-        style: TextStyle(fontSize: 14, color: c.textSecondary),
+        style: AppTextStyle.callout(c.textSecondary),
       ),
     );
   }
@@ -3503,7 +3497,7 @@ class _ChatViewState extends State<ChatView> {
                     AppStringKeys.chatMemberCount,
                     _vm.memberCount,
                   ),
-                  style: TextStyle(fontSize: 14, color: c.textSecondary),
+                  style: AppTextStyle.callout(c.textSecondary),
                 ),
               ],
               const SizedBox(height: 28),
@@ -3521,10 +3515,9 @@ class _ChatViewState extends State<ChatView> {
                   ),
                   child: Text(
                     AppStrings.t(label),
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      color: requested ? c.textSecondary : AppTheme.onBrand,
+                    style: AppTextStyle.bodyLarge(
+                      requested ? c.textSecondary : AppTheme.onBrand,
+                      weight: AppTextWeight.semibold,
                     ),
                   ),
                 ),
@@ -3721,10 +3714,9 @@ class _ChatViewState extends State<ChatView> {
       headerTitle,
       maxLines: 1,
       overflow: TextOverflow.ellipsis,
-      style: TextStyle(
-        fontSize: 16,
-        fontWeight: FontWeight.w500,
-        color: c.textPrimary,
+      style: AppTextStyle.bodyLarge(
+        c.textPrimary,
+        weight: AppTextWeight.medium,
       ),
     );
     final title = _vm.isSecretChat
@@ -3760,9 +3752,8 @@ class _ChatViewState extends State<ChatView> {
             subtitle,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              fontSize: 12,
-              color: actionActive ? AppTheme.brand : c.textSecondary,
+            style: AppTextStyle.caption(
+              actionActive ? AppTheme.brand : c.textSecondary,
             ),
           ),
       ],
@@ -3839,7 +3830,7 @@ class _ChatViewState extends State<ChatView> {
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 child: Text(
                   AppStringKeys.countryPickerCancel.l10n(context),
-                  style: TextStyle(fontSize: 16, color: c.textPrimary),
+                  style: AppTextStyle.bodyLarge(c.textPrimary),
                 ),
               ),
             ),
@@ -3849,10 +3840,9 @@ class _ChatViewState extends State<ChatView> {
                   'value1': count,
                 }),
                 textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 17,
-                  fontWeight: FontWeight.w600,
-                  color: c.textPrimary,
+                style: AppTextStyle.title(
+                  c.textPrimary,
+                  weight: AppTextWeight.semibold,
                 ),
               ),
             ),
@@ -3914,7 +3904,7 @@ class _ChatViewState extends State<ChatView> {
                 const SizedBox(width: 5),
                 Text(
                   AppStringKeys.chatSelectUntilHere.l10n(context),
-                  style: TextStyle(fontSize: 15, color: AppTheme.brand),
+                  style: AppTextStyle.body(AppTheme.brand),
                 ),
               ],
             ),
@@ -4025,7 +4015,7 @@ class _ChatViewState extends State<ChatView> {
                 ),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: TextStyle(fontSize: 14, color: c.textPrimary),
+                style: AppTextStyle.callout(c.textPrimary),
               ),
             ),
             const SizedBox(width: 12),

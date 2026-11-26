@@ -464,10 +464,9 @@ class _StoryAuthoringViewState extends State<StoryAuthoringView> {
                     AppStringKeys.storyAuthoringChooseARecentMessageFromValue1,
                     {'value1': chat.title},
                   ),
-                  style: TextStyle(
-                    color: context.colors.textPrimary,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
+                  style: AppTextStyle.bodyLarge(
+                    context.colors.textPrimary,
+                    weight: AppTextWeight.semibold,
                   ),
                 ),
               ),
@@ -750,9 +749,8 @@ class _StoryAuthoringViewState extends State<StoryAuthoringView> {
                             target.title,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              color: context.colors.textPrimary,
-                              fontSize: 15,
+                            style: AppTextStyle.body(
+                              context.colors.textPrimary,
                             ),
                           ),
                         ),
@@ -1046,10 +1044,9 @@ class _StoryAuthoringViewState extends State<StoryAuthoringView> {
           const SizedBox(height: 7),
           Text(
             label,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
+            style: AppTextStyle.caption(
+              Colors.white,
+              weight: AppTextWeight.semibold,
             ),
           ),
         ],
@@ -1085,10 +1082,9 @@ class _StoryAuthoringViewState extends State<StoryAuthoringView> {
                       ),
                       child: Text(
                         '${_media.length}',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
+                        style: AppTextStyle.footnote(
+                          Colors.white,
+                          weight: AppTextWeight.semibold,
                         ),
                       ),
                     ),
@@ -1152,7 +1148,7 @@ class _StoryAuthoringViewState extends State<StoryAuthoringView> {
               controller: _caption,
               minLines: 1,
               maxLines: 3,
-              style: const TextStyle(color: Colors.white, fontSize: 15),
+              style: AppTextStyle.body(Colors.white),
               decoration: InputDecoration(
                 filled: true,
                 fillColor: const Color(0xFF2C2C2E),
@@ -1178,10 +1174,7 @@ class _StoryAuthoringViewState extends State<StoryAuthoringView> {
                   const SizedBox(height: 6),
                   Text(
                     _progress,
-                    style: const TextStyle(
-                      color: Color(0xFFA1A1AA),
-                      fontSize: 12,
-                    ),
+                    style: AppTextStyle.caption(const Color(0xFFA1A1AA)),
                   ),
                 ],
               ),
@@ -1221,10 +1214,9 @@ class _StoryAuthoringViewState extends State<StoryAuthoringView> {
                           children: [
                             Text(
                               AppStringKeys.storyNext.l10n(context),
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 15,
-                                fontWeight: FontWeight.w600,
+                              style: AppTextStyle.body(
+                                Colors.white,
+                                weight: AppTextWeight.semibold,
                               ),
                             ),
                             const SizedBox(width: 8),
@@ -1429,10 +1421,9 @@ class _StoryAuthoringViewState extends State<StoryAuthoringView> {
                       const SizedBox(width: 9),
                       Text(
                         AppStringKeys.storyPublish.l10n(context),
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
+                        style: AppTextStyle.bodyLarge(
+                          Colors.white,
+                          weight: AppTextWeight.semibold,
                         ),
                       ),
                     ],
@@ -1450,12 +1441,10 @@ class _StoryAuthoringViewState extends State<StoryAuthoringView> {
     padding: const EdgeInsets.only(left: 12),
     child: Text(
       label.toUpperCase(),
-      style: TextStyle(
-        color: context.colors.textSecondary,
-        fontSize: 12,
-        fontWeight: FontWeight.w600,
-        letterSpacing: 0.5,
-      ),
+      style: AppTextStyle.caption(
+        context.colors.textSecondary,
+        weight: AppTextWeight.semibold,
+      ).copyWith(letterSpacing: 0.5),
     ),
   );
 
@@ -1501,10 +1490,9 @@ class _StoryAuthoringViewState extends State<StoryAuthoringView> {
                     AppStringKeys.storyChooseDestination.l10n(context),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  color: c.textPrimary,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
+                style: AppTextStyle.bodyLarge(
+                  c.textPrimary,
+                  weight: AppTextWeight.semibold,
                 ),
               ),
             ),
@@ -1626,10 +1614,9 @@ class _StoryAuthoringViewState extends State<StoryAuthoringView> {
                           _selectedPrivacyUsers.isNotEmpty
                       ? '$label · ${_selectedPrivacyUsers.length}'
                       : label,
-                  style: TextStyle(
-                    color: c.textPrimary,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
+                  style: AppTextStyle.bodyLarge(
+                    c.textPrimary,
+                    weight: AppTextWeight.semibold,
                   ),
                 ),
               ),
@@ -1688,7 +1675,7 @@ class _StoryAuthoringViewState extends State<StoryAuthoringView> {
                     Expanded(
                       child: Text(
                         AppStringKeys.storyVisibleFor.l10n(context),
-                        style: TextStyle(color: c.textPrimary, fontSize: 15),
+                        style: AppTextStyle.body(c.textPrimary),
                       ),
                     ),
                     Text(
@@ -1700,7 +1687,7 @@ class _StoryAuthoringViewState extends State<StoryAuthoringView> {
                           _ => 24,
                         },
                       }),
-                      style: TextStyle(color: c.textSecondary, fontSize: 14),
+                      style: AppTextStyle.callout(c.textSecondary),
                     ),
                     const SizedBox(width: 7),
                     AppIcon(
@@ -1731,7 +1718,7 @@ class _StoryAuthoringViewState extends State<StoryAuthoringView> {
           Expanded(
             child: Text(
               label,
-              style: TextStyle(color: context.colors.textPrimary, fontSize: 15),
+              style: AppTextStyle.body(context.colors.textPrimary),
             ),
           ),
           AppSwitch(value: value, onChanged: onChanged),

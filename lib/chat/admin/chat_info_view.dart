@@ -657,7 +657,7 @@ class _ChatInfoViewState extends State<ChatInfoView> {
               sub,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: TextStyle(fontSize: 13, color: c.textSecondary),
+              style: AppTextStyle.footnote(c.textSecondary),
             );
     }
     return Column(
@@ -678,7 +678,7 @@ class _ChatInfoViewState extends State<ChatInfoView> {
                 ),
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
-          style: TextStyle(fontSize: 13, color: c.textSecondary),
+          style: AppTextStyle.footnote(c.textSecondary),
         ),
         const SizedBox(height: 4),
         if (_vm.isPublic && (_vm.username?.isNotEmpty ?? false))
@@ -686,7 +686,7 @@ class _ChatInfoViewState extends State<ChatInfoView> {
             '@${_vm.username}',
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: TextStyle(fontSize: 13, color: AppTheme.brand),
+            style: AppTextStyle.footnote(AppTheme.brand),
           )
         else
           _lockBadge(AppStrings.t(AppStringKeys.chatInfoNotSearchable)),
@@ -738,10 +738,9 @@ class _ChatInfoViewState extends State<ChatInfoView> {
                     ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w500,
-                      color: c.textPrimary,
+                    style: AppTextStyle.body(
+                      c.textPrimary,
+                      weight: AppTextWeight.medium,
                     ),
                   ),
                 ),
@@ -751,7 +750,7 @@ class _ChatInfoViewState extends State<ChatInfoView> {
                       AppStringKeys.topicChatMemberCount,
                       _vm.memberCount,
                     ),
-                    style: TextStyle(fontSize: 14, color: c.textSecondary),
+                    style: AppTextStyle.callout(c.textSecondary),
                   ),
                 const SizedBox(width: 6),
                 AppIcon(
@@ -786,10 +785,7 @@ class _ChatInfoViewState extends State<ChatInfoView> {
                             m.name,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: c.textPrimary,
-                            ),
+                            style: AppTextStyle.caption(c.textPrimary),
                           ),
                         ],
                       ),
@@ -843,7 +839,7 @@ class _ChatInfoViewState extends State<ChatInfoView> {
             label,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: TextStyle(fontSize: 12, color: c.textSecondary),
+            style: AppTextStyle.caption(c.textSecondary),
           ),
         ],
       ),
@@ -1009,7 +1005,7 @@ class _ChatInfoViewState extends State<ChatInfoView> {
           padding: const EdgeInsets.symmetric(horizontal: 14),
           child: Row(
             children: [
-              Text(title, style: TextStyle(fontSize: 15, color: c.textPrimary)),
+              Text(title, style: AppTextStyle.body(c.textPrimary)),
               const Spacer(),
               AppIcon(
                 HeroAppIcons.chevronRight,
@@ -1041,7 +1037,7 @@ class _ChatInfoViewState extends State<ChatInfoView> {
                         ? AppStringKeys.chatInfoChannelApps
                         : AppStringKeys.chatInfoGroupApps,
                   ),
-                  style: TextStyle(fontSize: 15, color: c.textPrimary),
+                  style: AppTextStyle.body(c.textPrimary),
                 ),
                 const Spacer(),
                 AppIcon(
@@ -1163,7 +1159,7 @@ class _ChatInfoViewState extends State<ChatInfoView> {
             label,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: TextStyle(fontSize: 13, color: c.textSecondary),
+            style: AppTextStyle.footnote(c.textSecondary),
           ),
         ],
       ),
@@ -1340,10 +1336,7 @@ class _ChatInfoViewState extends State<ChatInfoView> {
       child: SizedBox(
         height: 52,
         child: Center(
-          child: Text(
-            title,
-            style: TextStyle(fontSize: 15, color: AppTheme.tagRed),
-          ),
+          child: Text(title, style: AppTextStyle.body(AppTheme.tagRed)),
         ),
       ),
     );
@@ -1740,7 +1733,7 @@ class _ChatFolderMembershipViewState extends State<ChatFolderMembershipView> {
             const SizedBox(height: 12),
             Text(
               AppStrings.t(AppStringKeys.chatInfoNoFolders),
-              style: TextStyle(color: c.textSecondary, fontSize: 15),
+              style: AppTextStyle.body(c.textSecondary),
             ),
             const SizedBox(height: 18),
             _ChatFolderAction(
@@ -1776,7 +1769,7 @@ class _ChatFolderMembershipViewState extends State<ChatFolderMembershipView> {
           padding: const EdgeInsets.symmetric(horizontal: 14),
           child: Text(
             AppStrings.t(AppStringKeys.chatInfoDisableExplicitFolderWarning),
-            style: TextStyle(fontSize: 13, color: c.textTertiary),
+            style: AppTextStyle.footnote(c.textTertiary),
           ),
         ),
       ],
@@ -1798,7 +1791,7 @@ class _ChatFolderMembershipViewState extends State<ChatFolderMembershipView> {
                 item.title,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: TextStyle(fontSize: 16, color: c.textPrimary),
+                style: AppTextStyle.bodyLarge(c.textPrimary),
               ),
             ),
             if (item.saving)
@@ -1849,10 +1842,9 @@ class _ChatFolderAction extends StatelessWidget {
           ),
           child: Text(
             label,
-            style: const TextStyle(
-              color: Color(0xFFFFFFFF),
-              fontSize: 15,
-              fontWeight: FontWeight.w600,
+            style: AppTextStyle.body(
+              const Color(0xFFFFFFFF),
+              weight: AppTextWeight.semibold,
             ),
           ),
         ),
@@ -2049,10 +2041,7 @@ class _CreateChatFolderPromptState extends State<_CreateChatFolderPrompt> {
                                 ),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
-                                style: TextStyle(
-                                  color: c.textTertiary,
-                                  fontSize: 15,
-                                ),
+                                style: AppTextStyle.body(c.textTertiary),
                               ),
                             ),
                           EditableText(
@@ -2062,10 +2051,7 @@ class _CreateChatFolderPromptState extends State<_CreateChatFolderPrompt> {
                             autofocus: true,
                             textInputAction: TextInputAction.done,
                             onSubmitted: (_) => _submit(),
-                            style: TextStyle(
-                              color: c.textPrimary,
-                              fontSize: 15,
-                            ),
+                            style: AppTextStyle.body(c.textPrimary),
                             cursorColor: AppTheme.brand,
                             backgroundCursorColor: c.textTertiary,
                             selectionColor: AppTheme.brand.withValues(
@@ -2145,10 +2131,9 @@ class _ChatFolderPromptAction extends StatelessWidget {
             ),
             child: Text(
               label,
-              style: TextStyle(
-                color: color,
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
+              style: AppTextStyle.callout(
+                color,
+                weight: AppTextWeight.semibold,
               ),
             ),
           ),

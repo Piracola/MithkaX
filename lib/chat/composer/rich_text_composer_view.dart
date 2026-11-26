@@ -1391,11 +1391,9 @@ class _RichTextComposerViewState extends State<RichTextComposerView> {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 17,
-                      fontWeight: FontWeight.w600,
-                      color: c.textPrimary,
-                      decoration: TextDecoration.none,
+                    style: AppTextStyle.title(
+                      c.textPrimary,
+                      weight: AppTextWeight.semibold,
                     ),
                   ),
                 ),
@@ -3247,11 +3245,9 @@ class _RichTextComposerViewState extends State<RichTextComposerView> {
               child: Text(
                 widget.submitText.l10n(context),
                 maxLines: 1,
-                style: const TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.white,
-                  decoration: TextDecoration.none,
+                style: AppTextStyle.body(
+                  Colors.white,
+                  weight: AppTextWeight.semibold,
                 ),
               ),
             ),
@@ -4316,11 +4312,7 @@ class _RichContextMenuRow extends StatelessWidget {
                 label,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  color: color,
-                  fontSize: 16,
-                  decoration: TextDecoration.none,
-                ),
+                style: AppTextStyle.bodyLarge(color),
               ),
             ),
             if (trailing case final trailing?) ...[

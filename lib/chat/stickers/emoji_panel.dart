@@ -305,10 +305,9 @@ Widget emojiSectionHeader(String label) {
               label,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: context.colors.textSecondary,
+              style: AppTextStyle.footnote(
+                context.colors.textSecondary,
+                weight: AppTextWeight.semibold,
               ),
             ),
           ),

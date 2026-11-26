@@ -1186,10 +1186,8 @@ class _IvRelatedArticles extends StatelessWidget {
                                   article.description.trim(),
                                   maxLines: 2,
                                   overflow: TextOverflow.ellipsis,
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    height: 1.35,
-                                    color: ctx.secondaryColor,
+                                  style: AppTextStyle.caption(
+                                    ctx.secondaryColor,
                                   ),
                                 ),
                               ),

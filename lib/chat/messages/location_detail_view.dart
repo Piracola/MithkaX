@@ -192,10 +192,9 @@ class _LocationDetailViewState extends State<LocationDetailView> {
                         _title,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                          color: c.textPrimary,
+                        style: AppTextStyle.bodyLarge(
+                          c.textPrimary,
+                          weight: AppTextWeight.semibold,
                         ),
                       ),
                       const SizedBox(height: 4),
@@ -209,7 +208,7 @@ class _LocationDetailViewState extends State<LocationDetailView> {
                                   : _subtitle),
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
-                        style: TextStyle(fontSize: 13, color: c.textSecondary),
+                        style: AppTextStyle.footnote(c.textSecondary),
                       ),
                     ],
                   ),
