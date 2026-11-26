@@ -444,11 +444,7 @@ class _AppCameraViewState extends State<AppCameraView>
                       : AppStringKeys.storyCameraAccessTitle)
                   .l10n(context),
               textAlign: TextAlign.center,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 20,
-                fontWeight: FontWeight.w600,
-              ),
+              style: AppTextStyle.display(Colors.white),
             ),
             if (description != null) ...[
               const SizedBox(height: 10),

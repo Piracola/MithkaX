@@ -56,10 +56,9 @@ Future<String?> showStoryTextEntry(
                     children: [
                       Text(
                         title,
-                        style: TextStyle(
-                          color: c.textPrimary,
-                          fontSize: 18,
-                          fontWeight: FontWeight.w600,
+                        style: AppTextStyle.title(
+                          c.textPrimary,
+                          weight: AppTextWeight.semibold,
                         ),
                       ),
                       const SizedBox(height: 14),
@@ -154,10 +153,9 @@ class StoryDialogAction extends StatelessWidget {
         ),
         child: Text(
           label,
-          style: TextStyle(
-            color: foreground,
-            fontSize: 14,
-            fontWeight: FontWeight.w600,
+          style: AppTextStyle.callout(
+            foreground,
+            weight: AppTextWeight.semibold,
           ),
         ),
       ),

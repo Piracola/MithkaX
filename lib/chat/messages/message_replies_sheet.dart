@@ -1060,7 +1060,10 @@ class _MessageRepliesSheetState extends State<_MessageRepliesSheet> {
             setState(() {});
           },
           child: Center(
-            child: Text(emoji[index], style: const TextStyle(fontSize: 25)),
+            child: Text(
+              emoji[index],
+              style: const TextStyle(fontSize: AppIconSize.simpleComposerPanel),
+            ),
           ),
         ),
       ),

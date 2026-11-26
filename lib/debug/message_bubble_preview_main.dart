@@ -98,11 +98,9 @@ class _PreviewGallery extends StatelessWidget {
           sliver: SliverToBoxAdapter(
             child: Text(
               AppStrings.t(AppStringKeys.debugBubblePreviewGenres),
-              style: const TextStyle(
-                color: Color(0xFFF4F4F7),
-                fontSize: 19,
-                fontWeight: FontWeight.w600,
-                decoration: TextDecoration.none,
+              style: AppTextStyle.title(
+                const Color(0xFFF4F4F7),
+                weight: AppTextWeight.semibold,
               ),
             ),
           ),
@@ -112,11 +110,7 @@ class _PreviewGallery extends StatelessWidget {
           sliver: SliverToBoxAdapter(
             child: Text(
               AppStrings.t(AppStringKeys.debugBubblePreviewExperimental),
-              style: const TextStyle(
-                color: Color(0xFFA9ABB6),
-                fontSize: 11,
-                decoration: TextDecoration.none,
-              ),
+              style: AppTextStyle.caption(const Color(0xFFA9ABB6)),
             ),
           ),
         ),
@@ -162,12 +156,9 @@ class _PreviewGallery extends StatelessWidget {
                         item.name,
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          color: Color(0xFFD7D8DE),
-                          fontSize: 11,
-                          height: 1.15,
-                          fontWeight: FontWeight.w600,
-                          decoration: TextDecoration.none,
+                        style: AppTextStyle.caption(
+                          const Color(0xFFD7D8DE),
+                          weight: AppTextWeight.semibold,
                         ),
                       ),
                     ],

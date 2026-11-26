@@ -30,6 +30,15 @@ final _heightRe = RegExp(r'height:\s*([0-9]+(?:\.[0-9]+)?)(?![0-9.])');
 final _weightRe = RegExp(r'fontWeight:\s*FontWeight\.(w[0-9]{3})');
 final _blockRe = RegExp(r'\b(TextStyle|copyWith)\(');
 
+/// Marks one style as a declared non-typography exception, so the budgets stop
+/// counting it.
+///
+/// Only the exceptions DESIGN.md names by hand may carry this: a glyph box, the
+/// wordmark, the hidden one-time-code field. It is deliberately a comment rather
+/// than a list in this file, because the reason has to stay next to the code it
+/// excuses, and a reviewer has to see it there.
+const typographyExceptionMarker = 'typography-exception';
+
 /// One `TextStyle(...)` or `copyWith(...)` that states at least one text
 /// property. A style that only sets a colour is not a typography decision and
 /// is skipped.
@@ -132,6 +141,16 @@ List<TextStyleSite> scanTypographySource(String path, String source) {
     final height = _readHeight(code);
     final weight = _weightRe.firstMatch(code);
     if (size == null && height == null && weight == null) continue;
+
+    // An exception is written in the comment above the style it excuses, so it
+    // is looked for in the raw source between the previous style and this one.
+    if (_precedingComment(
+      source,
+      match.start,
+    ).contains(typographyExceptionMarker)) {
+      continue;
+    }
+
     sites.add(
       TextStyleSite(
         file: path,
@@ -144,6 +163,20 @@ List<TextStyleSite> scanTypographySource(String path, String source) {
     );
   }
   return sites;
+}
+
+/// The text between the end of the previous style block and [start].
+///
+/// Bounding the window is what keeps a marker from excusing every style below
+/// it: a reader sees the comment attached to the one call, and so should the
+/// scanner.
+String _precedingComment(String source, int start) {
+  final previous = _blockRe
+      .allMatches(source)
+      .where((match) => match.start < start)
+      .lastOrNull;
+  final from = previous == null ? 0 : previous.end;
+  return source.substring(from, start);
 }
 
 /// The leading a style block states, if any.

@@ -1921,7 +1921,12 @@ class _TopicChatViewState extends State<TopicChatView> {
                       Navigator.of(context).pop();
                       _addReaction(post, reaction);
                     },
-                    child: Text(reaction, style: const TextStyle(fontSize: 28)),
+                    child: Text(
+                      reaction,
+                      style: const TextStyle(
+                        fontSize: AppIconSize.simpleComposerPanel,
+                      ),
+                    ),
                   ),
               ],
             ),
@@ -3300,10 +3305,9 @@ class _TopicChannelSettingsViewState extends State<_TopicChannelSettingsView> {
                               widget.chat.title,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.w600,
-                                color: c.textPrimary,
+                              style: AppTextStyle.title(
+                                c.textPrimary,
+                                weight: AppTextWeight.semibold,
                               ),
                             ),
                             const SizedBox(height: 6),

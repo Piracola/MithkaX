@@ -1,0 +1,62 @@
+[
+  {
+    "k": "Delete story|14.0",
+    "text": "Delete story",
+    "size": 14.0,
+    "weight": 600,
+    "height": 1.4,
+    "boxW": 12.214,
+    "boxH": 1.429,
+    "clipped": false
+  },
+  {
+    "k": "Delete story|14.0#1",
+    "text": "Delete story",
+    "size": 14.0,
+    "weight": 600,
+    "height": 1.4,
+    "boxW": 12.214,
+    "boxH": 1.429,
+    "clipped": false
+  },
+  {
+    "k": "Save to gallery|14.0",
+    "text": "Save to gallery",
+    "size": 14.0,
+    "weight": 600,
+    "height": 1.4,
+    "boxW": 15.268,
+    "boxH": 1.429,
+    "clipped": false
+  },
+  {
+    "k": "Save to gallery|14.0#1",
+    "text": "Save to gallery",
+    "size": 14.0,
+    "weight": 600,
+    "height": 1.4,
+    "boxW": 15.268,
+    "boxH": 1.429,
+    "clipped": false
+  },
+  {
+    "k": "Share to story|14.0",
+    "text": "Share to story",
+    "size": 14.0,
+    "weight": 600,
+    "height": 1.4,
+    "boxW": 14.25,
+    "boxH": 1.429,
+    "clipped": false
+  },
+  {
+    "k": "Share to story|14.0#1",
+    "text": "Share to story",
+    "size": 14.0,
+    "weight": 600,
+    "height": 1.4,
+    "boxW": 14.25,
+    "boxH": 1.429,
+    "clipped": false
+  }
+]

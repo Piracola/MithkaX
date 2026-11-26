@@ -61,6 +61,10 @@ Typography is enforced, not just documented:
   above the number in that file. Lower a budget in the PR that migrates sites;
   never raise it. All three sit at their measured value, so adding a new
   literal fails the gate immediately — that is the intent.
+- The off-ladder budget is at zero, so that gate is absolute. The exceptions
+  above are not counted against it: they carry a `typography-exception` comment
+  with the reason, and a fourth one fails a test until it is added to this list.
+  The marker only excuses the one style it sits above.
 - `test/typography_probe_test.dart` renders real screens and pins each text
   run's layout geometry in `test/typography/<scene>.json`. A batch that swaps a
   literal for a role leaves those numbers unchanged; a batch that changes the

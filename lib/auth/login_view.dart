@@ -1856,7 +1856,7 @@ class _LoginViewState extends State<LoginView> {
                   focusNode: _emailFocus,
                   keyboardType: TextInputType.text,
                   autocorrect: false,
-                  style: TextStyle(fontSize: 18, color: c.textPrimary),
+                  style: AppTextStyle.title(c.textPrimary),
                   decoration: InputDecoration(
                     border: InputBorder.none,
                     isCollapsed: _desktop,
@@ -2238,10 +2238,9 @@ class _LoginViewState extends State<LoginView> {
           Text(
             AppStrings.t(AppStringKeys.loginQrCodeTitle),
             textAlign: _align,
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w600,
-              color: c.textPrimary,
+            style: AppTextStyle.title(
+              c.textPrimary,
+              weight: AppTextWeight.semibold,
             ),
           ),
           const SizedBox(height: 8),
@@ -2842,6 +2841,8 @@ class _VerificationCodeInputState extends State<_VerificationCodeInput> {
                   enableSuggestions: false,
                   enableInteractiveSelection: false,
                   showCursor: false,
+                  // typography-exception: the field is invisible and sized at 1
+                  // only to stay out of layout. Not typography.
                   style: const TextStyle(
                     color: Colors.transparent,
                     fontSize: 1,

@@ -280,9 +280,7 @@ class _StatusBadge extends StatelessWidget {
               label,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: AppTextStyle.footnote(
-                color,
-              ).copyWith(fontSize: 11, height: 1.1),
+              style: AppTextStyle.caption(color),
             ),
         ],
       ),

@@ -14,6 +14,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mithka/l10n/app_localizations.dart';
+import 'package:mithka/moments/story_ui_components.dart';
 import 'package:mithka/settings/about_view.dart';
 import 'package:mithka/settings/app_icon_controller.dart';
 import 'package:mithka/settings/appearance_view.dart';
@@ -85,5 +86,40 @@ void main() {
   testWidgets('about: typography geometry', (tester) async {
     await pump(tester, const AboutView(showBackButton: false));
     await expectTypographyBaseline(tester, 'about', collectTextRuns(tester));
+  });
+
+  testWidgets('story actions: typography geometry', (tester) async {
+    // The story dialog actions are the one moments surface that mounts without
+    // a live conversation, so it is what the probe can pin from this area. The
+    // three weights are the whole hierarchy here: primary, secondary,
+    // destructive.
+    await pump(
+      tester,
+      Scaffold(
+        body: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              StoryDialogAction(label: 'Share to story', onTap: () {}),
+              StoryDialogAction(
+                label: 'Save to gallery',
+                primary: true,
+                onTap: () {},
+              ),
+              StoryDialogAction(
+                label: 'Delete story',
+                destructive: true,
+                onTap: () {},
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+    await expectTypographyBaseline(
+      tester,
+      'story_actions',
+      collectTextRuns(tester),
+    );
   });
 }

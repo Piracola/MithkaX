@@ -1472,12 +1472,16 @@ class _ProfileDetailViewState extends State<ProfileDetailView> {
         ),
         const SizedBox(width: 4),
         SizedBox(
-          width: 70,
+          // Wide enough for the longest duration pair at caption size; the box
+          // is sized rather than the text clipped, because a truncated time is
+          // worse than a slightly narrower slider.
+          width: 78,
           child: Text(
             '${_durationString(position.inSeconds)}/'
             '${total.inSeconds > 0 ? _durationString(total.inSeconds) : '--:--'}',
             textAlign: TextAlign.right,
-            style: TextStyle(fontSize: 11, color: c.textSecondary),
+            maxLines: 1,
+            style: AppTextStyle.caption(c.textSecondary),
           ),
         ),
       ],

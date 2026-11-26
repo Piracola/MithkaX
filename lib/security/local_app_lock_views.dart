@@ -2227,11 +2227,9 @@ class _NumberKey extends StatelessWidget {
           lockScreenStyle: lockScreenStyle,
           child: Text(
             '$number',
-            style: TextStyle(
-              color: lockScreenStyle ? palette.foreground : c.textPrimary,
-              fontSize: 28,
-              fontWeight: AppTextWeight.medium,
-              decoration: TextDecoration.none,
+            style: AppTextStyle.largeDisplay(
+              lockScreenStyle ? palette.foreground : c.textPrimary,
+              weight: AppTextWeight.medium,
             ),
           ),
         ),

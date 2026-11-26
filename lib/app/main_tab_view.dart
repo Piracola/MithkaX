@@ -2092,6 +2092,8 @@ class _MessageEmptyPane extends StatelessWidget {
               Flexible(
                 child: FittedBox(
                   fit: BoxFit.scaleDown,
+                  // typography-exception: the wordmark is one drawn mark, not
+                  // body copy, and it sets its own size.
                   child: Text(
                     'Mithka X',
                     style: TextStyle(

@@ -16,6 +16,8 @@
 //  report it writes explains every site the budget counts.
 //
 
+import 'dart:io';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mithka/theme/app_theme.dart';
 
@@ -24,16 +26,19 @@ import '../tool/typography_source_scan.dart';
 
 /// Sized sites that may still sit off the token ladder.
 ///
-/// Lower this in the PR that migrates sites; never raise it. When the last
-/// off-ladder site is gone, this goes to 0 and the gate becomes absolute.
-const _offLadderBudget = 40;
+/// This reached zero, so the gate is now absolute: a new literal size off the
+/// ladder fails here rather than fitting under a budget. The hand-written
+/// exceptions (the wordmark, the hidden one-time-code field, the dice glyph)
+/// carry a marker and are not counted, so the number that is left is genuinely
+/// zero rather than zero-except-the-things-we-agreed-to.
+const _offLadderBudget = 0;
 
 /// Sites that may still declare their own line height.
 ///
 /// A role carries its size, weight and leading together. Every hand-written
 /// `height:` is a role the tree has not named yet, so this budget tracks the
 /// same migration as the one above.
-const _heightBudget = 179;
+const _heightBudget = 173;
 
 /// Sites that may still state their own font size.
 ///
@@ -43,7 +48,7 @@ const _heightBudget = 179;
 /// taking a role from `AppTextStyle.<role>()`, and therefore never picks up the
 /// role's leading. It is the number that reaches zero when the tree is on
 /// roles; the other two reach zero earlier.
-const _literalStyleBudget = 1060;
+const _literalStyleBudget = 1020;
 
 void main() {
   late List<TextStyleSite> sites;
@@ -109,6 +114,27 @@ void main() {
       reason:
           'AppTextLeading and AppTextSize must cover exactly the same steps. '
           'A step without a leading would silently inherit body leading.',
+    );
+  });
+
+  test('the exceptions are the ones DESIGN.md names, and no more', () {
+    // The marker turns off the two gates above for one style. Three call sites
+    // are allowed to use it: the wordmark, the hidden one-time-code field, and
+    // the dice glyph. A fourth is a decision someone has to make in DESIGN.md,
+    // not something to slip past the budget.
+    final marked = Directory('lib')
+        .listSync(recursive: true)
+        .whereType<File>()
+        .where((file) => file.path.endsWith('.dart'))
+        .expand((file) => file.readAsLinesSync())
+        .where((line) => line.contains(typographyExceptionMarker))
+        .length;
+    expect(
+      marked,
+      lessThanOrEqualTo(3),
+      reason:
+          'Declared typography exceptions: $marked, allowed 3. Add the new '
+          'exception to DESIGN.md before marking another site.',
     );
   });
 

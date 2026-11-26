@@ -687,9 +687,8 @@ class _StoryViewerViewState extends State<StoryViewerView>
                                           1000
                                   ? 'Stealth mode · views hidden'
                                   : '${_current?.viewCount ?? 0} views',
-                              style: TextStyle(
-                                fontSize: 11,
-                                color: Colors.white.withValues(alpha: 0.75),
+                              style: AppTextStyle.caption(
+                                Colors.white.withValues(alpha: 0.75),
                               ),
                             ),
                         ],
@@ -1266,7 +1265,7 @@ class _StoryViewerViewState extends State<StoryViewerView>
     }
     final emoji = reaction?.str('emoji');
     if (emoji != null && emoji.isNotEmpty) {
-      return Text(emoji, style: const TextStyle(fontSize: 23));
+      return Text(emoji, style: const TextStyle(fontSize: AppIconSize.nav));
     }
     return const AppIcon(HeroAppIcons.heart, size: 22, color: Colors.white);
   }
@@ -1309,7 +1308,9 @@ class _StoryViewerViewState extends State<StoryViewerView>
                     child: Center(
                       child: Text(
                         reaction,
-                        style: const TextStyle(fontSize: 29),
+                        style: const TextStyle(
+                          fontSize: AppIconSize.simpleComposerPanel,
+                        ),
                       ),
                     ),
                   ),

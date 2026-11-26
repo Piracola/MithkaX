@@ -234,10 +234,9 @@ class _QRCodeViewState extends State<QRCodeView> {
                   _name.l10n(context),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.white,
+                  style: AppTextStyle.title(
+                    Colors.white,
+                    weight: AppTextWeight.semibold,
                   ),
                 ),
                 if ((_username ?? '').isNotEmpty) ...[

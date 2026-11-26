@@ -2509,6 +2509,8 @@ class _MessageBubbleState extends State<_ScopedMessageBubble>
             curve: Curves.easeOutBack,
             builder: (context, scale, child) =>
                 Transform.scale(scale: scale, child: child),
+            // typography-exception: the dice face is a drawn glyph, not copy,
+            // and `height: 1` boxes it rather than setting a leading.
             child: Text(
               message.diceEmoji ?? message.text,
               style: const TextStyle(fontSize: 64, height: 1),

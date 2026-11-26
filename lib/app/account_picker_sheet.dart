@@ -184,7 +184,7 @@ class _AccountPickerRow extends StatelessWidget {
                         account.phone,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: TextStyle(color: c.textSecondary, fontSize: 11),
+                        style: AppTextStyle.caption(c.textSecondary),
                       ),
                   ],
                 ),
@@ -205,10 +205,9 @@ class _AccountPickerRow extends StatelessWidget {
                     child: Text(
                       hasChatLabel,
                       maxLines: 1,
-                      style: TextStyle(
-                        color: AppTheme.brand,
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
+                      style: AppTextStyle.caption(
+                        AppTheme.brand,
+                        weight: AppTextWeight.semibold,
                       ),
                     ),
                   ),

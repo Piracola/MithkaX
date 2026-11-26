@@ -1021,7 +1021,7 @@ class _DesktopAccountSwitcherRow extends StatelessWidget {
                       account.phone,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: TextStyle(color: c.textSecondary, fontSize: 11),
+                      style: AppTextStyle.caption(c.textSecondary),
                     ),
                 ],
               ),

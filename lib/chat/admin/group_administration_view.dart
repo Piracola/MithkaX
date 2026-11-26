@@ -893,7 +893,9 @@ class _ReactionConfigurationViewState extends State<ReactionConfigurationView> {
                           ),
                           child: Text(
                             emoji,
-                            style: const TextStyle(fontSize: 25),
+                            style: const TextStyle(
+                              fontSize: AppIconSize.simpleComposerPanel,
+                            ),
                           ),
                         ),
                       ),

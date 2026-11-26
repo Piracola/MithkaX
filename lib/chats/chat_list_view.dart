@@ -261,17 +261,15 @@ class ChatFolderRail extends StatelessWidget {
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                         textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontSize: 11,
-                          height: 1.15,
-                          fontWeight: _highlight(filter) >= 0.5
-                              ? FontWeight.w600
-                              : FontWeight.w400,
-                          color: Color.lerp(
+                        style: AppTextStyle.caption(
+                          Color.lerp(
                             c.textSecondary,
                             c.linkBlue,
                             _highlight(filter),
-                          ),
+                          )!,
+                          weight: _highlight(filter) >= 0.5
+                              ? AppTextWeight.semibold
+                              : AppTextWeight.regular,
                         ),
                       ),
                     ],

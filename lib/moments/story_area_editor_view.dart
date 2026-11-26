@@ -302,10 +302,9 @@ class _StoryAreaEditorViewState extends State<StoryAreaEditorView> {
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
               textAlign: TextAlign.center,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 11,
-                fontWeight: FontWeight.w600,
+              style: AppTextStyle.caption(
+                Colors.white,
+                weight: AppTextWeight.semibold,
               ),
             ),
           ),

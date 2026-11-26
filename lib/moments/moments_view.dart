@@ -729,10 +729,9 @@ class _MomentsViewState extends State<MomentsView> {
               AppStringKeys.tabMoments.l10n(context),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                color: c.textPrimary,
-                fontSize: 19,
-                fontWeight: FontWeight.w600,
+              style: AppTextStyle.title(
+                c.textPrimary,
+                weight: AppTextWeight.semibold,
               ),
             ),
           ),
@@ -2870,11 +2869,9 @@ class _MomentsComposerHeader extends StatelessWidget {
                                       name,
                                       maxLines: 2,
                                       overflow: TextOverflow.ellipsis,
-                                      style: TextStyle(
-                                        fontSize: 25,
-                                        height: 1.08,
-                                        fontWeight: FontWeight.w600,
-                                        color: foreground,
+                                      style: AppTextStyle.largeDisplay(
+                                        foreground,
+                                        weight: AppTextWeight.semibold,
                                       ),
                                     ),
                                   ),
@@ -6057,7 +6054,9 @@ class _MomentsReactionSelector extends StatelessWidget {
                       : Text(
                           reaction.emoji,
                           textScaler: TextScaler.noScaling,
-                          style: const TextStyle(fontSize: 29),
+                          style: const TextStyle(
+                            fontSize: AppIconSize.simpleComposerPanel,
+                          ),
                         ),
                 ),
               ),
@@ -6699,11 +6698,10 @@ class _StoriesViewState extends State<StoriesView> {
                       subtitle,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        color: prominent
+                      style: AppTextStyle.caption(
+                        prominent
                             ? Colors.white.withValues(alpha: 0.78)
                             : c.textSecondary,
-                        fontSize: 11,
                       ),
                     ),
                   ],
@@ -6932,7 +6930,7 @@ class _StoriesViewState extends State<StoriesView> {
                 Text(
                   // order is a sort weight with flag bits, not a timestamp.
                   DateText.listLabel(group.date),
-                  style: TextStyle(fontSize: 11, color: c.textTertiary),
+                  style: AppTextStyle.caption(c.textTertiary),
                 ),
                 const SizedBox(height: 7),
                 AppIcon(

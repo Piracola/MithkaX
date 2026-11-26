@@ -410,7 +410,12 @@ class _StoryAuthoringViewState extends State<StoryAuthoringView> {
                     color: context.colors.searchFill,
                     borderRadius: BorderRadius.circular(AppRadius.card),
                   ),
-                  child: Text(emoji, style: const TextStyle(fontSize: 25)),
+                  child: Text(
+                    emoji,
+                    style: const TextStyle(
+                      fontSize: AppIconSize.simpleComposerPanel,
+                    ),
+                  ),
                 ),
               ),
           ],
@@ -960,11 +965,7 @@ class _StoryAuthoringViewState extends State<StoryAuthoringView> {
                               Text(
                                 AppStringKeys.storyChooseMedia.l10n(context),
                                 textAlign: TextAlign.center,
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 20,
-                                  fontWeight: FontWeight.w600,
-                                ),
+                                style: AppTextStyle.display(Colors.white),
                               ),
                               const SizedBox(height: 8),
                               Text(
@@ -1348,10 +1349,9 @@ class _StoryAuthoringViewState extends State<StoryAuthoringView> {
               children: [
                 Text(
                   AppStringKeys.storyShare.l10n(context),
-                  style: TextStyle(
-                    color: c.textPrimary,
-                    fontSize: 18,
-                    fontWeight: FontWeight.w600,
+                  style: AppTextStyle.title(
+                    c.textPrimary,
+                    weight: AppTextWeight.semibold,
                   ),
                 ),
                 Positioned(

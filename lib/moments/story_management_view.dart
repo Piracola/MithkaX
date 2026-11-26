@@ -454,10 +454,9 @@ class _StoryManagementViewState extends State<StoryManagementView> {
         Expanded(
           child: Text(
             title,
-            style: TextStyle(
-              color: context.colors.textPrimary,
-              fontSize: 18,
-              fontWeight: FontWeight.w600,
+            style: AppTextStyle.title(
+              context.colors.textPrimary,
+              weight: AppTextWeight.semibold,
             ),
           ),
         ),
@@ -1129,10 +1128,9 @@ class _StoryManagementViewState extends State<StoryManagementView> {
                         const SizedBox(width: 3),
                         Text(
                           '$viewCount',
-                          style: const TextStyle(
-                            color: Color(0xE6FFFFFF),
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600,
+                          style: AppTextStyle.caption(
+                            const Color(0xE6FFFFFF),
+                            weight: AppTextWeight.semibold,
                           ),
                         ),
                         const Spacer(),
@@ -1392,10 +1390,9 @@ class _StoryManagementViewState extends State<StoryManagementView> {
         Expanded(
           child: Text(
             AppStringKeys.storyManagementAlbums.l10n(context),
-            style: TextStyle(
-              color: context.colors.textPrimary,
-              fontSize: 18,
-              fontWeight: FontWeight.w600,
+            style: AppTextStyle.title(
+              context.colors.textPrimary,
+              weight: AppTextWeight.semibold,
             ),
           ),
         ),
@@ -1521,10 +1518,9 @@ class _StoryManagementViewState extends State<StoryManagementView> {
                       context.l10n.t(AppStringKeys.storyManagementAlbumCount, {
                         'value1': stories.length,
                       }),
-                      style: const TextStyle(
-                        color: Color(0xCCFFFFFF),
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
+                      style: AppTextStyle.caption(
+                        const Color(0xCCFFFFFF),
+                        weight: AppTextWeight.semibold,
                       ),
                     ),
                   ],

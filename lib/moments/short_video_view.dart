@@ -225,10 +225,9 @@ class _ShortVideoViewState extends State<ShortVideoView> {
                   AppStrings.t(
                     AppStringKeys.shortVideoMaximumShortVideoDuration,
                   ),
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 18,
-                    fontWeight: FontWeight.w600,
+                  style: AppTextStyle.title(
+                    Colors.white,
+                    weight: AppTextWeight.semibold,
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -599,10 +598,9 @@ class _ShortVideoViewState extends State<ShortVideoView> {
                 AppStringKeys.shortVideoNoShortVideosMatchTheDuration,
               ),
               textAlign: TextAlign.center,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 18,
-                fontWeight: FontWeight.w600,
+              style: AppTextStyle.title(
+                Colors.white,
+                weight: AppTextWeight.semibold,
               ),
             ),
             const SizedBox(height: 8),
