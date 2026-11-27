@@ -619,11 +619,9 @@ final class _ChatListPreviewSurfaceState extends State<ChatListPreviewSurface> {
               title,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                color: c.textPrimary,
-                fontSize: AppTextSize.bodyLarge,
-                fontWeight: FontWeight.w600,
-                decoration: TextDecoration.none,
+              style: AppTextStyle.bodyLarge(
+                c.textPrimary,
+                weight: AppTextWeight.semibold,
               ),
             ),
           ),
@@ -658,11 +656,7 @@ final class _ChatListPreviewSurfaceState extends State<ChatListPreviewSurface> {
                 child: Text(
                   AppStringKeys.chatSearchNoMessagesFound.l10n(context),
                   textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: c.textSecondary,
-                    fontSize: AppTextSize.callout,
-                    decoration: TextDecoration.none,
-                  ),
+                  style: AppTextStyle.callout(c.textSecondary),
                 ),
               ),
             )
@@ -734,10 +728,9 @@ final class _ChatListPreviewSurfaceState extends State<ChatListPreviewSurface> {
     final c = context.colors;
     // Measure the widest localized label so the menu hugs its content like
     // the reference client's popup instead of stretching to a fixed sheet width.
-    const labelStyle = TextStyle(
-      fontSize: AppTextSize.body,
-      fontWeight: FontWeight.w500,
-      decoration: TextDecoration.none,
+    final labelStyle = AppTextStyle.body(
+      c.textPrimary,
+      weight: AppTextWeight.medium,
     );
     var longestLabel = 0.0;
     for (final action in widget.actions) {
@@ -841,11 +834,9 @@ class _ChatListPreviewActionRowState extends State<_ChatListPreviewActionRow> {
                   widget.action.label.l10n(context),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: foreground,
-                    fontSize: AppTextSize.body,
-                    fontWeight: FontWeight.w500,
-                    decoration: TextDecoration.none,
+                  style: AppTextStyle.body(
+                    foreground,
+                    weight: AppTextWeight.medium,
                   ),
                 ),
               ),

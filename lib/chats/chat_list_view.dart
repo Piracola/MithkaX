@@ -1086,9 +1086,8 @@ class ChatListConnectionStatusView extends StatelessWidget {
                 key: labelKey,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontSize: AppTextSize.tiny,
-                  color: muted ? c.textTertiary : c.textSecondary,
+                style: AppTextStyle.tiny(
+                  muted ? c.textTertiary : c.textSecondary,
                 ),
               ),
             ),
@@ -3317,10 +3316,9 @@ class _ChatListViewState extends State<ChatListView>
                           _meName,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            fontSize: AppTextSize.bodyLarge,
-                            fontWeight: FontWeight.w500,
-                            color: c.textPrimary,
+                          style: AppTextStyle.bodyLarge(
+                            c.textPrimary,
+                            weight: AppTextWeight.medium,
                           ),
                         ),
                       ),
@@ -3364,10 +3362,7 @@ class _ChatListViewState extends State<ChatListView>
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   textAlign: TextAlign.right,
-                  style: TextStyle(
-                    fontSize: AppTextSize.callout,
-                    color: c.textSecondary,
-                  ),
+                  style: AppTextStyle.callout(c.textSecondary),
                 ),
               ),
               const SizedBox(width: AppSpacing.md),
@@ -3682,12 +3677,11 @@ class _ChatListViewState extends State<ChatListView>
                               filter.title.l10n(context),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                fontSize: AppTextSize.callout,
-                                fontWeight: selected
-                                    ? FontWeight.w600
-                                    : FontWeight.w500,
-                                color: c.textPrimary,
+                              style: AppTextStyle.callout(
+                                c.textPrimary,
+                                weight: selected
+                                    ? AppTextWeight.semibold
+                                    : AppTextWeight.medium,
                               ),
                             ),
                           ),
@@ -5732,10 +5726,7 @@ class _DesktopChatContextMenuItem extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   textAlign: TextAlign.left,
-                  style: TextStyle(
-                    fontSize: AppTextSize.callout,
-                    color: foreground,
-                  ),
+                  style: AppTextStyle.callout(foreground),
                 ),
               ),
             ],
@@ -6237,10 +6228,7 @@ class _ChatSwipeRowState extends State<ChatSwipeRow>
                                 child: Text(
                                   item.title.l10n(context),
                                   textAlign: TextAlign.center,
-                                  style: const TextStyle(
-                                    fontSize: AppTextSize.body,
-                                    color: Colors.white,
-                                  ),
+                                  style: AppTextStyle.body(Colors.white),
                                 ),
                               ),
                             ),

@@ -100,11 +100,9 @@ class IvBlockView extends StatelessWidget {
       case IvTitleBlock(:final title):
         return _Text(
           text: title,
-          style: ctx.typography.base.copyWith(
-            fontSize: AppTextSize.largeDisplay,
-            height: AppTextLeading.largeDisplay,
-            fontWeight: FontWeight.w700,
-            color: ctx.textColor,
+          style: AppTextStyle.largeDisplay(
+            ctx.textColor,
+            weight: FontWeight.w700,
           ),
           ctx: ctx,
         );
@@ -160,11 +158,9 @@ class IvBlockView extends StatelessWidget {
       case IvSubheaderBlock(:final subheader):
         return _Text(
           text: subheader,
-          style: ctx.typography.base.copyWith(
-            fontSize: AppTextSize.title,
-            height: AppTextLeading.title,
-            fontWeight: FontWeight.w600,
-            color: ctx.textColor,
+          style: AppTextStyle.title(
+            ctx.textColor,
+            weight: AppTextWeight.semibold,
           ),
           ctx: ctx,
         );
@@ -817,12 +813,10 @@ class _IvPullQuote extends StatelessWidget {
           text: text,
           textAlign: TextAlign.center,
           style: ctx.typography.copyWith(
-            base: ctx.typography.base.copyWith(
-              fontSize: AppTextSize.title,
-              height: AppTextLeading.title,
-              fontStyle: FontStyle.italic,
-              color: ctx.textColor,
-            ),
+            base: AppTextStyle.title(
+              ctx.textColor,
+              weight: AppTextWeight.regular,
+            ).copyWith(fontStyle: FontStyle.italic),
           ),
           onAnchor: ctx.onAnchor,
         ),

@@ -64,12 +64,10 @@ class ChatCommunityServiceCard extends StatelessWidget {
               Text(
                 label,
                 textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: colors.bubbleIncomingText,
-                  fontSize: AppTextSize.body,
-                  height: 1.35,
-                  fontWeight: FontWeight.w600,
-                ),
+                style: AppTextStyle.body(
+                  colors.bubbleIncomingText,
+                  weight: AppTextWeight.semibold,
+                ).copyWith(height: 1.35),
               ),
               if (view != null) ...[
                 const SizedBox(height: 18),
@@ -93,10 +91,9 @@ class ChatCommunityServiceCard extends StatelessWidget {
                     ),
                     child: Text(
                       AppStringKeys.communityViewAction.l10n(context),
-                      style: TextStyle(
-                        color: colors.accentButtonText,
-                        fontSize: AppTextSize.body,
-                        fontWeight: FontWeight.w600,
+                      style: AppTextStyle.body(
+                        colors.accentButtonText,
+                        weight: AppTextWeight.semibold,
                       ),
                     ),
                   ),

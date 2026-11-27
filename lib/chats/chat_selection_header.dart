@@ -148,11 +148,9 @@ class ChatSelectionHeaderState extends State<ChatSelectionHeader> {
                     '${widget.count}',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: AppTextSize.bodyLarge,
-                      fontWeight: FontWeight.w600,
-                      color: c.textPrimary,
-                      decoration: TextDecoration.none,
+                    style: AppTextStyle.bodyLarge(
+                      c.textPrimary,
+                      weight: AppTextWeight.semibold,
                     ),
                   ),
                 ),

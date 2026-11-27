@@ -71,21 +71,19 @@ class StickerSizeSettingsView extends StatelessWidget {
                     Expanded(
                       child: Text(
                         AppStrings.t(AppStringKeys.mithkaxStickerSizeTitle),
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w500,
-                          color: colors.textPrimary,
+                        style: AppTextStyle.bodyLarge(
+                          colors.textPrimary,
+                          weight: AppTextWeight.medium,
                         ),
                       ),
                     ),
                     Text(
                       '${(scale * 100).round()}%',
                       key: const ValueKey('sticker-size-percent'),
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: colors.textSecondary,
-                        fontFeatures: const [FontFeature.tabularFigures()],
-                      ),
+                      style: AppTextStyle.callout(colors.textSecondary)
+                          .copyWith(
+                            fontFeatures: const [FontFeature.tabularFigures()],
+                          ),
                     ),
                   ],
                 ),
@@ -123,18 +121,12 @@ class StickerSizeSettingsView extends StatelessWidget {
                     children: [
                       Text(
                         AppStrings.t(AppStringKeys.mithkaxStickerSizeSmall),
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: colors.textTertiary,
-                        ),
+                        style: AppTextStyle.caption(colors.textTertiary),
                       ),
                       const Spacer(),
                       Text(
                         AppStrings.t(AppStringKeys.mithkaxStickerSizeLarge),
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: colors.textTertiary,
-                        ),
+                        style: AppTextStyle.caption(colors.textTertiary),
                       ),
                     ],
                   ),
@@ -146,7 +138,7 @@ class StickerSizeSettingsView extends StatelessWidget {
                     onPressed: () => theme.stickerMediaSize = 14,
                     child: Text(
                       AppStrings.t(AppStringKeys.mithkaxStickerSizeReset),
-                      style: TextStyle(color: colors.linkBlue, fontSize: 14),
+                      style: AppTextStyle.callout(colors.linkBlue),
                     ),
                   ),
                 ),
@@ -177,7 +169,7 @@ class _Sample extends StatelessWidget {
           label,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
-          style: TextStyle(fontSize: 12, color: colors.textSecondary),
+          style: AppTextStyle.caption(colors.textSecondary),
         ),
       ],
     );

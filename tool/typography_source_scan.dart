@@ -20,6 +20,17 @@ final _ladderConstRe = RegExp(
 
 final _fontSizeRe = RegExp(r'fontSize:\s*([0-9]+(?:\.[0-9]+)?)');
 
+/// `fontSize: AppTextSize.body` states a step by name.
+///
+/// The numeric regex above cannot see it, which makes this the one spelling
+/// that looks converted while still stating a size and no leading — the defect
+/// the whole ladder exists to remove. A call such as `AppTextSize.chatListTitle()`
+/// is a platform-dependent size, and `AppTextSize.tiny + 1` an arithmetic step;
+/// neither names a ladder constant and both are deliberately not matched.
+final _tokenSizeRe = RegExp(
+  r'fontSize:\s*AppTextSize\.([a-zA-Z]+)(?![a-zA-Z0-9_(+\-*/.])',
+);
+
 /// `height: 20 / 16` states a leading as a ratio; `height: 18` states it
 /// outright. Both are line heights, but only the ratio's quotient is one, so
 /// the ratio form is matched first.
@@ -103,16 +114,24 @@ List<TextStyleSite> scanTypographySites([String root = typographySourceRoot]) {
 
   return [
     for (final file in files)
-      ...scanTypographySource(
-        file.path.replaceAll(r'\', '/'),
-        file.readAsStringSync(),
-      ),
+      if (file.path.replaceAll(r'\', '/') != typographyLadderSource)
+        ...scanTypographySource(
+          file.path.replaceAll(r'\', '/'),
+          file.readAsStringSync(),
+        ),
   ];
 }
 
 /// The sites inside one file's [source]. Exposed so the scanner can be
 /// exercised on a fixture without touching the tree.
-List<TextStyleSite> scanTypographySource(String path, String source) {
+List<TextStyleSite> scanTypographySource(
+  String path,
+  String source, {
+  Map<double, String>? ladder,
+}) {
+  final byName = {
+    for (final step in (ladder ?? readLadder()).entries) step.value: step.key,
+  };
   final lineStarts = <int>[0];
   for (var i = 0; i < source.length; i++) {
     if (source.codeUnitAt(i) == 0x0A) lineStarts.add(i + 1);
@@ -138,9 +157,13 @@ List<TextStyleSite> scanTypographySource(String path, String source) {
     if (body == null) continue;
     final code = _stripComments(body);
     final size = _fontSizeRe.firstMatch(code);
+    final token = size == null ? _tokenSizeRe.firstMatch(code) : null;
+    final tokenSize = token == null ? null : byName[token.group(1)!];
     final height = _readHeight(code);
     final weight = _weightRe.firstMatch(code);
-    if (size == null && height == null && weight == null) continue;
+    if (size == null && tokenSize == null && height == null && weight == null) {
+      continue;
+    }
 
     // An exception is written in the comment above the style it excuses, so it
     // is looked for in the raw source between the previous style and this one.
@@ -156,7 +179,7 @@ List<TextStyleSite> scanTypographySource(String path, String source) {
         file: path,
         line: lineOf(match.start),
         flavor: match.group(1)!,
-        size: size == null ? null : double.parse(size.group(1)!),
+        size: size == null ? tokenSize : double.parse(size.group(1)!),
         height: height,
         weight: weight?.group(1),
       ),

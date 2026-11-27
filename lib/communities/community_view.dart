@@ -367,12 +367,10 @@ class _CommunityViewState extends State<CommunityView> {
     padding: const EdgeInsets.symmetric(horizontal: 6),
     child: Text(
       title.l10n(context),
-      style: TextStyle(
-        fontSize: AppTextSize.caption,
-        fontWeight: FontWeight.w600,
-        letterSpacing: 0.5,
-        color: context.colors.textTertiary,
-      ),
+      style: AppTextStyle.caption(
+        context.colors.textTertiary,
+        weight: AppTextWeight.semibold,
+      ).copyWith(letterSpacing: 0.5),
     ),
   );
 
@@ -404,10 +402,9 @@ class _CommunityViewState extends State<CommunityView> {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   textAlign: TextAlign.left,
-                  style: TextStyle(
-                    fontSize: AppTextSize.title,
-                    fontWeight: FontWeight.w600,
-                    color: c.textPrimary,
+                  style: AppTextStyle.title(
+                    c.textPrimary,
+                    weight: AppTextWeight.semibold,
                   ),
                 ),
                 const SizedBox(height: 5),
@@ -420,10 +417,7 @@ class _CommunityViewState extends State<CommunityView> {
                     }.length,
                   ),
                   textAlign: TextAlign.left,
-                  style: TextStyle(
-                    fontSize: AppTextSize.callout,
-                    color: c.textTertiary,
-                  ),
+                  style: AppTextStyle.callout(c.textTertiary),
                 ),
               ],
             ),
@@ -454,10 +448,7 @@ class _CommunityViewState extends State<CommunityView> {
             Text(
               AppStringKeys.communityNoChats.l10n(context),
               textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: AppTextSize.callout,
-                color: c.textTertiary,
-              ),
+              style: AppTextStyle.callout(c.textTertiary),
             ),
           ],
         ),

@@ -42,8 +42,6 @@ mirrors the chat text size and its own leading, not `bodyLarge`.
   the ladder:
   - Emoji and symbol glyphs are not text. Size them with `AppIconSize`, never
     with `fontSize`.
-  - The `Mithka X` wordmark is a single drawn mark, not body copy; it sets its
-    own size at its one call site.
   - `lib/auth/login_view.dart` sizes a hidden one-time-code field at 1 to keep
     it out of layout. That is a layout trick, not typography.
   - A `height: 1` on a glyph box is not a line height.
@@ -66,6 +64,10 @@ Typography is enforced, not just documented:
   gap — a converted area can regress back toward its old budget without the gate
   noticing — so re-measure and lower both in the same commit that migrates,
   rather than at the end.
+- A size written `fontSize: AppTextSize.body` counts as a hand-picked size even
+  though it names a step. It renders at that size with the theme's default
+  leading, so it looks migrated while carrying the defect the ladder removes.
+  Both spellings are measured; only a role states the leading too.
 - The off-ladder exceptions above are not counted: they carry a
   `typography-exception` comment with the reason, and a fourth one fails a test
   until it is added to this list. The marker only excuses the one style it sits

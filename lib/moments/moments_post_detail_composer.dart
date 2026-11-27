@@ -546,10 +546,7 @@ Future<void> showChannelPostMenu(BuildContext context, ChannelPost post) {
             const SizedBox(width: AppSpacing.xl),
             Text(
               AppStringKeys.momentsOpenOriginalMessage.l10n(context),
-              style: TextStyle(
-                fontSize: AppTextSize.bodyLarge,
-                color: context.colors.textPrimary,
-              ),
+              style: AppTextStyle.bodyLarge(context.colors.textPrimary),
             ),
           ],
         ),

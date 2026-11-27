@@ -108,10 +108,9 @@ class _HiddenSenderRow extends StatelessWidget {
               ),
               child: Text(
                 initial,
-                style: TextStyle(
-                  fontSize: AppTextSize.callout,
-                  fontWeight: AppTextWeight.semibold,
-                  color: c.textSecondary,
+                style: AppTextStyle.callout(
+                  c.textSecondary,
+                  weight: AppTextWeight.semibold,
                 ),
               ),
             ),
@@ -125,10 +124,9 @@ class _HiddenSenderRow extends StatelessWidget {
                     entry.name,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: AppTextSize.body,
-                      fontWeight: AppTextWeight.medium,
-                      color: c.textPrimary,
+                    style: AppTextStyle.body(
+                      c.textPrimary,
+                      weight: AppTextWeight.medium,
                     ),
                   ),
                   const SizedBox(height: 2),
@@ -147,10 +145,7 @@ class _HiddenSenderRow extends StatelessWidget {
                           scope,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            fontSize: AppTextSize.caption,
-                            color: c.textSecondary,
-                          ),
+                          style: AppTextStyle.caption(c.textSecondary),
                         ),
                       ),
                     ],
@@ -177,10 +172,9 @@ class _HiddenSenderRow extends StatelessWidget {
                 ),
                 child: Text(
                   AppStrings.t(AppStringKeys.hiddenSendersShow),
-                  style: TextStyle(
-                    fontSize: AppTextSize.footnote,
-                    fontWeight: AppTextWeight.semibold,
-                    color: c.linkBlue,
+                  style: AppTextStyle.footnote(
+                    c.linkBlue,
+                    weight: AppTextWeight.semibold,
                   ),
                 ),
               ),
@@ -207,10 +201,7 @@ class _EmptyState extends StatelessWidget {
           Text(
             AppStrings.t(AppStringKeys.hiddenSendersEmpty),
             textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: AppTextSize.callout,
-              color: c.textSecondary,
-            ),
+            style: AppTextStyle.callout(c.textSecondary),
           ),
         ],
       ),

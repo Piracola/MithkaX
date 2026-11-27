@@ -849,12 +849,11 @@ class _TranslationSettingsViewState extends State<TranslationSettingsView> {
                     option.title,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: option.available
+                    style: AppTextStyle.body(
+                      option.available
                           ? colors.textPrimary
                           : colors.textTertiary,
-                      fontSize: AppTextSize.body,
-                      fontWeight: FontWeight.w500,
+                      weight: AppTextWeight.medium,
                     ),
                   ),
                   if (option.subtitle case final subtitle?) ...[

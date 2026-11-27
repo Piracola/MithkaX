@@ -456,12 +456,11 @@ class _ChatPickerViewState extends State<ChatPickerView> {
                           filter.title.l10n(context),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            fontSize: AppTextSize.callout,
-                            fontWeight: selected
-                                ? FontWeight.w600
-                                : FontWeight.w500,
-                            color: c.textPrimary,
+                          style: AppTextStyle.callout(
+                            c.textPrimary,
+                            weight: selected
+                                ? AppTextWeight.semibold
+                                : AppTextWeight.medium,
                           ),
                         ),
                       ),

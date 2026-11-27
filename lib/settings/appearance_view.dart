@@ -2159,21 +2159,13 @@ class ChatListGestureSettingsView extends StatelessWidget {
                     mainAxisAlignment: MainAxisAlignment.center,
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        label,
-                        style: TextStyle(
-                          fontSize: AppTextSize.bodyLarge,
-                          color: c.textPrimary,
-                        ),
-                      ),
+                      Text(label, style: AppTextStyle.bodyLarge(c.textPrimary)),
                       const SizedBox(height: AppSpacing.xxs),
                       Text(
                         description,
-                        style: TextStyle(
-                          fontSize: AppTextSize.footnote,
-                          height: 1.25,
-                          color: c.textSecondary,
-                        ),
+                        style: AppTextStyle.footnote(
+                          c.textSecondary,
+                        ).copyWith(height: 1.25),
                       ),
                     ],
                   ),
@@ -2328,10 +2320,9 @@ extension _DisplayAppearanceHelpers on AppearanceView {
                         AppStrings.t(AppStringKeys.appearanceTitle),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: AppTextSize.bodyLarge,
-                          fontWeight: FontWeight.w600,
-                          color: c.textPrimary,
+                        style: AppTextStyle.bodyLarge(
+                          c.textPrimary,
+                          weight: AppTextWeight.semibold,
                         ),
                       ),
                     ),
@@ -2367,10 +2358,9 @@ extension _DisplayAppearanceHelpers on AppearanceView {
                           AppStrings.t(AppStringKeys.savedMessages),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            fontSize: AppTextSize.bodyLarge,
-                            fontWeight: FontWeight.w600,
-                            color: c.textPrimary,
+                          style: AppTextStyle.bodyLarge(
+                            c.textPrimary,
+                            weight: AppTextWeight.semibold,
                           ),
                         ),
                         const SizedBox(height: AppSpacing.xxs),
@@ -2378,22 +2368,13 @@ extension _DisplayAppearanceHelpers on AppearanceView {
                           AppStrings.t(AppStringKeys.appearanceChatView),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            fontSize: AppTextSize.footnote,
-                            color: c.textSecondary,
-                          ),
+                          style: AppTextStyle.footnote(c.textSecondary),
                         ),
                       ],
                     ),
                   ),
                   const SizedBox(width: AppSpacing.lg),
-                  Text(
-                    '10:42',
-                    style: TextStyle(
-                      fontSize: AppTextSize.caption,
-                      color: c.textTertiary,
-                    ),
-                  ),
+                  Text('10:42', style: AppTextStyle.caption(c.textTertiary)),
                 ],
               ),
             ),
@@ -2421,20 +2402,17 @@ extension _DisplayAppearanceHelpers on AppearanceView {
               Expanded(
                 child: Text(
                   title,
-                  style: TextStyle(
-                    fontSize: AppTextSize.footnote,
-                    fontWeight: FontWeight.w600,
-                    color: c.textSecondary,
+                  style: AppTextStyle.footnote(
+                    c.textSecondary,
+                    weight: AppTextWeight.semibold,
                   ),
                 ),
               ),
               Text(
                 valueLabel ?? '${(value * 100).round()}%',
-                style: TextStyle(
-                  fontSize: AppTextSize.footnote,
-                  color: AppTheme.brand,
-                  fontFeatures: const [FontFeature.tabularFigures()],
-                ),
+                style: AppTextStyle.footnote(
+                  AppTheme.brand,
+                ).copyWith(fontFeatures: const [FontFeature.tabularFigures()]),
               ),
             ],
           ),
@@ -2763,7 +2741,7 @@ class _FontCacheManagementViewState extends State<FontCacheManagementView> {
         ),
         child: Text(
           AppStrings.t(AppStringKeys.appearanceNoDownloadedFontCache),
-          style: TextStyle(fontSize: AppTextSize.body, color: c.textSecondary),
+          style: AppTextStyle.body(c.textSecondary),
         ),
       );
     }
@@ -2792,13 +2770,7 @@ class _FontCacheManagementViewState extends State<FontCacheManagementView> {
         padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xxl),
         child: Row(
           children: [
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: AppTextSize.bodyLarge,
-                color: c.textPrimary,
-              ),
-            ),
+            Text(label, style: AppTextStyle.bodyLarge(c.textPrimary)),
             const SizedBox(width: AppSpacing.lg),
             Expanded(
               child: Text(
@@ -2806,10 +2778,7 @@ class _FontCacheManagementViewState extends State<FontCacheManagementView> {
                 textAlign: TextAlign.right,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontSize: AppTextSize.body,
-                  color: c.textTertiary,
-                ),
+                style: AppTextStyle.body(c.textTertiary),
               ),
             ),
           ],
@@ -2843,13 +2812,7 @@ class _FontCacheManagementViewState extends State<FontCacheManagementView> {
               children: [
                 Icon(icon, size: AppIconSize.xl, color: color),
                 const SizedBox(width: AppSpacing.lg),
-                Text(
-                  title,
-                  style: TextStyle(
-                    fontSize: AppTextSize.bodyLarge,
-                    color: color,
-                  ),
-                ),
+                Text(title, style: AppTextStyle.bodyLarge(color)),
                 const Spacer(),
                 if (busy)
                   SizedBox(
@@ -2863,13 +2826,7 @@ class _FontCacheManagementViewState extends State<FontCacheManagementView> {
                     ),
                   )
                 else if (status != null)
-                  Text(
-                    status,
-                    style: TextStyle(
-                      fontSize: AppTextSize.footnote,
-                      color: c.textTertiary,
-                    ),
-                  )
+                  Text(status, style: AppTextStyle.footnote(c.textTertiary))
                 else
                   AppIcon(
                     HeroAppIcons.chevronRight,
@@ -2903,10 +2860,9 @@ class _FontCacheManagementViewState extends State<FontCacheManagementView> {
                     entry.displayName,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: AppTextSize.bodyLarge,
-                      color: c.textPrimary,
-                      fontWeight: FontWeight.w500,
+                    style: AppTextStyle.bodyLarge(
+                      c.textPrimary,
+                      weight: AppTextWeight.medium,
                     ),
                   ),
                   const SizedBox(height: 2),
@@ -2914,10 +2870,7 @@ class _FontCacheManagementViewState extends State<FontCacheManagementView> {
                     '${_formatBytes(entry.bytes)} · ${entry.modifiedLabel}',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: AppTextSize.footnote,
-                      color: c.textSecondary,
-                    ),
+                    style: AppTextStyle.footnote(c.textSecondary),
                   ),
                 ],
               ),
@@ -2928,9 +2881,8 @@ class _FontCacheManagementViewState extends State<FontCacheManagementView> {
                   ? AppStrings.t(AppStringKeys.appearanceFontInUse)
                   : AppStrings.t(AppStringKeys.appearanceFontUnused),
               textAlign: TextAlign.right,
-              style: TextStyle(
-                fontSize: AppTextSize.footnote,
-                color: entry.active ? AppTheme.brand : c.textTertiary,
+              style: AppTextStyle.footnote(
+                entry.active ? AppTheme.brand : c.textTertiary,
               ),
             ),
             const SizedBox(width: AppSpacing.sm),
@@ -3388,13 +3340,7 @@ class _FontEmptyOrErrorPanel extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                message,
-                style: TextStyle(
-                  fontSize: AppTextSize.body,
-                  color: c.textSecondary,
-                ),
-              ),
+              Text(message, style: AppTextStyle.body(c.textSecondary)),
               if (onRetry != null || onSwitchOnline != null) ...[
                 const SizedBox(height: AppSpacing.md),
                 Wrap(
@@ -3552,7 +3498,7 @@ class TextFontView extends StatelessWidget {
         ),
         child: Text(
           AppStrings.t(AppStringKeys.appearanceTextFontUnsetHint),
-          style: TextStyle(fontSize: AppTextSize.body, color: c.textSecondary),
+          style: AppTextStyle.body(c.textSecondary),
         ),
       );
     }
@@ -3610,10 +3556,9 @@ class TextFontView extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                     style: _fontTitleStyle(
                       family,
-                      TextStyle(
-                        fontSize: AppTextSize.bodyLarge,
-                        color: c.textPrimary,
-                        fontWeight: FontWeight.w500,
+                      AppTextStyle.bodyLarge(
+                        c.textPrimary,
+                        weight: AppTextWeight.medium,
                       ),
                       context: context,
                       googleFamily: googleFamily,
@@ -3627,10 +3572,7 @@ class TextFontView extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                     style: _fontPreviewStyle(
                       family,
-                      TextStyle(
-                        fontSize: AppTextSize.footnote,
-                        color: c.textSecondary,
-                      ),
+                      AppTextStyle.footnote(c.textSecondary),
                       context: context,
                       googleFamily: googleFamily,
                       googleLoaded: googleFamily != null,
@@ -3717,10 +3659,7 @@ class TextFontView extends StatelessWidget {
             children: [
               Icon(icon, size: AppIconSize.xl, color: color),
               const SizedBox(width: AppSpacing.lg),
-              Text(
-                title,
-                style: TextStyle(fontSize: AppTextSize.bodyLarge, color: color),
-              ),
+              Text(title, style: AppTextStyle.bodyLarge(color)),
               const Spacer(),
               AppIcon(
                 HeroAppIcons.chevronRight,
@@ -3816,10 +3755,7 @@ class _EmojiFontPickerViewState extends State<EmojiFontPickerView> {
             return Center(
               child: Text(
                 AppStrings.t(AppStringKeys.appearanceFontLoadFailed),
-                style: TextStyle(
-                  fontSize: AppTextSize.bodyLarge,
-                  color: c.textSecondary,
-                ),
+                style: AppTextStyle.bodyLarge(c.textSecondary),
               ),
             );
           }
@@ -3986,10 +3922,9 @@ class _EmojiFontPickerViewState extends State<EmojiFontPickerView> {
                         title.l10n(context),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: AppTextSize.bodyLarge,
-                          color: c.textPrimary,
-                          fontWeight: FontWeight.w500,
+                        style: AppTextStyle.bodyLarge(
+                          c.textPrimary,
+                          weight: AppTextWeight.medium,
                         ),
                       ),
                       if (caption.isNotEmpty) ...[
@@ -3998,10 +3933,7 @@ class _EmojiFontPickerViewState extends State<EmojiFontPickerView> {
                           caption,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            fontSize: AppTextSize.footnote,
-                            color: c.textSecondary,
-                          ),
+                          style: AppTextStyle.footnote(c.textSecondary),
                         ),
                       ],
                     ],
@@ -4172,10 +4104,7 @@ class _EmojiFontSwipeRowState extends State<_EmojiFontSwipeRow>
                       child: Text(
                         AppStrings.t(AppStringKeys.chatDelete),
                         textAlign: TextAlign.center,
-                        style: const TextStyle(
-                          fontSize: AppTextSize.body,
-                          color: Colors.white,
-                        ),
+                        style: AppTextStyle.body(Colors.white),
                       ),
                     ),
                   ),
@@ -4526,10 +4455,9 @@ class _FontAddViewState extends State<FontAddView> {
                       overflow: TextOverflow.ellipsis,
                       style: font.titleStyle(
                         context,
-                        TextStyle(
-                          fontSize: AppTextSize.bodyLarge,
-                          color: c.textPrimary,
-                          fontWeight: FontWeight.w500,
+                        AppTextStyle.bodyLarge(
+                          c.textPrimary,
+                          weight: AppTextWeight.medium,
                         ),
                       ),
                     ),
@@ -4540,10 +4468,7 @@ class _FontAddViewState extends State<FontAddView> {
                       overflow: TextOverflow.ellipsis,
                       style: font.previewStyle(
                         context,
-                        TextStyle(
-                          fontSize: AppTextSize.footnote,
-                          color: c.textSecondary,
-                        ),
+                        AppTextStyle.footnote(c.textSecondary),
                       ),
                     ),
                   ],
@@ -4556,10 +4481,7 @@ class _FontAddViewState extends State<FontAddView> {
                     : font.google && font.downloaded
                     ? AppStrings.t(AppStringKeys.appearanceGoogleDownloaded)
                     : font.source.l10n(context),
-                style: TextStyle(
-                  fontSize: AppTextSize.footnote,
-                  color: c.textTertiary,
-                ),
+                style: AppTextStyle.footnote(c.textTertiary),
               ),
               if (loading) ...[
                 const SizedBox(width: AppSpacing.md),
@@ -5065,10 +4987,9 @@ class _MonospaceFontPickerViewState extends State<MonospaceFontPickerView> {
                       overflow: TextOverflow.ellipsis,
                       style: font.titleStyle(
                         context,
-                        TextStyle(
-                          fontSize: AppTextSize.bodyLarge,
-                          color: c.textPrimary,
-                          fontWeight: FontWeight.w500,
+                        AppTextStyle.bodyLarge(
+                          c.textPrimary,
+                          weight: AppTextWeight.medium,
                         ),
                         selected: selected,
                       ),
@@ -5080,10 +5001,7 @@ class _MonospaceFontPickerViewState extends State<MonospaceFontPickerView> {
                       overflow: TextOverflow.ellipsis,
                       style: font.previewStyle(
                         context,
-                        TextStyle(
-                          fontSize: AppTextSize.footnote,
-                          color: c.textSecondary,
-                        ),
+                        AppTextStyle.footnote(c.textSecondary),
                         selected: selected,
                       ),
                     ),
@@ -5097,10 +5015,7 @@ class _MonospaceFontPickerViewState extends State<MonospaceFontPickerView> {
                     : font.google && font.downloaded
                     ? AppStrings.t(AppStringKeys.appearanceGoogleDownloaded)
                     : font.source.l10n(context),
-                style: TextStyle(
-                  fontSize: AppTextSize.footnote,
-                  color: c.textTertiary,
-                ),
+                style: AppTextStyle.footnote(c.textTertiary),
               ),
               if (loading) ...[
                 const SizedBox(width: AppSpacing.md),

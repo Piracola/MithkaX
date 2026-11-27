@@ -1465,11 +1465,7 @@ class _LoginViewState extends State<LoginView> {
           Text(
             title,
             textAlign: TextAlign.start,
-            style: TextStyle(
-              fontSize: AppTextSize.display,
-              fontWeight: AppTextWeight.semibold,
-              color: c.textPrimary,
-            ),
+            style: AppTextStyle.display(c.textPrimary),
           ),
           if (subtitle != null && subtitle.isNotEmpty) ...[
             const SizedBox(height: AppSpacing.sm),
@@ -3017,10 +3013,7 @@ class _InputFieldState extends State<InputField> {
               decoration: InputDecoration(
                 hintText: widget.placeholder,
                 hintStyle: desktop
-                    ? TextStyle(
-                        fontSize: AppTextSize.callout,
-                        color: c.textTertiary,
-                      )
+                    ? AppTextStyle.callout(c.textTertiary)
                     : null,
                 border: InputBorder.none,
                 isCollapsed: true,

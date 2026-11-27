@@ -141,10 +141,9 @@ class _MiniAppTile extends StatelessWidget {
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             textAlign: TextAlign.center,
-            style: TextStyle(
-              color: c.textPrimary,
-              fontSize: AppTextSize.caption,
-              fontWeight: context.appFontWeight(FontWeight.w400),
+            style: AppTextStyle.caption(
+              c.textPrimary,
+              weight: context.appFontWeight(FontWeight.w400),
             ),
           ),
         ],

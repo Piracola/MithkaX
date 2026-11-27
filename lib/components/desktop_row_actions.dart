@@ -318,10 +318,7 @@ class _DesktopRowActionItem extends StatelessWidget {
                   label,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: AppTextSize.callout,
-                    color: foreground,
-                  ),
+                  style: AppTextStyle.callout(foreground),
                 ),
               ),
             ],

@@ -105,14 +105,7 @@ class _AboutViewState extends State<AboutView> {
                 // rather than below an empty canvas margin.
                 BrandMark.ink(ink: 84),
                 const SizedBox(height: AppSpacing.md),
-                Text(
-                  'Mithka X',
-                  style: TextStyle(
-                    fontSize: AppTextSize.display,
-                    fontWeight: FontWeight.w600,
-                    color: c.textPrimary,
-                  ),
-                ),
+                Text('Mithka X', style: AppTextStyle.display(c.textPrimary)),
                 const SizedBox(height: AppSpacing.xxs),
                 GestureDetector(
                   behavior: HitTestBehavior.opaque,

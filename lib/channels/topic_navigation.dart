@@ -987,12 +987,12 @@ class _SideTopicTab extends StatelessWidget {
                     maxLines: 3,
                     overflow: TextOverflow.ellipsis,
                     textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: AppTextSize.tiny,
-                      height: 1.15,
-                      fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
-                      color: selected ? AppTheme.brand : c.textSecondary,
-                    ),
+                    style: AppTextStyle.tiny(
+                      selected ? AppTheme.brand : c.textSecondary,
+                      weight: selected
+                          ? AppTextWeight.semibold
+                          : AppTextWeight.medium,
+                    ).copyWith(height: 1.15),
                   ),
                 ],
               ),
@@ -1101,10 +1101,9 @@ class _TopicTabsReorderDoneButton extends StatelessWidget {
                 const SizedBox(width: 4),
                 Text(
                   AppStringKeys.mithkaxTopicTabsDone.l10n(context),
-                  style: TextStyle(
-                    fontSize: AppTextSize.callout,
-                    fontWeight: FontWeight.w600,
-                    color: AppTheme.brand,
+                  style: AppTextStyle.callout(
+                    AppTheme.brand,
+                    weight: AppTextWeight.semibold,
                   ),
                 ),
               ],
@@ -1185,10 +1184,11 @@ class _TopicTab extends StatelessWidget {
                     name,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: AppTextSize.callout,
-                      fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
-                      color: c.textPrimary,
+                    style: AppTextStyle.callout(
+                      c.textPrimary,
+                      weight: selected
+                          ? AppTextWeight.semibold
+                          : AppTextWeight.medium,
                     ),
                   ),
                 ),
