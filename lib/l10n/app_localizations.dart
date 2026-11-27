@@ -242,6 +242,7 @@ abstract final class AppStringKeys {
   static const navigationBack = 'navigationBack';
   static const aboutReportProblem = 'aboutReportProblem';
   static const aboutReportProblemDetail = 'aboutReportProblemDetail';
+  static const aboutCommunityChat = 'aboutCommunityChat';
   static const aboutTelegramChannel = 'aboutTelegramChannel';
   static const aboutTitle = 'aboutTitle';
   static const aboutVersion = 'aboutVersion';
@@ -456,9 +457,15 @@ abstract final class AppStringKeys {
   static const mithkaxScheduledDeleteOneWeek = 'mithkaxScheduledDeleteOneWeek';
   static const mithkaxScheduledDeleteOneMonth =
       'mithkaxScheduledDeleteOneMonth';
+  static const mithkaxStickerSizeTitle = 'mithkaxStickerSizeTitle';
+  static const mithkaxStickerSizeNote = 'mithkaxStickerSizeNote';
+  static const mithkaxStickerSizeSmall = 'mithkaxStickerSizeSmall';
+  static const mithkaxStickerSizeLarge = 'mithkaxStickerSizeLarge';
+  static const mithkaxStickerSizeReset = 'mithkaxStickerSizeReset';
   static const mithkaxTopicTabsDone = 'mithkaxTopicTabsDone';
   static const mithkaxTopicTabsReorder = 'mithkaxTopicTabsReorder';
   static const mithkaxTopicTabsMoveToBottom = 'mithkaxTopicTabsMoveToBottom';
+  static const mithkaxTopicTabsMoveToSide = 'mithkaxTopicTabsMoveToSide';
   static const mithkaxTopicTabsMoveToTop = 'mithkaxTopicTabsMoveToTop';
   static const addMembersDone = 'addMembersDone';
   static const addMembersDoneWithCount = 'addMembersDoneWithCount';
@@ -649,6 +656,13 @@ abstract final class AppStringKeys {
   static const appearanceAddTextFont = 'appearanceAddTextFont';
   static const appearanceAlwaysShowMessageTime =
       'appearanceAlwaysShowMessageTime';
+  static const appearanceAvatarOnlineStatus = 'appearanceAvatarOnlineStatus';
+  static const appearanceAvatarOnlineStatusNote =
+      'appearanceAvatarOnlineStatusNote';
+  static const doubleTapActionNone = 'doubleTapActionNone';
+  static const doubleTapActionSendReaction = 'doubleTapActionSendReaction';
+  static const doubleTapIncoming = 'doubleTapIncoming';
+  static const doubleTapOutgoing = 'doubleTapOutgoing';
   static const appearanceAnimateAvatars = 'appearanceAnimateAvatars';
   static const appearanceAnimateStatusEmoji = 'appearanceAnimateStatusEmoji';
   static const appearanceAvatarsAndSidebar = 'appearanceAvatarsAndSidebar';
@@ -1178,6 +1192,10 @@ abstract final class AppStringKeys {
   static const chatInfoPinLimit = 'chatInfoPinLimit';
   static const chatInfoPinLimitReachedError = 'chatInfoPinLimitReachedError';
   static const chatInfoPinnedHighlights = 'chatInfoPinnedHighlights';
+  static const chatPinAlsoFor = 'chatPinAlsoFor';
+  static const chatPinDialogMessage = 'chatPinDialogMessage';
+  static const chatPinDialogTitle = 'chatPinDialogTitle';
+  static const chatPinNotifyMembers = 'chatPinNotifyMembers';
   static const chatInfoRemove = 'chatInfoRemove';
   static const chatInfoSearchHistory = 'chatInfoSearchHistory';
   static const chatInfoTitle = 'chatInfoTitle';
@@ -2703,8 +2721,11 @@ abstract final class AppStringKeys {
   static const notificationTopFive = 'notificationTopFive';
   static const notificationTopFiveDescription =
       'notificationTopFiveDescription';
+  static const pinnedMessagesCountTitle = 'pinnedMessagesCountTitle';
   static const pinnedMessagesEmpty = 'pinnedMessagesEmpty';
+  static const pinnedMessagesHide = 'pinnedMessagesHide';
   static const pinnedMessagesSentBy = 'pinnedMessagesSentBy';
+  static const pinnedMessagesUnpinAll = 'pinnedMessagesUnpinAll';
   static const pollComposerAddOption = 'pollComposerAddOption';
   static const pollComposerCreatePollTitle = 'pollComposerCreatePollTitle';
   static const pollComposerOptionLabel = 'pollComposerOptionLabel';

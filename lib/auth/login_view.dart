@@ -30,12 +30,12 @@ import '../components/ui_components.dart';
 import '../platform/adaptive_platform.dart';
 import '../platform/ohos_support.dart';
 import '../profile/profile_proxy_button.dart';
-import '../settings/account_backup_view.dart';
-import '../settings/api_credentials_view.dart';
 import '../settings/language_settings_view.dart';
-import '../settings/proxy_config.dart';
-import '../settings/proxy_status.dart';
-import '../settings/proxy_view.dart';
+import '../settings/network_proxy/api_credentials_view.dart';
+import '../settings/network_proxy/proxy_config.dart';
+import '../settings/network_proxy/proxy_status.dart';
+import '../settings/network_proxy/proxy_view.dart';
+import '../settings/profile_account/account_backup_view.dart';
 import '../tdlib/td_client.dart';
 import '../theme/app_motion.dart';
 import '../theme/app_theme.dart';
@@ -52,7 +52,7 @@ bool loginHasBackAction({
   required bool showBotLogin,
   required bool forcePhone,
   required AuthStep step,
-  required int configuredAccountCount,
+  required int otherAccountCount,
 }) {
   final beyondPhone =
       step is AuthWaitCode ||
@@ -62,9 +62,7 @@ bool loginHasBackAction({
       step is AuthWaitQrCode ||
       step is AuthWaitPassword ||
       step is AuthWaitRegistration;
-  return showBotLogin ||
-      (beyondPhone && !forcePhone) ||
-      configuredAccountCount > 1;
+  return showBotLogin || (beyondPhone && !forcePhone) || otherAccountCount > 0;
 }
 
 /// Whether the standalone back affordance offers a destination the method
@@ -74,10 +72,10 @@ bool loginHasBackAction({
 bool loginHasDistinctBackDestination({
   required bool showBotLogin,
   required bool backToPhoneOnly,
-  required int configuredAccountCount,
+  required int otherAccountCount,
 }) {
-  if (showBotLogin) return configuredAccountCount > 1;
-  return !backToPhoneOnly || configuredAccountCount > 1;
+  if (showBotLogin) return otherAccountCount > 0;
+  return !backToPhoneOnly || otherAccountCount > 0;
 }
 
 /// Maximum width of the compact login lane.
@@ -209,14 +207,13 @@ class _LoginViewState extends State<LoginView> {
     super.initState();
     final initialStep = context.read<AuthManager>().step;
     // Mounting mid-reload (add-account rides the gate's splash→login
-    // hand-off through AuthReloading) must not seed the literal
-    // "AuthReloading" identity: a few hundred ms later the real phone form
-    // arrives, the key flips, and the switcher cross-fades the same form
-    // against itself — the add-account entry flicker. Seed the phone
-    // column; the sticky branch keeps later reloads on what's on screen.
-    _lastStepIdentity = initialStep is AuthReloading
-        ? 'phone'
-        : LoginView.debugStepIdentityForTesting(initialStep);
+    // hand-off through AuthReloading) must start on the phone column: a few
+    // hundred ms later the real phone form arrives, and without the seed the
+    // switcher cross-fades that form against itself — the add-account entry
+    // flicker. The sticky step keeps later reloads on what is on screen.
+    if (initialStep is AuthReloading) {
+      _lastFormStep = const AuthWaitPhoneNumber();
+    }
     ProxyStatusController.shared.ensureTracking();
     unawaited(_loadBotEndpoint());
     if (isMobilePlatform) {
@@ -317,15 +314,15 @@ class _LoginViewState extends State<LoginView> {
     _syncResendCountdown(auth);
     // A back affordance is useful once past the phone step, or whenever another
     // account exists to switch to.
+    final otherAccountCount = accounts.otherAccountCount;
     final canGoBack = loginHasBackAction(
       showBotLogin: _showBotLogin,
       forcePhone: _forcePhone,
       step: auth.step,
-      configuredAccountCount: TdClient.shared.configuredSlots.length,
+      otherAccountCount: otherAccountCount,
     );
     final backToPhoneOnly =
         _showBotLogin || (!_forcePhone && auth.step is AuthWaitQrCode);
-    final configuredAccounts = TdClient.shared.configuredSlots.length;
     // The system back gesture keeps the wider contract of loginHasBackAction
     // (it can still abort an add-account in flight); the visible button only
     // stays where it goes somewhere the method switch cannot.
@@ -334,7 +331,7 @@ class _LoginViewState extends State<LoginView> {
         loginHasDistinctBackDestination(
           showBotLogin: _showBotLogin,
           backToPhoneOnly: backToPhoneOnly,
-          configuredAccountCount: configuredAccounts,
+          otherAccountCount: otherAccountCount,
         );
     return PopScope(
       // LoginView is the root content, so allowing the platform back action
@@ -1318,8 +1315,9 @@ class _LoginViewState extends State<LoginView> {
             auth.step is AuthWaitRegistration);
     final pendingAdd = accounts.hasPendingAdd;
     final returnName = accounts.returnAccountName;
-    final others = TdClient.shared.configuredSlots
-        .where((s) => s != TdClient.shared.activeSlot)
+    final others = accounts.summaries
+        .map((summary) => summary.slot)
+        .where((slot) => slot != accounts.activeSlot)
         .toList();
     showAppCupertinoModalPopup<void>(
       context: context,
@@ -1385,7 +1383,8 @@ class _LoginViewState extends State<LoginView> {
   Widget _stepFor(AuthManager auth, AccountStore accounts) {
     if (_showBotLogin) return _botAccountStep(auth, accounts);
     if (_forcePhone) return _phoneStep(auth);
-    return switch (auth.step) {
+    final step = _stickyStep(auth);
+    return switch (step) {
       AuthMissingCredentials() => _credentialsNotice(auth),
       AuthWaitQrCode(:final link) =>
         accounts.isActiveSessionReplacementPending
@@ -1400,6 +1399,37 @@ class _LoginViewState extends State<LoginView> {
       _ => _phoneStep(auth),
     };
   }
+
+  /// The form step actually painted while the login surface is on its way
+  /// OUT. Leaving login (login completed, account switch, logout) makes the
+  /// gate fade this page away, but the page keeps rebuilding for those
+  /// frames; an AuthReady/AuthReloading step fell through to the phone form,
+  /// so the number field flashed during the crossfade to the sidebar. Hold the
+  /// last real form until the page is gone; a fresh mount has no last step and
+  /// still starts on the phone column.
+  AuthStep _stickyStep(AuthManager auth) {
+    final step = auth.step;
+    if (_isLoginFormStep(step)) {
+      _lastFormStep = step;
+      return step;
+    }
+    return _lastFormStep ?? step;
+  }
+
+  static bool _isLoginFormStep(AuthStep step) => switch (step) {
+    AuthMissingCredentials() ||
+    AuthWaitPhoneNumber() ||
+    AuthWaitQrCode() ||
+    AuthWaitCode() ||
+    AuthWaitPremiumPurchase() ||
+    AuthWaitEmailAddress() ||
+    AuthWaitEmailCode() ||
+    AuthWaitPassword() ||
+    AuthWaitRegistration() => true,
+    _ => false,
+  };
+
+  AuthStep? _lastFormStep;
 
   /// Stable identity of the visible step, so [AnimatedSwitcher] cross-fades
   /// only when the flow actually moves between FORMS. Several auth states
@@ -1416,19 +1446,11 @@ class _LoginViewState extends State<LoginView> {
   String _stepIdentity(AuthManager auth) {
     if (_showBotLogin) return 'bot';
     if (_forcePhone) return 'phone';
-    // AuthReloading is a re-read of the SAME client, not a form change:
-    // cancel-add-account / logout run form → AuthReloading → (gate takes
-    // over: splash or another account's ready sidebar). Mapping it to the
-    // phone column swapped the code/2FA form for the phone form mid-flight —
-    // the outgoing form cross-faded against a different incoming form while
-    // both stacked in the switcher's centered overlap ("a displaced form
-    // that vanishes last"). Stick to the identity already on screen; the
-    // gate's own crossfade takes it from there.
-    if (auth.step is AuthReloading) return _lastStepIdentity;
-    return _lastStepIdentity = LoginView.debugStepIdentityForTesting(auth.step);
+    // A reload/ready step keeps the form already on screen (see [_stickyStep]);
+    // re-keying it mapped the code/2FA form back to the phone column and the
+    // switcher cross-faded two different forms while the page was leaving.
+    return LoginView.debugStepIdentityForTesting(_stickyStep(auth));
   }
-
-  late String _lastStepIdentity;
 
   // MARK: Steps
 

@@ -13,6 +13,7 @@
 //
 
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 
 import '../../theme/app_motion.dart';
 
@@ -22,6 +23,7 @@ class MessageArrival extends StatefulWidget {
     required this.animate,
     required this.outgoing,
     required this.child,
+    this.startedAt,
   });
 
   /// Whether this row is a live arrival. It is read once, when the row's State
@@ -33,6 +35,12 @@ class MessageArrival extends StatefulWidget {
   /// Outgoing bubbles grow out of their bottom-right corner; incoming ones
   /// out of their bottom-left, the corner they entered from.
   final bool outgoing;
+
+  /// Frame-clock moment the arrival reached the transcript. A row rebuilt
+  /// under a new key while the entrance is still running — an own send
+  /// settling from its local echo onto the server id — resumes from here
+  /// instead of restarting the whole rise, or cutting straight to rest.
+  final Duration? startedAt;
 
   final Widget child;
 
@@ -46,6 +54,17 @@ class MessageArrival extends StatefulWidget {
   /// The bubble starts a hair small so the eye reads it as arriving, not as
   /// a resized row.
   static const double startScale = 0.94;
+
+  /// The share of the entrance the moment [startedAt] is worth: 0 for a fresh
+  /// arrival, 1 once the entrance would already be over.
+  double progressAt(Duration frameTimestamp) {
+    final start = startedAt;
+    if (start == null) return 0;
+    final elapsed = (frameTimestamp - start).inMicroseconds;
+    if (elapsed <= 0) return 0;
+    final total = duration.inMicroseconds;
+    return (elapsed / total).clamp(0.0, 1.0);
+  }
 
   @override
   State<MessageArrival> createState() => _MessageArrivalState();
@@ -74,12 +93,24 @@ class _MessageArrivalState extends State<MessageArrival>
   void initState() {
     super.initState();
     _controller.addStatusListener(_handleStatus);
-    if (widget.animate) {
-      _controller.forward();
-    } else {
+    if (!widget.animate) {
       _controller.value = 1;
       _settled = true;
+      return;
     }
+    // A row that took over an entrance already in flight picks it up at the
+    // share of time that has passed; one whose moment is older than the whole
+    // entrance opens at rest instead of replaying it.
+    final progress = widget.progressAt(
+      SchedulerBinding.instance.currentFrameTimeStamp,
+    );
+    if (progress >= 1) {
+      _controller.value = 1;
+      _settled = true;
+      return;
+    }
+    _controller.value = progress;
+    _controller.forward();
   }
 
   void _handleStatus(AnimationStatus status) {

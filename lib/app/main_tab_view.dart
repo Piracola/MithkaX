@@ -46,10 +46,10 @@ import '../platform/android_share_intent.dart';
 import '../profile/profile_proxy_button.dart';
 import '../profile/profile_view.dart';
 import '../settings/desktop_hotkey_controller.dart';
-import '../settings/ghost_mode_controller.dart';
-import '../settings/ghost_mode_settings_view.dart';
-import '../settings/proxy_status.dart';
-import '../settings/proxy_view.dart';
+import '../settings/network_proxy/proxy_status.dart';
+import '../settings/network_proxy/proxy_view.dart';
+import '../settings/privacy_security/ghost_mode_controller.dart';
+import '../settings/privacy_security/ghost_mode_settings_view.dart';
 import '../tdlib/json_helpers.dart';
 import '../tdlib/td_client.dart';
 import '../tdlib/td_models.dart';
@@ -66,12 +66,13 @@ import 'app_navigator.dart';
 import 'bottom_bar_layout.dart';
 import 'chat_deep_link_controller.dart';
 import 'chat_pane.dart';
-import 'desktop_chat_window.dart';
-import 'desktop_navigation_rail.dart';
-import 'desktop_utility_window.dart';
+import 'desktop/desktop_chat_window.dart';
+import 'desktop/desktop_navigation_rail.dart';
+import 'desktop/desktop_utility_window.dart';
 import 'detail_content_reveal.dart';
 import 'horizontal_safe_viewport.dart';
-import 'liquid_glass_bottom_bar.dart' show LiquidGlassBottomBar;
+import 'liquid_glass_bottom_bar.dart'
+    show LiquidGlassBottomBar, glassSelectionCurve, glassSelectionDuration;
 import 'native_glass_surface.dart';
 import 'native_tab_bar.dart';
 import 'primary_chat_launcher.dart';
@@ -2621,11 +2622,15 @@ class _MainBottomBar extends StatelessWidget {
                                 alignment: Alignment.center,
                                 children: [
                                   TweenAnimationBuilder<double>(
-                                    duration: AppMotion.duration(
-                                      context,
-                                      AppMotion.responsive,
-                                    ),
-                                    curve: AppMotion.standard,
+                                    duration: glass
+                                        ? glassSelectionDuration(context)
+                                        : AppMotion.duration(
+                                            context,
+                                            AppMotion.responsive,
+                                          ),
+                                    curve: glass
+                                        ? glassSelectionCurve
+                                        : AppMotion.standard,
                                     tween: Tween<double>(
                                       end: selection == i ? 1 : 0,
                                     ),
@@ -2634,24 +2639,56 @@ class _MainBottomBar extends StatelessWidget {
                                           offset: Offset(0, -value),
                                           child: Transform.scale(
                                             scale: 1 + value * 0.08,
-                                            child: AppIcon(
-                                              // The picked tab fills in on
-                                              // every host, glass or not: the
-                                              // outline glyph is the quiet
-                                              // state, the solid one the
-                                              // selected state.
-                                              selection == i
-                                                  ? items[i].selectedIcon
-                                                  : items[i].icon,
-                                              size: 24,
-                                              color: Color.lerp(
-                                                glass
-                                                    ? c.textPrimary
-                                                    : c.textTertiary,
-                                                AppTheme.brand,
-                                                value,
-                                              ),
-                                            ),
+                                            // The glyph swap is a crossfade,
+                                            // not a one-frame silhouette
+                                            // pop: the solid icon used to
+                                            // appear while the capsule was
+                                            // still travelling, so the bar
+                                            // showed a filled tab with no
+                                            // selection under it.
+                                            child: glass
+                                                ? AnimatedSwitcher(
+                                                    duration:
+                                                        glassSelectionDuration(
+                                                          context,
+                                                        ),
+                                                    switchInCurve:
+                                                        glassSelectionCurve,
+                                                    switchOutCurve:
+                                                        glassSelectionCurve,
+                                                    child: AppIcon(
+                                                      key: ValueKey(
+                                                        selection == i,
+                                                      ),
+                                                      selection == i
+                                                          ? items[i]
+                                                                .selectedIcon
+                                                          : items[i].icon,
+                                                      size: 24,
+                                                      color: Color.lerp(
+                                                        c.textPrimary,
+                                                        AppTheme.brand,
+                                                        value,
+                                                      ),
+                                                    ),
+                                                  )
+                                                : AppIcon(
+                                                    // The picked tab fills in
+                                                    // on every host, glass or
+                                                    // not: the outline glyph is
+                                                    // the quiet state, the
+                                                    // solid one the selected
+                                                    // state.
+                                                    selection == i
+                                                        ? items[i].selectedIcon
+                                                        : items[i].icon,
+                                                    size: 24,
+                                                    color: Color.lerp(
+                                                      c.textTertiary,
+                                                      AppTheme.brand,
+                                                      value,
+                                                    ),
+                                                  ),
                                           ),
                                         ),
                                   ),
@@ -2674,11 +2711,15 @@ class _MainBottomBar extends StatelessWidget {
                             if (drawsTabLabel) ...[
                               const SizedBox(height: 2),
                               AnimatedDefaultTextStyle(
-                                duration: AppMotion.duration(
-                                  context,
-                                  AppMotion.responsive,
-                                ),
-                                curve: AppMotion.standard,
+                                duration: glass
+                                    ? glassSelectionDuration(context)
+                                    : AppMotion.duration(
+                                        context,
+                                        AppMotion.responsive,
+                                      ),
+                                curve: glass
+                                    ? glassSelectionCurve
+                                    : AppMotion.standard,
                                 style: TextStyle(
                                   fontSize: _labelSize,
                                   fontWeight: selection == i

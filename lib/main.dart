@@ -24,20 +24,21 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
 import 'app/app_navigator.dart';
 import 'app/app_performance_controller.dart';
 import 'app/app_version.dart';
 import 'app/chat_deep_link_controller.dart';
 import 'app/content_view.dart';
 import 'app/deep_link_service.dart';
-import 'app/desktop_chat_window.dart';
-import 'app/desktop_hotkey_host.dart';
-import 'app/desktop_image_preview_window.dart';
-import 'app/desktop_mini_app_window.dart';
-import 'app/desktop_mini_app_window_app.dart';
-import 'app/desktop_utility_window.dart';
-import 'app/desktop_video_window.dart';
-import 'app/desktop_window_controls.dart';
+import 'app/desktop/desktop_chat_window.dart';
+import 'app/desktop/desktop_hotkey_host.dart';
+import 'app/desktop/desktop_image_preview_window.dart';
+import 'app/desktop/desktop_mini_app_window.dart';
+import 'app/desktop/desktop_mini_app_window_app.dart';
+import 'app/desktop/desktop_utility_window.dart';
+import 'app/desktop/desktop_video_window.dart';
+import 'app/desktop/desktop_window_controls.dart';
 import 'app/global_video_split_host.dart';
 import 'app/handoff_service.dart';
 import 'app/horizontal_safe_viewport.dart';
@@ -77,27 +78,28 @@ import 'notifications/push_device_registrar.dart';
 import 'platform/app_haptics.dart';
 import 'platform/application_exit_coordinator.dart';
 import 'platform/firebase_configuration.dart';
+import 'platform/network_change_monitor.dart';
 import 'platform/ohos_support.dart';
 import 'platform/process_engine.dart';
 import 'platform/system_ui.dart';
 import 'pro/mithka_pro_service.dart';
 import 'security/local_app_lock_controller.dart';
 import 'security/local_app_lock_views.dart';
-import 'settings/ai_settings_controller.dart';
-import 'settings/app_icon_controller.dart';
-import 'settings/auto_download_media_controller.dart';
-import 'settings/blocked_user_service.dart';
-import 'settings/business_service.dart';
-import 'settings/country_message_filter.dart';
+import 'settings/ai_translation/ai_settings_controller.dart';
+import 'settings/ai_translation/translation_controller.dart';
+import 'settings/appearance/app_icon_controller.dart';
+import 'settings/business/business_service.dart';
 import 'settings/desktop_hotkey_controller.dart';
 import 'settings/developer_mode_controller.dart';
-import 'settings/ghost_mode_controller.dart';
-import 'settings/hidden_sender_store.dart';
-import 'settings/keyword_blocker.dart';
+import 'settings/downloads_storage/auto_download_media_controller.dart';
 import 'settings/local_premium.dart';
-import 'settings/safety_notice_controller.dart';
-import 'settings/sensitive_content_controller.dart';
-import 'settings/translation_controller.dart';
+import 'settings/privacy_security/blocked_user_service.dart';
+import 'settings/privacy_security/country_message_filter.dart';
+import 'settings/privacy_security/ghost_mode_controller.dart';
+import 'settings/privacy_security/hidden_sender_store.dart';
+import 'settings/privacy_security/keyword_blocker.dart';
+import 'settings/privacy_security/safety_notice_controller.dart';
+import 'settings/privacy_security/sensitive_content_controller.dart';
 import 'tdlib/td_client.dart';
 import 'theme/app_motion.dart';
 import 'theme/app_theme.dart';
@@ -330,6 +332,10 @@ Future<void> _bootstrapAndRunApp() async {
   GroupScheduledDeletionController.shared.initialize(prefs);
   // Preload Telegram blocked-user list so chat filters have data right away.
   unawaited(BlockedUserService.shared.loadBlockedUsers());
+  // A dropped Wi-Fi or VPN leaves TDLib holding a dead socket; the monitor
+  // re-asserts its network type on every interface change so the client dials
+  // again instead of sitting "connecting" until the next launch.
+  NetworkChangeMonitor.shared.start();
   // Firebase + analytics + Sentry tags are several platform-channel round
   // trips that nothing in the widget tree depends on. Firebase's own init runs
   // on the calling platform thread, so hold it until the scheduler is idle

@@ -16,8 +16,8 @@ import '../communities/community_models.dart';
 import '../notifications/notification_settings_payload.dart';
 import '../notifications/scope_notification_settings.dart';
 import '../settings/chat_folder_service.dart';
-import '../settings/hidden_sender_store.dart';
-import '../settings/keyword_blocker.dart';
+import '../settings/privacy_security/hidden_sender_store.dart';
+import '../settings/privacy_security/keyword_blocker.dart';
 import '../tdlib/chat_membership.dart';
 import '../tdlib/json_helpers.dart';
 import '../tdlib/td_client.dart';
@@ -2256,6 +2256,7 @@ class ChatListViewModel extends ChangeNotifier {
           'updateSupergroupFullInfo',
           'updateUserFullInfo',
           'updateUser',
+          'updateUserStatus',
         ], allAccounts: accountSlot != null)
         .listen(_apply);
   }
@@ -2518,6 +2519,28 @@ class ChatListViewModel extends ChangeNotifier {
         final id = user?.int64('id');
         if (user == null || id == null) return;
         _applyPeerUser(user);
+
+      case 'updateUserStatus':
+        // Presence only repaints a corner dot: no sort key and no folder
+        // badge depends on it, so the cheap in-place notify is enough.
+        final userId = update.int64('user_id');
+        final status = update.obj('status');
+        if (userId == null || status == null) return;
+        final presence = TDParse.avatarPresence(status);
+        var changed = false;
+        for (final chatId in _chatsByPeerUser[userId] ?? const <int>[]) {
+          final chat = _map[chatId] ?? _communityDirectoryChats[chatId];
+          // A bot's status update never lights the dot, even before its
+          // `updateUser` has told the summary it is a bot.
+          if (chat == null ||
+              chat.kind == ChatKind.bot ||
+              chat.peerPresence == presence) {
+            continue;
+          }
+          chat.peerPresence = presence;
+          changed = true;
+        }
+        if (changed) _scheduleBadgeRefresh();
     }
   }
 
@@ -3293,6 +3316,7 @@ class ChatListViewModel extends ChangeNotifier {
     final phoneNumber = user.str('phone_number');
     final accent = user.integer('accent_color_id') ?? -1;
     final status = TDParse.emojiStatusCustomEmojiId(user.obj('emoji_status'));
+    final presence = TDParse.userAvatarPresence(user);
     for (final chatId in _chatsByPeerUser[userId] ?? const <int>[]) {
       final chat = _map[chatId] ?? _communityDirectoryChats[chatId];
       if (chat == null) continue;
@@ -3306,6 +3330,7 @@ class ChatListViewModel extends ChangeNotifier {
           chat.peerPhoneNumber == phoneNumber &&
           chat.peerAccentColorId == accent &&
           chat.peerEmojiStatusId == status &&
+          chat.peerPresence == presence &&
           chat.kind == nextKind &&
           chat.supportsBotTopics == supportsBotTopics) {
         continue;
@@ -3315,6 +3340,7 @@ class ChatListViewModel extends ChangeNotifier {
       chat.peerPhoneNumber = phoneNumber;
       chat.peerAccentColorId = accent;
       chat.peerEmojiStatusId = status;
+      chat.peerPresence = presence;
       chat.kind = nextKind;
       chat.supportsBotTopics = supportsBotTopics;
       changed = true;

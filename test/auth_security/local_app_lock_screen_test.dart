@@ -117,6 +117,31 @@ void main() {
         .opacity;
     expect(opacity, 1.0);
   });
+
+  testWidgets('the emblem rim is tinted by the theme, not plain white', (
+    tester,
+  ) async {
+    await _pumpLock(tester);
+    final medallion = tester
+        .widgetList<AnimatedContainer>(find.byType(AnimatedContainer))
+        .firstWhere((box) {
+          final decoration = box.decoration;
+          return decoration is BoxDecoration &&
+              decoration.shape == BoxShape.circle &&
+              box.constraints?.maxWidth == 96;
+        });
+    final border = (medallion.decoration! as BoxDecoration).border!;
+    final scheme = Theme.of(
+      tester.element(find.byType(LocalAppLockGate)),
+    ).colorScheme;
+    expect(
+      border.top.color,
+      Color.lerp(scheme.primary, Colors.white, 0.58),
+      reason:
+          'the glass rim reads as light caught on an edge in the theme '
+          'colour; a white hairline reads as a sticker',
+    );
+  });
 }
 
 /// Enters the harness PIN and drives the hashing isolate to completion, but

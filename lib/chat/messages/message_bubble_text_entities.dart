@@ -208,6 +208,7 @@ extension _MessageBubbleTextEntities on _MessageBubbleState {
     List<MessageTextEntity>? entities,
     double fontSize = 15,
     bool bodyLeading = true,
+    int? maxLines,
   ]) {
     final resolvedFontSize = fontSize == AppTextSize.body
         ? AppTextSize.messageBody()
@@ -234,6 +235,7 @@ extension _MessageBubbleTextEntities on _MessageBubbleState {
           entities: sourceEntities,
           fontSize: resolvedFontSize,
           bodyLeading: bodyLeading,
+          maxLines: maxLines,
         ),
       ];
     }
@@ -242,25 +244,36 @@ extension _MessageBubbleTextEntities on _MessageBubbleState {
     var cursor = 0;
     var metaAdded = false;
     for (final block in blocks) {
-      final start = block.offset.clamp(0, sourceText.length).toInt();
-      final end = block.end.clamp(start, sourceText.length).toInt();
-      if (end <= cursor) continue;
+      final rawStart = block.offset.clamp(0, sourceText.length).toInt();
+      final rawEnd = block.end.clamp(rawStart, sourceText.length).toInt();
+      if (rawEnd <= cursor) continue;
+      final (start, end) = trimmedMessageBlockRange(
+        sourceText,
+        rawStart,
+        rawEnd,
+      );
       if (start > cursor) {
-        widgets.add(
-          _richText(
-            sourceText,
-            base,
-            link,
-            cursor,
-            start,
-            outgoing,
-            false,
-            entities: sourceEntities,
-            fontSize: resolvedFontSize,
-            bodyLeading: bodyLeading,
-          ),
-        );
-        widgets.add(const SizedBox(height: 5));
+        // The run between two blocks keeps only real content: a leftover
+        // fence newline would otherwise paint the blank line that was just
+        // trimmed from the block, this time above it.
+        if (sourceText.substring(cursor, start).trim().isNotEmpty) {
+          widgets.add(
+            _richText(
+              sourceText,
+              base,
+              link,
+              cursor,
+              start,
+              outgoing,
+              false,
+              entities: sourceEntities,
+              fontSize: resolvedFontSize,
+              bodyLeading: bodyLeading,
+              maxLines: maxLines,
+            ),
+          );
+          widgets.add(const SizedBox(height: 5));
+        }
       }
       widgets.add(
         block.isPreBlock
@@ -287,9 +300,10 @@ extension _MessageBubbleTextEntities on _MessageBubbleState {
                 bodyLeading,
               ),
       );
-      cursor = end;
+      cursor = rawEnd;
     }
-    if (cursor < sourceText.length) {
+    if (cursor < sourceText.length &&
+        sourceText.substring(cursor).trim().isNotEmpty) {
       widgets.add(const SizedBox(height: 5));
       widgets.add(
         _richText(
@@ -303,6 +317,7 @@ extension _MessageBubbleTextEntities on _MessageBubbleState {
           entities: sourceEntities,
           fontSize: resolvedFontSize,
           bodyLeading: bodyLeading,
+          maxLines: maxLines,
         ),
       );
       metaAdded = appendMeta;
@@ -475,14 +490,21 @@ extension _MessageBubbleTextEntities on _MessageBubbleState {
       return [TextSpan(text: segment, style: style, recognizer: recognizer)];
     }
     if (target != null) {
+      final copyValue = _linkCopyValueFor(target, segment);
       final recognizer = _MessageLinkRecognizer(
         kind: _linkKindFor(target),
-        copyValue: _linkCopyValueFor(target, segment),
+        copyValue: copyValue,
         qrValue: _linkQrValueFor(target),
         onOpen: () => openLink(context, target),
       )..onTap = () => openLink(context, target);
       _linkRecognizers.add(recognizer);
-      return [TextSpan(text: segment, style: style, recognizer: recognizer)];
+      return [
+        TextSpan(
+          text: segment,
+          style: _pressedLinkStyle(style, copyValue, link),
+          recognizer: recognizer,
+        ),
+      ];
     }
     if (_hasPreCode(active)) return [TextSpan(text: segment, style: style)];
     return _linkSpansStyled(segment, style, link);
@@ -683,6 +705,7 @@ extension _MessageBubbleTextEntities on _MessageBubbleState {
         last = m.end;
         continue;
       }
+      final copyValue = isHashtag || isMention ? matched : target;
       final recognizer =
           _MessageLinkRecognizer(
               kind: isHashtag
@@ -690,7 +713,7 @@ extension _MessageBubbleTextEntities on _MessageBubbleState {
                   : isMention
                   ? MessageLinkKind.mention
                   : MessageLinkKind.url,
-              copyValue: isHashtag || isMention ? matched : target,
+              copyValue: copyValue,
               qrValue: isHashtag ? null : _linkQrValueFor(target),
               onOpen: () {
                 if (isHashtag) {
@@ -711,7 +734,11 @@ extension _MessageBubbleTextEntities on _MessageBubbleState {
       spans.add(
         TextSpan(
           text: matched,
-          style: _autoLinkStyle(baseStyle, link),
+          style: _pressedLinkStyle(
+            _autoLinkStyle(baseStyle, link),
+            copyValue,
+            link,
+          ),
           recognizer: recognizer,
         ),
       );
@@ -769,4 +796,27 @@ extension _MessageBubbleTextEntities on _MessageBubbleState {
       decorationThickness: 1.0,
     );
   }
+}
+
+/// [start]..[end] without the line breaks that framed a fence or opened and
+/// closed a quote.
+///
+/// A block entity keeps the newline that ended the fence's opening line and
+/// the one before its closing line; laid out as-is, each paints a full empty
+/// line — the blank strip under a quote or code plate. Telegram draws none of
+/// that space, so the range is trimmed before layout.
+@visibleForTesting
+(int, int) trimmedMessageBlockRange(String text, int start, int end) {
+  final limit = text.length;
+  var from = start.clamp(0, limit).toInt();
+  var to = end.clamp(from, limit).toInt();
+  while (from < to &&
+      (text.codeUnitAt(from) == 0x0A || text.codeUnitAt(from) == 0x0D)) {
+    from++;
+  }
+  while (to > from &&
+      (text.codeUnitAt(to - 1) == 0x0A || text.codeUnitAt(to - 1) == 0x0D)) {
+    to--;
+  }
+  return (from, to);
 }

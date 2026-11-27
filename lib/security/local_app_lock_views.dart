@@ -96,12 +96,21 @@ class _AppLockPalette {
           ? Colors.white.withValues(alpha: 0.16)
           : Colors.white.withValues(alpha: 0.95),
       keyShadow: Colors.black.withValues(alpha: isDark ? 0.32 : 0.08),
+      // The medallion is glass over the gate's own backdrop, so its rim reads
+      // as light caught on an edge rather than a white sticker: tint the hairline
+      // with the theme accent and keep the fill a wash of the same colour.
       emblemFill: isDark
-          ? Colors.white.withValues(alpha: 0.06)
-          : Colors.white.withValues(alpha: 0.78),
+          ? Color.alphaBlend(
+              accent.withValues(alpha: 0.10),
+              Colors.white.withValues(alpha: 0.05),
+            )
+          : Color.alphaBlend(
+              accent.withValues(alpha: 0.06),
+              Colors.white.withValues(alpha: 0.72),
+            ),
       emblemRim: isDark
-          ? Colors.white.withValues(alpha: 0.20)
-          : Colors.white.withValues(alpha: 0.98),
+          ? Color.lerp(accent, Colors.white, 0.42)!.withValues(alpha: 0.62)
+          : Color.lerp(accent, Colors.white, 0.58)!,
       badgeFill: isDark
           ? Color.alphaBlend(accent.withValues(alpha: 0.18), base)
           : accent,

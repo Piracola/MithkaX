@@ -17,7 +17,7 @@ import 'package:mithka/components/ui_components.dart';
 import 'package:mithka/l10n/app_localizations.dart';
 import 'package:mithka/moments/story_ui_components.dart';
 import 'package:mithka/settings/about_view.dart';
-import 'package:mithka/settings/app_icon_controller.dart';
+import 'package:mithka/settings/appearance/app_icon_controller.dart';
 import 'package:mithka/settings/appearance_view.dart';
 import 'package:mithka/theme/app_theme.dart';
 import 'package:mithka/theme/theme_controller.dart';

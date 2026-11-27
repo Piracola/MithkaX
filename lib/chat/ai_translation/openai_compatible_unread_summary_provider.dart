@@ -3,8 +3,10 @@ import 'dart:convert';
 import 'dart:developer' as developer;
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
-import '../../settings/ai_endpoint_style.dart';
-import '../../settings/ai_stdout_logger.dart';
+
+import '../../settings/ai_translation/ai_endpoint_style.dart';
+import '../../settings/ai_translation/ai_http_client.dart';
+import '../../settings/ai_translation/ai_stdout_logger.dart';
 import 'unread_chat_summary_service.dart';
 
 class OpenAiCompatibleUnreadSummaryProvider
@@ -26,7 +28,7 @@ class OpenAiCompatibleUnreadSummaryProvider
     ],
   }) : assert(requestTimeout > Duration.zero),
        assert(streamIdleTimeout > Duration.zero),
-       _httpClient = httpClient ?? http.Client(),
+       _httpClient = httpClient ?? createAiHttpClient(),
        _aiLogger = aiLogger ?? aiStdoutLogger,
        _ownsHttpClient = httpClient == null;
 

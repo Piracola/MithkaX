@@ -1463,53 +1463,14 @@ class _DesktopCompactSearchThumb extends StatelessWidget {
   final _SearchHit hit;
 
   @override
-  Widget build(BuildContext context) {
-    final image = hit.thumbnail ?? hit.photo;
-    if (hit.chat != null || hit.userId != null && hit.message == null) {
-      return PhotoAvatar(title: hit.title, photo: hit.photo, size: 40);
-    }
-    if (image != null) {
-      return ClipRRect(
-        borderRadius: BorderRadius.circular(AppRadius.control),
-        child: SizedBox.square(
-          dimension: 40,
-          child: Stack(
-            fit: StackFit.expand,
-            children: [
-              TDImage(photo: image),
-              if (hit.message?.video != null)
-                Center(
-                  child: Container(
-                    width: 22,
-                    height: 22,
-                    alignment: Alignment.center,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF000000).withValues(alpha: 0.50),
-                      shape: BoxShape.circle,
-                    ),
-                    child: const AppIcon(
-                      HeroAppIcons.play,
-                      size: 11,
-                      color: Color(0xFFFFFFFF),
-                    ),
-                  ),
-                ),
-            ],
-          ),
-        ),
-      );
-    }
-    return Container(
-      width: 40,
-      height: 40,
-      alignment: Alignment.center,
-      decoration: BoxDecoration(
-        color: hit.tint.withValues(alpha: 0.14),
-        borderRadius: BorderRadius.circular(AppRadius.control),
-      ),
-      child: AppIcon(hit.icon, size: 20, color: hit.tint),
-    );
-  }
+  Widget build(BuildContext context) => SearchHitLeadingImage(
+    title: hit.avatarTitle,
+    isPeer: hit.isPeerResult,
+    size: 40,
+    photo: hit.photo,
+    icon: hit.icon,
+    tint: hit.tint,
+  );
 }
 
 class SearchView extends StatefulWidget {
@@ -2072,54 +2033,14 @@ class _SearchViewState extends State<SearchView> {
     );
   }
 
-  Widget _hitThumb(_SearchHit hit) {
-    final image = hit.thumbnail ?? hit.photo;
-    if (hit.chat != null || hit.userId != null && hit.message == null) {
-      return PhotoAvatar(title: hit.title, photo: hit.photo, size: 54);
-    }
-    if (image != null) {
-      return ClipRRect(
-        borderRadius: BorderRadius.circular(AppRadius.control),
-        child: SizedBox(
-          width: 54,
-          height: 54,
-          child: Stack(
-            fit: StackFit.expand,
-            children: [
-              TDImage(photo: image),
-              if (hit.message?.video != null)
-                Center(
-                  child: Container(
-                    width: 26,
-                    height: 26,
-                    alignment: Alignment.center,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF000000).withValues(alpha: 0.50),
-                      shape: BoxShape.circle,
-                    ),
-                    child: const AppIcon(
-                      HeroAppIcons.play,
-                      size: 13,
-                      color: Color(0xFFFFFFFF),
-                    ),
-                  ),
-                ),
-            ],
-          ),
-        ),
-      );
-    }
-    return Container(
-      width: 54,
-      height: 54,
-      alignment: Alignment.center,
-      decoration: BoxDecoration(
-        color: hit.tint.withValues(alpha: 0.14),
-        borderRadius: BorderRadius.circular(AppRadius.control),
-      ),
-      child: AppIcon(hit.icon, size: 24, color: hit.tint),
-    );
-  }
+  Widget _hitThumb(_SearchHit hit) => SearchHitLeadingImage(
+    title: hit.avatarTitle,
+    isPeer: hit.isPeerResult,
+    size: 54,
+    photo: hit.photo,
+    icon: hit.icon,
+    tint: hit.tint,
+  );
 
   Widget _empty(String text) {
     final c = context.colors;
@@ -2713,6 +2634,52 @@ class _SearchViewModel extends ChangeNotifier {
   }
 }
 
+/// The leading image of a search row: always the peer's avatar, never the
+/// result's own media preview.
+///
+/// A photo or video thumbnail in the result list reads as a square avatar and
+/// hides who the result belongs to, so every hit shows the chat/person
+/// identity in the same round shape as the chat list. Hits with no identity
+/// (a `tg://` link suggestion) keep their glyph, drawn in the same circle.
+class SearchHitLeadingImage extends StatelessWidget {
+  const SearchHitLeadingImage({
+    super.key,
+    required this.title,
+    required this.isPeer,
+    required this.size,
+    required this.icon,
+    required this.tint,
+    this.photo,
+  });
+
+  /// The peer's name; the monogram falls back to it when there is no photo.
+  final String title;
+
+  /// True for a chat / user / message hit, whose leading image is an identity.
+  final bool isPeer;
+  final double size;
+  final TdFileRef? photo;
+  final AppIconData icon;
+  final Color tint;
+
+  @override
+  Widget build(BuildContext context) {
+    if (isPeer || photo != null) {
+      return PhotoAvatar(title: title, photo: photo, size: size);
+    }
+    return Container(
+      width: size,
+      height: size,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: tint.withValues(alpha: 0.14),
+        shape: BoxShape.circle,
+      ),
+      child: AppIcon(icon, size: size * 0.44, color: tint),
+    );
+  }
+}
+
 class _SearchHit {
   _SearchHit({
     required this.title,
@@ -2720,7 +2687,6 @@ class _SearchHit {
     this.timeLabel = '',
     this.date = 0,
     this.sourceTitle = '',
-    this.thumbnail,
     AppIconData? icon,
     this.tint = const Color(0xFF12B7F5),
     this.photo,
@@ -2786,7 +2752,6 @@ class _SearchHit {
       date: message.date,
       sourceTitle: source.title,
       photo: source.photo,
-      thumbnail: message.previewImage ?? music?.cover,
       chatId: chatId,
       message: message,
       icon: _messageIcon(message),
@@ -2800,8 +2765,15 @@ class _SearchHit {
   final int date;
   final String sourceTitle;
   final TdFileRef? photo;
-  final TdFileRef? thumbnail;
   final ChatSummary? chat;
+
+  /// The name the leading avatar's monogram draws from: a message hit shows
+  /// the chat it was found in, not the message text.
+  String get avatarTitle => sourceTitle.isNotEmpty ? sourceTitle : title;
+
+  /// Chat, user and message hits all identify a peer; a bare link suggestion
+  /// does not.
+  bool get isPeerResult => chat != null || userId != null || message != null;
   final int? userId;
   final int? chatId;
   final ChatMessage? message;

@@ -3,11 +3,21 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 /// Where the topic tab strip sits for one chat.
 ///
-/// exteraless keeps this per dialog (`topicssidetabsb<peer>` in the main
-/// settings) and lets the reader move the tabs between the top of the
-/// conversation and the bottom, above the composer. A wide shell still owns
-/// its rail; this only drives the narrow strip.
-enum TopicTabsPlacement { top, bottom }
+/// exteraless keeps this per dialog (`topicssidetabs` / `topicssidetabsb` in
+/// the main settings) and cycles the tabs through three homes: above the
+/// conversation, docked at its left edge, and above the composer. Only a bot
+/// topic chat — the reference client's bot forum — offers the control; every
+/// other topic chat keeps the default top bar.
+enum TopicTabsPlacement { top, side, bottom }
+
+/// The next placement in exteraless's top → side → bottom → top cycle
+/// (`TopicsTabsView#onSideMenuButtonClick`).
+TopicTabsPlacement nextTopicTabsPlacement(TopicTabsPlacement placement) =>
+    switch (placement) {
+      TopicTabsPlacement.top => TopicTabsPlacement.side,
+      TopicTabsPlacement.side => TopicTabsPlacement.bottom,
+      TopicTabsPlacement.bottom => TopicTabsPlacement.top,
+    };
 
 /// Persists [TopicTabsPlacement] per account slot and chat.
 class TopicTabsPlacementStore {
@@ -28,9 +38,11 @@ class TopicTabsPlacementStore {
   Future<TopicTabsPlacement> load(int accountSlot, int chatId) async {
     final key = _key(accountSlot, chatId);
     final prefs = await SharedPreferences.getInstance();
-    final placement = prefs.getString(key) == TopicTabsPlacement.bottom.name
-        ? TopicTabsPlacement.bottom
-        : TopicTabsPlacement.top;
+    final saved = prefs.getString(key);
+    final placement = TopicTabsPlacement.values.firstWhere(
+      (value) => value.name == saved,
+      orElse: () => TopicTabsPlacement.top,
+    );
     _memory[key] = placement;
     return placement;
   }

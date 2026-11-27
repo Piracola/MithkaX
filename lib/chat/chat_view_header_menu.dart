@@ -86,16 +86,19 @@ extension _ChatViewHeaderMenu on _ChatViewState {
     unawaited(_showTopicSelector());
   }
 
-  /// exteraless offers the chat-level translate command only where it would
-  /// change what is read: the chat's language is known to differ from the
-  /// target. A chat already in the target language, or one whose language is
-  /// still unknown, carries no Translate entry (turning an active translation
-  /// off always stays reachable).
+  /// exteraless offers the chat-level translate command only where the
+  /// classifier found the chat worth translating; a chat already in the
+  /// target language, or one whose language is still unknown, carries no
+  /// Translate entry (turning an active translation off always stays
+  /// reachable). The entry also stays after the suggestion bar is dismissed —
+  /// exteraless moves the command into the ⋮ menu when its bar is hidden, so
+  /// hiding the bar never removes the only way back.
   bool get _canToggleChatTranslation =>
       _hasAvailableTranslationOption &&
+      _chatTranslationSupported &&
       _translation.translateChats &&
       _hasIncomingTranslatableMessages &&
-      (_automaticTranslationEnabled || _chatLanguageDiffersFromTarget);
+      (_automaticTranslationEnabled || _chatNeedsTranslation);
 
   String get _chatDisplayTitle =>
       _vm.peerTitle.isEmpty ? widget.title : _vm.peerTitle;
@@ -352,12 +355,26 @@ extension _ChatViewHeaderMenu on _ChatViewState {
   /// Opens the chat's pinned-message browser — the same page the details view
   /// links to.
   Future<void> _openPinnedMessages() async {
-    await Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) =>
-            PinnedMessagesView(chatId: _vm.chatId, title: _chatDisplayTitle),
+    // The reference client opens MODE_PINNED inside the chat: a tap on a
+    // pinned bubble closes the list and scrolls the open transcript there.
+    // The page returns the message id, or [PinnedMessagesExit.hide] when the
+    // bottom bar's "Hide pinned messages" was used.
+    final result = await Navigator.of(context).push<Object>(
+      AppPageRoute<Object>(
+        pageBuilder: (_, _, _) => PinnedMessagesView(
+          chatId: _vm.chatId,
+          title: _chatDisplayTitle,
+          onReply: _beginSwipeReply,
+          onForward: (message) => unawaited(_forwardMessage(message)),
+        ),
       ),
     );
+    if (!mounted || result == null) return;
+    if (result is int) {
+      await _scrollToMessage(result, forceAlignment: true);
+      return;
+    }
+    if (result == PinnedMessagesExit.hide) _vm.dismissPinned();
   }
 
   /// exteraless's "to the beginning": the chat's very first message. TDLib

@@ -74,9 +74,11 @@ extension _ChatViewChrome on _ChatViewState {
       replaceWithAppChatRoute<void, void>(
         context,
         AppChatPageRoute<void>(
-          // An in-place topic swap: the new transcript replaces this one in a
-          // single frame so the header and tab strip never flash or slide.
-          transitionDuration: Duration.zero,
+          // An in-place topic swap: the new transcript dissolves over this one
+          // while both pages paint the same header and tab strip, so the
+          // chrome stays pinned and only the conversation changes.
+          contentSwap: true,
+          transitionDuration: AppMotion.swap,
           reverseTransitionDuration: Duration.zero,
           builder: (_) => ChatView(
             chatId: widget.chatId,
@@ -803,30 +805,49 @@ extension _ChatViewChrome on _ChatViewState {
   }
 
   /// The topic tab strip: a folder-tab-styled selector pinned under the
-
   /// header, shown for forum groups and bot topic chats on narrow layouts —
-
   /// the whole chat included, where the "All" tab is the selected one. Wide
-
-  /// shells render their rail instead.
-
-  Widget? _topicTabStripOrNull(ThemeController theme) {
+  /// shells render their rail instead. A bot topic chat's placement can dock
+  /// it at the side as exteraless's vertical tabs do; every other topic chat
+  /// keeps the top bar and hides the control.
+  Widget? _topicTabsOrNull(ThemeController theme) {
     if (!_topicsKnown || usesSplitSelectionLayout(MediaQuery.sizeOf(context))) {
       return null;
     }
+    final topics = [
+      for (final topic in _vm.forumTopics) _topicNavigationItem(topic),
+    ];
+    final toggle = _vm.isBotTopicChat
+        ? () => unawaited(_toggleTopicTabsPlacement())
+        : null;
+    final placement = _effectiveTopicTabsPlacement;
+    if (placement == TopicTabsPlacement.side) {
+      return TopicTabsSideBar(
+        chatId: widget.chatId,
+        topics: topics,
+        selectedTopicId: widget.forumTopicId,
+        onSelected: _openTopicTranscript,
+        showUnreadBadges: theme.showFolderUnreadBadges,
+        badgeOverflowLabel: theme.unreadBadgeOverflowMode.format,
+        isLoading: _vm.forumTopicsLoading && _vm.forumTopics.isEmpty,
+        onLongPress: _showTopicTabMenu,
+        onTogglePlacement: toggle,
+        reordering: _reorderingTopicTabs,
+        onReorder: _reorderTopicTabs,
+        onReorderDone: () => _updateState(() => _reorderingTopicTabs = false),
+      );
+    }
     return TopicTabStrip(
       chatId: widget.chatId,
-      topics: [
-        for (final topic in _vm.forumTopics) _topicNavigationItem(topic),
-      ],
+      topics: topics,
       selectedTopicId: widget.forumTopicId,
       onSelected: _openTopicTranscript,
       showUnreadBadges: theme.showFolderUnreadBadges,
       badgeOverflowLabel: theme.unreadBadgeOverflowMode.format,
       isLoading: _vm.forumTopicsLoading && _vm.forumTopics.isEmpty,
       onLongPress: _showTopicTabMenu,
-      placement: _topicTabsPlacement,
-      onTogglePlacement: () => unawaited(_toggleTopicTabsPlacement()),
+      placement: placement,
+      onTogglePlacement: toggle,
       reordering: _reorderingTopicTabs,
       onReorder: _reorderTopicTabs,
       onReorderDone: () => _updateState(() => _reorderingTopicTabs = false),
@@ -848,9 +869,10 @@ extension _ChatViewChrome on _ChatViewState {
   }
 
   Future<void> _toggleTopicTabsPlacement() async {
-    final next = _topicTabsPlacement == TopicTabsPlacement.top
-        ? TopicTabsPlacement.bottom
-        : TopicTabsPlacement.top;
+    // Only a bot topic chat offers the control (exteraless's bot forum); a
+    // stored placement from an older build must not move anyone else's tabs.
+    if (!_vm.isBotTopicChat) return;
+    final next = nextTopicTabsPlacement(_topicTabsPlacement);
     _updateState(() => _topicTabsPlacement = next);
     await TopicTabsPlacementStore.shared.save(
       _sessionKey.accountSlot,
@@ -1018,19 +1040,17 @@ extension _ChatViewChrome on _ChatViewState {
           onSelected: () => _updateState(() => _reorderingTopicTabs = true),
         ),
       // The strip's leading arrow is the quick control; repeating the move in
-      // the tab menu makes the interaction reachable from any topic tab.
-      AppMenuAction(
-        key: 'tabs-position',
-        label: AppStrings.t(
-          _topicTabsPlacement == TopicTabsPlacement.top
-              ? AppStringKeys.mithkaxTopicTabsMoveToBottom
-              : AppStringKeys.mithkaxTopicTabsMoveToTop,
+      // the tab menu makes the interaction reachable from any topic tab. Only
+      // a bot topic chat offers it (exteraless's bot forum).
+      if (_vm.isBotTopicChat)
+        AppMenuAction(
+          key: 'tabs-position',
+          label: AppStrings.t(
+            topicTabsMoveLabelKey(_effectiveTopicTabsPlacement),
+          ),
+          icon: topicTabsMoveIcon(_effectiveTopicTabsPlacement),
+          onSelected: () => unawaited(_toggleTopicTabsPlacement()),
         ),
-        icon: _topicTabsPlacement == TopicTabsPlacement.top
-            ? HeroAppIcons.arrowDown
-            : HeroAppIcons.arrowUp,
-        onSelected: () => unawaited(_toggleTopicTabsPlacement()),
-      ),
       if (_vm.canCloseTopic(topic))
         AppMenuAction(
           key: 'close',

@@ -31,10 +31,10 @@ import '../bot_api/bot_api_endpoint_config.dart';
 import '../bot_api/bot_api_td_backend.dart';
 import '../config/secrets.dart';
 import '../platform/process_engine.dart';
-import '../settings/api_credentials_config.dart';
-import '../settings/download_storage.dart';
-import '../settings/proxy_config.dart';
-import '../settings/transfer_boost_config.dart';
+import '../settings/downloads_storage/download_storage.dart';
+import '../settings/network_proxy/api_credentials_config.dart';
+import '../settings/network_proxy/proxy_config.dart';
+import '../settings/network_proxy/transfer_boost_config.dart';
 import 'avatar_animation_index.dart';
 import 'forum_topic_index.dart';
 import 'gram_js_session.dart';
@@ -1419,7 +1419,7 @@ class TdClient {
         // each read the other's freshly registered client as "the existing
         // account", discarding one returned slot's database; resolve the
         // duplicate atomically instead.
-        return _resolveUnknownAccountImport(
+        return await _resolveUnknownAccountImport(
           newSlot,
           cid,
           dbDir,
@@ -1459,12 +1459,37 @@ class TdClient {
         _persist();
         return existingSlot;
       }
+      await _restartResolvedImportClient(slot, restoredUserId);
       setActive(slot);
       _persist();
       return slot;
     } finally {
       done.complete();
     }
+  }
+
+  /// Reopens an imported slot whose account TDLib resolved after it started.
+  ///
+  /// With no valid `my_id` in the binlog, TDLib's `AuthManager` reports the
+  /// session ready only once `users.getUsers(inputUserSelf)` answers, and that
+  /// path skips the managers' post-login `init()`: `AttachMenuManager` started
+  /// signed out and stays uninitialized, so the first attachment menu state it
+  /// reports once signed in fails a TDLib CHECK that aborts the app. TDLib
+  /// stored the real `my_id` before reporting ready, so the reopened client
+  /// starts signed in, the way the next launch would.
+  Future<void> _restartResolvedImportClient(int slot, int userId) async {
+    if (!await _closeClientForSlot(slot)) {
+      throw TimeoutException(
+        'Timed out reopening restored account session for slot $slot',
+      );
+    }
+    _ensureAcceptingNewClients();
+    final cid = _bindings.createClientId();
+    _clientForSlot[slot] = cid;
+    _slotForClient[cid] = slot;
+    unawaited(_persistLiveClientIds());
+    _bindings.send(cid, _tdActivateRequest);
+    await _waitForRestoredSessionReady(slot, cid, userId);
   }
 
   /// Closes an imported slot and removes its database. The directory is removed
@@ -2494,6 +2519,38 @@ class TdClient {
   }
 
   // MARK: - Sending
+
+  /// The active client's last connection state as TDLib reported it
+  /// (`connectionStateReady`, `connectionStateConnecting`, …), or null before
+  /// the first update lands.
+  String? get activeConnectionState =>
+      _latestConnectionStateByClient[_activeClientId]?.obj('state')?.type;
+
+  /// Makes TDLib drop every connection it holds and dial again.
+  ///
+  /// TDLib retries a failed socket on its own, but one orphaned by a network
+  /// change can sit in a long backoff, which reads as "the app never
+  /// reconnects after Wi-Fi or a VPN came back". `setNetworkType` is the
+  /// documented reset: `none` closes the current connections, and the real
+  /// type immediately after brings the client back online with fresh ones.
+  void refreshNetwork() {
+    if (_isShuttingDown || _shutdownComplete) return;
+    final clients = _clientForSlot.values.toSet();
+    for (final clientId in clients) {
+      final slot = _slotForClient[clientId];
+      // A Bot API account talks HTTPS per request and has no TDLib connection
+      // to reset.
+      if (slot == null || isBotApiSlot(slot)) continue;
+      sendTo({
+        '@type': 'setNetworkType',
+        'type': const {'@type': 'networkTypeNone'},
+      }, clientId);
+      sendTo({
+        '@type': 'setNetworkType',
+        'type': const {'@type': 'networkTypeOther'},
+      }, clientId);
+    }
+  }
 
   /// Fire-and-forget request to the active account.
   void send(Map<String, dynamic> request) {

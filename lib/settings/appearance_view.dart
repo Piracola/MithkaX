@@ -25,6 +25,7 @@ import '../chat/messages/image_media_album_bubble.dart';
 import '../chat/messages/message_action_menu.dart';
 import '../chat/messages/message_bubble.dart';
 import '../chat/messages/message_bubble_chat_preview.dart';
+import '../chat/messages/message_double_tap_action.dart';
 import '../chat/messages/quick_reaction_choice.dart';
 import '../chat/stickers/emoji_store.dart';
 import '../components/app_icons.dart';
@@ -44,10 +45,11 @@ import '../theme/message_name_colors.dart';
 import '../theme/platform_font_defaults.dart';
 import '../theme/system_font_catalog.dart';
 import '../theme/theme_controller.dart';
-import 'app_icon_controller.dart';
-import 'content_size_settings_view.dart';
-import 'interface_scale_control.dart';
-import 'message_bubble_settings_view.dart';
+import 'appearance/app_icon_controller.dart';
+import 'appearance/content_size_settings_view.dart';
+import 'appearance/interface_scale_control.dart';
+import 'appearance/message_bubble_settings_view.dart';
+import 'appearance/sticker_size_settings_view.dart';
 import 'quick_reaction_settings_view.dart';
 
 class AppearanceView extends StatelessWidget {
@@ -1343,6 +1345,17 @@ class ChatViewAppearanceSettingsView extends StatelessWidget {
       title: AppStrings.t(AppStringKeys.appearanceChatView),
       preview: const _ChatViewSettingsPreview(),
       controls: appearance._card(context, [
+        appearance._navigationRow(
+          context,
+          AppStrings.t(AppStringKeys.mithkaxStickerSizeTitle),
+          '${(theme.stickerMediaScale * 100).round()}%',
+          () => Navigator.of(context).push(
+            AppPageRoute<void>(
+              pageBuilder: (_, _, _) => const StickerSizeSettingsView(),
+            ),
+          ),
+          icon: HeroAppIcons.faceSmile.data,
+        ),
         appearance._toggleRow(
           context,
           HeroAppIcons.images.data,
@@ -1453,7 +1466,92 @@ class ChatViewAppearanceSettingsView extends StatelessWidget {
           ),
           icon: HeroAppIcons.thumbsUp.data,
         ),
+        appearance._navigationRow(
+          context,
+          AppStrings.t(AppStringKeys.doubleTapIncoming),
+          AppStrings.t(theme.doubleTapIncoming.label),
+          () => Navigator.of(context).push(
+            AppPageRoute<void>(
+              pageBuilder: (_, _, _) =>
+                  const DoubleTapActionSettingsView(outgoing: false),
+            ),
+          ),
+          icon: HeroAppIcons.faceSmile.data,
+        ),
+        appearance._navigationRow(
+          context,
+          AppStrings.t(AppStringKeys.doubleTapOutgoing),
+          AppStrings.t(theme.doubleTapOutgoing.label),
+          () => Navigator.of(context).push(
+            AppPageRoute<void>(
+              pageBuilder: (_, _, _) =>
+                  const DoubleTapActionSettingsView(outgoing: true),
+            ),
+          ),
+          icon: HeroAppIcons.paperPlane.data,
+        ),
+        appearance._toggleRow(
+          context,
+          HeroAppIcons.circleUser.data,
+          AppStrings.t(AppStringKeys.appearanceAvatarOnlineStatus),
+          theme.showAvatarOnlineStatus,
+          (value) => theme.showAvatarOnlineStatus = value,
+          subtitle: AppStrings.t(
+            AppStringKeys.appearanceAvatarOnlineStatusNote,
+          ),
+        ),
       ]),
+    );
+  }
+}
+
+/// Incoming / outgoing double-tap action picker (exteraless `DoubleTapIncoming`
+/// / `DoubleTapOutgoing`).
+class DoubleTapActionSettingsView extends StatelessWidget {
+  const DoubleTapActionSettingsView({super.key, required this.outgoing});
+
+  final bool outgoing;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = context.watch<ThemeController>();
+    const appearance = AppearanceView();
+    final selected = outgoing
+        ? theme.doubleTapOutgoing
+        : theme.doubleTapIncoming;
+    return SettingsPageScaffold(
+      key: ValueKey('double-tap-action-page-${outgoing ? 'out' : 'in'}'),
+      title: AppStrings.t(
+        outgoing
+            ? AppStringKeys.doubleTapOutgoing
+            : AppStringKeys.doubleTapIncoming,
+      ),
+      onBack: () => Navigator.of(context).pop(),
+      child: SettingsListView(
+        children: [
+          appearance._card(context, [
+            for (final action in MessageDoubleTapAction.values)
+              KeyedSubtree(
+                key: ValueKey(
+                  'double-tap-${outgoing ? 'out' : 'in'}-${action.name}',
+                ),
+                child: appearance._choiceRow(
+                  context,
+                  action.icon,
+                  AppStrings.t(action.label),
+                  selected == action,
+                  () {
+                    if (outgoing) {
+                      theme.doubleTapOutgoing = action;
+                    } else {
+                      theme.doubleTapIncoming = action;
+                    }
+                  },
+                ),
+              ),
+          ]),
+        ],
+      ),
     );
   }
 }
@@ -2380,11 +2478,13 @@ extension _DisplayAppearanceHelpers on AppearanceView {
     IconData icon,
     String label,
     bool value,
-    ValueChanged<bool>? onChanged,
-  ) {
+    ValueChanged<bool>? onChanged, {
+    String? subtitle,
+  }) {
     final enabled = onChanged != null;
     return SettingsSwitchRow(
       title: label,
+      subtitle: subtitle,
       value: value,
       leading: SettingsLeadingIcon(
         icon: AppIconData(icon),

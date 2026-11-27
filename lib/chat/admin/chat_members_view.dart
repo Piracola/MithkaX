@@ -18,7 +18,7 @@ import '../../components/toast.dart';
 import '../../components/ui_components.dart';
 import '../../platform/adaptive_platform.dart';
 import '../../profile/profile_detail_view.dart';
-import '../../settings/edit_field_view.dart';
+import '../../settings/profile_account/edit_field_view.dart';
 import '../../tdlib/json_helpers.dart';
 import '../../tdlib/td_client.dart';
 import '../../tdlib/td_models.dart';
@@ -399,7 +399,7 @@ class _ChatMembersViewState extends State<ChatMembersView> {
               role: role,
               title: title,
               status: TDParse.userStatus(user),
-              isOnline: TDParse.isUserOnline(user),
+              isOnline: !TDParse.isBotUser(user) && TDParse.isUserOnline(user),
               isDeleted: TDParse.isDeletedUser(user),
               rawStatus: status,
             ),
@@ -482,7 +482,7 @@ class _ChatMembersViewState extends State<ChatMembersView> {
             role: role,
             title: title,
             status: TDParse.userStatus(user),
-            isOnline: TDParse.isUserOnline(user),
+            isOnline: !TDParse.isBotUser(user) && TDParse.isUserOnline(user),
             isDeleted: TDParse.isDeletedUser(user),
             rawStatus: status,
           ),

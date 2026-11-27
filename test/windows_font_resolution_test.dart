@@ -12,7 +12,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:mithka/app/desktop_image_preview_window.dart';
+import 'package:mithka/app/desktop/desktop_image_preview_window.dart';
 import 'package:mithka/chat/messages/telegram_rich_text.dart';
 import 'package:mithka/l10n/app_localizations.dart';
 import 'package:mithka/settings/appearance_view.dart';

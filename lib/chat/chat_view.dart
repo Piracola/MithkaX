@@ -14,6 +14,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 import 'package:mithka/l10n/app_localizations.dart';
 import 'package:provider/provider.dart';
@@ -24,7 +25,7 @@ import '../app/adaptive_split_layout.dart';
 import '../app/app_navigator.dart';
 import '../app/chat_deep_link_controller.dart';
 import '../app/chat_pane.dart';
-import '../app/desktop_video_window.dart';
+import '../app/desktop/desktop_video_window.dart';
 import '../app/ipad_window_chrome.dart';
 import '../app/primary_chat_launcher.dart';
 import '../app/top_corner_cluster.dart';
@@ -68,16 +69,16 @@ import '../notifications/notification_controller.dart';
 import '../platform/app_haptics.dart';
 import '../platform/desktop_clipboard_images.dart';
 import '../profile/profile_detail_view.dart';
-import '../settings/ai_endpoint_style.dart';
-import '../settings/ai_settings_controller.dart';
-import '../settings/apple_pcc_api.dart';
-import '../settings/blocked_user_service.dart';
-import '../settings/business_tools_views.dart';
-import '../settings/hidden_sender_store.dart';
+import '../settings/ai_translation/ai_endpoint_style.dart';
+import '../settings/ai_translation/ai_settings_controller.dart';
+import '../settings/ai_translation/apple_pcc_api.dart';
+import '../settings/ai_translation/translation_api.dart';
+import '../settings/ai_translation/translation_controller.dart';
+import '../settings/business/business_tools_views.dart';
+import '../settings/privacy_security/blocked_user_service.dart';
+import '../settings/privacy_security/hidden_sender_store.dart';
+import '../settings/privacy_security/sensitive_content_controller.dart';
 import '../settings/quick_reaction_settings_view.dart';
-import '../settings/sensitive_content_controller.dart';
-import '../settings/translation_api.dart';
-import '../settings/translation_controller.dart';
 import '../tdlib/forum_topic_index.dart';
 import '../tdlib/json_helpers.dart';
 import '../tdlib/td_client.dart';
@@ -98,6 +99,7 @@ import 'admin/group_remark_controller.dart';
 import 'ai_translation/ai_chat_translation_service.dart';
 import 'ai_translation/apple_pcc_unread_summary_provider.dart';
 import 'ai_translation/auto_translate_policy.dart';
+import 'ai_translation/chat_translation_language_cache.dart';
 import 'ai_translation/chat_translation_panel.dart';
 import 'ai_translation/message_translation_cache.dart';
 import 'ai_translation/openai_compatible_unread_summary_provider.dart';
@@ -155,6 +157,7 @@ import 'messages/message_action_menu_presentation.dart';
 import 'messages/message_arrival.dart';
 import 'messages/message_bubble.dart';
 import 'messages/message_bubble_repository_view.dart';
+import 'messages/message_double_tap_action.dart';
 import 'messages/message_quote_selection_dialog.dart';
 import 'messages/message_reaction_availability.dart';
 import 'messages/message_replies_sheet.dart';
@@ -899,6 +902,15 @@ class _ChatViewState extends State<ChatView> {
   final Set<int> _arrivalAnimationIds = <int>{};
   bool _arrivalAnimationDrainScheduled = false;
 
+  /// Frame-clock moment each live arrival (incoming message or own send)
+  /// reached the transcript, by TDLib id. A row reads its own moment back on
+  /// every build — directly, or through the local echo id of a send that has
+  /// settled onto its server id since — so the entrance continues across that
+  /// rebuild instead of restarting or cutting. Entries age out after the
+  /// entrance window.
+  final Map<int, Duration> _arrivalAnimationStartedAt = <int, Duration>{};
+  static const Duration _arrivalAnimationRetention = Duration(seconds: 5);
+
   final ChatUnreadProgress _unreadProgress = ChatUnreadProgress();
 
   int get _liveNewMessageCount => _unreadProgress.liveCount;
@@ -1061,6 +1073,16 @@ class _ChatViewState extends State<ChatView> {
   DateTime? _chatLanguageDetectedAt;
   String? _detectedChatLanguage;
 
+  /// Whether the classifier found this chat's messages to be in a language
+  /// the user translates. This is exteraless's `isDialogTranslatable`: a
+  /// per-message language verdict, not a comparison of one dominant language
+  /// with the target (which misread ML Kit's `zh` answer as foreign to
+  /// `zh-Hans` and offered translate-all in Chinese chats).
+  bool _chatTranslatable = false;
+
+  /// The target/ignored-language pair [_chatTranslatable] was decided with.
+  String _chatTranslationSettingsKey = '';
+
   bool _autoTranslationRunning = false;
 
   bool _autoTranslationPassPending = false;
@@ -1169,6 +1191,8 @@ class _ChatViewState extends State<ChatView> {
     if (headerSnapshot != null &&
         headerSnapshot.chatLanguageDetectionComplete) {
       _detectedChatLanguage = headerSnapshot.detectedChatLanguage;
+      _chatTranslatable = headerSnapshot.chatTranslatable;
+      _chatTranslationSettingsKey = headerSnapshot.translationSettingsKey;
       _chatLanguageDetectionComplete = true;
       _chatLanguageDetectedAt = headerSnapshot.chatLanguageDetectedAt;
       _chatLanguageDetectionNewestMessageId =
@@ -1375,6 +1399,12 @@ class _ChatViewState extends State<ChatView> {
         _sessionKey.accountSlot,
         widget.chatId,
       );
+
+  /// Where the topic tabs actually sit: only a bot topic chat offers the
+  /// position control (exteraless's bot forum), so every other topic chat
+  /// keeps the default top bar even if an older build stored another spot.
+  TopicTabsPlacement get _effectiveTopicTabsPlacement =>
+      _vm.isBotTopicChat ? _topicTabsPlacement : TopicTabsPlacement.top;
 
   // The split shell's topic-list relay: while this transcript lives in a
 
@@ -2077,6 +2107,11 @@ class _ChatViewState extends State<ChatView> {
       channelHasLinkedDiscussion: _vm.hasLinkedDiscussion,
       showChannelPostStats:
           _vm.isChannel && context.read<ThemeController>().showChannelPostStats,
+      showAvatarOnlineStatus: context
+          .read<ThemeController>()
+          .showAvatarOnlineStatus,
+      peerPresence: _vm.peerPresence,
+      onDoubleTap: _doubleTapCallback(message),
       onOpenImage: _openImage,
       onOpenImageGallery: _openImageGallery,
       onApplyMessageBubble: offersMessageBubbleApplyAction(message)
@@ -2183,22 +2218,29 @@ class _ChatViewState extends State<ChatView> {
     return mask != 0 && _dismissedBotApiWarningMask != mask;
   }
 
+  /// exteraless refuses the dialog-level translation feature for secret chats
+  /// and the self chat; neither has messages Telegram will translate.
+  bool get _chatTranslationSupported =>
+      !_vm.isSecretChat && !_vm.isSavedMessages;
+
   bool get _automaticTranslationEnabled =>
       _hasAvailableTranslationOption &&
+      _chatTranslationSupported &&
       _translation.translateChats &&
-      _translation.autoTranslateEnabledFor(widget.chatId) &&
-      _translation.shouldTranslateLanguage(_detectedChatLanguage);
+      _translation.autoTranslateEnabledFor(widget.chatId);
 
-  /// The chat's language is known and differs from the translation target —
-  /// the only case where offering "translate this chat" makes sense. An
-  /// undetected language (native identification unavailable, or a chat with
-  /// nothing to sample) is not treated as foreign: that kept the bulk
-  /// translate control in every chat, Chinese ones included.
-  bool get _chatLanguageDiffersFromTarget {
-    if (!_chatLanguageDetectionComplete) return false;
-    final detected = _detectedChatLanguage;
-    if (detected == null) return false;
-    return _translation.shouldTranslateLanguage(detected);
+  /// The chat's messages carry a language the user translates, judged from
+  /// per-message detections (exteraless's `isDialogTranslatable`). A chat
+  /// already in the target language, and a chat whose samples could not be
+  /// identified, both come back false.
+  bool get _chatNeedsTranslation =>
+      _chatLanguageDetectionComplete && _chatTranslatable;
+
+  /// What the classifier's `shouldTranslate` answer depends on. A change
+  /// invalidates a cached verdict even when no message arrived.
+  String get _translationSettingsKey {
+    final ignored = _translation.ignoredLanguageCodes.toList()..sort();
+    return '${_translation.targetLanguageCode}|${ignored.join(',')}';
   }
 
   bool get _hasIncomingTranslatableMessages => _vm.messages.any(
@@ -2209,20 +2251,21 @@ class _ChatViewState extends State<ChatView> {
   );
 
   bool get _showsChatTranslationPanel {
-    if (!_hasAvailableTranslationOption) return false;
+    if (!_hasAvailableTranslationOption || !_chatTranslationSupported) {
+      return false;
+    }
     if (_automaticTranslationEnabled) return true;
     if (!_translation.translateChats ||
         _translation.autoTranslateSuggestionDismissedFor(widget.chatId) ||
         !_hasIncomingTranslatableMessages) {
       return false;
     }
-    return _chatLanguageDiffersFromTarget;
+    return _chatNeedsTranslation;
   }
 
   Widget _chatTranslationPanel() => ChatTranslationPanel(
     active: _automaticTranslationEnabled,
     targetLanguageLabel: _translation.targetLanguageLabel.l10n(context),
-    isTranslating: _autoTranslationRunning,
     onToggle: _toggleAutomaticTranslation,
     onChooseLanguage: () => unawaited(_showChatTranslationLanguagePicker()),
     onDismiss: _dismissAutomaticTranslation,
@@ -2389,12 +2432,36 @@ class _ChatViewState extends State<ChatView> {
                               final searchPane = _searchUsesResultsPane(width);
                               _searchResultsPaneVisible = searchPane;
                               final searching = _search.isActive;
-                              // The strip can sit under the header or above
-                              // the composer (exteraless's per-chat tabs
+                              // The strip can sit under the header, docked at
+                              // the conversation's left edge, or above the
+                              // composer (exteraless's per-chat tabs
                               // position); the host places it so it never
                               // becomes a sibling of the composer.
-                              final topicTabStrip = _topicTabStripOrNull(
+                              final placement = _effectiveTopicTabsPlacement;
+                              final topicTabs = _topicTabsOrNull(
                                 themeController,
+                              );
+                              final sideTabs =
+                                  placement == TopicTabsPlacement.side
+                                  ? topicTabs
+                                  : null;
+                              final transcriptColumn = Column(
+                                children: [
+                                  // The chat-level translation bar
+                                  // belongs to the transcript, not
+                                  // the header (search and selection
+                                  // swap the header out, so it hides
+                                  // with them).
+                                  if (_showsChatTranslationPanel &&
+                                      !searching &&
+                                      !_isSelecting)
+                                    _chatTranslationPanel(),
+                                  Expanded(
+                                    child: _transcriptLayer(
+                                      searchPane: searchPane,
+                                    ),
+                                  ),
+                                ],
                               );
                               final shell = ChatHeaderTrailingPaneLayout(
                                 header: showPeerRestrictionBlock
@@ -2409,29 +2476,31 @@ class _ChatViewState extends State<ChatView> {
                                     : _withTopicNavigation(
                                         Column(
                                           children: [
-                                            if (topicTabStrip != null &&
-                                                _topicTabsPlacement ==
+                                            if (topicTabs != null &&
+                                                placement ==
                                                     TopicTabsPlacement.top)
-                                              topicTabStrip,
-                                            // The chat-level translation bar
-                                            // belongs to the transcript, not
-                                            // the header (search and selection
-                                            // swap the header out, so it hides
-                                            // with them).
-                                            if (_showsChatTranslationPanel &&
-                                                !searching &&
-                                                !_isSelecting)
-                                              _chatTranslationPanel(),
+                                              topicTabs,
                                             Expanded(
-                                              child: _transcriptLayer(
-                                                searchPane: searchPane,
-                                              ),
+                                              child: sideTabs == null
+                                                  ? transcriptColumn
+                                                  : Row(
+                                                      crossAxisAlignment:
+                                                          CrossAxisAlignment
+                                                              .stretch,
+                                                      children: [
+                                                        sideTabs,
+                                                        Expanded(
+                                                          child:
+                                                              transcriptColumn,
+                                                        ),
+                                                      ],
+                                                    ),
                                             ),
                                             _chatMusicPlayer(),
-                                            if (topicTabStrip != null &&
-                                                _topicTabsPlacement ==
+                                            if (topicTabs != null &&
+                                                placement ==
                                                     TopicTabsPlacement.bottom)
-                                              topicTabStrip,
+                                              topicTabs,
                                             // A narrow chat trades the composer
                                             // for the hit navigator; a wide one
                                             // keeps composing beside the results.
@@ -2683,10 +2752,20 @@ class _ChatViewState extends State<ChatView> {
             ),
           ),
         ),
-        if (shouldShowTranscriptSkeleton(
-          initialTranscriptReady: transcriptReady,
-        ))
-          Positioned.fill(child: _transcriptSkeleton()),
+        // The skeleton fades out when the first page lands instead of
+        // vanishing under the transcript, so a topic swap that outlasts the
+        // route fade still resolves into the conversation smoothly.
+        Positioned.fill(
+          child: AnimatedSwitcher(
+            duration: AppMotion.quick,
+            child:
+                shouldShowTranscriptSkeleton(
+                  initialTranscriptReady: transcriptReady,
+                )
+                ? _transcriptSkeleton()
+                : const SizedBox.shrink(),
+          ),
+        ),
         if (showPinnedTodo)
           Positioned(
             top: 12,
@@ -3733,7 +3812,7 @@ class _ChatViewState extends State<ChatView> {
       mainAxisAlignment: MainAxisAlignment.center,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        if (_showsTopicSurfaces)
+        if (_showsTopicSurfaces && !_vm.isBotTopicChat)
           Row(
             children: [
               Expanded(child: title),
@@ -3981,6 +4060,13 @@ class _ChatViewState extends State<ChatView> {
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTap: () => _openPinnedFromBar(pinned),
+      // exteraless opens the whole pinned list from a long press on the top
+      // bar (`pinnedMessageView` long-click → `openPinnedMessagesList`); the
+      // tap stays "scroll to the pinned message".
+      onLongPress: () {
+        unawaited(AppHaptics.longPress());
+        unawaited(_openPinnedMessages());
+      },
       child: Container(
         key: const ValueKey('chatPinnedBar'),
         height: 48,
@@ -4441,6 +4527,7 @@ class _ChatViewState extends State<ChatView> {
       entry.last.id,
       GlobalKey.new,
     );
+    final arrivalStartedAt = _arrivalAnimationStartedAtFor(entry);
     return KeyedSubtree(
       key: entry.key,
       child: Column(
@@ -4464,13 +4551,16 @@ class _ChatViewState extends State<ChatView> {
             messageId: entry.last.id,
             mountedEntries: _mountedTranscriptEntries,
             child: MessageArrival(
-              // A live arrival rises in; every other build of this row opens
-              // at rest, so scrolling and re-syncs never replay it.
+              // A live arrival rises in — incoming messages and own sends
+              // alike; every other build of this row opens at rest, so
+              // scrolling and re-syncs never replay it.
               animate:
-                  _arrivalAnimationIds.any(
-                    (id) => entry.messages.any((m) => m.id == id),
-                  ) &&
+                  (arrivalStartedAt != null ||
+                      _arrivalAnimationIds.any(
+                        (id) => entry.messages.any((m) => m.id == id),
+                      )) &&
                   !MediaQuery.disableAnimationsOf(context),
+              startedAt: arrivalStartedAt,
               outgoing: message.isOutgoing,
               child: _messageNavigationHighlight(entry, positionedMessageBody),
             ),
@@ -4478,6 +4568,23 @@ class _ChatViewState extends State<ChatView> {
         ],
       ),
     );
+  }
+
+  /// When [entry]'s entrance started, if it is playing (or was, a moment
+  /// ago). The lookup follows the local echo of an own send: the row is
+  /// rebuilt under its server id the moment the send settles, and it must
+  /// finish the entrance the pending bubble started rather than cut to rest.
+  Duration? _arrivalAnimationStartedAtFor(_TranscriptEntry entry) {
+    if (_arrivalAnimationStartedAt.isEmpty) return null;
+    for (final message in entry.messages) {
+      final startedAt = _arrivalAnimationStartedAt[message.id];
+      if (startedAt != null) return startedAt;
+      if (message.localEchoId != 0) {
+        final echoStartedAt = _arrivalAnimationStartedAt[message.localEchoId];
+        if (echoStartedAt != null) return echoStartedAt;
+      }
+    }
+    return null;
   }
 
   /// Washes the row holding a search hit or a just-opened reply destination.

@@ -67,7 +67,11 @@ void main() {
         .setMockMethodCallHandler(SystemChannels.platform, null);
   });
 
-  Future<void> pumpBubble(WidgetTester tester, String text) async {
+  Future<void> pumpBubble(
+    WidgetTester tester,
+    String text, {
+    List<MessageTextEntity> entities = const [],
+  }) async {
     final preferences = await SharedPreferences.getInstance();
     final theme = ThemeController(preferences);
     addTearDown(theme.dispose);
@@ -76,6 +80,7 @@ void main() {
       isOutgoing: false,
       text: text,
       date: 1,
+      textEntities: entities,
       contentType: 'messageText',
     );
     await tester.pumpWidget(
@@ -199,5 +204,93 @@ void main() {
     );
     expect(messageTextBubblePadding.horizontal, 22);
     expect(messageTextBubblePadding.vertical, 16);
+  });
+
+  testWidgets('the pressed link carries a select tint while its menu is open', (
+    tester,
+  ) async {
+    const text = 'visit https://example.com/page now';
+    await pumpBubble(tester, text);
+
+    TextSpan linkSpan() {
+      final widget = tester
+          .widgetList<RichText>(find.byType(RichText))
+          .firstWhere(
+            (rich) => rich.text.toPlainText().contains('example.com'),
+          );
+      late TextSpan found;
+      widget.text.visitChildren((span) {
+        if (span is TextSpan && (span.text ?? '').contains('example.com')) {
+          found = span;
+          return false;
+        }
+        return true;
+      });
+      return found;
+    }
+
+    expect(linkSpan().style?.backgroundColor, isNull);
+
+    await tester.longPressAt(
+      pointOver(
+        tester,
+        text.indexOf('example'),
+        paragraphContaining: 'example.com',
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('message-link-menu')), findsOneWidget);
+    expect(
+      linkSpan().style?.backgroundColor,
+      isNotNull,
+      reason:
+          'the link the menu belongs to must read as selected, the way '
+          'exteraless paints chat_linkSelectBackground',
+    );
+
+    await tester.tapAt(const Offset(4, 4));
+    await tester.pumpAndSettle();
+    expect(linkSpan().style?.backgroundColor, isNull);
+  });
+
+  testWidgets('a fence\'s edge newlines add no blank strip to a code block', (
+    tester,
+  ) async {
+    const framed = '\ncode line\n';
+    await pumpBubble(
+      tester,
+      framed,
+      entities: const [
+        MessageTextEntity(
+          offset: 0,
+          length: framed.length,
+          type: 'textEntityTypePreCode',
+          language: 'dart',
+        ),
+      ],
+    );
+    final framedHeight = tester
+        .getSize(find.byKey(const ValueKey('message-code-block-7-1-10')))
+        .height;
+
+    const bare = 'code line';
+    await pumpBubble(
+      tester,
+      bare,
+      entities: const [
+        MessageTextEntity(
+          offset: 0,
+          length: bare.length,
+          type: 'textEntityTypePreCode',
+          language: 'dart',
+        ),
+      ],
+    );
+    final bareHeight = tester
+        .getSize(find.byKey(const ValueKey('message-code-block-7-0-9')))
+        .height;
+
+    // Two unfiltered newlines would paint two extra empty code lines.
+    expect(framedHeight, closeTo(bareHeight, 0.5));
   });
 }

@@ -338,60 +338,96 @@ extension _ChatViewTranslationSummary on _ChatViewState {
 
   void _scheduleChatLanguageDetection({bool force = false}) {
     if (!_hasAvailableTranslationOption ||
+        !_chatTranslationSupported ||
         !_translation.translateChats ||
         _chatLanguageDetectionRunning) {
       return;
     }
+    final samples = automaticTranslationLanguageSamples(_vm.messages);
+    if (samples.isEmpty) return;
+    final newestId = samples.last.messageId;
     if (!force && _chatLanguageDetectionComplete) {
       final detectedAt = _chatLanguageDetectedAt;
-      if (_detectedChatLanguage != null &&
+      if (_chatTranslationSettingsKey == _translationSettingsKey &&
+          _chatLanguageDetectionNewestMessageId == newestId &&
           detectedAt != null &&
           DateTime.now().difference(detectedAt) < const Duration(hours: 1)) {
         return;
       }
     }
-    final samples = automaticTranslationLanguageSamples(_vm.messages);
-    if (samples.isEmpty) return;
-    final newestId = _vm.messages.reversed
-        .firstWhere(
-          (message) =>
-              !message.isOutgoing &&
-              !message.isService &&
-              automaticTranslationSourceText(message).trim().length >= 10,
-          orElse: () => _vm.messages.last,
-        )
-        .id;
-    if (!force && _chatLanguageDetectionComplete) {
-      if (_chatLanguageDetectionNewestMessageId == newestId) return;
-    }
     _chatLanguageDetectionRunning = true;
     unawaited(() async {
-      final detections = await Future.wait(
-        samples.map(NativeTranslationApi.identifyLanguage),
-      );
+      // A message's language is a property of the message, not of the
+      // translation target: reuse every detection already made so switching
+      // the target or flipping a "do not translate" language re-evaluates the
+      // classifier without asking the platform again.
+      final evidenceById = <int, AutomaticTranslationLanguageEvidence>{};
+      final missing = <AutomaticTranslationLanguageSample>[];
+      for (final sample in samples) {
+        final cached = ChatTranslationLanguageCache.shared.read(
+          accountSlot: _sessionKey.accountSlot,
+          chatId: widget.chatId,
+          messageId: sample.messageId,
+        );
+        if (cached != null) {
+          evidenceById[sample.messageId] = cached;
+        } else {
+          missing.add(sample);
+        }
+      }
+      final detections = await Future.wait([
+        for (final sample in missing)
+          NativeTranslationApi.identifyLanguage(sample.text).then((detected) {
+            final evidence = AutomaticTranslationLanguageEvidence(
+              languageCode: detected?.languageCode ?? 'und',
+              confidence: detected?.confidence ?? 0,
+              characterCount: sample.text.runes.length,
+            );
+            ChatTranslationLanguageCache.shared.write(
+              accountSlot: _sessionKey.accountSlot,
+              chatId: widget.chatId,
+              messageId: sample.messageId,
+              evidence: evidence,
+            );
+            return evidence;
+          }),
+      ]);
+      for (var index = 0; index < missing.length; index++) {
+        evidenceById[missing[index].messageId] = detections[index];
+      }
       final evidence = <AutomaticTranslationLanguageEvidence>[
-        for (var index = 0; index < samples.length; index++)
-          if (detections[index] case final detected?)
-            AutomaticTranslationLanguageEvidence(
-              languageCode: detected.languageCode,
-              confidence: detected.confidence,
-              characterCount: samples[index].runes.length,
-            ),
+        for (final sample in samples)
+          evidenceById[sample.messageId] ??
+              AutomaticTranslationLanguageEvidence(
+                languageCode: 'und',
+                confidence: 0,
+                characterCount: sample.text.runes.length,
+              ),
       ];
       final detected = dominantAutomaticTranslationLanguage(evidence);
+      final decision = decideChatTranslation(
+        evidence: evidence,
+        shouldTranslate: _translation.shouldTranslateLanguage,
+        translating: _automaticTranslationEnabled,
+      );
+      final settingsKey = _translationSettingsKey;
       if (!mounted) return;
       _chatLanguageDetectionRunning = false;
       _chatLanguageDetectionComplete = true;
       _chatLanguageDetectionNewestMessageId = newestId;
       _chatLanguageDetectedAt = DateTime.now();
       _detectedChatLanguage = detected;
+      _chatTranslatable = decision.translatable;
+      _chatTranslationSettingsKey = settingsKey;
       ChatHeaderStateCache.updateLanguageState(
-        accountSlot: TdClient.shared.activeSlot,
+        accountSlot: _sessionKey.accountSlot,
         chatId: widget.chatId,
         detectedChatLanguage: detected,
         complete: true,
         detectedAt: DateTime.now(),
         newestMessageId: newestId,
+        translatable: decision.translatable,
+        translationSettingsKey: settingsKey,
       );
       _scheduleAutomaticTranslations();
       _updateState(() {});
@@ -418,13 +454,19 @@ extension _ChatViewTranslationSummary on _ChatViewState {
     _autoTranslationRunning = true;
     if (mounted) _updateState(() {});
     try {
-      // The pass walks every loaded message (paging older history must keep
-      // translating), with the messages actually on screen first.
-      final candidates = automaticTranslationLoadedCandidates(
+      // A message that failed is not retried while it stays in the window,
+      // but leaving the window forgets the failure — scrolling back asks the
+      // provider again, like exteraless's next checkTranslation.
+      _forgetFailedTranslationsOutsideViewport();
+      // exteraless translates only the messages around the viewport: the
+      // visible range extended by seven ids on each side. Scrolling publishes
+      // the new viewport and the next page is translated when it is about to
+      // be read; the loaded history is never walked in the background.
+      final candidates = automaticTranslationViewportCandidates(
         _vm.messages,
+        visibleMessageIds: _viewportMessageIds,
         targetLanguageCode: _translationTargetLanguage(_translation),
         excludedMessageIds: _autoTranslationFailedMessageIds,
-        visibleMessageIds: _viewportMessageIds,
       );
       for (final message in candidates) {
         if (!mounted || !_automaticTranslationEnabled) break;
@@ -434,9 +476,13 @@ extension _ChatViewTranslationSummary on _ChatViewState {
           allowWhenManualTranslationDisabled: true,
           sourceLanguageCode: _detectedChatLanguage ?? 'autodetect',
         );
-        if (translated) {
+        final landed = message.translationText?.trim().isNotEmpty ?? false;
+        if (translated && landed) {
           _autoTranslatedMessageIds.add(message.id);
         } else {
+          // Whatever the reason, this message did not produce a translation
+          // this pass; walking it again on the next pass would spin (and for
+          // an empty provider answer, forever).
           _autoTranslationFailedMessageIds.add(message.id);
         }
       }
@@ -448,6 +494,22 @@ extension _ChatViewTranslationSummary on _ChatViewState {
         _scheduleAutomaticTranslations();
       }
     }
+  }
+
+  void _forgetFailedTranslationsOutsideViewport() {
+    if (_autoTranslationFailedMessageIds.isEmpty ||
+        _viewportMessageIds.isEmpty) {
+      return;
+    }
+    var minId = 1 << 62;
+    var maxId = -(1 << 62);
+    for (final id in _viewportMessageIds) {
+      if (id < minId) minId = id;
+      if (id > maxId) maxId = id;
+    }
+    final from = minId - automaticTranslationViewportNeighborDistance;
+    final to = maxId + automaticTranslationViewportNeighborDistance;
+    _autoTranslationFailedMessageIds.removeWhere((id) => id < from || id > to);
   }
 
   void _toggleAutomaticTranslation() {

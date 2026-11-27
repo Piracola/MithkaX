@@ -67,7 +67,7 @@ void main() {
     await tester.pump();
   }
 
-  testWidgets('tabs sit above the content by default and offer a move down', (
+  testWidgets('tabs sit above the content and offer the side dock', (
     tester,
   ) async {
     var toggles = 0;
@@ -86,16 +86,38 @@ void main() {
     );
     expect(tabs.bottom, lessThanOrEqualTo(content.top));
     expect(composer.top, greaterThanOrEqualTo(content.bottom));
+    // exteraless's first step from the top is the side dock.
     expect(
       find.byWidgetPredicate(
         (widget) =>
-            widget is AppIcon && identical(widget.icon, HeroAppIcons.arrowDown),
+            widget is AppIcon && identical(widget.icon, HeroAppIcons.arrowLeft),
       ),
       findsOneWidget,
     );
 
     await tester.tap(find.byKey(const ValueKey('topic-tabs-placement-toggle')));
     expect(toggles, 1);
+  });
+
+  testWidgets('a side placement docks the column beside the content', (
+    tester,
+  ) async {
+    await pumpHost(
+      tester,
+      placement: TopicTabsPlacement.side,
+      onTogglePlacement: () {},
+    );
+
+    final navigation = tester.getRect(
+      find.byKey(const ValueKey('topic-navigation-left')),
+    );
+    final content = tester.getRect(find.byKey(const ValueKey('topic-content')));
+    final composer = tester.getRect(
+      find.byKey(const ValueKey('topic-composer')),
+    );
+    expect(navigation.left, 0);
+    expect(content.left, greaterThanOrEqualTo(navigation.right));
+    expect(composer.top, greaterThanOrEqualTo(content.bottom));
   });
 
   testWidgets('the moved bar sits between the content and the composer', (
